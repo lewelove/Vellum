@@ -40,7 +40,7 @@
   }
 
   .album-cover:hover {
-    filter: brightness(1.08);
+    filter: brightness(1.04);
   }
 
   /* Redundant safety for keyboard interaction states */
@@ -66,7 +66,7 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    margin-bottom: 2px;
+    margin-bottom: 1px;
   }
 
   .album-artist {

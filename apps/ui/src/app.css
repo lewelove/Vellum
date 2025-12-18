@@ -19,23 +19,27 @@
 /* --- 2. DESIGN TOKENS (VARIABLES) --- */
 :root {
   /* Surfaces */
-  --grey-100: oklch(0.20 0 0); /* The Void (Deepest Background) */
-  --grey-200: oklch(0.28 0 0); /* The Surface (Card/Grid Default) */
-  --grey-300: oklch(0.42 0 0); /* The Elevation (Drawer/Hover/Active) */
-  
-  /* Content */
-  --grey-400: oklch(0.68 0 0); /* The Ghost (Artist/Metadata/Numbers) */
-  --grey-500: oklch(0.87 0 0); /* The Signal (Titles/High Contrast) */
+  --0: oklch(0.18 0 0);
+  --50: oklch(0.22 0 0);
+  --100: oklch(0.26 0 0);
+  --200: oklch(0.34 0 0);
+  --300: oklch(0.42 0 0);
+  --400: oklch(0.50 0 0);
+  --500: oklch(0.58 0 0);
+  --600: oklch(0.66 0 0);
+  --700: oklch(0.74 0 0);
+  --750: oklch(0.78 0 0);
+  --800: oklch(0.82 0 0);
 
   /* Semantic Mappings */
-  --bg-color: var(--grey-100);
-  --card-bg: var(--grey-200);
-  --drawer-bg: var(--grey-100);
+  --bg-color: var(--50);
+  --card-bg: var(--200);
+  --drawer-bg: var(--100);
   
-  --text-main: var(--grey-500);
-  --text-accent: var(--grey-400);
+  --text-main: var(--750);
+  --text-accent: var(--600);
   
-  --highlight: var(--grey-500);
+  --highlight: var(--800);
   --brand-red: #EA4335; 
   
   --font-stack: 'Noto Sans', -apple-system, BlinkMacSystemFont, sans-serif;
