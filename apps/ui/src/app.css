@@ -1,196 +1,108 @@
-/* --- GLOBAL RESET & THEME --- */
-:root {
-  --bg-color: #161616;
-  --drawer-bg: #222222;
-  --text-main: #E0E0E0;
-  --text-accent: #4285F4;
-  --highlight: #EAEAEA;
-  --brand-red: #EA4335;
-  --font-stack: monospace;
+/* noto-sans-regular - latin */
+@font-face {
+  font-display: swap; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */
+  font-family: 'Noto Sans';
+  font-style: normal;
+  font-weight: 400;
+  src: url('../fonts/noto-sans-v42-latin-regular.woff2') format('woff2'); /* Chrome 36+, Opera 23+, Firefox 39+, Safari 12+, iOS 10+ */
 }
 
-body {
+/* noto-sans-700 - latin */
+@font-face {
+  font-display: swap; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */
+  font-family: 'Noto Sans';
+  font-style: normal;
+  font-weight: 700;
+  src: url('../fonts/noto-sans-v42-latin-700.woff2') format('woff2'); /* Chrome 36+, Opera 23+, Firefox 39+, Safari 12+, iOS 10+ */
+}
+
+/* --- 2. DESIGN TOKENS (VARIABLES) --- */
+:root {
+  /* Surfaces */
+  --grey-100: oklch(0.20 0 0); /* The Void (Deepest Background) */
+  --grey-200: oklch(0.28 0 0); /* The Surface (Card/Grid Default) */
+  --grey-300: oklch(0.42 0 0); /* The Elevation (Drawer/Hover/Active) */
+  
+  /* Content */
+  --grey-400: oklch(0.68 0 0); /* The Ghost (Artist/Metadata/Numbers) */
+  --grey-500: oklch(0.87 0 0); /* The Signal (Titles/High Contrast) */
+
+  /* Semantic Mappings */
+  --bg-color: var(--grey-100);
+  --card-bg: var(--grey-200);
+  --drawer-bg: var(--grey-100);
+  
+  --text-main: var(--grey-500);
+  --text-accent: var(--grey-400);
+  
+  --highlight: var(--grey-500);
+  --brand-red: #EA4335; /* Functional Accent for "Now Playing" */
+  
+  --font-stack: 'Noto Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --transition-smooth: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* --- 3. CORE ENVIRONMENT --- */
+html, body {
   margin: 0;
   padding: 0;
   background-color: var(--bg-color);
   color: var(--text-main);
   font-family: var(--font-stack);
-  overflow: hidden; 
+  overflow: hidden; /* Lock the viewport for the kinetic engine */
   height: 100vh;
   width: 100vw;
+  
+  /* Perceptual Rendering Optimization */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
-/* --- VIEWPORT CONTAINER --- */
+/* --- 4. KINETIC VIEWPORT STRUCTURE --- */
 main {
   width: 100%;
   height: 100vh;
   box-sizing: border-box;
   overflow: hidden; 
-  padding: 0;
   position: relative;
 }
 
-/* --- GPU CONTENT LAYER --- */
+/* The GPU-Accelerated Layer */
 .scroll-content {
   width: 100%;
-  padding: 20px 0; /* Vertical breathing room */
+  padding: 40px 0; /* Breathing room for the top/bottom of the grid */
   box-sizing: border-box;
+  
+  /* Prepare GPU for Transform */
   will-change: transform;
   transform-style: preserve-3d;
   backface-visibility: hidden;
   
-  /* Flex column helps us align the rows centrally */
   display: flex;
   flex-direction: column;
 }
 
-/* --- CUSTOM SCROLLBAR --- */
-.custom-scrollbar-track {
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 6px;
-  height: 100%;
-  background: transparent;
-  z-index: 100;
-}
-
-.custom-scrollbar-thumb {
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 100%;
-  background-color: rgba(255, 255, 255, 0.15);
-  border-radius: 3px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.custom-scrollbar-thumb:hover {
-  background-color: rgba(255, 255, 255, 0.3);
-}
-
-/* --- ROW LAYOUT --- */
+/* --- 5. GRID BRIDGE --- */
+/* 
+   This remains global to ensure the LayoutManager and components 
+   share the same structural alignment logic. 
+*/
 .row {
   display: flex;
   flex-wrap: nowrap;
-  
-  /* LEFT ALIGN ITEMS */
   justify-content: flex-start;
-  
-  /* 
-     We will apply a specific width and margin: 0 auto 
-     via inline styles in Svelte to center the row block 
-  */
-  margin: 0 auto;
+  margin: 0 auto; /* Centered via math in LayoutManager */
   box-sizing: border-box;
 }
 
-/* --- ALBUM UNIT --- */
-.album-unit {
-  display: flex;
-  flex-direction: column;
-  gap: 8px; 
-  flex-shrink: 0; 
+/* --- 6. UTILITIES --- */
+::selection {
+  background-color: var(--grey-300);
+  color: var(--grey-500);
 }
 
-/* --- COVER --- */
-.album-cover {
-  border: none;
-  padding: 0;
-  cursor: pointer;
-  border-radius: 0;
-  transition: filter 0.2s;
-  display: block;
-}
-
-.album-cover:hover {
-  filter: brightness(1.2);
-}
-
-.album-cover.active {
-  outline: 2px solid var(--highlight);
-  outline-offset: 2px;
-  z-index: 2;
-}
-
-/* --- INFO --- */
-.album-info {
-  display: flex;
-  flex-direction: column;
-  text-align: left;
-  overflow: hidden;
-}
-
-.album-title {
-  display: block;
-  font-weight: bold;
-  font-size: 14px;
-  color: var(--text-main);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  margin-bottom: 2px;
-}
-
-.album-artist {
-  display: block;
-  font-size: 12px;
-  color: var(--text-accent); 
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* --- DRAWER --- */
-.drawer {
-  background-color: var(--drawer-bg);
-  border-left: 4px solid var(--brand-red);
-  box-sizing: border-box;
-  animation: slideDown 0.2s ease-out;
-  margin-bottom: 20px; 
-  
-  /* Center the drawer block just like the rows */
-  margin-left: auto;
-  margin-right: auto;
-}
-
-.drawer-content {
-  padding: 20px;
-}
-
-.drawer h2 { 
-  margin: 0 0 5px 0; 
-  color: var(--highlight); 
-  font-size: 24px; 
-  font-weight: normal; 
-}
-
-.drawer h3 { 
-  margin: 0 0 20px 0; 
-  color: var(--text-accent); 
-  font-size: 16px; 
-  font-weight: normal; 
-}
-
-.drawer ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.drawer li {
-  padding: 8px 0;
-  border-bottom: 1px solid #333;
-  font-size: 14px;
-  color: var(--text-main);
-}
-
-.drawer li:last-child { 
-  border-bottom: none; 
-}
-
-@keyframes slideDown {
-  from { opacity: 0; transform: translateY(-10px); }
-  to { opacity: 1; transform: translateY(0); }
+/* Hide default scrollbars for the custom engine */
+::-webkit-scrollbar {
+  display: none;
 }

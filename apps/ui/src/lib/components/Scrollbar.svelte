@@ -18,3 +18,30 @@
     style="height: {thumbHeight}px; transform: translateY({thumbY}px);"
   ></div>
 </div>
+
+<style>
+  .custom-scrollbar-track {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 6px;
+    height: 100%;
+    background: transparent;
+    z-index: 100;
+  }
+
+  .custom-scrollbar-thumb {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 100%;
+    background-color: rgba(255, 255, 255, 0.15);
+    border-radius: 3px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+  }
+
+  .custom-scrollbar-thumb:hover {
+    background-color: rgba(255, 255, 255, 0.3);
+  }
+</style>

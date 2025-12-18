@@ -1,12 +1,12 @@
 <script>
-  import { onMount, tick, onDestroy } from "svelte";
-  import { ScrollEngine } from "./lib/engines/scroll.svelte.js";
-  import { LayoutManager } from "./lib/engines/layout.svelte.js";
-  import { getLibrary } from "./lib/api.js";
+import { onMount, tick, onDestroy } from "svelte";
+  import { ScrollEngine } from "$lib/engines/scroll.svelte.js";
+  import { LayoutManager } from "$lib/engines/layout.svelte.js";
+  import { getLibrary } from "$lib/api.js";
   
-  import Album from "./lib/components/Album.svelte";
-  import Drawer from "./lib/components/Drawer.svelte";
-  import Scrollbar from "./lib/components/Scrollbar.svelte";
+  import Album from "$lib/components/Album.svelte";
+  import Drawer from "$lib/components/Drawer.svelte";
+  import Scrollbar from "$lib/components/Scrollbar.svelte";
 
   // State & Engines
   let albums = $state([]);
