@@ -17,21 +17,21 @@
 <style>
   .drawer {
     background-color: var(--drawer-bg);
+    
     /* 
-       REMOVED: border-left: 4px solid var(--brand-red); 
-       The drawer now integrates seamlessly into the background.
+       ARCHITECTURAL TWEAK: 
+       Applying a 1px hairline border to define volume. 
+       Using --grey-200 provides a subtle 8% lightness contrast 
+       against the --grey-100 background.
     */
+    border: 1px solid var(--grey-300);
+    
     box-sizing: border-box;
     animation: slideDown 0.2s ease-out;
     margin: 0 auto 20px auto; 
   }
 
   .drawer-content {
-    /* 
-       Visual Note: You may want to adjust this padding if the 
-       lack of a border makes the text feel too "un-anchored" 
-       on the left side. 
-    */
     padding: 20px;
   }
 
