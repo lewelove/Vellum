@@ -1,19 +1,19 @@
 /* noto-sans-regular - latin */
 @font-face {
-  font-display: swap; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */
+  font-display: swap;
   font-family: 'Noto Sans';
   font-style: normal;
   font-weight: 400;
-  src: url('../fonts/noto-sans-v42-latin-regular.woff2') format('woff2'); /* Chrome 36+, Opera 23+, Firefox 39+, Safari 12+, iOS 10+ */
+  src: url('../fonts/noto-sans-v42-latin-regular.woff2') format('woff2');
 }
 
 /* noto-sans-700 - latin */
 @font-face {
-  font-display: swap; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */
+  font-display: swap;
   font-family: 'Noto Sans';
   font-style: normal;
   font-weight: 700;
-  src: url('../fonts/noto-sans-v42-latin-700.woff2') format('woff2'); /* Chrome 36+, Opera 23+, Firefox 39+, Safari 12+, iOS 10+ */
+  src: url('../fonts/noto-sans-v42-latin-700.woff2') format('woff2');
 }
 
 /* --- 2. DESIGN TOKENS (VARIABLES) --- */
@@ -36,7 +36,7 @@
   --text-accent: var(--grey-400);
   
   --highlight: var(--grey-500);
-  --brand-red: #EA4335; /* Functional Accent for "Now Playing" */
+  --brand-red: #EA4335; 
   
   --font-stack: 'Noto Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   --transition-smooth: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
@@ -49,17 +49,26 @@ html, body {
   background-color: var(--bg-color);
   color: var(--text-main);
   font-family: var(--font-stack);
-  overflow: hidden; /* Lock the viewport for the kinetic engine */
+  overflow: hidden; 
   height: 100vh;
   width: 100vw;
   
-  /* Perceptual Rendering Optimization */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
 }
 
-/* --- 4. KINETIC VIEWPORT STRUCTURE --- */
+/* --- 4. GLOBAL INTERACTION RESET --- */
+/* 
+   ARCHITECTURAL DECISION: Total Focus Suppression.
+   This removes the browser's navigation quirks globally.
+*/
+*:focus, *:active, *:focus-visible {
+  outline: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+}
+
+/* --- 5. KINETIC VIEWPORT STRUCTURE --- */
 main {
   width: 100%;
   height: 100vh;
@@ -68,41 +77,32 @@ main {
   position: relative;
 }
 
-/* The GPU-Accelerated Layer */
 .scroll-content {
   width: 100%;
-  padding: 40px 0; /* Breathing room for the top/bottom of the grid */
+  padding: 40px 0;
   box-sizing: border-box;
-  
-  /* Prepare GPU for Transform */
   will-change: transform;
   transform-style: preserve-3d;
   backface-visibility: hidden;
-  
   display: flex;
   flex-direction: column;
 }
 
-/* --- 5. GRID BRIDGE --- */
-/* 
-   This remains global to ensure the LayoutManager and components 
-   share the same structural alignment logic. 
-*/
+/* --- 6. GRID BRIDGE --- */
 .row {
   display: flex;
   flex-wrap: nowrap;
   justify-content: flex-start;
-  margin: 0 auto; /* Centered via math in LayoutManager */
+  margin: 0 auto;
   box-sizing: border-box;
 }
 
-/* --- 6. UTILITIES --- */
+/* --- 7. UTILITIES --- */
 ::selection {
   background-color: var(--grey-300);
   color: var(--grey-500);
 }
 
-/* Hide default scrollbars for the custom engine */
 ::-webkit-scrollbar {
   display: none;
 }

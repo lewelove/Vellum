@@ -29,17 +29,27 @@
     cursor: pointer;
     transition: filter 0.2s;
     display: block;
+
+    /* 
+       Ensure component-level isolation from browser focus chrome. 
+       !important is used to override any agent stylesheets.
+    */
+    outline: none !important;
+    box-shadow: none !important;
+    -webkit-tap-highlight-color: transparent;
   }
 
   .album-cover:hover {
-    /* VISUAL TWEAK: Reduced brightness boost from 1.2 to 1.08 for subtlety */
     filter: brightness(1.08);
   }
 
-  /* 
-     REMOVED: .album-cover.active rule 
-     We rely on the Drawer opening to indicate state, removing the white border.
-  */
+  /* Redundant safety for keyboard interaction states */
+  .album-cover:focus, 
+  .album-cover:active,
+  .album-cover:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+  }
 
   .album-info {
     display: flex;

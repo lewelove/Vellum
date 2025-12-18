@@ -1,5 +1,5 @@
 <script>
-import { onMount, tick, onDestroy } from "svelte";
+  import { onMount, tick, onDestroy } from "svelte";
   import { ScrollEngine } from "$lib/engines/scroll.svelte.js";
   import { LayoutManager } from "$lib/engines/layout.svelte.js";
   import { getLibrary } from "$lib/api.js";
@@ -78,10 +78,18 @@ import { onMount, tick, onDestroy } from "svelte";
         {/each}
       </div>
 
+      <!-- Spatial Awareness Logic: Find the active album and its column index -->
       {#if row.find(a => a.id === expandedAlbumId)}
+        {@const activeAlbum = row.find(a => a.id === expandedAlbumId)}
+        {@const activeIndexInRow = row.findIndex(a => a.id === expandedAlbumId)}
+        
         <Drawer 
-          activeAlbum={row.find(a => a.id === expandedAlbumId)} 
+          {activeAlbum}
+          {activeIndexInRow}
           width={layout.gridWidth} 
+          cardSize={layout.cardSize}
+          gap={layout.gap}
+          pointerSize={24}
         />
       {/if}
     {/each}
