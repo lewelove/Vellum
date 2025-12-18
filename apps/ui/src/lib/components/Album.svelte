@@ -29,16 +29,25 @@
     cursor: pointer;
     transition: filter 0.2s;
     display: block;
+    
+    /* 
+       ARCHITECTURAL FIX: 
+       Remove the browser's default focus ring that "sticks" after a click.
+    */
+    outline: none;
   }
 
   .album-cover:hover {
-    filter: brightness(1.2);
+    filter: brightness(1.08);
   }
 
-  .album-cover.active {
-    outline: 2px solid var(--highlight);
-    outline-offset: 2px;
-    z-index: 2;
+  /* 
+     Ensure that even when the button is 'active' or 'focused' 
+     via mouse/touch, no browser borders appear.
+  */
+  .album-cover:focus,
+  .album-cover:active {
+    outline: none;
   }
 
   .album-info {

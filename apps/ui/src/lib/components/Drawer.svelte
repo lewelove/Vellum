@@ -17,13 +17,21 @@
 <style>
   .drawer {
     background-color: var(--drawer-bg);
-    border-left: 4px solid var(--brand-red);
+    /* 
+       REMOVED: border-left: 4px solid var(--brand-red); 
+       The drawer now integrates seamlessly into the background.
+    */
     box-sizing: border-box;
     animation: slideDown 0.2s ease-out;
     margin: 0 auto 20px auto; 
   }
 
   .drawer-content {
+    /* 
+       Visual Note: You may want to adjust this padding if the 
+       lack of a border makes the text feel too "un-anchored" 
+       on the left side. 
+    */
     padding: 20px;
   }
 
