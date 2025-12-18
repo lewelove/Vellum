@@ -1,216 +1,89 @@
 <script>
   import { onMount, tick, onDestroy } from "svelte";
-
-  // --- DATA ---
-  let albums = [];
-  let expandedAlbumId = null;
+  import { ScrollEngine } from "./lib/engines/scroll.svelte.js";
+  import { LayoutManager } from "./lib/engines/layout.svelte.js";
+  import { getLibrary } from "./lib/api.js";
   
-  // --- LAYOUT CONSTANTS ---
-  const CARD_SIZE = 200;
-  const GAP = 20;
+  import Album from "./lib/components/Album.svelte";
+  import Drawer from "./lib/components/Drawer.svelte";
+  import Scrollbar from "./lib/components/Scrollbar.svelte";
 
-  // --- VIEWPORT STATE ---
-  let containerWidth = 0;
-  let viewportHeight = 0;
-  let contentHeight = 0;
+  // State & Engines
+  let albums = $state([]);
+  let expandedAlbumId = $state(null);
+  let viewportHeight = $state(0);
+  let contentHeight = $state(0);
+  
+  const scroll = new ScrollEngine();
+  const layout = new LayoutManager();
 
-  // --- PHYSICS ENGINE STATE ---
-  let currentY = 0;      
-  let targetIndex = 0;   
-  let targetY = 0;       
-  let rafId;             
-  let wheelAccumulator = 0; 
-
-  // DOM References
+  // DOM Refs
   let contentEl;
-  let rowElements = []; 
+  let rowElements = [];
+  let rafId;
 
-  // --- SCROLLBAR STATE ---
-  // We clamp scrollProgress for visual purposes only (scrollbar shouldn't fly off screen)
-  $: scrollProgress = contentHeight > viewportHeight 
-      ? Math.min(1, Math.max(0, currentY / (contentHeight - viewportHeight)))
-      : 0;
-      
-  $: thumbHeight = contentHeight > viewportHeight 
-      ? Math.max(50, (viewportHeight / contentHeight) * viewportHeight) 
-      : 0;
-      
-  $: thumbY = scrollProgress * (viewportHeight - thumbHeight);
+  // Derived Layout
+  let rows = $derived(layout.chunk(albums));
 
-
-  // --- PHYSICS LOOP ---
   function loop() {
-    // 1. Calculate Target Y
-    if (rowElements[targetIndex]) {
-      // 20 is the top padding
-      targetY = rowElements[targetIndex].offsetTop - 20;
-    } else {
-      targetY = 0;
-    }
-
-    // 2. Bottom Limit Logic
-    // We intentionally DO NOT clamp targetY to maxScroll here.
-    // This ensures the last row can always snap to the top, 
-    // even if it creates empty space at the bottom.
-    // However, we prevent negative scrolling (top bound).
-    if (targetY < 0) targetY = 0;
-
-    // 3. Lerp (Smooth Animation)
-    const diff = targetY - currentY;
-    
-    if (Math.abs(diff) > 0.5) {
-      currentY += diff * 0.12; 
-    } else {
-      currentY = targetY;
-    }
-
-    // 4. Apply Transform
+    scroll.update(rowElements);
     if (contentEl) {
-      contentEl.style.transform = `translate3d(0, -${currentY}px, 0)`;
+      contentEl.style.transform = `translate3d(0, -${scroll.currentY}px, 0)`;
     }
-
     rafId = requestAnimationFrame(loop);
   }
 
-  // --- INPUT HANDLER ---
-  function handleWheel(e) {
-    e.preventDefault();
-    wheelAccumulator += e.deltaY;
-    const THRESHOLD = 40; 
-
-    if (Math.abs(wheelAccumulator) > THRESHOLD) {
-      const direction = wheelAccumulator > 0 ? 1 : -1;
-      targetIndex += direction;
-      
-      // Strict Index Bounding
-      if (targetIndex < 0) targetIndex = 0;
-      if (targetIndex >= rows.length) targetIndex = rows.length - 1;
-
-      wheelAccumulator = 0;
-    }
+  async function toggleAlbum(id) {
+    expandedAlbumId = expandedAlbumId === id ? null : id;
+    const rowIndex = rows.findIndex(row => row.find(a => a.id === id));
+    if (rowIndex !== -1) scroll.targetIndex = rowIndex;
+    
+    await tick();
+    if (contentEl) contentHeight = contentEl.scrollHeight;
   }
 
-  // --- LIFECYCLE ---
   onMount(async () => {
     loop();
     try {
-      const response = await fetch("/api/library");
-      if (response.ok) {
-        albums = await response.json();
-        await tick();
-        updateDimensions();
-      }
-    } catch (error) {
-      console.error("Backend connection failed.", error);
-    }
+      albums = await getLibrary();
+      await tick();
+      if (contentEl) contentHeight = contentEl.scrollHeight;
+    } catch (e) { console.error(e); }
   });
 
-  onDestroy(() => {
-    if (rafId) cancelAnimationFrame(rafId);
-  });
-
-  function updateDimensions() {
-    if (contentEl) {
-      contentHeight = contentEl.scrollHeight;
-    }
-  }
-
-  // --- GRID MATH (CENTERED LOGIC) ---
-  // 40px subtraction accounts for wrapper padding (20px left + 20px right)
-  $: availableWidth = Math.max(0, containerWidth - 40);
-  
-  $: cols = Math.floor((availableWidth + GAP) / (CARD_SIZE + GAP)) || 1;
-  
-  // Strict Grid Width: (Cols * Card) + (Gaps)
-  // We use this to force the rows to be exactly this wide, centered via margin:auto
-  $: gridWidth = (cols * CARD_SIZE) + ((cols - 1) * GAP);
-  
-  $: rows = chunkArray(albums, cols);
-  $: if (rows) { tick().then(updateDimensions); }
-
-  function chunkArray(arr, size) {
-    const results = [];
-    for (let i = 0; i < arr.length; i += size) {
-      results.push(arr.slice(i, i + size));
-    }
-    return results;
-  }
-
-  async function toggleAlbum(id) {
-    // 1. Toggle State
-    expandedAlbumId = expandedAlbumId === id ? null : id;
-    
-    // 2. Find the row index of the clicked album
-    //    We do this to snap the view to the clicked row
-    const rowIndex = rows.findIndex(row => row.find(a => a.id === id));
-    if (rowIndex !== -1) {
-      targetIndex = rowIndex;
-    }
-
-    // 3. Update Layout
-    await tick();
-    updateDimensions();
-  }
+  onDestroy(() => cancelAnimationFrame(rafId));
 </script>
 
 <main 
-  bind:clientWidth={containerWidth} 
+  bind:clientWidth={layout.containerWidth} 
   bind:clientHeight={viewportHeight}
-  on:wheel={handleWheel}
+  onwheel={(e) => { e.preventDefault(); scroll.handleWheel(e, rows.length); }}
 >
-  
-  <!-- CUSTOM SCROLLBAR -->
-  <div class="custom-scrollbar-track">
-    <div 
-      class="custom-scrollbar-thumb"
-      style="height: {thumbHeight}px; transform: translateY({thumbY}px);"
-    ></div>
-  </div>
+  <Scrollbar {viewportHeight} {contentHeight} currentY={scroll.currentY} />
 
-  <!-- CONTENT LAYER -->
   <div class="scroll-content" bind:this={contentEl}>
-    
     {#each rows as row, i}
       <div 
         class="row" 
-        style="width: {gridWidth}px; gap: {GAP}px; margin-bottom: {GAP}px"
+        style="width: {layout.gridWidth}px; gap: {layout.gap}px; margin-bottom: {layout.gap}px"
         bind:this={rowElements[i]}
       >
         {#each row as album}
-          <div class="album-unit" style="width: {CARD_SIZE}px;">
-            <button 
-              class="album-cover" 
-              class:active={expandedAlbumId === album.id}
-              style="width: {CARD_SIZE}px; height: {CARD_SIZE}px; background-color: {album.color};"
-              on:click={() => toggleAlbum(album.id)}
-              aria-label="View details for {album.title}"
-            >
-            </button>
-            <div class="album-info">
-              <span class="album-title">{album.title}</span>
-              <span class="album-artist">{album.artist}</span>
-            </div>
-          </div>
+          <Album 
+            {album} 
+            size={layout.cardSize} 
+            active={expandedAlbumId === album.id}
+            onclick={() => toggleAlbum(album.id)} 
+          />
         {/each}
       </div>
 
       {#if row.find(a => a.id === expandedAlbumId)}
-        {@const activeAlbum = row.find(a => a.id === expandedAlbumId)}
-        <!-- Drawer shares the same fixed gridWidth to stay aligned -->
-        <div class="drawer" style="width: {gridWidth}px;">
-          <div class="drawer-content">
-            <h2>{activeAlbum.title}</h2>
-            <h3>{activeAlbum.artist}</h3>
-            <ul>
-              {#each activeAlbum.tracks as track}
-                <li>{track}</li>
-              {/each}
-            </ul>
-          </div>
-        </div>
+        <Drawer 
+          activeAlbum={row.find(a => a.id === expandedAlbumId)} 
+          width={layout.gridWidth} 
+        />
       {/if}
-
     {/each}
   </div>
-
 </main>
