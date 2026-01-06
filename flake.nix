@@ -42,17 +42,10 @@
             export PYTHONDONTWRITEBYTECODE=1
             
             # Setup local node_modules bin in PATH for ease of use
-            export PATH="$PWD/apps/ui/node_modules/.bin:$PATH"
+            export PATH="$PWD/ui/node_modules/.bin:$PATH"
 
-            echo ""
-            echo " 🎵 MPF2K ARCHITECTURAL ENVIRONMENT"
-            echo " ----------------------------------"
             echo " Python:  $(python --version)"
             echo " Node:    $(node --version)"
-            echo " FastAPI: Ready"
-            echo " Svelte:  Ready (Vite)"
-            echo ""
-            echo " Tip: Run 'npm run dev' from the root to start the engine."
           '';
         };
       }

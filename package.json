@@ -2,10 +2,10 @@
   "name": "mpf2k-monorepo",
   "private": true,
   "workspaces": [
-    "apps/ui"
+    "ui"
   ],
   "scripts": {
-    "ui": "npm run dev -w apps/ui",
-    "server": "python apps/server/main.py"
+    "ui": "npm run dev -w ui",
+    "server": "python server/main.py"
   }
 }

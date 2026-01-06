@@ -1,0 +1,99 @@
+@font-face {
+  font-display: swap;
+  font-family: 'Noto Sans';
+  font-style: normal;
+  font-weight: 400;
+  src: url('../fonts/noto-sans-v42-latin-regular.woff2') format('woff2');
+}
+
+@font-face {
+  font-display: swap;
+  font-family: 'Noto Sans';
+  font-style: normal;
+  font-weight: 700;
+  src: url('../fonts/noto-sans-v42-latin-700.woff2') format('woff2');
+}
+
+:root {
+  /* Palette - 11, 1B, 24, 38, 4D, 63, 7A, 92, AB, B7, CC */
+    --0: #111111;
+   --50: oklch(0.22 0 0);
+  --100: oklch(0.26 0 0);
+  --200: #242424;
+  --300: oklch(0.42 0 0);
+  --400: oklch(0.50 0 0);
+  --500: oklch(0.58 0 0);
+  --600: oklch(0.66 0 0);
+  --700: oklch(0.74 0 0);
+  --750: #CCCCCC;
+  --800: #FFFFFF;
+
+  --bg-color: var(--200);
+  --card-bg: var(--200);
+  --drawer-bg: var(--100);
+  
+  --text-main: var(--750);
+  --text-accent: var(--600);
+  
+  --highlight: var(--800);
+  --brand-red: #EA4335; 
+  
+  --font-stack: 'Noto Sans', sans-serif;
+  /* --transition-smooth: 0.25s cubic-bezier(0.4, 0, 0.2, 1); */
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-color);
+  color: var(--text-main);
+  font-family: var(--font-stack);
+  overflow: hidden; 
+  height: 100vh;
+  width: 100vw;
+  
+  -webkit-font-smoothing: subpixel-antialiased;
+  -moz-osx-font-smoothing: rgb;
+  text-rendering: auto;
+}
+
+*:focus, *:active, *:focus-visible {
+  outline: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+}
+
+main {
+  width: 100%;
+  height: 100vh;
+  box-sizing: border-box;
+  overflow: hidden; 
+  position: relative;
+}
+
+.scroll-content {
+  width: 100%;
+  padding: 40px 0;
+  box-sizing: border-box;
+  will-change: transform;
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.row {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+::selection {
+  background-color: var(--grey-300);
+  color: var(--grey-500);
+}
+
+::-webkit-scrollbar {
+  display: none;
+}
