@@ -4,7 +4,7 @@ export class LayoutManager {
   gap = 20;
 
   cols = $derived(Math.floor((Math.max(0, this.containerWidth - 40) + this.gap) / (this.cardSize + this.gap)) || 1);
-  gridWidth = $derived((this.cols * this.cardSize) + ((this.cols - 1) * this.gap));
+  gridWidth = $derived(Math.floor((this.cols * this.cardSize) + ((this.cols - 1) * this.gap)));
 
   chunk(arr) {
     const results = [];

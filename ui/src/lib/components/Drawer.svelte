@@ -19,8 +19,6 @@
 
   let pointerOffset = $derived((activeIndexInRow * (cardSize + gap)) + (cardSize / 2));
   
-  // High-Level Geometry: 
-  // We offset by half the size to keep the 'pivot' of the square on the border line.
   let topOffset = $derived(-(pointerSize / 2) - 1); 
 </script>
 

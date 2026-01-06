@@ -15,11 +15,10 @@
 }
 
 :root {
-  /* Palette - 11, 1B, 24, 38, 4D, 63, 7A, 92, AB, B7, CC */
     --0: #111111;
    --50: oklch(0.22 0 0);
   --100: oklch(0.26 0 0);
-  --200: #242424;
+  --200: #323232;
   --300: oklch(0.42 0 0);
   --400: oklch(0.50 0 0);
   --500: oklch(0.58 0 0);
@@ -39,7 +38,6 @@
   --brand-red: #EA4335; 
   
   --font-stack: 'Noto Sans', sans-serif;
-  /* --transition-smooth: 0.25s cubic-bezier(0.4, 0, 0.2, 1); */
 }
 
 html, body {
@@ -51,32 +49,24 @@ html, body {
   overflow: hidden; 
   height: 100vh;
   width: 100vw;
-  
-  -webkit-font-smoothing: subpixel-antialiased;
-  -moz-osx-font-smoothing: rgb;
+  -webkit-font-smoothing: auto;
+  -moz-osx-font-smoothing: auto;
   text-rendering: auto;
-}
-
-*:focus, *:active, *:focus-visible {
-  outline: none !important;
-  -webkit-tap-highlight-color: transparent !important;
 }
 
 main {
   width: 100%;
   height: 100vh;
   box-sizing: border-box;
-  overflow: hidden; 
   position: relative;
+  overflow: hidden; 
+  overscroll-behavior: none;
 }
 
 .scroll-content {
   width: 100%;
-  padding: 40px 0;
+  padding: 40px 0 0 0;
   box-sizing: border-box;
-  will-change: transform;
-  transform-style: preserve-3d;
-  backface-visibility: hidden;
   display: flex;
   flex-direction: column;
 }
