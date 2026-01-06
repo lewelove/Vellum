@@ -18,9 +18,9 @@
 
 /* --- 2. DESIGN TOKENS (VARIABLES) --- */
 :root {
-  /* Surfaces */
-  --0: oklch(0.18 0 0);
-  --50: oklch(0.22 0 0);
+  /* Palette - 11, 1B, 24, 38, 4D, 63, 7A, 92, AB, B7, CC */
+    --0: #111111;
+   --50: oklch(0.22 0 0);
   --100: oklch(0.26 0 0);
   --200: oklch(0.34 0 0);
   --300: oklch(0.42 0 0);
@@ -29,10 +29,10 @@
   --600: oklch(0.66 0 0);
   --700: oklch(0.74 0 0);
   --750: oklch(0.78 0 0);
-  --800: oklch(0.82 0 0);
+  --800: #CCCCCC;
 
   /* Semantic Mappings */
-  --bg-color: var(--50);
+  --bg-color: var(--0);
   --card-bg: var(--200);
   --drawer-bg: var(--100);
   
