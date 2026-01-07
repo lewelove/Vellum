@@ -8,7 +8,7 @@ export const theme = $state({
     500: "#FFFFFF",
   },
 
-  colors:{
+  colors: {
     "background-main": "200",
     "background-drawer": "100",
     "text-main": "500",
@@ -16,35 +16,46 @@ export const theme = $state({
     "border-muted": "300",
   },
 
-  layout: {
-    "grid-gap-main": 18,
-    "grid-cover-size": 200,
+  typography: {
     "font-size-title": 14,
     "font-weight-title": 400,
     "font-size-artist": 12,
     "font-weight-artist": 400,
-    "grid-text-gap-main": 8,
-    "grid-text-gap-lesser": 4,
   },
+
+  "album-grid": {
+    "gap-x": 20,
+    "gap-y": 12,
+    "cover-size": 200,
+    "text-gap-main": 8,
+    "text-gap-lesser": 4,
+  }
 
 });
 
 export function getThemeVariables() {
   let styles = "";
 
+  // Palette
   for (const [key, value] of Object.entries(theme.palette)) {
     styles += `--palette-${key}: ${value}; `;
   }
 
+  // Color Mapping
   for (const [key, paletteKey] of Object.entries(theme.colors)) {
     styles += `--${key}: var(--palette-${paletteKey}); `;
   }
 
-for (const [key, value] of Object.entries(theme.layout)) {
-    if (key.includes("weight")) {
-      styles += `--${key}: ${value}; `;
-    } else {
-      styles += `--${key}: ${value}px; `;
+  // Typography & Grid Logic
+  const numericCategories = ["typography", "album-grid"];
+  
+  for (const cat of numericCategories) {
+    for (const [key, value] of Object.entries(theme[cat])) {
+      if (key.includes("weight")) {
+        styles += `--${key}: ${value}; `;
+      } else {
+        styles += `--${key}: ${value}px; `;
+      }
     }
   }
 

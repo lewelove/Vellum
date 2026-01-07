@@ -57,8 +57,8 @@
         class="row" 
         style="width: {ctrl.layout.gridWidth}px; height: {ctrl.layout.rowHeight}px;"
       >
-        <!-- row-inner gap is now SSoT grid-gap-main -->
-        <div class="row-inner" style="gap: var(--grid-gap-main);">
+        <!-- Use gap-x for horizontal spacing between albums -->
+        <div class="row-inner" style="gap: var(--gap-x);">
             {#each row as album (album.id)}
               <Album 
                 {album} 
@@ -75,7 +75,7 @@
           activeIndexInRow={row.findIndex(a => a.id === library.expandedAlbumId)}
           width={ctrl.layout.gridWidth} 
           cardSize={ctrl.layout.cardSize}
-          gap={ctrl.layout.gap}
+          gap={ctrl.layout.gapX}
           height={ctrl.drawerInfo.height}
           pointerSize={24}
         />

@@ -3,21 +3,26 @@ import { theme } from "../../../theme.svelte.js";
 export class LayoutManager {
   containerWidth = $state(0);
   
-  gap = $derived(theme.layout["grid-gap-main"]);
-  cardSize = $derived(theme.layout["grid-cover-size"]);
+  // Direct references to the new theme structure
+  gapX = $derived(theme["album-grid"]["gap-x"]);
+  gapY = $derived(theme["album-grid"]["gap-y"]);
+  cardSize = $derived(theme["album-grid"]["cover-size"]);
   
+  // Single row vertical layout: 
+  // gap-y + cover + text-gap-main + title + text-gap-lesser + artist
   rowHeight = $derived(
-    theme.layout["grid-gap-main"] +       
-    theme.layout["grid-cover-size"] +     
-    theme.layout["grid-text-gap-main"] +  
-    theme.layout["font-size-title"] +     
-    theme.layout["grid-text-gap-lesser"] +
-    theme.layout["font-size-artist"]
+    theme["album-grid"]["gap-y"] +       
+    theme["album-grid"]["cover-size"] +     
+    theme["album-grid"]["text-gap-main"] +  
+    theme.typography["font-size-title"] +     
+    theme["album-grid"]["text-gap-lesser"] +
+    theme.typography["font-size-artist"]
   );
 
-  cols = $derived(Math.floor((Math.max(0, this.containerWidth - 40) + this.gap) / (this.cardSize + this.gap)) || 1);
+  // Horizontal calculation uses gap-x
+  cols = $derived(Math.floor((Math.max(0, this.containerWidth - 40) + this.gapX) / (this.cardSize + this.gapX)) || 1);
 
-  gridWidth = $derived(Math.floor((this.cols * this.cardSize) + ((this.cols - 1) * this.gap)));
+  gridWidth = $derived(Math.floor((this.cols * this.cardSize) + ((this.cols - 1) * this.gapX)));
 
   chunk(arr) {
     const results = [];

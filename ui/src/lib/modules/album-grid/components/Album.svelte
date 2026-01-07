@@ -21,9 +21,9 @@
     display: flex;
     flex-direction: column;
     flex-shrink: 0; 
-    width: var(--grid-cover-size);
-    /* Row starts with the top gap */
-    padding-top: var(--grid-gap-main);
+    width: var(--cover-size);
+    /* Row starts with the vertical gap */
+    padding-top: var(--gap-y);
   }
 
   .album-cover {
@@ -32,9 +32,9 @@
     cursor: pointer;
     display: block;
     outline: none !important;
-    width: var(--grid-cover-size);
-    height: var(--grid-cover-size);
-    margin-bottom: var(--grid-text-gap-main);
+    width: var(--cover-size);
+    height: var(--cover-size);
+    margin-bottom: var(--text-gap-main);
   }
 
   .album-info {
@@ -54,7 +54,7 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    margin-bottom: var(--grid-text-gap-lesser);
+    margin-bottom: var(--text-gap-lesser);
   }
 
   .album-artist {
@@ -67,6 +67,5 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    /* No margin or padding here: the row ends exactly at this line */
   }
 </style>
