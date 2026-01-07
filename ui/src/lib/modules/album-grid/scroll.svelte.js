@@ -8,10 +8,6 @@ export class ScrollEngine {
     this.threshold = threshold;
   }
 
-  /**
-   * Only interpolates toward the mathematical target.
-   * Viewport height is no longer used for clamping.
-   */
   update(rowHeight) {
     const targetY = this.targetSlot * rowHeight;
     const diff = targetY - this.currentY;
@@ -23,9 +19,6 @@ export class ScrollEngine {
     }
   }
 
-  /**
-   * Movement is strictly bounded by Slot Index.
-   */
   handleWheel(e, maxSlots) {
     this.wheelAccumulator += e.deltaY;
     
