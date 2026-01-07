@@ -4,7 +4,7 @@ export class LayoutManager {
   // SSOT METRICS
   cardSize = 200;
   gap = 20;       // This is the vertical space between rows
-  textHeight = 60; // Title + Artist area
+  textHeight = 40; // Title + Artist area
   
   // A Row Unit = Gap + Card + Text
   rowHeight = $derived(this.cardSize + this.gap + this.textHeight);
@@ -25,7 +25,7 @@ export class LayoutManager {
    */
   getQuantizedDrawer(trackCount) {
     const headerHeight = 100; 
-    const trackHeight = 41;   
+    const trackHeight = 40;   
     const naturalHeight = headerHeight + (trackCount * trackHeight) + 40; 
     
     const virtualRows = Math.ceil(naturalHeight / this.rowHeight);
