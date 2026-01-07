@@ -57,12 +57,11 @@
         class="row" 
         style="width: {ctrl.layout.gridWidth}px; height: {ctrl.layout.rowHeight}px;"
       >
-        <div class="row-inner" style="gap: {ctrl.layout.gap}px; padding-top: {ctrl.layout.gap}px;">
+        <!-- row-inner gap is now SSoT grid-gap-main -->
+        <div class="row-inner" style="gap: var(--grid-gap-main);">
             {#each row as album (album.id)}
               <Album 
                 {album} 
-                size={ctrl.layout.cardSize} 
-                textHeight={ctrl.layout.textHeight}
                 active={library.expandedAlbumId === album.id}
                 onclick={() => library.toggleExpand(album.id)} 
               />

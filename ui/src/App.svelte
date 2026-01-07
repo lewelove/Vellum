@@ -1,14 +1,17 @@
 <script>
   import { onMount } from "svelte";
   import { library } from "$lib/state/library.svelte.js";
+  import { getThemeVariables } from "./theme.svelte.js";
   import AlbumGrid from "$lib/modules/album-grid/AlbumGrid.svelte";
+
+  let themeStyles = $derived(getThemeVariables());
 
   onMount(() => {
     library.load();
   });
 </script>
 
-<main>
+<main style={themeStyles}>
 
   <!-- <aside class="sidebar"> -->
   <!--   <!-- Navigation/Filters will go here -->
@@ -28,14 +31,14 @@
     width: 100vw;
     height: 100vh;
     overflow: hidden;
-    background-color: var(--bg-color);
+    background-color: var(--background-main);
   }
 
   .sidebar {
     width: 240px;
     height: 100%;
-    background-color: var(--0);
-    border-right: 1px solid var(--50);
+    background-color: var(--palette-100);
+    border-right: 1px solid var(--border-muted);
     flex-shrink: 0;
   }
 
@@ -49,8 +52,8 @@
   .details {
     width: 450px;
     height: 100%;
-    background-color: var(--card-bg);
-    border-left: 1px solid var(--50);
+    background-color: var(--background-main);
+    border-left: 1px solid var(--border-muted);
     flex-shrink: 0;
   }
 </style>

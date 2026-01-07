@@ -1,12 +1,22 @@
+import { theme } from "../../../theme.svelte.js";
+
 export class LayoutManager {
   containerWidth = $state(0);
   
-  cardSize = 200;
-  gap = 20;       
-  textHeight = 40; 
+  gap = $derived(theme.layout["grid-gap-main"]);
+  cardSize = $derived(theme.layout["grid-cover-size"]);
   
-  rowHeight = $derived(this.cardSize + this.gap + this.textHeight);
+  rowHeight = $derived(
+    theme.layout["grid-gap-main"] +       
+    theme.layout["grid-cover-size"] +     
+    theme.layout["grid-text-gap-main"] +  
+    theme.layout["font-size-title"] +     
+    theme.layout["grid-text-gap-lesser"] +
+    theme.layout["font-size-artist"]
+  );
+
   cols = $derived(Math.floor((Math.max(0, this.containerWidth - 40) + this.gap) / (this.cardSize + this.gap)) || 1);
+
   gridWidth = $derived(Math.floor((this.cols * this.cardSize) + ((this.cols - 1) * this.gap)));
 
   chunk(arr) {
