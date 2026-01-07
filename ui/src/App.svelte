@@ -33,9 +33,9 @@
   // The height for the Scrollbar logic
   let contentHeight = $derived(totalRowsCount * layout.rowHeight);
 
-  // maxSlots: The furthest index the wheel can reach.
-  // We allow scrolling to the very last row, so max index is (Total - 1).
-  let maxSlots = $derived(Math.max(0, totalRowsCount - 3));
+  let visibleRows = $derived(Math.ceil(viewportHeight / layout.rowHeight));
+
+  let maxSlots = $derived(Math.max(0, (totalRowsCount + 1 - visibleRows)));
 
   // Handle Resize / Re-anchoring
   let prevCols = 0;
