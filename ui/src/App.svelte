@@ -11,44 +11,42 @@
   let albums = $state([]);
   let expandedAlbumId = $state(null);
   let viewportHeight = $state(0);
-  let contentHeight = $state(0);
   
   const scroll = new ScrollEngine();
   const layout = new LayoutManager();
 
   let mainEl;
-  let contentEl;
-  
-  // We use a plain array to avoid Proxy overhead in the RAF loop
-  let rowElements = []; 
   let rafId;
 
   let rows = $derived(layout.chunk(albums));
-
-  // Fix 1: Sync content height whenever rows or layout change
-  $effect(() => {
-    if (rows && contentEl) {
-      // Use ResizeObserver-like behavior: wait for the browser to finish reflow
-      tick().then(() => {
-        contentHeight = contentEl.scrollHeight;
-      });
-    }
+  
+  let drawerInfo = $derived.by(() => {
+    if (!expandedAlbumId) return null;
+    const album = albums.find(a => a.id === expandedAlbumId);
+    if (!album) return null;
+    return layout.getQuantizedDrawer(album.tracks.length);
   });
 
-  // Fix 2: Prevent targetIndex from pointing to a non-existent row after resize
+  let contentHeight = $derived.by(() => {
+    const baseRows = rows.length;
+    const extraRows = drawerInfo ? drawerInfo.rows : 0;
+    return (baseRows + extraRows) * layout.rowHeight;
+  });
+
+  let totalSlots = $derived(rows.length + (drawerInfo ? drawerInfo.rows : 0));
+
+  let prevCols = 0;
   $effect(() => {
-    if (rows.length > 0 && scroll.targetIndex >= rows.length) {
-      scroll.targetIndex = rows.length - 1;
+    if (layout.cols !== prevCols && prevCols !== 0) {
+        const topAlbumIdx = scroll.targetSlot * prevCols;
+        const newSlot = Math.floor(topAlbumIdx / layout.cols);
+        scroll.syncToSlot(newSlot);
     }
+    prevCols = layout.cols;
   });
 
   function loop() {
-    // Fix 3: Clean up the elements list on every frame. 
-    // This handles rows being removed/added during resize without needing to reset the array.
-    const activeRows = rowElements.filter(el => el && document.contains(el));
-    
-    scroll.update(activeRows, viewportHeight, contentHeight);
-    
+    scroll.update(viewportHeight, contentHeight, layout.rowHeight);
     if (mainEl) {
       mainEl.scrollTop = Math.round(scroll.currentY);
     }
@@ -56,19 +54,20 @@
   }
 
   async function toggleAlbum(id) {
+    const oldId = expandedAlbumId;
     expandedAlbumId = expandedAlbumId === id ? null : id;
     await tick();
-    const rowIndex = rows.findIndex(row => row.find(a => a.id === id));
-    if (rowIndex !== -1) scroll.targetIndex = rowIndex;
-    if (contentEl) contentHeight = contentEl.scrollHeight;
+    
+    if (expandedAlbumId && oldId === null) {
+        const rowIndex = rows.findIndex(row => row.find(a => a.id === id));
+        if (rowIndex > scroll.targetSlot + 2) scroll.targetSlot = rowIndex;
+    }
   }
 
   onMount(async () => {
     loop();
     try {
       albums = await getLibrary();
-      await tick();
-      if (contentEl) contentHeight = contentEl.scrollHeight;
     } catch (e) { console.error(e); }
   });
 
@@ -81,45 +80,69 @@
   bind:clientHeight={viewportHeight}
   onwheel={(e) => { 
     e.preventDefault(); 
-    scroll.handleWheel(e, rows.length); 
+    scroll.handleWheel(e, totalSlots); 
   }}
 >
   <Scrollbar 
     {viewportHeight} 
-    {contentHeight} 
+    contentHeight={contentHeight + layout.rowHeight} 
     currentY={scroll.currentY} 
   />
 
-  <div class="scroll-content" bind:this={contentEl}>
+  <div 
+    class="scroll-content" 
+    style="padding-bottom: {layout.rowHeight}px;"
+  >
     {#each rows as row, i (i)}
       <div 
         class="row" 
-        style="width: {layout.gridWidth}px; gap: {layout.gap}px; margin-bottom: {layout.gap}px"
-        bind:this={rowElements[i]}
+        style="width: {layout.gridWidth}px; height: {layout.rowHeight}px;"
       >
-        {#each row as album (album.id)}
-          <Album 
-            {album} 
-            size={layout.cardSize} 
-            active={expandedAlbumId === album.id}
-            onclick={() => toggleAlbum(album.id)} 
-          />
-        {/each}
+        <!-- Horizontal Gap Fixed: Added layout.gap to the gap property -->
+        <div 
+          class="row-inner" 
+          style="gap: {layout.gap}px; padding-top: {layout.gap}px;"
+        >
+            {#each row as album (album.id)}
+              <Album 
+                {album} 
+                size={layout.cardSize} 
+                textHeight={layout.textHeight}
+                active={expandedAlbumId === album.id}
+                onclick={() => toggleAlbum(album.id)} 
+              />
+            {/each}
+        </div>
       </div>
 
-      {#if row.find(a => a.id === expandedAlbumId)}
-        {@const activeAlbum = row.find(a => a.id === expandedAlbumId)}
-        {@const activeIndexInRow = row.findIndex(a => a.id === expandedAlbumId)}
-        
+      {#if drawerInfo && row.find(a => a.id === expandedAlbumId)}
         <Drawer 
-          {activeAlbum}
-          {activeIndexInRow}
+          activeAlbum={row.find(a => a.id === expandedAlbumId)}
+          activeIndexInRow={row.findIndex(a => a.id === expandedAlbumId)}
           width={layout.gridWidth} 
           cardSize={layout.cardSize}
           gap={layout.gap}
+          height={drawerInfo.height}
           pointerSize={24}
         />
       {/if}
     {/each}
   </div>
 </main>
+
+<style>
+    .row {
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        box-sizing: border-box;
+    }
+
+    .row-inner {
+        display: flex;
+        justify-content: flex-start;
+        height: 100%;
+        box-sizing: border-box;
+    }
+</style>
