@@ -1,8 +1,6 @@
 <script>
   let { album, size, active, textHeight, onclick } = $props();
-  
-  // The internal gap between cover and text is 8px
-  // We subtract it from the total textHeight allocation to keep the grid unit perfect
+  // Fixed internal layout to ensure the unit height matches layout.rowHeight
   let infoHeight = $derived(textHeight - 8);
 </script>
 
@@ -34,15 +32,6 @@
     transition: filter 0.2s;
     display: block;
     outline: none !important;
-    box-shadow: none !important;
-    -webkit-tap-highlight-color: transparent;
-  }
-
-  .album-cover:focus, 
-  .album-cover:active,
-  .album-cover:focus-visible {
-    outline: none !important;
-    box-shadow: none !important;
   }
 
   .album-info {
@@ -50,8 +39,6 @@
     flex-direction: column;
     text-align: left;
     overflow: hidden;
-    /* Ensure text starts immediately after the 8px gap */
-    justify-content: flex-start;
   }
 
   .album-title {
@@ -62,8 +49,6 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    line-height: 1.2;
-    margin-top: 2px;
   }
 
   .album-artist {
@@ -73,6 +58,5 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    line-height: 1.2;
   }
 </style>

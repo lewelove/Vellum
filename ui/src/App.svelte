@@ -27,14 +27,17 @@
     return layout.getQuantizedDrawer(album.tracks.length);
   });
 
-  let contentHeight = $derived.by(() => {
-    const baseRows = rows.length;
-    const extraRows = drawerInfo ? drawerInfo.rows : 0;
-    return (baseRows + extraRows) * layout.rowHeight;
-  });
+  // Total Virtual Rows in the system
+  let totalRowsCount = $derived(rows.length + (drawerInfo ? drawerInfo.rows : 0));
+  
+  // The height for the Scrollbar logic
+  let contentHeight = $derived(totalRowsCount * layout.rowHeight);
 
-  let totalSlots = $derived(rows.length + (drawerInfo ? drawerInfo.rows : 0));
+  // maxSlots: The furthest index the wheel can reach.
+  // We allow scrolling to the very last row, so max index is (Total - 1).
+  let maxSlots = $derived(Math.max(0, totalRowsCount - 3));
 
+  // Handle Resize / Re-anchoring
   let prevCols = 0;
   $effect(() => {
     if (layout.cols !== prevCols && prevCols !== 0) {
@@ -46,7 +49,8 @@
   });
 
   function loop() {
-    scroll.update(viewportHeight, contentHeight, layout.rowHeight);
+    // Engine only needs rowHeight to calculate pixel target from Slot Index
+    scroll.update(layout.rowHeight);
     if (mainEl) {
       mainEl.scrollTop = Math.round(scroll.currentY);
     }
@@ -54,14 +58,8 @@
   }
 
   async function toggleAlbum(id) {
-    const oldId = expandedAlbumId;
     expandedAlbumId = expandedAlbumId === id ? null : id;
     await tick();
-    
-    if (expandedAlbumId && oldId === null) {
-        const rowIndex = rows.findIndex(row => row.find(a => a.id === id));
-        if (rowIndex > scroll.targetSlot + 2) scroll.targetSlot = rowIndex;
-    }
   }
 
   onMount(async () => {
@@ -80,9 +78,10 @@
   bind:clientHeight={viewportHeight}
   onwheel={(e) => { 
     e.preventDefault(); 
-    scroll.handleWheel(e, totalSlots); 
+    scroll.handleWheel(e, maxSlots); 
   }}
 >
+  <!-- Scrollbar uses contentHeight + Hero Padding row for thumb calculation -->
   <Scrollbar 
     {viewportHeight} 
     contentHeight={contentHeight + layout.rowHeight} 
@@ -98,11 +97,7 @@
         class="row" 
         style="width: {layout.gridWidth}px; height: {layout.rowHeight}px;"
       >
-        <!-- Horizontal Gap Fixed: Added layout.gap to the gap property -->
-        <div 
-          class="row-inner" 
-          style="gap: {layout.gap}px; padding-top: {layout.gap}px;"
-        >
+        <div class="row-inner" style="gap: {layout.gap}px; padding-top: {layout.gap}px;">
             {#each row as album (album.id)}
               <Album 
                 {album} 
@@ -136,9 +131,7 @@
         display: flex;
         flex-direction: column;
         overflow: hidden;
-        box-sizing: border-box;
     }
-
     .row-inner {
         display: flex;
         justify-content: flex-start;

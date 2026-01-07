@@ -1,12 +1,12 @@
 export class LayoutManager {
   containerWidth = $state(0);
   
-  // FIXED METRICS (The SSOT)
+  // SSOT METRICS
   cardSize = 200;
-  gap = 20;
-  textHeight = 60; // Space for Title + Artist + Margins inside Album component
+  gap = 20;       // This is the vertical space between rows
+  textHeight = 60; // Title + Artist area
   
-  // Derived Row Height: The atomic unit of travel
+  // A Row Unit = Gap + Card + Text
   rowHeight = $derived(this.cardSize + this.gap + this.textHeight);
 
   cols = $derived(Math.floor((Math.max(0, this.containerWidth - 40) + this.gap) / (this.cardSize + this.gap)) || 1);
@@ -21,7 +21,7 @@ export class LayoutManager {
   }
 
   /**
-   * Quantizes drawer height to virtual rows
+   * Quantizes drawer to Row Units
    */
   getQuantizedDrawer(trackCount) {
     const headerHeight = 100; 
