@@ -1,15 +1,12 @@
-import { theme } from "../../../theme.svelte.js";
+import { theme } from "$core/theme.svelte.js";
 
 export class LayoutManager {
   containerWidth = $state(0);
 
   gapX = $derived(theme["album-grid"]["gap-x"]);
   gapY = $derived(theme["album-grid"]["gap-y"]);
-
   topOffset = $derived(Math.max(0, this.gapX - this.gapY));
-
   creaseHeight = $derived(theme["album-grid"]["crease-height"]);
-  
   cardSize = $derived(theme["album-grid"]["cover-size"]);
   
   rowHeight = $derived(
@@ -22,7 +19,6 @@ export class LayoutManager {
   );
 
   cols = $derived(Math.floor((Math.max(0, this.containerWidth - 40) + this.gapX) / (this.cardSize + this.gapX)) || 1);
-
   gridWidth = $derived(Math.floor((this.cols * this.cardSize) + ((this.cols - 1) * this.gapX)));
 
   chunk(arr) {
@@ -41,7 +37,6 @@ export class LayoutManager {
     const headerHeight = 100; 
     const trackHeight = 40;   
     const naturalHeight = headerHeight + (trackCount * trackHeight) + 40; 
-    
     const virtualRows = Math.ceil(naturalHeight / this.rowHeight);
     return {
       height: virtualRows * this.rowHeight,

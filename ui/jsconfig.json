@@ -13,7 +13,9 @@
     "checkJs": true,
     "baseUrl": ".",
     "paths": {
-      "$lib/*": ["./src/lib/*"]
+      "$core/*": ["./src/core/*"],
+      "$modules/*": ["./src/modules/*"],
+      "$state/*": ["./src/state/*"]
     }
   },
   "include": ["src/**/*.d.ts", "src/**/*.js", "src/**/*.svelte"]
