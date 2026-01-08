@@ -8,28 +8,45 @@
     height,       
     bandA,        
     bandB,        
+    chevronWidth,
     bandCHeight
   } = $props();
 
-  // Calculate the side of the square needed to reach the height of bandB when rotated 45 deg
-  // Side = height * sqrt(2)
-  let pointerSize = $derived(bandB * Math.SQRT2);
+  // Calculate the horizontal center of the active album cover to align the chevron tip
   let pointerOffset = $derived((activeIndexInRow * (cardSize + gap)) + (cardSize / 2));
 </script>
 
 <div class="drawer-container" style="width: {width}px; height: {height}px;">
-  <!-- Band A: Transparent Gap (12px) -->
+  <!-- Band A: Top Spacer -->
   <div class="band-a" style="height: {bandA}px;"></div>
 
-  <!-- Band B: The Transparent Bridge (Chevron Height) -->
+  <!-- Band B: The Chevron Bridge -->
   <div class="band-b" style="height: {bandB}px;">
-    <div 
-        class="pointer" 
-        style="left: {pointerOffset}px; --p-size: {pointerSize}px;"
-    ></div>
+    <div class="pointer-wrapper" style="left: {pointerOffset}px; width: {chevronWidth}px; height: {bandB}px;">
+      <svg 
+        width={chevronWidth} 
+        height={bandB + 1} 
+        viewBox="0 0 {chevronWidth} {bandB + 1}" 
+        fill="none" 
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <!-- 1. Fill first: This masks the border-top of band-c that passes underneath -->
+        <path 
+          d="M0 {bandB + 1} L{chevronWidth / 2} 1 L{chevronWidth} {bandB + 1} L0 {bandB + 1}Z" 
+          fill="var(--background-drawer)"
+        />
+        <!-- 2. Stroke second: Drawn on top of the fill. 
+             We use 1.2px to compensate for diagonal anti-aliasing softness. -->
+        <path 
+          d="M0 {bandB + 1} L{chevronWidth / 2} 1 L{chevronWidth} {bandB + 1}" 
+          stroke="var(--border-muted)" 
+          stroke-width="1.2"
+        />
+      </svg>
+    </div>
   </div>
 
-  <!-- Band C: The Content Area (Background starts here) -->
+  <!-- Band C: Content Area -->
   <div class="band-c" style="height: {bandCHeight}px;">
     <div class="drawer-content">
       <div class="header">
@@ -50,50 +67,75 @@
     display: flex;
     flex-direction: column;
     margin: 0 auto;
+    box-sizing: border-box;
   }
 
-  .band-a {
-    background-color: transparent;
+  .band-a { 
+    background-color: transparent; 
   }
 
   .band-b {
     position: relative;
-    background-color: transparent; /* Now transparent to allow bridging */
-  }
-
-  .pointer {
-    position: absolute;
-    /* Anchor to the bottom of Band B / Top of Band C */
-    top: 100%; 
-    width: var(--p-size);
-    height: var(--p-size);
-    background-color: var(--background-drawer);
-    border-top: 1px solid var(--border-muted);
-    border-left: 1px solid var(--border-muted);
-    /* Center it and rotate. translate(-50%, -50%) puts the tip exactly bandB pixels up */
-    transform: translate(-50%, -50%) rotate(45deg);
+    background-color: transparent;
+    /* Ensure the chevron sits above the border of band-c */
     z-index: 2;
   }
 
+  .pointer-wrapper {
+    position: absolute;
+    /* Push down 1px to overlap the border-top of band-c exactly */
+    bottom: -1px;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: flex-end;
+  }
+
+  .pointer-wrapper svg {
+    display: block;
+    overflow: visible;
+  }
+
   .band-c {
+    position: relative;
+    z-index: 1;
     background-color: var(--background-drawer);
-    border-top: 1px solid var(--border-muted); /* Border starts here */
-    border-bottom: 1px solid var(--border-muted);
+    /* Full border containment */
+    border: 1px solid var(--border-muted);
+    box-sizing: border-box;
   }
 
   .drawer-content {
     padding: 0 40px 40px 40px;
   }
 
-  h2 { margin: 0 0 5px 0; color: var(--text-main); font-size: 28px; font-weight: normal; }
-  h3 { margin: 0 0 30px 0; color: var(--text-muted); font-size: 16px; font-weight: normal; }
+  h2 { 
+    margin: 0 0 5px 0; 
+    color: var(--text-main); 
+    font-size: 28px; 
+    font-weight: normal; 
+  }
   
-  .tracklist { list-style: none; padding: 0; margin: 0; }
+  h3 { 
+    margin: 0 0 30px 0; 
+    color: var(--text-muted); 
+    font-size: 16px; 
+    font-weight: normal; 
+  }
+  
+  .tracklist { 
+    list-style: none; 
+    padding: 0; 
+    margin: 0; 
+  }
+
   .tracklist li { 
     padding: 12px 0; 
     border-bottom: 1px solid var(--border-muted); 
     font-size: 14px; 
     color: var(--text-main); 
   }
-  .tracklist li:last-child { border-bottom: none; }
+
+  .tracklist li:last-child { 
+    border-bottom: none; 
+  }
 </style>
