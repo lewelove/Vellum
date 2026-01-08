@@ -3,13 +3,11 @@ import { theme } from "../../../theme.svelte.js";
 export class LayoutManager {
   containerWidth = $state(0);
   
-  // Direct references to the new theme structure
+  paddingTop = $derived(theme["album-grid"]["crease-height"]);
   gapX = $derived(theme["album-grid"]["gap-x"]);
   gapY = $derived(theme["album-grid"]["gap-y"]);
   cardSize = $derived(theme["album-grid"]["cover-size"]);
   
-  // Single row vertical layout: 
-  // gap-y + cover + text-gap-main + title + text-gap-lesser + artist
   rowHeight = $derived(
     theme["album-grid"]["gap-y"] +       
     theme["album-grid"]["cover-size"] +     
@@ -19,7 +17,6 @@ export class LayoutManager {
     theme.typography["font-size-artist"]
   );
 
-  // Horizontal calculation uses gap-x
   cols = $derived(Math.floor((Math.max(0, this.containerWidth - 40) + this.gapX) / (this.cardSize + this.gapX)) || 1);
 
   gridWidth = $derived(Math.floor((this.cols * this.cardSize) + ((this.cols - 1) * this.gapX)));
@@ -30,6 +27,10 @@ export class LayoutManager {
       results.push(arr.slice(i, i + this.cols));
     }
     return results;
+  }
+
+  getContentHeight(totalRowsCount) {
+    return (totalRowsCount * this.rowHeight) + this.paddingTop;
   }
 
   getQuantizedDrawer(trackCount) {

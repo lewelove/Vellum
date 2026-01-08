@@ -24,6 +24,7 @@ export const theme = $state({
   },
 
   "album-grid": {
+    "crease-height": 8,
     "gap-x": 20,
     "gap-y": 12,
     "cover-size": 200,
@@ -36,17 +37,14 @@ export const theme = $state({
 export function getThemeVariables() {
   let styles = "";
 
-  // Palette
   for (const [key, value] of Object.entries(theme.palette)) {
     styles += `--palette-${key}: ${value}; `;
   }
 
-  // Color Mapping
   for (const [key, paletteKey] of Object.entries(theme.colors)) {
     styles += `--${key}: var(--palette-${paletteKey}); `;
   }
 
-  // Typography & Grid Logic
   const numericCategories = ["typography", "album-grid"];
   
   for (const cat of numericCategories) {

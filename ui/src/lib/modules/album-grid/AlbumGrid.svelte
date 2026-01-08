@@ -35,56 +35,73 @@
   });
 </script>
 
-<div 
-  class="grid-container"
-  bind:this={mainEl}
-  bind:clientWidth={ctrl.layout.containerWidth} 
-  bind:clientHeight={ctrl.viewportHeight}
-  onwheel={(e) => { 
-    e.preventDefault(); 
-    ctrl.handleWheel(e); 
-  }}
->
-  <Scrollbar 
-    viewportHeight={ctrl.viewportHeight} 
-    contentHeight={ctrl.contentHeight + ctrl.layout.rowHeight} 
-    currentY={ctrl.scroll.currentY} 
-  />
+<div class="album-grid-viewport">
+  <div 
+    class="grid-container"
+    bind:this={mainEl}
+    bind:clientWidth={ctrl.layout.containerWidth} 
+    bind:clientHeight={ctrl.viewportHeight}
+    onwheel={(e) => { 
+      e.preventDefault(); 
+      ctrl.handleWheel(e); 
+    }}
+  >
+    <!-- 
+      The Crease: 
+      1. Sits at the top of the scroll container flow, providing the initial 8px shift.
+      2. Sticks to the top during scroll to hide peeking text from the previous row.
+    -->
+    <div class="top-crease"></div>
 
-  <div class="scroll-content" style="padding-bottom: {ctrl.layout.rowHeight}px;">
-    {#each ctrl.rows as row, i (i)}
-      <div 
-        class="row" 
-        style="width: {ctrl.layout.gridWidth}px; height: {ctrl.layout.rowHeight}px;"
-      >
-        <!-- Use gap-x for horizontal spacing between albums -->
-        <div class="row-inner" style="gap: var(--gap-x);">
-            {#each row as album (album.id)}
-              <Album 
-                {album} 
-                active={library.expandedAlbumId === album.id}
-                onclick={() => library.toggleExpand(album.id)} 
-              />
-            {/each}
+    <Scrollbar 
+      viewportHeight={ctrl.viewportHeight} 
+      contentHeight={ctrl.contentHeight + ctrl.layout.rowHeight} 
+      currentY={ctrl.scroll.currentY} 
+    />
+
+    <div class="scroll-content" style="padding-bottom: {ctrl.layout.rowHeight}px;">
+      {#each ctrl.rows as row, i (i)}
+        <div 
+          class="row" 
+          style="width: {ctrl.layout.gridWidth}px; height: {ctrl.layout.rowHeight}px;"
+        >
+          <div class="row-inner" style="gap: var(--gap-x);">
+              {#each row as album (album.id)}
+                <Album 
+                  {album} 
+                  active={library.expandedAlbumId === album.id}
+                  onclick={() => library.toggleExpand(album.id)} 
+                />
+              {/each}
+          </div>
         </div>
-      </div>
 
-      {#if ctrl.drawerInfo && row.find(a => a.id === library.expandedAlbumId)}
-        <Drawer 
-          activeAlbum={row.find(a => a.id === library.expandedAlbumId)}
-          activeIndexInRow={row.findIndex(a => a.id === library.expandedAlbumId)}
-          width={ctrl.layout.gridWidth} 
-          cardSize={ctrl.layout.cardSize}
-          gap={ctrl.layout.gapX}
-          height={ctrl.drawerInfo.height}
-          pointerSize={24}
-        />
-      {/if}
-    {/each}
+        {#if ctrl.drawerInfo && row.find(a => a.id === library.expandedAlbumId)}
+          <div class="drawer-plane">
+            <Drawer 
+              activeAlbum={row.find(a => a.id === library.expandedAlbumId)}
+              activeIndexInRow={row.findIndex(a => a.id === library.expandedAlbumId)}
+              width={ctrl.layout.gridWidth} 
+              cardSize={ctrl.layout.cardSize}
+              gap={ctrl.layout.gapX}
+              height={ctrl.drawerInfo.height}
+              pointerSize={24}
+            />
+          </div>
+        {/if}
+      {/each}
+    </div>
   </div>
 </div>
 
 <style>
+    .album-grid-viewport {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+
     .grid-container {
       width: 100%;
       height: 100%;
@@ -92,22 +109,41 @@
       overflow: hidden;
       overscroll-behavior: none;
     }
+
+    .top-crease {
+      position: sticky;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: var(--crease-height);
+      background-color: var(--background-main);
+      z-index: 1; /* Sits between Cover (2) and Info (0) */
+      pointer-events: none;
+    }
+
     .scroll-content {
       width: 100%;
-      padding: 0;
       display: flex;
       flex-direction: column;
     }
+    
     .row {
         margin: 0 auto;
         display: flex;
         flex-direction: column;
-        overflow: hidden;
+        /* Allow covers to overflow the row boundaries to layer with crease */
+        overflow: visible; 
+        position: relative;
     }
+    
     .row-inner {
         display: flex;
         justify-content: flex-start;
         height: 100%;
-        box-sizing: border-box;
+    }
+
+    .drawer-plane {
+      position: relative;
+      z-index: 0; /* Below crease */
     }
 </style>

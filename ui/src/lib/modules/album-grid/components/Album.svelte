@@ -22,8 +22,9 @@
     flex-direction: column;
     flex-shrink: 0; 
     width: var(--cover-size);
-    /* Row starts with the vertical gap */
     padding-top: var(--gap-y);
+    /* No Stacking Context here */
+    position: relative;
   }
 
   .album-cover {
@@ -35,13 +36,18 @@
     width: var(--cover-size);
     height: var(--cover-size);
     margin-bottom: var(--text-gap-main);
+    /* Slide OVER the crease */
+    position: relative;
+    z-index: 2;
   }
 
   .album-info {
     display: flex;
     flex-direction: column;
     text-align: left;
-    overflow: hidden;
+    /* Slide UNDER the crease (implicit z-index: 0) */
+    position: relative;
+    z-index: 0;
   }
 
   .album-title {

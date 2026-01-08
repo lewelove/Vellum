@@ -16,7 +16,7 @@ export class GridController {
   });
 
   totalRowsCount = $derived(this.rows.length + (this.drawerInfo ? this.drawerInfo.rows : 0));
-  contentHeight = $derived(this.totalRowsCount * this.layout.rowHeight);
+  contentHeight = $derived(this.layout.getContentHeight(this.totalRowsCount));
   visibleRows = $derived(Math.ceil(this.viewportHeight / this.layout.rowHeight));
   maxSlots = $derived(Math.max(0, (this.totalRowsCount + 1 - this.visibleRows)));
 
