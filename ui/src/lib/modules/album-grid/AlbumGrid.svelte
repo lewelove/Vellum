@@ -51,7 +51,10 @@
       1. Sits at the top of the scroll container flow, providing the initial 8px shift.
       2. Sticks to the top during scroll to hide peeking text from the previous row.
     -->
-    <div class="top-crease"></div>
+    <div
+      class="top-crease"
+      style="height: {ctrl.layout.creaseHeight}px; margin-bottom: -{ctrl.layout.creaseHeight}px;"
+    ></div>
 
     <Scrollbar 
       viewportHeight={ctrl.viewportHeight} 
@@ -59,7 +62,10 @@
       currentY={ctrl.scroll.currentY} 
     />
 
-    <div class="scroll-content" style="padding-bottom: {ctrl.layout.rowHeight}px;">
+    <div 
+      class="scroll-content" 
+      style="padding-top: {ctrl.layout.topOffset}px; padding-bottom: {ctrl.layout.rowHeight}px;"
+    >
       {#each ctrl.rows as row, i (i)}
         <div 
           class="row" 
@@ -117,7 +123,7 @@
       width: 100%;
       height: var(--crease-height);
       background-color: var(--background-main);
-      z-index: 1; /* Sits between Cover (2) and Info (0) */
+      z-index: 1;
       pointer-events: none;
     }
 
@@ -131,7 +137,6 @@
         margin: 0 auto;
         display: flex;
         flex-direction: column;
-        /* Allow covers to overflow the row boundaries to layer with crease */
         overflow: visible; 
         position: relative;
     }
@@ -144,6 +149,6 @@
 
     .drawer-plane {
       position: relative;
-      z-index: 0; /* Below crease */
+      z-index: 0;
     }
 </style>

@@ -2,10 +2,14 @@ import { theme } from "../../../theme.svelte.js";
 
 export class LayoutManager {
   containerWidth = $state(0);
-  
-  paddingTop = $derived(theme["album-grid"]["crease-height"]);
+
   gapX = $derived(theme["album-grid"]["gap-x"]);
   gapY = $derived(theme["album-grid"]["gap-y"]);
+
+  topOffset = $derived(Math.max(0, this.gapX - this.gapY));
+
+  creaseHeight = $derived(theme["album-grid"]["crease-height"]);
+  
   cardSize = $derived(theme["album-grid"]["cover-size"]);
   
   rowHeight = $derived(
@@ -30,7 +34,7 @@ export class LayoutManager {
   }
 
   getContentHeight(totalRowsCount) {
-    return (totalRowsCount * this.rowHeight) + this.paddingTop;
+    return (totalRowsCount * this.rowHeight) + this.topOffset;
   }
 
   getQuantizedDrawer(trackCount) {
