@@ -1,4 +1,4 @@
-import { getLibrary } from "$lib/api.js";
+import { getLibrary } from "$core/api.js";
 
 class LibraryState {
   albums = $state([]);

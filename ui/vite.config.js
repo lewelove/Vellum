@@ -6,8 +6,9 @@ export default defineConfig({
   plugins: [svelte()],
   resolve: {
     alias: {
-      // This bridges the gap between the code and the filesystem
-      '$lib': path.resolve(__dirname, './src/lib')
+      '$core': path.resolve(__dirname, './src/core'),
+      '$modules': path.resolve(__dirname, './src/modules'),
+      '$state': path.resolve(__dirname, './src/state'),
     }
   },
   server: {

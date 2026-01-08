@@ -1,6 +1,6 @@
 import { LayoutManager } from "./layout.svelte.js";
 import { ScrollEngine } from "./scroll.svelte.js";
-import { library } from "$lib/state/library.svelte.js";
+import { library } from "$state/library.svelte.js";
 
 export class GridController {
   layout = new LayoutManager();

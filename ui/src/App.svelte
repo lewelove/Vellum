@@ -1,8 +1,8 @@
 <script>
   import { onMount } from "svelte";
-  import { library } from "$lib/state/library.svelte.js";
-  import { getThemeVariables } from "./theme.svelte.js";
-  import AlbumGrid from "$lib/modules/album-grid/AlbumGrid.svelte";
+  import { library } from "$state/library.svelte.js";
+  import { getThemeVariables } from "$core/theme.svelte.js";
+  import AlbumGrid from "$modules/album-grid/AlbumGrid.svelte";
 
   let themeStyles = $derived(getThemeVariables());
 
@@ -12,17 +12,7 @@
 </script>
 
 <main style={themeStyles}>
-
-  <!-- <aside class="sidebar"> -->
-  <!--   <!-- Navigation/Filters will go here -->
-  <!-- </aside> -->
-
   <AlbumGrid />
-
-  <!-- <aside class="details"> -->
-  <!--   <!-- Cover/Tracklist will go here -->
-  <!-- </aside> -->
-
 </main>
 
 <style>
