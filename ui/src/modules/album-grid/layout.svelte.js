@@ -35,11 +35,13 @@ export class LayoutManager {
 
   getQuantizedDrawer(trackCount) {
     const chevronHeight = theme["album-grid"]["drawer-chevron-height"];
-    const bandA = this.gapY; 
+    const chevronWidth = theme["album-grid"]["drawer-chevron-width"];
+    const gapMain = theme["album-grid"]["drawer-gap-main"]; 
+
+    const bandA = gapMain; 
     const bandB = chevronHeight; 
     const overhead = bandA + bandB;
     
-    // Band C: Content area (Header + Tracks + Padding)
     const naturalContentHeight = 100 + (trackCount * 40) + 40; 
     
     const totalRequired = overhead + naturalContentHeight;
@@ -51,6 +53,7 @@ export class LayoutManager {
       rows: virtualRows,
       bandA,
       bandB,
+      chevronWidth, // Passed through to Drawer
       bandCHeight: totalHeight - overhead
     };
   }

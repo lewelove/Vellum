@@ -30,7 +30,9 @@ export const theme = $state({
     "cover-size": 200,
     "text-gap-main": 8,
     "text-gap-lesser": 4,
-    "drawer-chevron-height": 20,
+    "drawer-gap-main": 0,
+    "drawer-chevron-height": 12,
+    "drawer-chevron-width": 24,
   }
 
 });
