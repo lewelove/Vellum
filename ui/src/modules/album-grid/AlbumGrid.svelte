@@ -1,11 +1,11 @@
 <script>
   import { onMount, onDestroy } from "svelte";
-  import { library } from "$lib/state/library.svelte.js";
+  import { library } from "$state/library.svelte.js";
   import { GridController } from "./GridController.svelte.js";
   
-  import Album from "./components/Album.svelte";
-  import Drawer from "./components/Drawer.svelte";
-  import Scrollbar from "./components/Scrollbar.svelte";
+  import Album from "./Album.svelte";
+  import Drawer from "./Drawer.svelte";
+  import Scrollbar from "./Scrollbar.svelte";
 
   const ctrl = new GridController();
   let mainEl;
@@ -46,11 +46,6 @@
       ctrl.handleWheel(e); 
     }}
   >
-    <!-- 
-      The Crease: 
-      1. Sits at the top of the scroll container flow, providing the initial 8px shift.
-      2. Sticks to the top during scroll to hide peeking text from the previous row.
-    -->
     <div
       class="top-crease"
       style="height: {ctrl.layout.creaseHeight}px; margin-bottom: -{ctrl.layout.creaseHeight}px;"
