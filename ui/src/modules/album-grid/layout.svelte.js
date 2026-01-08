@@ -34,13 +34,24 @@ export class LayoutManager {
   }
 
   getQuantizedDrawer(trackCount) {
-    const headerHeight = 100; 
-    const trackHeight = 40;   
-    const naturalHeight = headerHeight + (trackCount * trackHeight) + 40; 
-    const virtualRows = Math.ceil(naturalHeight / this.rowHeight);
+    const chevronHeight = theme["album-grid"]["drawer-chevron-height"];
+    const bandA = this.gapY; 
+    const bandB = chevronHeight; 
+    const overhead = bandA + bandB;
+    
+    // Band C: Content area (Header + Tracks + Padding)
+    const naturalContentHeight = 100 + (trackCount * 40) + 40; 
+    
+    const totalRequired = overhead + naturalContentHeight;
+    const virtualRows = Math.ceil(totalRequired / this.rowHeight);
+    const totalHeight = virtualRows * this.rowHeight;
+    
     return {
-      height: virtualRows * this.rowHeight,
-      rows: virtualRows
+      height: totalHeight,
+      rows: virtualRows,
+      bandA,
+      bandB,
+      bandCHeight: totalHeight - overhead
     };
   }
 }
