@@ -1,0 +1,60 @@
+config
+
+the program reads from ~/.config/mpf2k/config.toml on start to determine all configurations such as:
+
+[startup options]
+full-rescan-on-startup = true/false
+write-tags-on-startup = true/false
+
+[music library]
+path/paths to scan and build library database
+library database folder (default = ~/.mpf2k)
+cover file name (defaults in order = cover.jpg, folder.jpg)
+
+[ui color values]
+background color
+main text color
+secondary text color
+border color
+button color
+
+[layout elements]
+album art size in main library view
+gap/padding between art in library view
+navigation bar width
+cover + playlist bar width
+
+[generate.album.clustering]
+
+here we can specify semantic clustering of tags when generating metadata.toml by {cluster_string} headers by this specific rules:
+
+tags are specified in sort order separated by comma
+cluster is generated only if at least 1 tag from list is presesnt
+only existing tags are placed in each cluster
+\n -> inject new empty line
+* -> list all tags globbed in alphabetic order
+{cluster_string} is always printed as comment after "# " (except string is empty, then no comment line at all), then tags follow, one each on new line
+
+e.g. "{cluster_string}" = ["TAG1", "TAG2", ... ]
+results in
+# {cluster_string}
+"TAG1" = "..."
+"TAG2" = "..."
+
+examples of {cluster_string}s for album section:
+
+"" = ["\n", "ALBUM", "ALBUMARTIST", "DATE", "GENRE"]
+"# -- Release Group / Issue --" = ["COMMENT", "MEDIA", "COUNTRY", "LABEL", "CATALOGNUMBER", "RELEASE_YYYY_MM", "\n"]
+"# -- Source --" = ["SOURCE", "MAGNET", "\n"]
+"# -- Digital Identifiers --" = ["DISCOGS_URL", "MUSICBRAINZ_URL", "\n", "ACCURIPID", "CTDBID", "DISCID", "\n", "MUSICBRAINZ_*", "\n"]
+
+[generate.tracks.clustering]
+
+here we can specify semantic clustering of tags inside each of [[tracks]] sections when generating metadata.toml by {cluster_string} following same rules as in [generate.album.clustering]
+
+examples of {cluster_string}s for tracks section:
+
+
+
+created:   2025-12-18 at 05:09 UTC+0300
+modified:  2026-01-09 at 18:42 UTC+0300

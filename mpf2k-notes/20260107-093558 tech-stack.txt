@@ -1,0 +1,28 @@
+tech-stack
+
+the stack is based on decoupled headless architecture, relying on two servers, frontend and backend one.
+
+-
+
+UI SERVER
+
+written in svelte, uses api to talk with backend, fully isolated from all actions needed to be taken on machine running mpd
+
+functions just like a command center for the logic server, e.g. button pressed in ui -> api request from ui to logic -> command from logic to mpd instance
+
+-
+
+LOGIC SERVER
+
+written in python, leveraging such libraries as:
+
+fastapi
+uvicorn
+mutagen
+pillow
+watchdog
+sqlite
+mpd2
+
+created:   2025-12-18 at 05:19 UTC+0300
+modified:  2026-01-07 at 12:35 UTC+0300

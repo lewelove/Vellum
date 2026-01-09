@@ -1,0 +1,27 @@
+mpf2k cli
+
+the cli program runs all scripts needed to manage library
+
+-
+
+USAGE
+
+mpf2k <command> --flag
+
+-
+
+GENERATE
+
+mpf2k generate - read all files in library root and generate metadata.toml and cover.image files based on config.toml and flags
+
+--always-write-to-tracks = list of uppercase tags to always write to [[tracks]] section even if they are common for entire album
+  e.g. --always-write-to-tracks=TRACKNUMBER,ARTIST,TITLE
+
+wip:
+  add sanitization to whitespaces and illegal chars
+  
+
+
+
+created:   2026-01-06 at 15:01 UTC+0300
+modified:  2026-01-09 at 15:19 UTC+0300

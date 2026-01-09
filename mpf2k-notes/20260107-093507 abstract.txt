@@ -1,0 +1,10 @@
+abstract
+
+the program is essentialy an mpd control center and the library view interface that has ui written in web stack which talks to a computer running it as well as to mpd via decoupled logic server.
+
+the main premise and vision of program is the focus on collection of albums rather than playlists or single tracks and creation of "shelfs" from them. database builds itself against given in config.ini library root path and creates so called "pool" of albums that then used to draw them from and to create infinite number of album arrangements called "shelfs".
+
+program utilizes the sidecar metadata handling via namespaced .toml file for each album which contains two sections: [album] and [tracks]. based on these sections album tags can be read and displayed by the program. the idea of storing tags alongside tracks makes version control, backup, editing and export/archival extremely fast and easy because there's no need to edit binary headers of files, all metadata is in plaintext.
+
+created:   2025-12-04 at 13:20 UTC+0300
+modified:  2026-01-07 at 12:35 UTC+0300

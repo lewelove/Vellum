@@ -1,0 +1,126 @@
+metadata-specification
+
+all metadata handled by the program comes from namespaced "metadata.toml" files (one file for each album) being recursively found and read in each album's root folder.
+
+the metadata.toml is the single source of truth for each album.
+
+each metadata.toml contains two sections [album] and [tracks]
+
+these sections contain everything program needs to know to function and represent library correctly.
+
+each key is treated differently based on its case:
+
+UPPERCASE - the audio file comment tag key itself, standardized by vorbis dictionary, always written to track file metadata when synced
+
+lowercase - mpf2k helper tag (e.g. _path tags)
+
+-
+
+[album]
+
+the [album] section contains all metadata representing one album instance 
+
+in another words it holds everything common between tracks in one album such as default ALBUMARTIST, ALBUM, DATE ... tags, as well as optional tags ending in "_path" that are required (though resolution of cover.jpg can be automatic) to resolve paths of files used to represent whole album.
+
+here's the list of all [album] tags required for my pesonal collection
+
+general tags:
+
+  ALBUMARTIST = album artist
+  ALBUM = album title
+  GENRE = list of genres divided by ;
+  
+  ORIGINAL_YYYY_MM = original album issue release date
+    YYYY-MM or YYYY-00 (if no data about month)
+  
+  ORIGINAL_DATE = derived from ORIGINAL_YYYY_MM
+    Month YYYY or YYYY
+  
+  DATE = original album release year (generic tag for compatability)
+    YYYY
+
+release group / issue identification tags:
+
+  MEDIA = physical media of the issue
+    Compact Disc; Vinyl Record; Cassette
+
+  RELEASE_YYYY_MM = issue release date
+    YYYY-MM or YYYY-00 (if no data about month)
+
+  COUNTRY = 2 letter country code
+  LABEL = label of the issue
+  CATALOGNUMBER = issue id
+  COMMENT = concatenation of RELEASE_YYYY_MM stripped to YYYY + COUNTRY + LABEL + CATALOGNUMBER (e.g. "YYYY XX Label Records 1234567890")
+  
+public database identification tags:
+
+  DISCOGS_URL
+  MUSICBRAINZ_URL
+  CTDBID
+  ACCURIPID
+  DISCID
+  MUSICBRAINZ_ALBUMARTISTID
+  MUSICBRAINZ_RELEASEGROUPID
+  MUSICBRAINZ_ALBUMID
+
+library history tags:
+
+  DATE_ADDED_UNIX_PRIMARY = custom unix time used as primary tag to read and calculate date added 
+  DATE_ADDED_UNIX_LOCAL = unix time when added to local colection
+  DATE_ADDED_UNIX_APPLEMUSIC = unix time when added to apple music
+  DATE_ADDED_UNIX_YOUTUBE = unix time when added to youtube collection
+
+other tags:
+
+  CUSTOM_ID = any string for differantiating albums with the same album artist and album title
+  CUSTOM_ALBUMARTIST = any string for grouping artists when sorting (useful if you want album by "Artist1 & Artist2" appear in the same visual group as other albums by either one of them)
+  CUSTOM_STRING = any string for custom sorting
+  
+  OLD_COMMENT = old comment string
+
+_path tags:
+
+  cover_path - path to main album cover, defaults at ./cover.jpg
+
+-
+
+[tracks]
+
+the [tracks] section contains metadata representing each track separately within [[tracks]] stamp for every track
+
+in other words it contains metadata unique to each track such as default TRACK, DISCNUMBER, ARTIST ... tags as well as tags ending in "_path" that are not essential due to file-track/cover matching logic, but can be used to override it and resolve paths of each track and any track-specific sidecar metadata files ( e.g. lyrics in .txt or .lrc format).
+
+if any tags from [album] section appear in [tracks] the one from [tracks] overrides one from [album] for specific track it appeared in
+
+general tags:
+
+  TITLE = tile of the track
+  ARTIST = artist of the track
+  TRACKNUMBER = cardinal number of the track
+  
+  MUSICBRAINZ_ARTISTID
+  MUSICBRAINZ_RELEASETRACKID
+  MUSICBRAINZ_TRACKID
+
+_path tags:
+
+  track_path = path to given track audio file
+  lyrics_path = path to lyrics for given track in .txt or .lrc format
+
+-
+
+HIDDEN
+
+and this section contains metadata derived and recalculated on every rescan from other metadata already present in [album]/[tracks] and written to a database
+
+any tag from this section can be manually set in any of previous sections and will not be recalculated, but read as is
+
+  COVER_SIZE = size of the cover (embeddded or stored alongside)
+  TOTALTRACKS = number of total album tracks
+  TOTALDISCS = number of total album discs
+  
+  DATE_ADDED = date added to library derived from value of ADDED_UNIX_...
+    Month DD YYYY
+
+created:   2025-12-04 at 13:38 UTC+0300
+modified:  2026-01-09 at 15:46 UTC+0300
