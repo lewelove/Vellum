@@ -4,6 +4,46 @@ metadata_store = "~/dev/mpf2k/temp_metadata"
 
 [generate]
 supported_extensions = [".flac"]
-group_by = ["ALBUMARTIST", "ALBUM"]
 naming_file_pattern = "{artist}_-_{album}"
 naming_sanitization_char = "_"
+
+[generate.album]
+layout = [
+  "\n",
+  "ALBUM",
+  "ALBUMARTIST",
+  "DATE",
+  "GENRE",
+  "\n",
+  "# -- Release Group / Issue --", 
+  "COMMENT",
+  "MEDIA",
+  "COUNTRY",
+  "LABEL",
+  "CATALOGNUMBER",
+  "RELEASE_YYYY_MM",
+  "\n",
+  { "# -- Source --" = ["MAGNET", "SOURCE"] },
+  "\n",
+  "# -- Digital Identifiers --",
+  "DISCOGS_URL",
+  "MUSICBRAINZ_URL",
+  "ACCURIPID",
+  "CTDBID",
+  "DISCID",
+  "\n",
+  { "# -- Internal --" = ["*_path", "date_added"] },
+  "\n",
+  "# -- Other --" 
+]
+
+[generate.tracks]
+layout = [
+  "TRACKNUMBER",
+  "TITLE",
+  "ARTIST",
+  "track_path",
+  "\n",
+  "MUSICBRAINZ_TRACKID",
+  "MUSICBRAINZ_RELEASETRACKID"
+]

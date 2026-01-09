@@ -3,6 +3,7 @@ import tomllib
 from pathlib import Path
 from .extractor import FlacExtractor
 from .sanitizer import slugify_album_filename
+from .engine import segregate_tags, process_layout
 
 def load_config():
     config_path = Path("config.toml")
@@ -13,71 +14,83 @@ def run_generate():
     config = load_config()
     lib_root = Path(config["storage"]["library_root"]).expanduser()
     out_dir = Path(config["storage"]["metadata_store"]).expanduser()
+    
     gen_cfg = config["generate"]
-
+    supported_exts = gen_cfg["supported_extensions"]
+    
+    album_layout = gen_cfg["album"]["layout"]
+    tracks_layout = gen_cfg["tracks"]["layout"]
+    
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    album_map = {} 
-    
+    # Walk and Group
     for root, _, files in os.walk(lib_root):
-        for file in files:
-            if any(file.lower().endswith(ext) for ext in gen_cfg["supported_extensions"]):
-                full_path = os.path.join(root, file)
-                try:
-                    extracted = FlacExtractor.extract(full_path)
-                    tags = extracted["tags"]
-                    
-                    artist = tags.get("ALBUMARTIST") or tags.get("ARTIST", "Unknown")
-                    album = tags.get("ALBUM", "Unknown")
-                    key = (artist, album)
-                    
-                    if key not in album_map:
-                        album_map[key] = {"tracks": [], "image": extracted["image_data"]}
-                    
-                    album_map[key]["tracks"].append(tags)
-                    if not album_map[key]["image"]:
-                        album_map[key]["image"] = extracted["image_data"]
-                        
-                except Exception as e:
-                    print(f"Error processing {file}: {e}")
-
-    for (artist, album_title), data in album_map.items():
-        tracks = data["tracks"]
+        audio_files = [f for f in files if any(f.lower().endswith(ext) for ext in supported_exts)]
         
-        # Sort tracks by disc and track number
-        tracks.sort(key=lambda x: (
-            x.get("DISCNUMBER", "1"), 
-            int("".join(filter(str.isdigit, x.get("TRACKNUMBER", "0").split('/')[0]))) or 0
-        ))
+        if not audio_files:
+            continue
 
-        all_keys = set().union(*(t.keys() for t in tracks))
-        album_tags = {}
-
-        for key in all_keys:
-            values = [t.get(key) for t in tracks]
-            # Identical across all tracks + UPPERCASE = Move to [album]
-            if key.isupper() and all(v is not None for v in values) and len(set(values)) == 1:
-                album_tags[key] = values[0]
-
-        base_name = slugify_album_filename(gen_cfg["naming_file_pattern"], artist, album_title)
+        # Process one folder = one album
+        full_root = Path(root)
+        raw_tracks = []
+        cover_image = None
         
+        # 1. Extract
+        for f in audio_files:
+            file_path = full_root / f
+            data = FlacExtractor.extract(file_path)
+            if data and data.get("tags"):
+                raw_tracks.append(data["tags"])
+                # Grab first available image
+                if not cover_image and data.get("image_data"):
+                    cover_image = data["image_data"]
+
+        if not raw_tracks:
+            continue
+
+        # Sort tracks by filename to ensure deterministic processing order
+        raw_tracks.sort(key=lambda x: x["track_path"])
+
+        # 2. Logic Engine (Sieve)
+        album_pool, track_pools = segregate_tags(raw_tracks, tracks_layout)
+
+        # 3. Determine Filename
+        artist = album_pool.get("ALBUMARTIST") or album_pool.get("ARTIST") or "Unknown"
+        album_title = album_pool.get("ALBUM") or "Unknown"
+        base_name = slugify_album_filename(
+            gen_cfg["naming_file_pattern"], 
+            str(artist), 
+            str(album_title),
+            gen_cfg.get("naming_sanitization_char", "_")
+        )
+        
+        # Inject Cover Path into Album Pool
+        if cover_image:
+            album_pool["cover_path"] = f"cover_{base_name}.jpg"
+
+        # 4. Render & Write
         toml_path = out_dir / f"metadata_{base_name}.toml"
+        
         with open(toml_path, "w", encoding="utf-8") as f:
+            # [album]
             f.write("[album]\n")
-            for k in sorted(album_tags.keys()):
-                f.write(f'{k} = "{album_tags[k]}"\n')
-            f.write("\n")
+            album_lines = process_layout(album_pool, album_layout)
+            f.write("\n".join(album_lines))
+            f.write("\n\n")
             
-            for t in tracks:
+            # [[tracks]]
+            for t_pool in track_pools:
                 f.write("[[tracks]]\n")
-                unique_keys = [k for k in t.keys() if k not in album_tags]
-                for k in sorted(unique_keys):
-                    f.write(f'{k} = "{t[k]}"\n')
-                f.write("\n")
+                track_lines = process_layout(t_pool, tracks_layout)
+                f.write("\n".join(track_lines))
+                f.write("\n\n")
 
-        if data["image"]:
+        # 5. Write Cover
+        if cover_image:
             with open(out_dir / f"cover_{base_name}.jpg", "wb") as f:
-                f.write(data["image"])
+                f.write(cover_image)
+        
+        print(f"Generated: {base_name}")
 
 if __name__ == "__main__":
     run_generate()

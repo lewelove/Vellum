@@ -1,19 +1,35 @@
+import os
+import time
 from mutagen.flac import FLAC
-from typing import Dict, Any
+from pathlib import Path
+from typing import Dict, Any, List
 
 class FlacExtractor:
     @staticmethod
-    def extract(file_path: str) -> Dict[str, Any]:
-        audio = FLAC(file_path)
-        
+    def extract(file_path: Path) -> Dict[str, Any]:
+        try:
+            audio = FLAC(file_path)
+        except Exception as e:
+            print(f"Error reading {file_path}: {e}")
+            return {}
+
+        # Base pool with helpers (no leading underscores)
         metadata = {
-            "track_path": file_path
+            "track_path": file_path.name,
+            "date_added": int(time.time())
         }
 
-        # Extract EVERY tag as is. 
-        # In Mutagen iteration, 'val' is the string value.
-        for key, val in audio.tags:
-            metadata[key.upper()] = val
+        # Extract Mutagen tags
+        # audio.tags is a dict-like object where values are lists of strings
+        if audio.tags:
+            for key, val_list in audio.tags.items():
+                clean_key = key.upper()
+                
+                # Logic: 1 tag = 1 string literal (unwrapped), >1 tags = list literal
+                if len(val_list) == 1:
+                    metadata[clean_key] = val_list[0]
+                else:
+                    metadata[clean_key] = list(val_list)
 
         image_data = None
         if audio.pictures:

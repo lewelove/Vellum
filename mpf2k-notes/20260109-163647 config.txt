@@ -33,28 +33,38 @@ cluster is generated only if at least 1 tag from list is presesnt
 only existing tags are placed in each cluster
 \n -> inject new empty line
 * -> list all tags globbed in alphabetic order
-{cluster_string} is always printed as comment after "# " (except string is empty, then no comment line at all), then tags follow, one each on new line
+{cluster_string} is always printed after "# " as comment (except string is empty, then no comment line at all), then tags follow, one each on new line
+after all clustered tags all the other are printed just as usual
 
-e.g. "{cluster_string}" = ["TAG1", "TAG2", ... ]
+e.g. "{cluster_string}" = ["TAG1", "TAG2", "\n", "TAG3", "TAG4",... ]
+
 results in
+
 # {cluster_string}
 "TAG1" = "..."
 "TAG2" = "..."
 
+"TAG3" = "..."
+"TAG4" = "..."
+
 examples of {cluster_string}s for album section:
 
 "" = ["\n", "ALBUM", "ALBUMARTIST", "DATE", "GENRE"]
-"# -- Release Group / Issue --" = ["COMMENT", "MEDIA", "COUNTRY", "LABEL", "CATALOGNUMBER", "RELEASE_YYYY_MM", "\n"]
-"# -- Source --" = ["SOURCE", "MAGNET", "\n"]
-"# -- Digital Identifiers --" = ["DISCOGS_URL", "MUSICBRAINZ_URL", "\n", "ACCURIPID", "CTDBID", "DISCID", "\n", "MUSICBRAINZ_*", "\n"]
+"-- Release Group / Issue --" = ["COMMENT", "MEDIA", "COUNTRY", "LABEL", "CATALOGNUMBER", "RELEASE_YYYY_MM", "\n"]
+"-- Source --" = ["SOURCE", "MAGNET", "\n"]
+"-- Digital Identifiers --" = ["DISCOGS_URL", "MUSICBRAINZ_URL", "\n", "ACCURIPID", "CTDBID", "DISCID", "\n", "MUSICBRAINZ_*", "\n"]
+"-- Other --" = [  ]
 
 [generate.tracks.clustering]
 
 here we can specify semantic clustering of tags inside each of [[tracks]] sections when generating metadata.toml by {cluster_string} following same rules as in [generate.album.clustering]
 
+if any tag is present in any of clusters in this section we should always write it out for each of [[tracks]], even if it common between all tracks in an album
+
 examples of {cluster_string}s for tracks section:
 
+"" = ["TRACKNUMBER", "TITLE", "ARTIST", "\n", "MUSICBRAINZ_*"]
 
 
 created:   2025-12-18 at 05:09 UTC+0300
-modified:  2026-01-09 at 18:42 UTC+0300
+modified:  2026-01-09 at 19:36 UTC+0300
