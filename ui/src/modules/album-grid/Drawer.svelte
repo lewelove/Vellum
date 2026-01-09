@@ -1,4 +1,6 @@
 <script>
+  import DrawerTracks from "./DrawerTracks.svelte";
+
   let { 
     activeAlbum, 
     width, 
@@ -8,6 +10,7 @@
     height,       
     bandA,        
     bandB,        
+    trackCols,
     chevronWidth,
     bandCHeight
   } = $props();
@@ -46,15 +49,17 @@
   <div class="band-c" style="height: {bandCHeight}px;">
     <div class="drawer-content">
       <header class="drawer-header">
-        <h2 class="d-title">{activeAlbum.title}</h2>
-        <h3 class="d-artist">{activeAlbum.artist}</h3>
+        <div class="header-left">
+          <h2 class="d-title">{activeAlbum.title}</h2>
+          <h3 class="d-artist">{activeAlbum.artist}</h3>
+        </div>
+        <div class="header-right">
+          <span class="d-info">45:12</span>
+          <span class="d-genre">Electronic / Downtempo</span>
+        </div>
       </header>
       
-      <ul class="tracklist">
-        {#each activeAlbum.tracks as track}
-          <li class="track-item">{track}</li>
-        {/each}
-      </ul>
+      <DrawerTracks tracks={activeAlbum.tracks} cols={trackCols} />
     </div>
   </div>
 </div>
@@ -96,49 +101,46 @@
   }
 
   .drawer-header {
-    margin-bottom: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 24px;
+    border-bottom: 1px solid var(--border-muted);
+    padding-bottom: 8px;
+  }
+
+  .header-left {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .header-right {
+    display: flex;
+    flex-direction: column;
+    text-align: right;
+    flex-shrink: 0;
   }
 
   .d-title { 
     margin: 0; 
     color: var(--text-main); 
     font-size: var(--drawer-font-size-album); 
-    line-height: var(--drawer-font-size-album);
+    line-height: 1.2;
     font-weight: 500;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    font-style: italic;
   }
   
   .d-artist { 
     margin: 4px 0 0 0; 
     color: var(--text-muted); 
     font-size: var(--drawer-font-size-artist); 
-    line-height: var(--drawer-font-size-artist);
     font-weight: 400;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  
-  .tracklist { 
-    list-style: none; 
-    padding: 0; 
-    margin: 0; 
   }
 
-  .track-item { 
-    height: var(--drawer-track-y);
-    line-height: var(--drawer-track-y);
-    font-size: var(--drawer-font-size-track); 
-    color: var(--text-main); 
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  }
-
-  .track-item:last-child { 
-    border-bottom: none; 
+  .d-info, .d-genre {
+    font-size: 14px;
+    color: var(--text-muted);
+    line-height: 1.4;
   }
 </style>
