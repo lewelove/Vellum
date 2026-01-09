@@ -1,6 +1,6 @@
 [storage]
-library_root = "/run/media/lewelove/1000xhome/backup-everything/FB2K/Library Historyfied!/[CD] Collection/"
-metadata_store = "~/dev/mpf2k/temp_metadata"
+library_root = "~/dev/mpf2k-test-library/albums"
+metadata_store = "~/dev/mpf2k-test-library/metadata_output"
 
 [generate]
 supported_extensions = [".flac"]
@@ -15,25 +15,11 @@ layout = [
   "DATE",
   "GENRE",
   "\n",
-  "# -- Release Group / Issue --", 
-  "COMMENT",
-  "MEDIA",
-  "COUNTRY",
-  "LABEL",
-  "CATALOGNUMBER",
-  "RELEASE_YYYY_MM",
-  "\n",
-  { "# -- Source --" = ["MAGNET", "SOURCE"] },
-  "\n",
-  "# -- Digital Identifiers --",
-  "DISCOGS_URL",
-  "MUSICBRAINZ_URL",
-  "ACCURIPID",
-  "CTDBID",
-  "DISCID",
-  "\n",
-  { "# -- Internal --" = ["*_path", "date_added"] },
-  "\n",
+  { "# -- Release Group / Issue --" = ["COMMENT", "MEDIA", "COUNTRY", "LABEL", "CATALOGNUMBER", "RELEASE_YYYY_MM", "\n"] },
+  { "# -- Source --" = ["MAGNET", "SOURCE", "\n"] },
+  { "# -- Digital Identifiers --" = ["DISCOGS_URL", "MUSICBRAINZ_URL", "ACCURIPID", "CTDBID", "DISCID", "\n"] },
+  { "# -- MusicBraiz Metadata --" = ["MUSICBRAINZ_ALBUMID", "MUSICBRAINZ_ALBUMARTISTID", "MUSICBRAINZ_ARTISTID", "MUSICBRAINZ_RELEASEGROUPID", "\n"] },
+  { "# -- Internal --" = ["*_path", "date_added", "\n"] },
   "# -- Other --" 
 ]
 
@@ -43,7 +29,5 @@ layout = [
   "TITLE",
   "ARTIST",
   "track_path",
-  "\n",
-  "MUSICBRAINZ_TRACKID",
-  "MUSICBRAINZ_RELEASETRACKID"
+  { "# -- MusicBraiz Metadata --" = ["MUSICBRAINZ_TRACKID", "MUSICBRAINZ_RELEASETRACKID", "\n"] },
 ]
