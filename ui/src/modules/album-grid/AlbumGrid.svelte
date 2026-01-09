@@ -86,7 +86,11 @@
               cardSize={ctrl.layout.cardSize}
               gap={ctrl.layout.gapX}
               height={ctrl.drawerInfo.height}
-              pointerSize={24}
+              bandA={ctrl.drawerInfo.bandA}
+              bandB={ctrl.drawerInfo.bandB}
+              trackCols={ctrl.drawerInfo.trackCols}
+              chevronWidth={ctrl.drawerInfo.chevronWidth}
+              bandCHeight={ctrl.drawerInfo.bandCHeight}
             />
           </div>
         {/if}

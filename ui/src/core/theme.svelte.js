@@ -18,18 +18,30 @@ export const theme = $state({
 
   typography: {
     "font-size-title": 14,
-    "font-weight-title": 400,
+    "font-weight-title": 100,
     "font-size-artist": 12,
-    "font-weight-artist": 400,
+    "font-weight-artist": 100,
   },
 
-  "album-grid": {
-    "crease-height": 20,
-    "gap-x": 20,
+  albumGrid: {
+    "crease-height": 18,
+    "gap-x": 18,
     "gap-y": 12,
     "cover-size": 200,
     "text-gap-main": 8,
     "text-gap-lesser": 4,
+    "drawer-gap-main": 0,
+    "drawer-chevron-height": 12,
+    "drawer-chevron-width": 24,
+  },
+
+  drawer: {
+    "drawer-padding-y": 18,
+    "drawer-padding-x": 24,
+    "drawer-font-size-album": 18,
+    "drawer-font-size-artist": 16,
+    "drawer-font-size-track": 14,
+    "drawer-track-y": 22,
   }
 
 });
@@ -45,7 +57,7 @@ export function getThemeVariables() {
     styles += `--${key}: var(--palette-${paletteKey}); `;
   }
 
-  const numericCategories = ["typography", "album-grid"];
+  const numericCategories = ["typography", "albumGrid", "drawer"];
   
   for (const cat of numericCategories) {
     for (const [key, value] of Object.entries(theme[cat])) {

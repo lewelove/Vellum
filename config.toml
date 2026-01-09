@@ -1,0 +1,9 @@
+[storage]
+library_root = "~/Music"
+metadata_store = "~/dev/mpf2k/temp_metadata"
+
+[generate]
+supported_extensions = [".flac"]
+group_by = ["ALBUMARTIST", "ALBUM"]
+naming_file_pattern = "{album}_-_{artist}"
+naming_sanitization_char = "_"

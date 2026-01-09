@@ -1,68 +1,146 @@
 <script>
+  import DrawerTracks from "./DrawerTracks.svelte";
+
   let { 
     activeAlbum, 
     width, 
     cardSize, 
     gap, 
     activeIndexInRow, 
-    height, // Forced quantized height
-    pointerSize = 12 
+    height,       
+    bandA,        
+    bandB,        
+    trackCols,
+    chevronWidth,
+    bandCHeight
   } = $props();
 
   let pointerOffset = $derived((activeIndexInRow * (cardSize + gap)) + (cardSize / 2));
-  let topOffset = $derived(-(pointerSize / 2) - 1); 
 </script>
 
-<div class="drawer" style="width: {width}px; height: {height}px; --p-size: {pointerSize}px; --p-top: {topOffset}px;">
-  <div class="pointer" style="left: {pointerOffset}px;"></div>
+<div class="drawer-container" style="width: {width}px; height: {height}px;">
+  <!-- Band A: Top Spacer -->
+  <div class="band-a" style="height: {bandA}px;"></div>
 
-  <div class="drawer-content">
-    <div class="header">
-      <h2>{activeAlbum.title}</h2>
-      <h3>{activeAlbum.artist}</h3>
+  <!-- Band B: The Chevron Bridge -->
+  <div class="band-b" style="height: {bandB}px;">
+    <div class="pointer-wrapper" style="left: {pointerOffset}px; width: {chevronWidth}px; height: {bandB}px;">
+      <svg 
+        width={chevronWidth} 
+        height={bandB + 1} 
+        viewBox="0 0 {chevronWidth} {bandB + 1}" 
+        fill="none" 
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path 
+          d="M0 {bandB + 1} L{chevronWidth / 2} 1 L{chevronWidth} {bandB + 1} L0 {bandB + 1}Z" 
+          fill="var(--background-drawer)"
+        />
+        <path 
+          d="M0 {bandB + 1} L{chevronWidth / 2} 1 L{chevronWidth} {bandB + 1}" 
+          stroke="var(--border-muted)" 
+          stroke-width="1.2"
+        />
+      </svg>
     </div>
-    <ul>
-      {#each activeAlbum.tracks as track}
-        <li>{track}</li>
-      {/each}
-    </ul>
+  </div>
+
+  <!-- Band C: Content Area -->
+  <div class="band-c" style="height: {bandCHeight}px;">
+    <div class="drawer-content">
+      <header class="drawer-header">
+        <div class="header-left">
+          <h2 class="d-title">{activeAlbum.title}</h2>
+          <h3 class="d-artist">{activeAlbum.artist}</h3>
+        </div>
+        <div class="header-right">
+          <span class="d-info">45:12</span>
+          <span class="d-genre">Electronic / Downtempo</span>
+        </div>
+      </header>
+      
+      <DrawerTracks tracks={activeAlbum.tracks} cols={trackCols} />
+    </div>
   </div>
 </div>
 
 <style>
-  .drawer {
-    position: relative;
-    background-color: var(--background-drawer);
-    border: 1px solid var(--border-muted);
-    box-sizing: border-box; /* Crucial for height math */
-    margin: 0 auto; /* Removed bottom margin to keep grid tight */
+  .drawer-container {
+    display: flex;
+    flex-direction: column;
+    margin: 0 auto;
+    box-sizing: border-box;
     overflow: hidden;
   }
 
-  .pointer {
+  .band-a { background-color: transparent; }
+
+  .band-b {
+    position: relative;
+    z-index: 2;
+  }
+
+  .pointer-wrapper {
     position: absolute;
-    top: var(--p-top); 
-    width: var(--p-size);
-    height: var(--p-size);
-    background-color: var(--background-drawer);
-    border-top: 1px solid var(--border-muted);
-    border-left: 1px solid var(--border-muted);
-    transform: translateX(-50%) rotate(45deg);
+    bottom: -1px;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: flex-end;
+  }
+
+  .band-c {
+    position: relative;
     z-index: 1;
+    background-color: var(--background-drawer);
+    border: 1px solid var(--border-muted);
+    box-sizing: border-box;
   }
 
   .drawer-content {
-    padding: 30px;
+    padding: var(--drawer-padding-y) var(--drawer-padding-x);
   }
 
-  h2 { margin: 0 0 5px 0; color: var(--text-main); font-size: 28px; font-weight: normal; }
-  h3 { margin: 0 0 30px 0; color: var(--text-muted); font-size: 16px; font-weight: normal; }
-  
-  ul { list-style: none; padding: 0; margin: 0; }
-  li { 
-    padding: 10px 0; 
-    border-bottom: 1px solid var(--border-muted); 
-    font-size: 14px; 
+  .drawer-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 24px;
+    border-bottom: 1px solid var(--border-muted);
+    padding-bottom: 8px;
+  }
+
+  .header-left {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .header-right {
+    display: flex;
+    flex-direction: column;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  .d-title { 
+    margin: 0; 
     color: var(--text-main); 
+    font-size: var(--drawer-font-size-album); 
+    line-height: 1.2;
+    font-weight: 500;
+    font-style: italic;
+  }
+  
+  .d-artist { 
+    margin: 4px 0 0 0; 
+    color: var(--text-muted); 
+    font-size: var(--drawer-font-size-artist); 
+    font-weight: 400;
+  }
+
+  .d-info, .d-genre {
+    font-size: 14px;
+    color: var(--text-muted);
+    line-height: 1.4;
   }
 </style>
