@@ -20,10 +20,10 @@ def get_library():
         c_index = (i - 1) % len(colors)
         albums.append({
             "id": i,
-            "title": f"ALBUM {i}",
-            "artist": f"ARTIST {i}",
+            "title": f"Album {i}",
+            "artist": f"Artist {i}",
             "color": colors[c_index],
-            "tracks": ["Track 1", "Track 2", "Track 3"]
+            "tracks": ["Track 1", "Track 2", "Track 3", "Track 4", "Track 5", "Track 6"]
         })
     return albums
 
