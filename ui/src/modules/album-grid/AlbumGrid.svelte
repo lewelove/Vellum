@@ -88,6 +88,7 @@
               height={ctrl.drawerInfo.height}
               bandA={ctrl.drawerInfo.bandA}
               bandB={ctrl.drawerInfo.bandB}
+              trackCols={ctrl.drawerInfo.trackCols}
               chevronWidth={ctrl.drawerInfo.chevronWidth}
               bandCHeight={ctrl.drawerInfo.bandCHeight}
             />

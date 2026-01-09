@@ -1,4 +1,5 @@
 import uvicorn
+import random
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -18,12 +19,17 @@ def get_library():
     colors = ["#EA4335", "#34A853", "#FBBC04", "#4285F4", "#A142F4", "#4285F4"]
     for i in range(1, 51):
         c_index = (i - 1) % len(colors)
+        
+        # Generate random track count between 6 and 18
+        num_tracks = random.randint(2, 18)
+        tracks = [f"Track {j}" for j in range(1, num_tracks + 1)]
+        
         albums.append({
             "id": i,
-            "title": f"Album {i}",
-            "artist": f"Artist {i}",
+            "title": f"ALBUM {i}",
+            "artist": f"ARTIST {i}",
             "color": colors[c_index],
-            "tracks": ["Track 1", "Track 2", "Track 3", "Track 4", "Track 5", "Track 6"]
+            "tracks": tracks
         })
     return albums
 

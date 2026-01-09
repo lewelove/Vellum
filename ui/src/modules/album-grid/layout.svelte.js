@@ -21,6 +21,9 @@ export class LayoutManager {
   cols = $derived(Math.floor((Math.max(0, this.containerWidth - 40) + this.gapX) / (this.cardSize + this.gapX)) || 1);
   gridWidth = $derived(Math.floor((this.cols * this.cardSize) + ((this.cols - 1) * this.gapX)));
 
+  // Determine how many columns to use for the track list inside the drawer
+  trackCols = $derived(this.containerWidth > 800 ? 2 : 1);
+
   chunk(arr) {
     const results = [];
     for (let i = 0; i < arr.length; i += this.cols) {
@@ -43,10 +46,13 @@ export class LayoutManager {
     const overhead = bandA + bandB;
     
     const paddingTotal = dSettings["drawer-padding-y"] * 2;
-    const headerTotal = dSettings["drawer-font-size-album"] + dSettings["drawer-font-size-artist"] + 12; 
-    const tracksTotal = trackCount * dSettings["drawer-track-y"];
+    const headerTotal = dSettings["drawer-font-size-album"] + dSettings["drawer-font-size-artist"] + 24; 
     
-    const naturalContentHeight = paddingTotal + headerTotal + tracksTotal; 
+    // Distribution Logic: Calculate vertical height based on track columns
+    const tracksPerCol = Math.ceil(trackCount / this.trackCols);
+    const tracksTotalHeight = tracksPerCol * dSettings["drawer-track-y"];
+    
+    const naturalContentHeight = paddingTotal + headerTotal + tracksTotalHeight; 
     
     const totalRequired = overhead + naturalContentHeight;
     const virtualRows = Math.ceil(totalRequired / this.rowHeight);
@@ -57,6 +63,7 @@ export class LayoutManager {
       rows: virtualRows,
       bandA,
       bandB,
+      trackCols: this.trackCols,
       chevronWidth: theme.albumGrid["drawer-chevron-width"],
       bandCHeight: totalHeight - overhead
     };
