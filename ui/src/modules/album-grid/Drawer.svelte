@@ -12,7 +12,6 @@
     bandCHeight
   } = $props();
 
-  // Calculate the horizontal center of the active album cover to align the chevron tip
   let pointerOffset = $derived((activeIndexInRow * (cardSize + gap)) + (cardSize / 2));
 </script>
 
@@ -30,13 +29,10 @@
         fill="none" 
         xmlns="http://www.w3.org/2000/svg"
       >
-        <!-- 1. Fill first: This masks the border-top of band-c that passes underneath -->
         <path 
           d="M0 {bandB + 1} L{chevronWidth / 2} 1 L{chevronWidth} {bandB + 1} L0 {bandB + 1}Z" 
           fill="var(--background-drawer)"
         />
-        <!-- 2. Stroke second: Drawn on top of the fill. 
-             We use 1.2px to compensate for diagonal anti-aliasing softness. -->
         <path 
           d="M0 {bandB + 1} L{chevronWidth / 2} 1 L{chevronWidth} {bandB + 1}" 
           stroke="var(--border-muted)" 
@@ -49,13 +45,14 @@
   <!-- Band C: Content Area -->
   <div class="band-c" style="height: {bandCHeight}px;">
     <div class="drawer-content">
-      <div class="header">
-        <h2>{activeAlbum.title}</h2>
-        <h3>{activeAlbum.artist}</h3>
-      </div>
+      <header class="drawer-header">
+        <h2 class="d-title">{activeAlbum.title}</h2>
+        <h3 class="d-artist">{activeAlbum.artist}</h3>
+      </header>
+      
       <ul class="tracklist">
         {#each activeAlbum.tracks as track}
-          <li>{track}</li>
+          <li class="track-item">{track}</li>
         {/each}
       </ul>
     </div>
@@ -68,58 +65,60 @@
     flex-direction: column;
     margin: 0 auto;
     box-sizing: border-box;
+    overflow: hidden;
   }
 
-  .band-a { 
-    background-color: transparent; 
-  }
+  .band-a { background-color: transparent; }
 
   .band-b {
     position: relative;
-    background-color: transparent;
-    /* Ensure the chevron sits above the border of band-c */
     z-index: 2;
   }
 
   .pointer-wrapper {
     position: absolute;
-    /* Push down 1px to overlap the border-top of band-c exactly */
     bottom: -1px;
     transform: translateX(-50%);
     display: flex;
     align-items: flex-end;
   }
 
-  .pointer-wrapper svg {
-    display: block;
-    overflow: visible;
-  }
-
   .band-c {
     position: relative;
     z-index: 1;
     background-color: var(--background-drawer);
-    /* Full border containment */
     border: 1px solid var(--border-muted);
     box-sizing: border-box;
   }
 
   .drawer-content {
-    padding: 0 40px 40px 40px;
+    padding: var(--drawer-padding-y) var(--drawer-padding-x);
   }
 
-  h2 { 
-    margin: 0 0 5px 0; 
+  .drawer-header {
+    margin-bottom: 12px;
+  }
+
+  .d-title { 
+    margin: 0; 
     color: var(--text-main); 
-    font-size: 28px; 
-    font-weight: normal; 
+    font-size: var(--drawer-font-size-album); 
+    line-height: var(--drawer-font-size-album);
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   
-  h3 { 
-    margin: 0 0 30px 0; 
+  .d-artist { 
+    margin: 4px 0 0 0; 
     color: var(--text-muted); 
-    font-size: 16px; 
-    font-weight: normal; 
+    font-size: var(--drawer-font-size-artist); 
+    line-height: var(--drawer-font-size-artist);
+    font-weight: 400;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   
   .tracklist { 
@@ -128,14 +127,18 @@
     margin: 0; 
   }
 
-  .tracklist li { 
-    padding: 12px 0; 
-    border-bottom: 1px solid var(--border-muted); 
-    font-size: 14px; 
+  .track-item { 
+    height: var(--drawer-track-y);
+    line-height: var(--drawer-track-y);
+    font-size: var(--drawer-font-size-track); 
     color: var(--text-main); 
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   }
 
-  .tracklist li:last-child { 
+  .track-item:last-child { 
     border-bottom: none; 
   }
 </style>

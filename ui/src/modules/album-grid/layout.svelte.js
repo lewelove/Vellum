@@ -3,18 +3,18 @@ import { theme } from "$core/theme.svelte.js";
 export class LayoutManager {
   containerWidth = $state(0);
 
-  gapX = $derived(theme["album-grid"]["gap-x"]);
-  gapY = $derived(theme["album-grid"]["gap-y"]);
+  gapX = $derived(theme.albumGrid["gap-x"]);
+  gapY = $derived(theme.albumGrid["gap-y"]);
   topOffset = $derived(Math.max(0, this.gapX - this.gapY));
-  creaseHeight = $derived(theme["album-grid"]["crease-height"]);
-  cardSize = $derived(theme["album-grid"]["cover-size"]);
+  creaseHeight = $derived(theme.albumGrid["crease-height"]);
+  cardSize = $derived(theme.albumGrid["cover-size"]);
   
   rowHeight = $derived(
-    theme["album-grid"]["gap-y"] +       
-    theme["album-grid"]["cover-size"] +     
-    theme["album-grid"]["text-gap-main"] +  
+    theme.albumGrid["gap-y"] +       
+    theme.albumGrid["cover-size"] +     
+    theme.albumGrid["text-gap-main"] +  
     theme.typography["font-size-title"] +     
-    theme["album-grid"]["text-gap-lesser"] +
+    theme.albumGrid["text-gap-lesser"] +
     theme.typography["font-size-artist"]
   );
 
@@ -34,15 +34,19 @@ export class LayoutManager {
   }
 
   getQuantizedDrawer(trackCount) {
-    const chevronHeight = theme["album-grid"]["drawer-chevron-height"];
-    const chevronWidth = theme["album-grid"]["drawer-chevron-width"];
-    const gapMain = theme["album-grid"]["drawer-gap-main"]; 
+    const chevronHeight = theme.albumGrid["drawer-chevron-height"];
+    const gapMain = theme.albumGrid["drawer-gap-main"]; 
+    const dSettings = theme.drawer;
 
     const bandA = gapMain; 
     const bandB = chevronHeight; 
     const overhead = bandA + bandB;
     
-    const naturalContentHeight = 100 + (trackCount * 40) + 40; 
+    const paddingTotal = dSettings["drawer-padding-y"] * 2;
+    const headerTotal = dSettings["drawer-font-size-album"] + dSettings["drawer-font-size-artist"] + 12; 
+    const tracksTotal = trackCount * dSettings["drawer-track-y"];
+    
+    const naturalContentHeight = paddingTotal + headerTotal + tracksTotal; 
     
     const totalRequired = overhead + naturalContentHeight;
     const virtualRows = Math.ceil(totalRequired / this.rowHeight);
@@ -53,7 +57,7 @@ export class LayoutManager {
       rows: virtualRows,
       bandA,
       bandB,
-      chevronWidth, // Passed through to Drawer
+      chevronWidth: theme.albumGrid["drawer-chevron-width"],
       bandCHeight: totalHeight - overhead
     };
   }
