@@ -18,16 +18,14 @@
           mpd2
           pyyaml
           watchdog
-          # python-multipart is often needed for FastAPI form handling
           python-multipart 
+          mutagen
         ]);
 
         # --- System Dependencies ---
-        # Minimalist set for a high-performance web-first workflow
         devPackages = with pkgs; [
           pythonEnv
           nodejs_22
-          # Common build tools in case of native node-gyp or python extensions
           pkg-config
           openssl
         ];
@@ -38,10 +36,8 @@
 
           # --- Shell Orchestration ---
           shellHook = ''
-            # Ensure Python doesn't write __pycache__ everywhere in the project
             export PYTHONDONTWRITEBYTECODE=1
             
-            # Setup local node_modules bin in PATH for ease of use
             export PATH="$PWD/ui/node_modules/.bin:$PATH"
 
             echo " Python:  $(python --version)"

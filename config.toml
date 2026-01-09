@@ -1,9 +1,9 @@
 [storage]
-library_root = "~/Music"
+library_root = "/run/media/lewelove/1000xhome/backup-everything/FB2K/Library Historyfied!/[CD] Collection/"
 metadata_store = "~/dev/mpf2k/temp_metadata"
 
 [generate]
 supported_extensions = [".flac"]
 group_by = ["ALBUMARTIST", "ALBUM"]
-naming_file_pattern = "{album}_-_{artist}"
+naming_file_pattern = "{artist}_-_{album}"
 naming_sanitization_char = "_"
