@@ -20,6 +20,7 @@
           watchdog
           python-multipart 
           mutagen
+          tqdm
         ]);
 
         # --- System Dependencies ---
