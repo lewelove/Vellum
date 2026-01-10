@@ -1,8 +1,10 @@
-import os
 import tomllib
 from pathlib import Path
-from .extractor import FlacExtractor
-from .sanitizer import slugify_album_filename
+
+# Modules
+from .harvester import scan_library
+from .grouper import group_tracks, sort_album_tracks
+from .naming import generate_filename
 from .engine import segregate_tags, process_layout
 
 def load_config():
@@ -12,64 +14,63 @@ def load_config():
 
 def run_generate():
     config = load_config()
-    lib_root = Path(config["storage"]["library_root"]).expanduser()
+    
+    # Config Extraction
+    lib_root = config["storage"]["library_root"]
     out_dir = Path(config["storage"]["metadata_store"]).expanduser()
+    out_dir.mkdir(parents=True, exist_ok=True)
     
     gen_cfg = config["generate"]
     supported_exts = gen_cfg["supported_extensions"]
+    sanitize_char = gen_cfg.get("naming_sanitization_char", "_")
+    naming_pattern = gen_cfg["naming_file_pattern"]
     
     album_layout = gen_cfg["album"]["layout"]
     tracks_layout = gen_cfg["tracks"]["layout"]
-    
-    out_dir.mkdir(parents=True, exist_ok=True)
 
-    # Walk and Group
-    for root, _, files in os.walk(lib_root):
-        audio_files = [f for f in files if any(f.lower().endswith(ext) for ext in supported_exts)]
+    # 1. Harvest
+    all_tracks = scan_library(lib_root, supported_exts)
+    if not all_tracks:
+        print("No tracks found.")
+        return
+
+    # 2. Group
+    grouped = group_tracks(all_tracks)
+    print(f"grouped into {len(grouped)} albums.")
+
+    # 3. Process Groups
+    for key_tuple, raw_track_list in grouped.items():
+        artist_key, album_key, custom_id = key_tuple
         
-        if not audio_files:
-            continue
-
-        # Process one folder = one album
-        full_root = Path(root)
-        raw_tracks = []
+        # A. Sort
+        sorted_tracks = sort_album_tracks(raw_track_list)
+        
+        # B. Find Cover (First non-null image in the sorted pool)
         cover_image = None
+        for t in sorted_tracks:
+            if t.get("_embedded_image"):
+                cover_image = t["_embedded_image"]
+                break
         
-        # 1. Extract
-        for f in audio_files:
-            file_path = full_root / f
-            data = FlacExtractor.extract(file_path)
-            if data and data.get("tags"):
-                raw_tracks.append(data["tags"])
-                # Grab first available image
-                if not cover_image and data.get("image_data"):
-                    cover_image = data["image_data"]
-
-        if not raw_tracks:
-            continue
-
-        # Sort tracks by filename to ensure deterministic processing order
-        raw_tracks.sort(key=lambda x: x["track_path"])
-
-        # 2. Logic Engine (Sieve)
-        album_pool, track_pools = segregate_tags(raw_tracks, tracks_layout)
-
-        # 3. Determine Filename
-        artist = album_pool.get("ALBUMARTIST") or album_pool.get("ARTIST") or "Unknown"
-        album_title = album_pool.get("ALBUM") or "Unknown"
-        base_name = slugify_album_filename(
-            gen_cfg["naming_file_pattern"], 
-            str(artist), 
-            str(album_title),
-            gen_cfg.get("naming_sanitization_char", "_")
+        # C. Generate Slug
+        slug = generate_filename(
+            naming_pattern, 
+            artist_key, 
+            album_key, 
+            custom_id, 
+            sanitize_char
         )
         
-        # Inject Cover Path into Album Pool
+        # D. Logic Engine (Sieve)
+        # Note: segregate_tags strips _embedded_image internally
+        album_pool, track_pools = segregate_tags(sorted_tracks, tracks_layout)
+        
+        # Inject metadata about the cover if it exists
         if cover_image:
-            album_pool["cover_path"] = f"cover_{base_name}.jpg"
+            album_pool["cover_path"] = f"cover_{slug}.jpg"
 
-        # 4. Render & Write
-        toml_path = out_dir / f"metadata_{base_name}.toml"
+        # E. Render & Write
+        toml_path = out_dir / f"metadata_{slug}.toml"
         
         with open(toml_path, "w", encoding="utf-8") as f:
             # [album]
@@ -85,12 +86,12 @@ def run_generate():
                 f.write("\n".join(track_lines))
                 f.write("\n\n")
 
-        # 5. Write Cover
+        # F. Write Cover
         if cover_image:
-            with open(out_dir / f"cover_{base_name}.jpg", "wb") as f:
+            with open(out_dir / f"cover_{slug}.jpg", "wb") as f:
                 f.write(cover_image)
         
-        print(f"Generated: {base_name}")
+        print(f"Generated: {slug}")
 
 if __name__ == "__main__":
     run_generate()
