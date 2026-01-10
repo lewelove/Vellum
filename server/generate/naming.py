@@ -1,5 +1,5 @@
 import re
-from typing import Optional
+from typing import List
 
 def sanitize_slug(text: str, replacement: str = "_") -> str:
     """
@@ -14,21 +14,24 @@ def sanitize_slug(text: str, replacement: str = "_") -> str:
     return text
 
 def generate_filename(
-    pattern: str, 
-    artist: str, 
-    album: str, 
-    custom_id: Optional[str], 
+    components: List[str], 
+    separator: str, 
     replacement: str = "_"
 ) -> str:
     """
-    Generates a unique, sanitized filename slug.
-    Injects CUSTOM_ID if present to prevent collisions.
-    """
-    # Basic Interpolation
-    base = pattern.replace("{artist}", artist).replace("{album}", album)
+    Generates a unique filename slug from a list of components.
     
-    # ID Injection
-    if custom_id:
-        base = f"{base}_{custom_id}"
-        
-    return sanitize_slug(base, replacement)
+    1. Filters out empty components.
+    2. Joins components with the raw separator.
+    3. Sanitizes the entire resulting string at the end.
+       (This ensures that if the user's separator contains illegal chars
+        or spaces, they are safely normalized).
+    """
+    # Filter empty strings
+    valid_parts = [str(c) for c in components if c]
+    
+    # Join first
+    raw_slug = separator.join(valid_parts)
+    
+    # Sanitize second
+    return sanitize_slug(raw_slug, replacement)

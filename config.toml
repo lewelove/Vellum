@@ -4,7 +4,8 @@ metadata_store = "~/dev/mpf2k-test-library/metadata_output"
 
 [generate]
 supported_extensions = [".flac"]
-naming_file_pattern = "{artist}_-_{album}"
+grouping_keys = ["ALBUMARTIST", "ALBUM", "CUSTOM_ID"]
+naming_separator = "_"
 naming_sanitization_char = "_"
 
 [generate.album]

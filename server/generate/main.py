@@ -22,8 +22,11 @@ def run_generate():
     
     gen_cfg = config["generate"]
     supported_exts = gen_cfg["supported_extensions"]
+    
+    # New Logic Extraction
+    grouping_keys = gen_cfg.get("grouping_keys", ["ALBUMARTIST", "ALBUM"])
+    naming_sep = gen_cfg.get("naming_separator", "_-_")
     sanitize_char = gen_cfg.get("naming_sanitization_char", "_")
-    naming_pattern = gen_cfg["naming_file_pattern"]
     
     album_layout = gen_cfg["album"]["layout"]
     tracks_layout = gen_cfg["tracks"]["layout"]
@@ -35,12 +38,13 @@ def run_generate():
         return
 
     # 2. Group
-    grouped = group_tracks(all_tracks)
+    # We now pass the dynamic keys from config
+    grouped = group_tracks(all_tracks, grouping_keys)
     print(f"grouped into {len(grouped)} albums.")
 
     # 3. Process Groups
+    # key_tuple is now an ordered tuple corresponding to grouping_keys
     for key_tuple, raw_track_list in grouped.items():
-        artist_key, album_key, custom_id = key_tuple
         
         # A. Sort
         sorted_tracks = sort_album_tracks(raw_track_list)
@@ -53,19 +57,21 @@ def run_generate():
                 break
         
         # C. Generate Slug
+        # The key_tuple contains the values we grouped by. 
+        # We pass these directly to the naming engine.
         slug = generate_filename(
-            naming_pattern, 
-            artist_key, 
-            album_key, 
-            custom_id, 
+            list(key_tuple), 
+            naming_sep,
             sanitize_char
         )
         
+        # Fallback for completely empty keys (e.g. tracks with no tags)
+        if not slug:
+            slug = "unknown_group"
+
         # D. Logic Engine (Sieve)
-        # Note: segregate_tags strips _embedded_image internally
         album_pool, track_pools = segregate_tags(sorted_tracks, tracks_layout)
         
-        # Inject metadata about the cover if it exists
         if cover_image:
             album_pool["cover_path"] = f"cover_{slug}.jpg"
 
