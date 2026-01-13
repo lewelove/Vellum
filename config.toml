@@ -15,13 +15,12 @@ layout = [
   "ALBUMARTIST",
   "DATE",
   "GENRE",
+  "DATEADDED",
+  { "" = ["\n", "COMMENT", "MEDIA", "COUNTRY", "LABEL", "CATALOGNUMBER", "RELEASE_YYYY_MM"] },
+  { "" = ["\n", "MAGNET", "SOURCE"] },
+  { "" = ["\n", "DISCOGS_URL", "MUSICBRAINZ_URL", "ACCURIPID", "CTDBID", "DISCID"] },
+  { "\n # -- MusicBraiz Metadata --" = ["MUSICBRAINZ_ALBUMID", "MUSICBRAINZ_ALBUMARTISTID", "MUSICBRAINZ_ARTISTID", "MUSICBRAINZ_RELEASEGROUPID"] },
   "\n",
-  { "# -- Release Group / Issue --" = ["COMMENT", "MEDIA", "COUNTRY", "LABEL", "CATALOGNUMBER", "RELEASE_YYYY_MM", "\n"] },
-  { "# -- Source --" = ["MAGNET", "SOURCE", "\n"] },
-  { "# -- Digital Identifiers --" = ["DISCOGS_URL", "MUSICBRAINZ_URL", "ACCURIPID", "CTDBID", "DISCID", "\n"] },
-  { "# -- MusicBraiz Metadata --" = ["MUSICBRAINZ_ALBUMID", "MUSICBRAINZ_ALBUMARTISTID", "MUSICBRAINZ_ARTISTID", "MUSICBRAINZ_RELEASEGROUPID", "\n"] },
-  { "# -- Internal --" = ["*_path", "date_added", "\n"] },
-  "# -- Other --" 
 ]
 
 [generate.tracks]
@@ -29,6 +28,5 @@ layout = [
   "TRACKNUMBER",
   "TITLE",
   "ARTIST",
-  "track_path",
-  { "# -- MusicBraiz Metadata --" = ["MUSICBRAINZ_TRACKID", "MUSICBRAINZ_RELEASETRACKID", "\n"] },
+  { "# -- MusicBraiz Metadata --" = ["MUSICBRAINZ_TRACKID", "MUSICBRAINZ_RELEASETRACKID"] },
 ]

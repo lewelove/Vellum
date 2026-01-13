@@ -3,135 +3,111 @@ import tomllib
 from pathlib import Path
 from tqdm import tqdm
 
-# Modules
-from .harvester import scan_library
-from .grouper import group_tracks, sort_album_tracks, resolve_anchor
-from .naming import generate_filename
-from .engine import segregate_tags, process_layout
-from .extractor import FlacExtractor
+from .extractor import PhysicalExtractor
+from .engine import segregate_tags, render_toml_block, get_layout_keys
 
-def load_config():
-    config_path = Path("config.toml")
-    with open(config_path, "rb") as f:
-        return tomllib.load(f)
+# Helper Registry
+from .helpers import __all__ as PROTECTED_HELPERS
+from .helpers import (
+    track_path, cover_path, cover_byte_size, encoding, 
+    bits_per_sample, channels, sample_rate, 
+    duration_in_samples, duration_in_ms
+)
 
 def run_generate():
-    config = load_config()
-    
-    # Config Extraction
-    lib_root = config["storage"]["library_root"]
-    fallback_store = Path(config["storage"]["metadata_store"]).expanduser()
-    fallback_store.mkdir(parents=True, exist_ok=True)
-    
+    config_path = Path("config.toml")
+    if not config_path.exists():
+        print("Error: config.toml not found.")
+        return
+
+    with open(config_path, "rb") as f:
+        config = tomllib.load(f)
+
+    lib_root = Path(config["storage"]["library_root"]).expanduser().resolve()
     gen_cfg = config["generate"]
     supported_exts = gen_cfg["supported_extensions"]
-    
-    grouping_keys = gen_cfg.get("grouping_keys", ["ALBUMARTIST", "ALBUM"])
-    naming_sep = gen_cfg.get("naming_separator", "_")
-    sanitize_char = gen_cfg.get("naming_sanitization_char", "_")
-    
     album_layout = gen_cfg["album"]["layout"]
     tracks_layout = gen_cfg["tracks"]["layout"]
 
-    # 1. Harvest (Pass 1: Text Only)
-    all_tracks = scan_library(lib_root, supported_exts)
-    if not all_tracks:
-        print("No tracks found.")
-        return
+    # Calculate "Opt-In" keys from config
+    opted_in_keys = get_layout_keys(album_layout) | get_layout_keys(tracks_layout)
 
-    # 2. Group
-    grouped = group_tracks(all_tracks, grouping_keys)
-    print(f"Grouped into {len(grouped)} potential albums.")
+    folders_with_audio = set()
+    for ext in supported_exts:
+        for p in lib_root.rglob(f"*{ext}"):
+            folders_with_audio.add(p.parent)
 
-    # 3. Process Groups
-    for key_tuple, raw_track_list in tqdm(grouped.items(), desc="Generating Albums", unit="album"):
+    for album_root in tqdm(folders_with_audio, desc="Compiling Library", unit="album"):
         
-        # A. Sort tracks
-        sorted_tracks = sort_album_tracks(raw_track_list)
+        # --- PHASE 1: THE BODY (files.toml) ---
+        rel_paths = track_path.resolve(album_root, supported_exts)
+        physics_tracks = []
         
-        # B. Calculate Anchor & Logic Mode
-        anchor, is_valid_anchor = resolve_anchor(sorted_tracks, lib_root)
+        for rp in rel_paths:
+            audio_obj, _ = PhysicalExtractor.get_audio_payload(album_root / rp)
+            if audio_obj:
+                physics_tracks.append({
+                    "track_path": rp,
+                    "encoding": encoding.resolve(audio_obj),
+                    "bits_per_sample": bits_per_sample.resolve(audio_obj),
+                    "channels": channels.resolve(audio_obj),
+                    "sample_rate": sample_rate.resolve(audio_obj),
+                    "duration_in_samples": duration_in_samples.resolve(audio_obj),
+                    "duration_in_ms": duration_in_ms.resolve(audio_obj),
+                })
+
+        if not physics_tracks: continue
+
+        cp = cover_path.resolve(album_root)
+        c_size = cover_byte_size.resolve(album_root, cp)
         
-        # C. Determine Output Paths based on Mode
-        if is_valid_anchor:
-            # MODE A: In-Place (Preferred)
-            out_dir = anchor
-            toml_name = "metadata.toml"
-            cover_name_base = "cover"
-            use_relative_paths = True
-        else:
-            # MODE B: Fallback (Scattered)
-            slug = generate_filename(list(key_tuple), naming_sep, sanitize_char)
-            if not slug: slug = "unknown_group"
+        p_album_pool, p_track_pools = segregate_tags(physics_tracks, greedy=True)
+        if cp:
+            p_album_pool["cover_path"] = cp
+            p_album_pool["cover_byte_size"] = c_size
+
+        with open(album_root / "files.toml", "w", encoding="utf-8") as f:
+            f.write("[album]\n")
+            f.write("\n".join(render_toml_block(p_album_pool)) + "\n\n")
+            for tp in p_track_pools:
+                f.write("[[tracks]]\n")
+                f.write("\n".join(render_toml_block(tp)) + "\n\n")
+
+        # --- PHASE 2: THE SOUL (metadata.toml) ---
+        tag_pool_list = []
+        for i, rp in enumerate(rel_paths):
+            _, tags = PhysicalExtractor.get_audio_payload(album_root / rp)
             
-            out_dir = fallback_store
-            toml_name = f"metadata_{slug}.toml"
-            cover_name_base = f"cover_{slug}"
-            use_relative_paths = False
+            # INJECTION: Add calculated helpers to the pool so they CAN be opted-in
+            # We use the data already calculated for files.toml
+            track_physics = physics_tracks[i]
+            for h_name in PROTECTED_HELPERS:
+                if h_name in track_physics:
+                    tags[h_name] = track_physics[h_name]
 
-        # D. Targeted Image Extraction (Lead Track only)
-        cover_image = None
-        image_ext = "jpg" # default
-        
-        if sorted_tracks:
-            lead_track_path = Path(sorted_tracks[0]["track_path_absolute"])
-            image_data_payload = FlacExtractor.extract(lead_track_path, include_image=True)
+            # FILTERING: Remove any protected helper UNLESS it is opted-in via layout
+            final_tags = {}
+            for k, v in tags.items():
+                if k in PROTECTED_HELPERS:
+                    if k in opted_in_keys:
+                        final_tags[k] = v
+                else:
+                    final_tags[k] = v
             
-            if image_data_payload.get("image_data"):
-                cover_image = image_data_payload["image_data"]
-                mime = image_data_payload.get("mime_type", "")
-                if "png" in mime: image_ext = "png"
-                elif "gif" in mime: image_ext = "gif"
+            tag_pool_list.append(final_tags)
 
-        # E. Prepare Pathing for TOML
-        # We modify the track objects in memory to reflect the path style needed
-        for t in sorted_tracks:
-            abs_path = t["track_path_absolute"]
-            if use_relative_paths:
-                # Relative to the anchor (metadata.toml location)
-                # e.g. "CD1/01.flac" or "01.flac"
-                t["track_path"] = os.path.relpath(abs_path, out_dir)
-            else:
-                # Absolute path for fallback store
-                t["track_path"] = abs_path
+        m_album_pool, m_track_pools = segregate_tags(tag_pool_list, layout=tracks_layout, greedy=False)
 
-        # F. Logic Engine (Sieve)
-        album_pool, track_pools = segregate_tags(sorted_tracks, tracks_layout)
-        
-        # Add cover path to album pool if exists
-        if cover_image:
-            album_pool["cover_path"] = f"{cover_name_base}.{image_ext}"
-
-        # G. Write TOML
-        toml_path = out_dir / toml_name
-        try:
-            with open(toml_path, "w", encoding="utf-8") as f:
+        meta_path = album_root / "metadata.toml"
+        if not meta_path.exists():
+            with open(meta_path, "w", encoding="utf-8") as f:
                 f.write("[album]\n")
-                album_lines = process_layout(album_pool, album_layout)
-                f.write("\n".join(album_lines))
-                f.write("\n\n")
-                
-                for t_pool in track_pools:
+                f.write("\n".join(render_toml_block(m_album_pool, album_layout)) + "\n\n")
+                for tp in m_track_pools:
                     f.write("[[tracks]]\n")
-                    track_lines = process_layout(t_pool, tracks_layout)
-                    f.write("\n".join(track_lines))
-                    f.write("\n\n")
-        except PermissionError:
-            print(f"Skipping write: Permission denied for {toml_path}")
-            continue
+                    f.write("\n".join(render_toml_block(tp, tracks_layout)) + "\n\n")
 
-        # H. Write Cover
-        if cover_image:
-            cover_path = out_dir / f"{cover_name_base}.{image_ext}"
-            try:
-                with open(cover_path, "wb") as f:
-                    f.write(cover_image)
-            except PermissionError:
-                pass # Fail silently on image write permission
-            
-            cover_image = None
-
-    print("\nGeneration complete.")
+    print("\nCompilation Complete.")
 
 if __name__ == "__main__":
     run_generate()
