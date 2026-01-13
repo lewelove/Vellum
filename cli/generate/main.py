@@ -6,8 +6,8 @@ from tqdm import tqdm
 from .extractor import PhysicalExtractor
 from .engine import segregate_tags, render_toml_block, get_layout_keys
 
-from .helpers import __all__ as PROTECTED_HELPERS
-from .helpers import (
+from cli.helpers import __all__ as PROTECTED_HELPERS
+from cli.helpers import (
     track_path, cover_path, cover_byte_size, encoding, 
     bits_per_sample, channels, sample_rate, 
     duration_in_samples, duration_in_ms
@@ -105,6 +105,3 @@ def run_generate():
                 f.write("\n".join(render_toml_block(tp, tracks_layout)) + "\n\n")
 
     print("\nCompilation Complete.")
-
-if __name__ == "__main__":
-    run_generate()

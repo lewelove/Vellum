@@ -1,6 +1,6 @@
 [storage]
 library_root = "~/dev/mpf2k-test-library/albums"
-metadata_store = "~/dev/mpf2k-test-library/metadata_output"
+library_export = "~/dev/mpf2k-test-library/metadata_output"
 
 [generate]
 supported_extensions = [".flac"]
