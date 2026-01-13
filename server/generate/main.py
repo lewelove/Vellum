@@ -6,7 +6,6 @@ from tqdm import tqdm
 from .extractor import PhysicalExtractor
 from .engine import segregate_tags, render_toml_block, get_layout_keys
 
-# Helper Registry
 from .helpers import __all__ as PROTECTED_HELPERS
 from .helpers import (
     track_path, cover_path, cover_byte_size, encoding, 
@@ -29,7 +28,6 @@ def run_generate():
     album_layout = gen_cfg["album"]["layout"]
     tracks_layout = gen_cfg["tracks"]["layout"]
 
-    # Calculate "Opt-In" keys from config
     opted_in_keys = get_layout_keys(album_layout) | get_layout_keys(tracks_layout)
 
     folders_with_audio = set()
@@ -39,7 +37,6 @@ def run_generate():
 
     for album_root in tqdm(folders_with_audio, desc="Compiling Library", unit="album"):
         
-        # --- PHASE 1: THE BODY (files.toml) ---
         rel_paths = track_path.resolve(album_root, supported_exts)
         physics_tracks = []
         
@@ -66,7 +63,6 @@ def run_generate():
             p_album_pool["cover_path"] = cp
             p_album_pool["cover_byte_size"] = c_size
 
-        # Always overwrite files.toml
         with open(album_root / "files.toml", "w", encoding="utf-8") as f:
             f.write("[album]\n")
             f.write("\n".join(render_toml_block(p_album_pool)) + "\n\n")
@@ -74,18 +70,15 @@ def run_generate():
                 f.write("[[tracks]]\n")
                 f.write("\n".join(render_toml_block(tp)) + "\n\n")
 
-        # --- PHASE 2: THE SOUL (metadata.toml) ---
         tag_pool_list = []
         for i, rp in enumerate(rel_paths):
             _, tags = PhysicalExtractor.get_audio_payload(album_root / rp)
             
-            # INJECTION: Add calculated helpers to the pool so they CAN be opted-in
             track_physics = physics_tracks[i]
             for h_name in PROTECTED_HELPERS:
                 if h_name in track_physics:
                     tags[h_name] = track_physics[h_name]
 
-            # FILTERING: Remove any protected helper UNLESS it is opted-in via layout
             final_tags = {}
             for k, v in tags.items():
                 if k in PROTECTED_HELPERS:
@@ -96,9 +89,13 @@ def run_generate():
             
             tag_pool_list.append(final_tags)
 
-        m_album_pool, m_track_pools = segregate_tags(tag_pool_list, layout=tracks_layout, greedy=False)
+        m_album_pool, m_track_pools = segregate_tags(
+            tag_pool_list, 
+            album_layout=album_layout, 
+            tracks_layout=tracks_layout, 
+            greedy=False
+        )
 
-        # FORCED OVERWRITE: Removed existence check to ensure metadata.toml is always refreshed
         meta_path = album_root / "metadata.toml"
         with open(meta_path, "w", encoding="utf-8") as f:
             f.write("[album]\n")

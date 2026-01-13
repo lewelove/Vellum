@@ -1,26 +1,48 @@
 import json
-import fnmatch
 
 def format_toml_value(value):
     return json.dumps(value, ensure_ascii=False)
 
 def get_layout_keys(layout: list) -> set:
     """
-    Traverses the layout config to find every explicitly named key or glob.
+    Traverses the layout config to find every explicitly named key.
     """
     keys = set()
+    if not layout:
+        return keys
     for item in layout:
         if isinstance(item, str):
-            if not item.startswith("#") and item != "\n":
+            if item != "*" and not item.startswith("#") and item != "\n":
                 keys.add(item)
         elif isinstance(item, dict):
             for tags in item.values():
                 for t in tags:
-                    if t != "\n":
+                    if t != "*" and t != "\n":
                         keys.add(t)
     return keys
 
-def segregate_tags(raw_tracks: list, layout: list = None, greedy: bool = False):
+def is_key_in_layout(key: str, layout: list) -> bool:
+    """
+    Checks if a key is explicitly mentioned in the layout.
+    """
+    for item in layout:
+        if isinstance(item, str) and item == key:
+            return True
+        if isinstance(item, dict):
+            for tags in item.values():
+                if any(t == key for t in tags):
+                    return True
+    return False
+
+def segregate_tags(
+    raw_tracks: list, 
+    album_layout: list = None, 
+    tracks_layout: list = None, 
+    greedy: bool = False
+):
+    """
+    Decides which tags stay in the track pool and which move to the album pool.
+    """
     if not raw_tracks: return {}, []
 
     first_track = raw_tracks[0]
@@ -30,16 +52,27 @@ def segregate_tags(raw_tracks: list, layout: list = None, greedy: bool = False):
 
     album_pool = {}
     final_common_keys = []
-
+    
     for key in common_keys:
         if all(t[key] == first_track[key] for t in raw_tracks):
+            promote = False
+            
             if greedy:
+                promote = True
+            else:
+                in_album_cfg = is_key_in_layout(key, album_layout or [])
+                in_tracks_cfg = is_key_in_layout(key, tracks_layout or [])
+                
+                if in_album_cfg:
+                    promote = True
+                elif in_tracks_cfg:
+                    promote = False
+                else:
+                    promote = True
+
+            if promote:
                 album_pool[key] = first_track[key]
                 final_common_keys.append(key)
-            else:
-                if not is_key_exempt(key, layout or []):
-                    album_pool[key] = first_track[key]
-                    final_common_keys.append(key)
 
     track_pools = []
     for track in raw_tracks:
@@ -50,47 +83,54 @@ def segregate_tags(raw_tracks: list, layout: list = None, greedy: bool = False):
 
     return album_pool, track_pools
 
-def is_key_exempt(key: str, layout: list) -> bool:
-    for item in layout:
-        if isinstance(item, str) and (item == key or ( "*" in item and fnmatch.fnmatch(key, item))):
-            return True
-        if isinstance(item, dict):
-            for tags in item.values():
-                if any(t == key or ("*" in t and fnmatch.fnmatch(key, t)) for t in tags):
-                    return True
-    return False
-
 def render_toml_block(pool: dict, layout: list = None) -> list:
     lines = []
-    keys = list(pool.keys())
+    pool_keys = set(pool.keys())
+    consumed = set()
     
+    reserved = get_layout_keys(layout) if layout else set()
+
+    def remaining_appendix(force=False):
+        """
+        Prints tags not yet consumed. 
+        If force=False (at a '*' middle-flush), skips keys reserved for later.
+        If force=True (at the end), prints everything remaining.
+        """
+        remaining = [k for k in pool_keys if k not in consumed]
+        if not force:
+            remaining = [k for k in remaining if k not in reserved]
+            
+        for k in sorted(remaining):
+            lines.append(f'{k} = {format_toml_value(pool[k])}')
+            consumed.add(k)
+
     if layout:
-        consumed = set()
         for item in layout:
             if isinstance(item, str):
-                if item == "\n": lines.append("")
-                elif item.startswith("#"): lines.append(item)
-                else:
-                    matches = sorted([k for k in keys if k not in consumed and fnmatch.fnmatch(k, item)])
-                    for k in matches:
-                        lines.append(f'{k} = {format_toml_value(pool[k])}')
-                        consumed.add(k)
+                if item == "\n": 
+                    lines.append("")
+                elif item == "*":
+                    remaining_appendix(force=False)
+                elif item.startswith("#"): 
+                    lines.append(item)
+                elif item in pool:
+                    lines.append(f'{item} = {format_toml_value(pool[item])}')
+                    consumed.add(item)
             elif isinstance(item, dict):
                 for header, tags in item.items():
-                    sub_matches = [k for t in tags for k in keys if k not in consumed and fnmatch.fnmatch(k, t)]
-                    if sub_matches:
+                    if any(t in pool or t == "*" for t in tags):
                         if header: lines.append(header)
-                        for t_pat in tags:
-                            if t_pat == "\n": lines.append("")
-                            else:
-                                m = sorted([k for k in keys if k not in consumed and fnmatch.fnmatch(k, t_pat)])
-                                for k in m:
-                                    lines.append(f'{k} = {format_toml_value(pool[k])}')
-                                    consumed.add(k)
-        remaining = sorted([k for k in keys if k not in consumed])
-        for k in remaining: lines.append(f'{k} = {format_toml_value(pool[k])}')
+                        for t in tags:
+                            if t == "\n": 
+                                lines.append("")
+                            elif t == "*":
+                                remaining_appendix(force=False)
+                            elif t in pool:
+                                lines.append(f'{t} = {format_toml_value(pool[t])}')
+                                consumed.add(t)
+        
+        remaining_appendix(force=True)
     else:
-        for k in sorted(keys):
-            lines.append(f'{k} = {format_toml_value(pool[k])}')
+        remaining_appendix(force=True)
             
     return lines

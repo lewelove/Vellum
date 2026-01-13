@@ -8,7 +8,6 @@ from . import encoding
 from . import sample_rate
 from . import track_path
 
-# This list defines the "Protected Helpers" namespace
 __all__ = [
     "bits_per_sample",
     "channels",

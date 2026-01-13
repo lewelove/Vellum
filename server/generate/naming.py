@@ -5,10 +5,8 @@ def sanitize_slug(text: str, replacement: str = "_") -> str:
     """
     Removes illegal filename characters AND replaces whitespace.
     """
-    # 1. Replace illegal chars: \ / * ? : " < > |
     text = re.sub(r'[\\/*?:"<>|]', replacement, text)
     
-    # 2. Replace all whitespace (space, tab, newline)
     text = re.sub(r'\s+', replacement, text)
     
     return text
@@ -27,11 +25,8 @@ def generate_filename(
        (This ensures that if the user's separator contains illegal chars
         or spaces, they are safely normalized).
     """
-    # Filter empty strings
     valid_parts = [str(c) for c in components if c]
     
-    # Join first
     raw_slug = separator.join(valid_parts)
     
-    # Sanitize second
     return sanitize_slug(raw_slug, replacement)

@@ -16,10 +16,8 @@ def resolve(album_root: Path, supported_extensions: list) -> list:
     for ext in supported_extensions:
         files.extend(album_root.rglob(f"*{ext}"))
     
-    # Filter out hidden files
     files = [f for f in files if not f.name.startswith('.')]
     
-    # Natural Sort based on relative path
     files.sort(key=lambda p: natural_sort_key(p.relative_to(album_root)))
     
     return [str(p.relative_to(album_root)) for p in files]

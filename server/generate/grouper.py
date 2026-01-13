@@ -13,7 +13,6 @@ def normalize_tag(value: Any) -> str:
         return ""
         
     if isinstance(value, list):
-        # Join list values; usually tags are distinct strings
         return "; ".join(str(v) for v in value)
         
     s_val = str(value).strip()
@@ -28,7 +27,6 @@ def _parse_sort_int(value: Any) -> int:
         return 0
     
     s_val = str(value).strip()
-    # Handle "1/12" format
     if "/" in s_val:
         s_val = s_val.split("/")[0]
     
@@ -44,7 +42,6 @@ def group_tracks(tracks: List[Dict[str, Any]], keys: List[str]) -> Dict[Tuple[st
     buckets = defaultdict(list)
     
     for track in tracks:
-        # Build the composite key dynamically based on config
         group_key = tuple(
             normalize_tag(track.get(k)) for k in keys
         )
@@ -80,28 +77,19 @@ def resolve_anchor(tracks: List[Dict[str, Any]], library_root: str) -> Tuple[Opt
     if not tracks:
         return None, False
 
-    # 1. Calculate Lowest Common Ancestor (Anchor)
     paths = [Path(t["track_path_absolute"]).parent for t in tracks]
     
     try:
-        # commonpath raises ValueError if paths are on different drives
         anchor = Path(os.path.commonpath(paths))
     except ValueError:
         return None, False
 
-    # 2. Containment Check
-    # Resolve absolute paths to handle symlinks or relative inputs safely
     abs_anchor = anchor.resolve()
     abs_lib = Path(library_root).expanduser().resolve()
     
     if not abs_anchor.is_relative_to(abs_lib):
         return abs_anchor, False
 
-    # 3. Depth Check (Proximity)
-    # Allowed: 
-    #   Anchor/Track.flac (Depth 0)
-    #   Anchor/CD1/Track.flac (Depth 1)
-    #   Anchor/BoxSet/CD1/Track.flac (Depth 2)
     max_depth_allowed = 2
     
     for p in paths:
@@ -116,7 +104,6 @@ def resolve_anchor(tracks: List[Dict[str, Any]], library_root: str) -> Tuple[Opt
             if depth > max_depth_allowed:
                 return anchor, False
         except ValueError:
-            # Should not happen if commonpath worked, but safety first
             return anchor, False
 
     return anchor, True
