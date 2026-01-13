@@ -37,7 +37,6 @@ def segregate_tags(
     for track in raw_tracks[1:]:
         common_keys &= set(track.keys())
 
-    # Pre-calculate layout lookups for performance
     album_keys = get_layout_keys(album_layout) if album_layout else set()
     tracks_keys = get_layout_keys(tracks_layout) if tracks_layout else set()
 
@@ -45,7 +44,6 @@ def segregate_tags(
     final_common_keys = []
     
     for key in common_keys:
-        # Check if values are identical across all tracks
         if all(t[key] == first_track[key] for t in raw_tracks):
             promote = False
             
@@ -57,7 +55,6 @@ def segregate_tags(
                 elif key in tracks_keys:
                     promote = False
                 else:
-                    # Default: promote common tags not explicitly bound to tracks
                     promote = True
 
             if promote:
@@ -95,12 +92,10 @@ def render_toml_block(pool: dict, layout: list = None) -> list:
             lines.append(f'{k} = {format_toml_value(pool[k])}')
         appendix_consumed = True
 
-    # 2. If no layout, dump everything
     if not layout:
         emit_appendix()
         return lines
 
-    # 3. Process Layout
     for item in layout:
         if isinstance(item, str):
             if item == "\n":
@@ -114,7 +109,6 @@ def render_toml_block(pool: dict, layout: list = None) -> list:
         
         elif isinstance(item, dict):
             for header, tags in item.items():
-                # Determine if this block has content to render
                 has_content = False
                 for t in tags:
                     if t == "*" and not appendix_consumed and appendix_keys:
@@ -132,7 +126,6 @@ def render_toml_block(pool: dict, layout: list = None) -> list:
                         elif t in pool:
                             lines.append(f'{t} = {format_toml_value(pool[t])}')
 
-    # 4. Safety Flush (if * was missing)
     if not appendix_consumed:
         emit_appendix()
             
