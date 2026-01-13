@@ -90,7 +90,7 @@ def render_toml_block(pool: dict, layout: list = None) -> list:
     
     reserved = get_layout_keys(layout) if layout else set()
 
-    def remaining_appendix(force=False):
+    def discharge_appendix(force=False):
         """
         Prints tags not yet consumed. 
         If force=False (at a '*' middle-flush), skips keys reserved for later.
@@ -110,7 +110,7 @@ def render_toml_block(pool: dict, layout: list = None) -> list:
                 if item == "\n": 
                     lines.append("")
                 elif item == "*":
-                    remaining_appendix(force=False)
+                    discharge_appendix(force=False)
                 elif item.startswith("#"): 
                     lines.append(item)
                 elif item in pool:
@@ -124,13 +124,13 @@ def render_toml_block(pool: dict, layout: list = None) -> list:
                             if t == "\n": 
                                 lines.append("")
                             elif t == "*":
-                                remaining_appendix(force=False)
+                                discharge_appendix(force=False)
                             elif t in pool:
                                 lines.append(f'{t} = {format_toml_value(pool[t])}')
                                 consumed.add(t)
         
-        remaining_appendix(force=True)
+        discharge_appendix(force=True)
     else:
-        remaining_appendix(force=True)
+        discharge_appendix(force=True)
             
     return lines
