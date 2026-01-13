@@ -66,6 +66,7 @@ def run_generate():
             p_album_pool["cover_path"] = cp
             p_album_pool["cover_byte_size"] = c_size
 
+        # Always overwrite files.toml
         with open(album_root / "files.toml", "w", encoding="utf-8") as f:
             f.write("[album]\n")
             f.write("\n".join(render_toml_block(p_album_pool)) + "\n\n")
@@ -79,7 +80,6 @@ def run_generate():
             _, tags = PhysicalExtractor.get_audio_payload(album_root / rp)
             
             # INJECTION: Add calculated helpers to the pool so they CAN be opted-in
-            # We use the data already calculated for files.toml
             track_physics = physics_tracks[i]
             for h_name in PROTECTED_HELPERS:
                 if h_name in track_physics:
@@ -98,14 +98,14 @@ def run_generate():
 
         m_album_pool, m_track_pools = segregate_tags(tag_pool_list, layout=tracks_layout, greedy=False)
 
+        # FORCED OVERWRITE: Removed existence check to ensure metadata.toml is always refreshed
         meta_path = album_root / "metadata.toml"
-        if not meta_path.exists():
-            with open(meta_path, "w", encoding="utf-8") as f:
-                f.write("[album]\n")
-                f.write("\n".join(render_toml_block(m_album_pool, album_layout)) + "\n\n")
-                for tp in m_track_pools:
-                    f.write("[[tracks]]\n")
-                    f.write("\n".join(render_toml_block(tp, tracks_layout)) + "\n\n")
+        with open(meta_path, "w", encoding="utf-8") as f:
+            f.write("[album]\n")
+            f.write("\n".join(render_toml_block(m_album_pool, album_layout)) + "\n\n")
+            for tp in m_track_pools:
+                f.write("[[tracks]]\n")
+                f.write("\n".join(render_toml_block(tp, tracks_layout)) + "\n\n")
 
     print("\nCompilation Complete.")
 
