@@ -1,5 +1,7 @@
+import os
+from pathlib import Path
 from collections import defaultdict
-from typing import List, Dict, Tuple, Any
+from typing import List, Dict, Tuple, Any, Optional
 
 def normalize_tag(value: Any) -> str:
     """
@@ -63,3 +65,58 @@ def sort_album_tracks(tracks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         return (disc, track_num, path)
 
     return sorted(tracks, key=sort_key)
+
+def resolve_anchor(tracks: List[Dict[str, Any]], library_root: str) -> Tuple[Optional[Path], bool]:
+    """
+    Calculates the 'Anchor' (Common Folder) for a group of tracks and validates it.
+    
+    Returns:
+        (Anchor Path object, is_valid Boolean)
+    
+    Validity Rules:
+    1. Anchor must be within library_root.
+    2. No track can be deeper than 2 subdirectories from the Anchor.
+    """
+    if not tracks:
+        return None, False
+
+    # 1. Calculate Lowest Common Ancestor (Anchor)
+    paths = [Path(t["track_path_absolute"]).parent for t in tracks]
+    
+    try:
+        # commonpath raises ValueError if paths are on different drives
+        anchor = Path(os.path.commonpath(paths))
+    except ValueError:
+        return None, False
+
+    # 2. Containment Check
+    # Resolve absolute paths to handle symlinks or relative inputs safely
+    abs_anchor = anchor.resolve()
+    abs_lib = Path(library_root).expanduser().resolve()
+    
+    if not abs_anchor.is_relative_to(abs_lib):
+        return abs_anchor, False
+
+    # 3. Depth Check (Proximity)
+    # Allowed: 
+    #   Anchor/Track.flac (Depth 0)
+    #   Anchor/CD1/Track.flac (Depth 1)
+    #   Anchor/BoxSet/CD1/Track.flac (Depth 2)
+    max_depth_allowed = 2
+    
+    for p in paths:
+        try:
+            rel = p.relative_to(anchor)
+            # "." is depth 0. parts returns tuple of path segments.
+            if rel == Path("."):
+                depth = 0
+            else:
+                depth = len(rel.parts)
+                
+            if depth > max_depth_allowed:
+                return anchor, False
+        except ValueError:
+            # Should not happen if commonpath worked, but safety first
+            return anchor, False
+
+    return anchor, True
