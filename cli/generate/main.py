@@ -10,7 +10,8 @@ from cli.helpers import __all__ as PROTECTED_HELPERS
 from cli.helpers import (
     track_path, cover_path, cover_byte_size, encoding, 
     bits_per_sample, channels, sample_rate, 
-    duration_in_samples, duration_in_ms
+    duration_in_samples, duration_in_ms,
+    file_mtime, file_size
 )
 
 def run_generate():
@@ -41,10 +42,13 @@ def run_generate():
         physics_tracks = []
         
         for rp in rel_paths:
-            audio_obj, _ = PhysicalExtractor.get_audio_payload(album_root / rp)
+            full_track_path = album_root / rp
+            audio_obj, _ = PhysicalExtractor.get_audio_payload(full_track_path)
             if audio_obj:
                 physics_tracks.append({
                     "track_path": rp,
+                    "file_mtime": file_mtime.resolve(full_track_path),
+                    "file_size": file_size.resolve(full_track_path),
                     "encoding": encoding.resolve(audio_obj),
                     "bits_per_sample": bits_per_sample.resolve(audio_obj),
                     "channels": channels.resolve(audio_obj),

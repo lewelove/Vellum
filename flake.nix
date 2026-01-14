@@ -42,11 +42,15 @@
               generate)
                 cd "$ROOT" && python -m cli.generate
                 ;;
+              export)
+                cd "$ROOT" && python -m cli.export
+                ;;
               help|--help|-h)
                 echo "MPF2K CLI - Available Commands:"
                 echo "  ui       : Start Svelte/Vite development server"
                 echo "  server   : Start Python FastAPI backend"
                 echo "  generate : Run the metadata compiler"
+                echo "  export   : Export merged metadata and assets"
                 echo "  help     : Show this help message"
                 ;;
               *)

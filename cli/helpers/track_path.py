@@ -10,7 +10,6 @@ def natural_sort_key(s):
 def resolve(album_root: Path, supported_extensions: list) -> list:
     """
     Returns a list of relative paths to audio files, naturally sorted.
-    This defines the 'Slots' for the Zipper Logic.
     """
     files = []
     for ext in supported_extensions:
