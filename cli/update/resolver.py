@@ -90,3 +90,35 @@ def resolve_tag_comment(source: dict, release_year: str, country: str, label: st
         return str(val)
     parts = [release_year, country, label, catalog]
     return " ".join([p for p in parts if p]).strip()
+
+# UNIX_ADDED_PRIMARY
+def resolve_tag_unix_added_primary(source: dict) -> str:
+    return str(source.get("UNIX_ADDED_PRIMARY", ""))
+
+# UNIX_ADDED_LOCAL
+def resolve_tag_unix_added_local(source: dict) -> str:
+    return str(source.get("UNIX_ADDED_LOCAL", ""))
+
+# UNIX_ADDED_APPLEMUSIC
+def resolve_tag_unix_added_applemusic(source: dict) -> str:
+    return str(source.get("UNIX_ADDED_APPLEMUSIC", ""))
+
+# UNIX_ADDED_YOUTUBE
+def resolve_tag_unix_added_youtube(source: dict) -> str:
+    return str(source.get("UNIX_ADDED_YOUTUBE", ""))
+
+# CUSTOM_ID
+def resolve_tag_custom_id(source: dict) -> str:
+    return str(source.get("CUSTOM_ID", ""))
+
+# CUSTOM_ALBUMARTIST
+def resolve_tag_custom_albumartist(source: dict, albumartist: str) -> str:
+    return str(source.get("CUSTOM_ALBUMARTIST", albumartist))
+
+# CUSTOM_STRING
+def resolve_tag_custom_string(source: dict) -> str:
+    return str(source.get("CUSTOM_STRING", ""))
+
+# OLD_COMMENT
+def resolve_tag_old_comment(source: dict) -> str:
+    return str(source.get("OLD_COMMENT", ""))
