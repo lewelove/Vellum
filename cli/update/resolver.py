@@ -36,6 +36,28 @@ def resolve_tag_date(source: dict) -> str:
 def resolve_tag_genre(source: dict) -> str:
     return str(source.get("GENRE", "Unknown"))
 
+# TRACKNUMBER
+def resolve_tag_tracknumber(source: dict, index: int) -> int:
+    val = source.get("TRACKNUMBER")
+    if val is not None:
+        s_val = str(val).split('/')[0].strip()
+        try:
+            return int(s_val)
+        except ValueError:
+            pass
+    return index + 1
+
+# DISCNUMBER
+def resolve_tag_discnumber(source: dict) -> int:
+    val = source.get("DISCNUMBER")
+    if val is not None:
+        s_val = str(val).split('/')[0].strip()
+        try:
+            return int(s_val)
+        except ValueError:
+            pass
+    return 1
+
 # TOTALTRACKS
 def resolve_tag_totaltracks(tracks: list) -> int:
     return len(tracks)
@@ -164,13 +186,13 @@ def resolve_tag_musicbrainz_albumid(source: dict) -> str:
     return str(source.get("MUSICBRAINZ_ALBUMID", ""))
 
 # MUSICBRAINZ_ARTISTID
-def resolve_tag_musicbrainz_albumartistid(source: dict) -> str:
+def resolve_tag_musicbrainz_artistid(source: dict) -> str:
     return str(source.get("MUSICBRAINZ_ARTISTID", ""))
 
 # MUSICBRAINZ_RELEASETRACKID
-def resolve_tag_musicbrainz_releasegroupid(source: dict) -> str:
+def resolve_tag_musicbrainz_releasetrackid(source: dict) -> str:
     return str(source.get("MUSICBRAINZ_RELEASETRACKID", ""))
 
 # MUSICBRAINZ_TRACKID
-def resolve_tag_musicbrainz_albumid(source: dict) -> str:
+def resolve_tag_musicbrainz_trackid(source: dict) -> str:
     return str(source.get("MUSICBRAINZ_TRACKID", ""))
