@@ -1,104 +1,198 @@
 import datetime
 
-def resolve_album_tags(source: dict, total_tracks: int, total_discs: int) -> dict:
-    out = {}
-    
-    out["ALBUMARTIST"] = str(source.get("ALBUMARTIST", "Unknown"))
-    out["ALBUM"] = str(source.get("ALBUM", "Unknown"))
-    out["DATE"] = str(source.get("DATE", "0000"))
-    out["GENRE"] = str(source.get("GENRE", "Unknown"))
-    
-    out["TOTALTRACKS"] = total_tracks
-    out["TOTALDISCS"] = total_discs
+def _format_human_date(yyyy_mm: str) -> str:
+    if yyyy_mm == "0000-00":
+        return "Unknown Date"
+    parts = yyyy_mm.split("-")
+    if len(parts) < 2 or parts[1] == "00":
+        return parts[0]
+    try:
+        dt = datetime.datetime.strptime(yyyy_mm, "%Y-%m")
+        return dt.strftime("%B %Y")
+    except ValueError:
+        return parts[0]
 
-    date_str = out["DATE"]
-    yyyy_mm = "0000-00"
-    if len(date_str) >= 4:
-        yyyy_mm = f"{date_str[:4]}-00"
-    
-    out["ORIGINAL_YYYY_MM"] = str(source.get("ORIGINAL_YYYY_MM", yyyy_mm))
-    out["RELEASE_YYYY_MM"] = str(source.get("RELEASE_YYYY_MM", yyyy_mm))
-    
-    out["ORIGINAL_YEAR"] = out["ORIGINAL_YYYY_MM"][:4]
-    out["RELEASE_YEAR"] = out["RELEASE_YYYY_MM"][:4]
-    
-    def format_human_date(ym):
-        if ym == "0000-00": return "Unknown Date"
+# ALBUMARTIST
+def resolve_tag_albumartist(source: dict) -> str:
+    return str(source.get("ALBUMARTIST", "Unknown"))
+
+# ALBUM
+def resolve_tag_album(source: dict) -> str:
+    return str(source.get("ALBUM", "Untitled"))
+
+# ARTIST
+def resolve_tag_artist(source: dict) -> str:
+    return str(source.get("ARTIST", albumartist))
+
+# TITLE
+def resolve_tag_title(source: dict) -> str:
+    return str(source.get("TITLE", "Untitled"))
+
+# DATE
+def resolve_tag_date(source: dict) -> str:
+    return str(source.get("DATE", "0000"))
+
+# GENRE
+def resolve_tag_genre(source: dict) -> str:
+    return str(source.get("GENRE", "Unknown"))
+
+# TRACKNUMBER
+def resolve_tag_tracknumber(source: dict, index: int) -> int:
+    val = source.get("TRACKNUMBER")
+    if val is not None:
+        s_val = str(val).split('/')[0].strip()
         try:
-            parts = ym.split("-")
-            y = int(parts[0])
-            return str(y)
-        except:
-            return ym
+            return int(s_val)
+        except ValueError:
+            pass
+    return index + 1
 
-    out["ORIGINAL_DATE"] = format_human_date(out["ORIGINAL_YYYY_MM"])
-    out["RELEASE_DATE"] = format_human_date(out["RELEASE_YYYY_MM"])
+# DISCNUMBER
+def resolve_tag_discnumber(source: dict) -> int:
+    val = source.get("DISCNUMBER")
+    if val is not None:
+        s_val = str(val).split('/')[0].strip()
+        try:
+            return int(s_val)
+        except ValueError:
+            pass
+    return 1
 
-    out["COUNTRY"] = str(source.get("COUNTRY", ""))
-    out["LABEL"] = str(source.get("LABEL", ""))
-    out["CATALOGNUMBER"] = str(source.get("CATALOGNUMBER", ""))
-    out["MEDIA"] = str(source.get("MEDIA", ""))
+# TOTALTRACKS
+def resolve_tag_totaltracks(tracks: list) -> int:
+    return len(tracks)
 
-    comment_parts = [out["RELEASE_YEAR"], out["COUNTRY"], out["LABEL"], out["CATALOGNUMBER"]]
-    generated_comment = " ".join([p for p in comment_parts if p])
-    out["COMMENT"] = str(source.get("COMMENT", generated_comment))
+# TOTALDISCS
+def resolve_tag_totaldiscs(tracks: list) -> int:
+    discs = set()
+    for t in tracks:
+        discs.add(str(t.get("DISCNUMBER", "1")))
+    return len(discs)
 
-    out["CUSTOM_ID"] = str(source.get("CUSTOM_ID", ""))
-    out["CUSTOM_ALBUMARTIST"] = str(source.get("CUSTOM_ALBUMARTIST", out["ALBUMARTIST"]))
-    out["CUSTOM_STRING"] = str(source.get("CUSTOM_STRING", ""))
-    
-    out["DISCOGS_URL"] = str(source.get("DISCOGS_URL", ""))
-    out["MUSICBRAINZ_URL"] = str(source.get("MUSICBRAINZ_URL", ""))
-    out["MUSICBRAINZ_ALBUMID"] = str(source.get("MUSICBRAINZ_ALBUMID", ""))
-    out["MUSICBRAINZ_ALBUMARTISTID"] = str(source.get("MUSICBRAINZ_ALBUMARTISTID", ""))
-    out["MUSICBRAINZ_RELEASEGROUPID"] = str(source.get("MUSICBRAINZ_RELEASEGROUPID", ""))
-    out["ACCURIPID"] = str(source.get("ACCURIPID", ""))
-    out["CTDBID"] = str(source.get("CTDBID", ""))
-    out["DISCID"] = str(source.get("DISCID", ""))
+# ORIGINAL_YYYY_MM
+def resolve_tag_original_yyyy_mm(source: dict) -> str:
+    if "ORIGINAL_YYYY_MM" in source:
+        return str(source["ORIGINAL_YYYY_MM"])
+    return f"{resolve_tag_date(source)[:4]}-00"
 
-    out["album_root_path"] = str(source.get("album_root_path", "")) 
+# ORIGINAL_YEAR
+def resolve_tag_original_year(source: dict) -> str:
+    return resolve_tag_original_yyyy_mm(source)[:4]
 
-    unix_p = source.get("UNIX_ADDED_PRIMARY")
-    unix_l = source.get("UNIX_ADDED_LOCAL", "0")
-    unix_a = source.get("UNIX_ADDED_APPLEMUSIC", "0")
-    unix_y = source.get("UNIX_ADDED_YOUTUBE", "0")
-    
-    out["UNIX_ADDED_PRIMARY"] = str(unix_p) if unix_p else ""
-    out["UNIX_ADDED_LOCAL"] = str(unix_l)
-    out["UNIX_ADDED_APPLEMUSIC"] = str(unix_a)
-    out["UNIX_ADDED_YOUTUBE"] = str(unix_y)
-    
-    final_unix = 0
-    if unix_p:
-         final_unix = int(unix_p)
-    else:
-        candidates = []
-        if unix_l != "0": candidates.append(int(unix_l))
-        if unix_a != "0": candidates.append(int(unix_a))
-        if unix_y != "0": candidates.append(int(unix_y))
-        if candidates:
-            final_unix = max(candidates)
-            
-    out["unix_added"] = final_unix
-    if final_unix > 0:
-        dt = datetime.datetime.fromtimestamp(final_unix)
-        out["date_added"] = dt.strftime("%B %d %Y")
-    else:
-        out["date_added"] = ""
+# ORIGINAL_DATE
+def resolve_tag_original_date(source: dict) -> str:
+    return _format_human_date(resolve_tag_original_yyyy_mm(source))
 
-    return out
+# RELEASE_YYYY_MM
+def resolve_tag_release_yyyy_mm(source: dict) -> str:
+    if "RELEASE_YYYY_MM" in source:
+        return str(source["RELEASE_YYYY_MM"])
+    return f"{resolve_tag_date(source)[:4]}-00"
 
-def resolve_track_tags(source: dict, index: int) -> dict:
-    out = {}
-    
-    out["TITLE"] = str(source.get("TITLE", "Untitled"))
-    out["ARTIST"] = str(source.get("ARTIST", source.get("ALBUMARTIST", "Unknown")))
-    
-    out["TRACKNUMBER"] = int(source.get("TRACKNUMBER", index + 1))
-    out["DISCNUMBER"] = int(source.get("DISCNUMBER", 1))
-    
-    out["MUSICBRAINZ_ARTISTID"] = str(source.get("MUSICBRAINZ_ARTISTID", ""))
-    out["MUSICBRAINZ_TRACKID"] = str(source.get("MUSICBRAINZ_TRACKID", ""))
-    out["MUSICBRAINZ_RELEASETRACKID"] = str(source.get("MUSICBRAINZ_RELEASETRACKID", ""))
+# RELEASE_YEAR
+def resolve_tag_release_year(source: dict) -> str:
+    return resolve_tag_release_yyyy_mm(source)[:4]
 
-    return out
+# RELEASE_DATE
+def resolve_tag_release_date(source: dict) -> str:
+    return _format_human_date(resolve_tag_release_yyyy_mm(source))
+
+# COUNTRY
+def resolve_tag_country(source: dict) -> str:
+    return str(source.get("COUNTRY", ""))
+
+# LABEL
+def resolve_tag_label(source: dict) -> str:
+    return str(source.get("LABEL", ""))
+
+# CATALOGNUMBER
+def resolve_tag_catalognumber(source: dict) -> str:
+    return str(source.get("CATALOGNUMBER", ""))
+
+# MEDIA
+def resolve_tag_media(source: dict) -> str:
+    return str(source.get("MEDIA", ""))
+
+# COMMENT
+def resolve_tag_comment(source: dict, release_year: str, country: str, label: str, catalog: str) -> str:
+    val = source.get("COMMENT")
+    if val:
+        return str(val)
+    parts = [release_year, country, label, catalog]
+    return " ".join([p for p in parts if p]).strip()
+
+# UNIX_ADDED_PRIMARY
+def resolve_tag_unix_added_primary(source: dict) -> str:
+    return str(source.get("UNIX_ADDED_PRIMARY", ""))
+
+# UNIX_ADDED_LOCAL
+def resolve_tag_unix_added_local(source: dict) -> str:
+    return str(source.get("UNIX_ADDED_LOCAL", ""))
+
+# UNIX_ADDED_APPLEMUSIC
+def resolve_tag_unix_added_applemusic(source: dict) -> str:
+    return str(source.get("UNIX_ADDED_APPLEMUSIC", ""))
+
+# UNIX_ADDED_YOUTUBE
+def resolve_tag_unix_added_youtube(source: dict) -> str:
+    return str(source.get("UNIX_ADDED_YOUTUBE", ""))
+
+# CUSTOM_ID
+def resolve_tag_custom_id(source: dict) -> str:
+    return str(source.get("CUSTOM_ID", ""))
+
+# CUSTOM_ALBUMARTIST
+def resolve_tag_custom_albumartist(source: dict, albumartist: str) -> str:
+    return str(source.get("CUSTOM_ALBUMARTIST", albumartist))
+
+# CUSTOM_STRING
+def resolve_tag_custom_string(source: dict) -> str:
+    return str(source.get("CUSTOM_STRING", ""))
+
+# OLD_COMMENT
+def resolve_tag_old_comment(source: dict) -> str:
+    return str(source.get("OLD_COMMENT", ""))
+
+# DISCOGS_URL
+def resolve_tag_discogs_url(source: dict) -> str:
+    return str(source.get("DISCOGS_URL", ""))
+
+# MUSICBRAINZ_URL
+def resolve_tag_musicbrainz_url(source: dict) -> str:
+    return str(source.get("MUSICBRAINZ_URL", ""))
+
+# CTDBID
+def resolve_tag_ctdbid(source: dict) -> str:
+    return str(source.get("CTDBID", ""))
+
+# ACCURIPID
+def resolve_tag_accuripid(source: dict) -> str:
+    return str(source.get("ACCURIPID", ""))
+
+# DISCID
+def resolve_tag_discid(source: dict) -> str:
+    return str(source.get("DISCID", ""))
+
+# MUSICBRAINZ_ALBUMARTISTID
+def resolve_tag_musicbrainz_albumartistid(source: dict) -> str:
+    return str(source.get("MUSICBRAINZ_ALBUMARTISTID", ""))
+
+# MUSICBRAINZ_RELEASEGROUPID
+def resolve_tag_musicbrainz_releasegroupid(source: dict) -> str:
+    return str(source.get("MUSICBRAINZ_RELEASEGROUPID", ""))
+
+# MUSICBRAINZ_ALBUMID
+def resolve_tag_musicbrainz_albumid(source: dict) -> str:
+    return str(source.get("MUSICBRAINZ_ALBUMID", ""))
+
+# MUSICBRAINZ_ARTISTID
+def resolve_tag_musicbrainz_artistid(source: dict) -> str:
+    return str(source.get("MUSICBRAINZ_ARTISTID", ""))
+
+# MUSICBRAINZ_RELEASETRACKID
+def resolve_tag_musicbrainz_releasetrackid(source: dict) -> str:
+    return str(source.get("MUSICBRAINZ_RELEASETRACKID", ""))
+
+# MUSICBRAINZ_TRACKID
+def resolve_tag_musicbrainz_trackid(source: dict) -> str:
+    return str(source.get("MUSICBRAINZ_TRACKID", ""))
