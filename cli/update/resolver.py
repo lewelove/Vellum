@@ -18,7 +18,15 @@ def resolve_tag_albumartist(source: dict) -> str:
 
 # ALBUM
 def resolve_tag_album(source: dict) -> str:
-    return str(source.get("ALBUM", "Unknown"))
+    return str(source.get("ALBUM", "Untitled"))
+
+# ARTIST
+def resolve_tag_artist(source: dict) -> str:
+    return str(source.get("ARTIST", albumartist))
+
+# TITLE
+def resolve_tag_title(source: dict) -> str:
+    return str(source.get("TITLE", "Untitled"))
 
 # DATE
 def resolve_tag_date(source: dict) -> str:
@@ -122,3 +130,47 @@ def resolve_tag_custom_string(source: dict) -> str:
 # OLD_COMMENT
 def resolve_tag_old_comment(source: dict) -> str:
     return str(source.get("OLD_COMMENT", ""))
+
+# DISCOGS_URL
+def resolve_tag_discogs_url(source: dict) -> str:
+    return str(source.get("DISCOGS_URL", ""))
+
+# MUSICBRAINZ_URL
+def resolve_tag_musicbrainz_url(source: dict) -> str:
+    return str(source.get("MUSICBRAINZ_URL", ""))
+
+# CTDBID
+def resolve_tag_ctdbid(source: dict) -> str:
+    return str(source.get("CTDBID", ""))
+
+# ACCURIPID
+def resolve_tag_accuripid(source: dict) -> str:
+    return str(source.get("ACCURIPID", ""))
+
+# DISCID
+def resolve_tag_discid(source: dict) -> str:
+    return str(source.get("DISCID", ""))
+
+# MUSICBRAINZ_ALBUMARTISTID
+def resolve_tag_musicbrainz_albumartistid(source: dict) -> str:
+    return str(source.get("MUSICBRAINZ_ALBUMARTISTID", ""))
+
+# MUSICBRAINZ_RELEASEGROUPID
+def resolve_tag_musicbrainz_releasegroupid(source: dict) -> str:
+    return str(source.get("MUSICBRAINZ_RELEASEGROUPID", ""))
+
+# MUSICBRAINZ_ALBUMID
+def resolve_tag_musicbrainz_albumid(source: dict) -> str:
+    return str(source.get("MUSICBRAINZ_ALBUMID", ""))
+
+# MUSICBRAINZ_ARTISTID
+def resolve_tag_musicbrainz_albumartistid(source: dict) -> str:
+    return str(source.get("MUSICBRAINZ_ARTISTID", ""))
+
+# MUSICBRAINZ_RELEASETRACKID
+def resolve_tag_musicbrainz_releasegroupid(source: dict) -> str:
+    return str(source.get("MUSICBRAINZ_RELEASETRACKID", ""))
+
+# MUSICBRAINZ_TRACKID
+def resolve_tag_musicbrainz_albumid(source: dict) -> str:
+    return str(source.get("MUSICBRAINZ_TRACKID", ""))
