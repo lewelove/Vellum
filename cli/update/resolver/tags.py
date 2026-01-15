@@ -22,7 +22,7 @@ def resolve_tag_album(source: dict) -> str:
 
 # ARTIST
 def resolve_tag_artist(source: dict) -> str:
-    return str(source.get("ARTIST", albumartist))
+    return str(source.get("ARTIST", source.get("ALBUMARTIST", "Unknown")))
 
 # TITLE
 def resolve_tag_title(source: dict) -> str:
