@@ -5,6 +5,9 @@ def natural_sort_key(s):
     return [int(text) if text.isdigit() else text.lower() for text in re.split(r'(\d+)', str(s))]
 
 def scan_physical_spine(album_root: Path, supported_exts: list) -> list:
+    """
+    Phase 1: Scans and returns a naturally sorted list of relative paths.
+    """
     files = []
     for ext in supported_exts:
         files.extend(album_root.rglob(f"*{ext}"))
@@ -17,25 +20,33 @@ def scan_physical_spine(album_root: Path, supported_exts: list) -> list:
     return rel_files
 
 def zip_tracks(inflated_tracks: list, physical_files: list) -> list:
+    """
+    Phase 4 (Logic): Matches inflated metadata tracks to physical files 
+    using DISCNUMBER and TRACKNUMBER.
+    """
     zipped = []
     
+    # Map key -> metadata dict
+    # Key is tuple (disc_str, track_str)
     track_map = {}
-    for i, t in enumerate(inflated_tracks):
-        tn_val = t.get("TRACKNUMBER")
-        dn_val = t.get("DISCNUMBER", "1")
-        
-        if tn_val is not None:
-            key = (str(dn_val), str(tn_val))
-            track_map[key] = t
-        else:
-            fallback_tn = str(i + 1)
-            key = (str(dn_val), fallback_tn)
-            track_map[key] = t
+    
+    # We assume Phase 3 has already populated/defaulted DISCNUMBER/TRACKNUMBER
+    for t in inflated_tracks:
+        dn = str(t.get("DISCNUMBER", "1"))
+        tn = str(t.get("TRACKNUMBER", "0")) 
+        key = (dn, tn)
+        track_map[key] = t
 
+    # Sort keys: Disc asc, Track asc
+    def sort_k(k):
+        d_int = int(k[0]) if k[0].isdigit() else 0
+        t_int = int(k[1]) if k[1].isdigit() else 0
+        return (d_int, t_int)
+
+    sorted_keys = sorted(track_map.keys(), key=sort_k)
+    
+    # Zip against physical spine
     used_files = 0
-    
-    sorted_keys = sorted(track_map.keys(), key=lambda k: (int(k[0]) if k[0].isdigit() else 0, int(k[1]) if k[1].isdigit() else 0))
-    
     for key in sorted_keys:
         if used_files < len(physical_files):
             file_path = physical_files[used_files]
