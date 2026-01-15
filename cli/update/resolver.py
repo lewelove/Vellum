@@ -4,15 +4,13 @@ def _format_human_date(yyyy_mm: str) -> str:
     if yyyy_mm == "0000-00":
         return "Unknown Date"
     parts = yyyy_mm.split("-")
-    year = parts[0]
-    month = parts[1] if len(parts) > 1 else "00"
-    if month == "00":
-        return year
+    if len(parts) < 2 or parts[1] == "00":
+        return parts[0]
     try:
         dt = datetime.datetime.strptime(yyyy_mm, "%Y-%m")
         return dt.strftime("%B %Y")
     except ValueError:
-        return year
+        return parts[0]
 
 # ALBUMARTIST
 def resolve_tag_albumartist(source: dict) -> str:
@@ -42,34 +40,32 @@ def resolve_tag_totaldiscs(tracks: list) -> int:
     return len(discs)
 
 # ORIGINAL_YYYY_MM
-def resolve_tag_original_yyyy_mm(source: dict, date_tag: str) -> str:
-    val = source.get("ORIGINAL_YYYY_MM")
-    if val:
-        return str(val)
-    return f"{date_tag[:4]}-00" if len(date_tag) >= 4 else "0000-00"
+def resolve_tag_original_yyyy_mm(source: dict) -> str:
+    if "ORIGINAL_YYYY_MM" in source:
+        return str(source["ORIGINAL_YYYY_MM"])
+    return f"{resolve_tag_date(source)[:4]}-00"
 
 # ORIGINAL_YEAR
-def resolve_tag_original_year(yyyy_mm: str) -> str:
-    return yyyy_mm[:4]
+def resolve_tag_original_year(source: dict) -> str:
+    return resolve_tag_original_yyyy_mm(source)[:4]
 
 # ORIGINAL_DATE
-def resolve_tag_original_date(yyyy_mm: str) -> str:
-    return _format_human_date(yyyy_mm)
+def resolve_tag_original_date(source: dict) -> str:
+    return _format_human_date(resolve_tag_original_yyyy_mm(source))
 
 # RELEASE_YYYY_MM
-def resolve_tag_release_yyyy_mm(source: dict, date_tag: str) -> str:
-    val = source.get("RELEASE_YYYY_MM")
-    if val:
-        return str(val)
-    return f"{date_tag[:4]}-00" if len(date_tag) >= 4 else "0000-00"
+def resolve_tag_release_yyyy_mm(source: dict) -> str:
+    if "RELEASE_YYYY_MM" in source:
+        return str(source["RELEASE_YYYY_MM"])
+    return f"{resolve_tag_date(source)[:4]}-00"
 
 # RELEASE_YEAR
-def resolve_tag_release_year(yyyy_mm: str) -> str:
-    return yyyy_mm[:4]
+def resolve_tag_release_year(source: dict) -> str:
+    return resolve_tag_release_yyyy_mm(source)[:4]
 
 # RELEASE_DATE
-def resolve_tag_release_date(yyyy_mm: str) -> str:
-    return _format_human_date(yyyy_mm)
+def resolve_tag_release_date(source: dict) -> str:
+    return _format_human_date(resolve_tag_release_yyyy_mm(source))
 
 # COUNTRY
 def resolve_tag_country(source: dict) -> str:
