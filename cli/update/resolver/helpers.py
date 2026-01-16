@@ -24,44 +24,36 @@ def resolve_helper_metadata_toml_hash(ctx):
     return ctx.get("metadata_toml_hash", "")
 
 def resolve_helper_unix_added(ctx):
-    candidates = []
+# This logic can be moved to ui in the future to set priority dynamically
+    priority_keys = [
+        "UNIX_ADDED_PRIMARY",
+        "UNIX_ADDED_LOCAL",
+        "UNIX_ADDED_APPLEMUSIC",
+        "UNIX_ADDED_YOUTUBE",
+        "UNIXTIMEAPPLE",
+        "UNIXTIMEFOOBAR",
+        "UNIXTIMEYOUTUBE",
+    ]
     
-    p = ctx["source"].get("UNIX_ADDED_PRIMARY")
-    if p: 
-        try: candidates.append(int(p))
-        except: pass
-        
-    for k in ["UNIX_ADDED_LOCAL", "UNIX_ADDED_APPLEMUSIC", "UNIX_ADDED_YOUTUBE"]:
-        v = ctx["source"].get(k)
-        if v:
-            try: candidates.append(int(v))
-            except: pass
-            
-    return max(candidates) if candidates else 0
+    for key in priority_keys:
+        val = ctx["source"].get(key)
+        if val:
+            try:
+                return int(val)
+            except ValueError:
+                continue
+                
+    return 0
 
 def resolve_helper_date_added(ctx):
-    ua = resolve_helper_unix_added(ctx)
-    if ua <= 0: return ""
+# Same as in resolve_helper_unix_added
+    unix = resolve_helper_unix_added(ctx)
+    if unix <= 0: return ""
     try:
-        dt = datetime.datetime.fromtimestamp(ua)
+        dt = datetime.datetime.fromtimestamp(unix)
         return dt.strftime("%B %d %Y")
     except:
         return ""
-
-def resolve_helper_album_duration_in_ms(ctx):
-    total = 0
-    for t in ctx.get("all_tracks_final", []):
-        total += t.get("duration_in_ms", 0)
-    return total
-
-def resolve_helper_album_duration_time(ctx):
-    ms = resolve_helper_album_duration_in_ms(ctx)
-    seconds = ms // 1000
-    m, s = divmod(seconds, 60)
-    h, m = divmod(m, 60)
-    if h > 0:
-        return f"{h:02d}:{m:02d}:{s:02d}"
-    return f"{m:02d}:{s:02d}"
 
 def resolve_helper_cover_path(ctx):
     album_root = ctx.get("album_root")
