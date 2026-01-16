@@ -39,6 +39,9 @@
               server)
                 cd "$ROOT" && python server/main.py
                 ;;
+              update)
+                cd "$ROOT" && python -m cli.update
+                ;;
               generate)
                 cd "$ROOT" && python -m cli.generate
                 ;;
@@ -50,6 +53,7 @@
                 echo "  ui       : Start Svelte/Vite development server"
                 echo "  server   : Start Python FastAPI backend"
                 echo "  generate : Run the metadata compiler"
+                echo "  update   : Update metadata.lock files"
                 echo "  export   : Export merged metadata and assets"
                 echo "  help     : Show this help message"
                 ;;
