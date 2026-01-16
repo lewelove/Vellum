@@ -193,6 +193,10 @@ def resolve_tag_tracknumber(ctx):
     # In Phase 3, we already established a hard 'TRACKNUMBER' in the dict.
     return str(ctx["source"].get("TRACKNUMBER", ""))
 
+# DISCNUMBER
+def resolve_tag_discnumber(ctx):
+    return str(ctx["source"].get("DISCNUMBER", "1"))
+
 # MUSICBRAINZ_ARTISTID
 def resolve_tag_musicbrainz_artistid(ctx):
     return str(ctx["source"].get("MUSICBRAINZ_ARTISTID", ""))

@@ -5,7 +5,7 @@ from mutagen.flac import FLAC
 
 from cli.update.consts import ALBUM_TAGS, ALBUM_HELPERS, TRACK_TAGS, TRACK_HELPERS
 from cli.update.resolver import tags, helpers
-from cli.update.zipper import scan_physical_spine, zip_tracks
+from cli.update.zipper import scan_physical_spine, zip_tracks, parse_int
 from cli.update.writer import write_lock
 
 def get_resolver_func(module, key, prefix):
@@ -16,10 +16,7 @@ def get_resolver_func(module, key, prefix):
     return getattr(module, func_name, None)
 
 def compile_album(album_root: Path, supported_exts: list, library_root: Path = None):
-    # Setup context root if not provided (fallback)
     if not library_root:
-        # Try to guess or just use parent of parent? 
-        # Ideally passed from main, but for safety:
         library_root = album_root.parent 
 
     meta_path = album_root / "metadata.toml"
@@ -42,47 +39,71 @@ def compile_album(album_root: Path, supported_exts: list, library_root: Path = N
     
     inflated_tracks = []
     
-    # If no [[tracks]], infer from spine count? 
-    # SSOT implies [[tracks]] defines the intent. 
-    # If empty, we might create generics, but let's stick to inflating what exists.
-    # If 0 tracks in toml, we might have 0 tracks in lock (valid).
-    # But often we want to auto-populate. Let's assume strict toml for now or simple mapping.
     if not raw_tracks_source and physical_spine:
-        # Auto-create intent for every file found
         for _ in physical_spine:
             inflated_tracks.append(album_defaults.copy())
     else:
         for t in raw_tracks_source:
-            # Merge album defaults into track
             inflated_tracks.append({**album_defaults, **t})
 
     # --- PHASE 3: DISCNUMBER & TRACKNUMBER RESOLUTION ---
-    # We must resolve these BEFORE zipping to know who gets which file.
-    # We write these back into the dictionary immediately.
     
-    unique_discs = set()
+    # 1. Resolve and Defaulting
+    disc_counts = {}
     
-    for i, track in enumerate(inflated_tracks):
-        # Resolve TRACKNUMBER
-        if "TRACKNUMBER" in track:
-             # Sanitize
-             tn = str(track["TRACKNUMBER"]).split('/')[0].strip()
-             track["TRACKNUMBER"] = tn
-        else:
-             track["TRACKNUMBER"] = str(i + 1)
-             
-        # Resolve DISCNUMBER
-        if "DISCNUMBER" in track:
-             dn = str(track["DISCNUMBER"]).split('/')[0].strip()
-             track["DISCNUMBER"] = dn
-        else:
+    for track in inflated_tracks:
+        # Resolve Disc (Defaults to "1")
+        if "DISCNUMBER" not in track:
              track["DISCNUMBER"] = "1"
-             
-        unique_discs.add(track["DISCNUMBER"])
+        
+        # Sanitize Disc
+        dn_str = str(track["DISCNUMBER"]).split('/')[0].strip()
+        track["DISCNUMBER"] = dn_str
+        
+        # Track Counter Logic (Running Index per Disc)
+        current_count = disc_counts.get(dn_str, 0)
+        current_count += 1
+        disc_counts[dn_str] = current_count
+        
+        # Resolve Track (Use explicit or running index)
+        if "TRACKNUMBER" in track:
+             tn_str = str(track["TRACKNUMBER"]).split('/')[0].strip()
+             track["TRACKNUMBER"] = tn_str
+        else:
+             track["TRACKNUMBER"] = str(current_count)
 
-    # --- PHASE 4: TRACK_PATH RESOLUTION (ZIPPER) ---
-    # Modifies inflated_tracks in place
+    # 2. Validation (No Duplicates allowed)
+    seen_pairs = set()
+    for track in inflated_tracks:
+        d = parse_int(track.get("DISCNUMBER"))
+        n = parse_int(track.get("TRACKNUMBER"))
+        pair = (d, n)
+        
+        if pair in seen_pairs:
+            raise ValueError(f"Duplicate Disc/Track found in {album_root}: Disc {d}, Track {n}")
+        seen_pairs.add(pair)
+
+    # 3. Sorting (Crucial for Zipper)
+    inflated_tracks.sort(key=lambda t: (parse_int(t["DISCNUMBER"]), parse_int(t["TRACKNUMBER"])))
+
+    # --- PHASE 4: TRACK_PATH RESOLUTION (ZIPPER) & NORMALIZATION ---
+    
+    # 1. The Zip (Map Files based on Gap Logic)
     zip_tracks(inflated_tracks, physical_spine)
+    
+    # 2. Normalization (Rewrite TRACKNUMBER to 1..N per disc)
+    curr_disc = None
+    curr_idx = 0
+    
+    for track in inflated_tracks:
+        d = parse_int(track["DISCNUMBER"])
+        
+        if d != curr_disc:
+            curr_disc = d
+            curr_idx = 0
+            
+        curr_idx += 1
+        track["TRACKNUMBER"] = str(curr_idx)
 
     # --- PHASE 5: STANDARD KEY RESOLUTION ---
     
@@ -92,7 +113,6 @@ def compile_album(album_root: Path, supported_exts: list, library_root: Path = N
     for track_source in inflated_tracks:
         final_track = {}
         
-        # Determine Physics Context
         t_path_rel = track_source.get("track_path", "")
         t_path_abs = (album_root / t_path_rel) if t_path_rel else None
         
@@ -111,7 +131,6 @@ def compile_album(album_root: Path, supported_exts: list, library_root: Path = N
             "audio_obj": audio_obj
         }
 
-        # Resolve TAGS
         for key in TRACK_TAGS:
             resolver = get_resolver_func(tags, key, "resolve_tag")
             if resolver:
@@ -119,25 +138,23 @@ def compile_album(album_root: Path, supported_exts: list, library_root: Path = N
             else:
                 final_track[key] = str(track_source.get(key, ""))
 
-        # Resolve HELPERS
         for key in TRACK_HELPERS:
             resolver = get_resolver_func(helpers, key, "resolve_helper")
             if resolver:
                 final_track[key] = resolver(track_ctx)
             else:
-                # Helper fallback? usually empty or 0
                 final_track[key] = ""
 
-        # Close handle if needed (mutagen usually handles this, but good practice to release)
         if audio_obj:
             del audio_obj
             
         final_tracks.append(final_track)
 
     # B. ALBUM RESOLUTION
-    # Now that we have final tracks, we can calculate aggregates
-    
     final_album = {}
+    
+    # Recalculate unique discs based on Normalized data
+    unique_discs = set(t["DISCNUMBER"] for t in final_tracks)
     
     album_ctx = {
         "source": album_defaults,
@@ -146,10 +163,9 @@ def compile_album(album_root: Path, supported_exts: list, library_root: Path = N
         "metadata_toml_hash": meta_hash,
         "total_tracks_count": len(final_tracks),
         "total_discs_count": len(unique_discs),
-        "all_tracks_final": final_tracks # For duration summing
+        "all_tracks_final": final_tracks
     }
 
-    # Resolve TAGS
     for key in ALBUM_TAGS:
         resolver = get_resolver_func(tags, key, "resolve_tag")
         if resolver:
@@ -157,7 +173,6 @@ def compile_album(album_root: Path, supported_exts: list, library_root: Path = N
         else:
             final_album[key] = str(album_defaults.get(key, ""))
 
-    # Resolve HELPERS
     for key in ALBUM_HELPERS:
         resolver = get_resolver_func(helpers, key, "resolve_helper")
         if resolver:
