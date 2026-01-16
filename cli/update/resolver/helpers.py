@@ -23,6 +23,9 @@ def resolve_helper_album_root_path(ctx):
 def resolve_helper_metadata_toml_hash(ctx):
     return ctx.get("metadata_toml_hash", "")
 
+def resolve_helper_metadata_toml_mtime(ctx):
+    return ctx.get("metadata_toml_mtime", 0)
+
 def resolve_helper_unix_added(ctx):
 # This logic can be moved to ui in the future to set priority dynamically
     priority_keys = [

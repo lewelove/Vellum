@@ -49,6 +49,7 @@ TRACK_TAGS = [
 ALBUM_HELPERS = [
     "album_root_path",
     "metadata_toml_hash",
+    "metadata_toml_mtime",
     "unix_added",
     "date_added",
     "album_duration_in_ms",

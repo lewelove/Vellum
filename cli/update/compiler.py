@@ -1,5 +1,6 @@
 import tomllib
 import hashlib
+import os
 from pathlib import Path
 from mutagen.flac import FLAC
 
@@ -21,7 +22,13 @@ def compile_album(album_root: Path, supported_exts: list, library_root: Path = N
 
     meta_path = album_root / "metadata.toml"
     
-    # --- PREAMBLE: Hashing ---
+    # --- PREAMBLE: Hashing & Mtime ---
+    # We capture mtime here to ensure the lock reflects the state at compile time
+    try:
+        meta_mtime = int(os.path.getmtime(meta_path))
+    except OSError:
+        meta_mtime = 0
+
     sha256 = hashlib.sha256()
     with open(meta_path, "rb") as f:
         raw_meta = tomllib.load(f)
@@ -161,6 +168,7 @@ def compile_album(album_root: Path, supported_exts: list, library_root: Path = N
         "album_root": album_root,
         "library_root": library_root,
         "metadata_toml_hash": meta_hash,
+        "metadata_toml_mtime": meta_mtime,
         "total_tracks_count": len(final_tracks),
         "total_discs_count": len(unique_discs),
         "all_tracks_final": final_tracks

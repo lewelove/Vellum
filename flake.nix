@@ -31,22 +31,27 @@
             ROOT=$(git rev-parse --show-toplevel)
             
             COMMAND=''${1:-"help"}
+            
+            # Shift the first argument (command) so "$@" contains flags like --force
+            if [ "$#" -gt 0 ]; then
+              shift
+            fi
 
             case "$COMMAND" in
               ui)
                 cd "$ROOT/ui" && npm run dev
                 ;;
               server)
-                cd "$ROOT" && python server/main.py
+                cd "$ROOT" && python server/main.py "$@"
                 ;;
               update)
-                cd "$ROOT" && python -m cli.update
+                cd "$ROOT" && python -m cli.update "$@"
                 ;;
               generate)
-                cd "$ROOT" && python -m cli.generate
+                cd "$ROOT" && python -m cli.generate "$@"
                 ;;
               export)
-                cd "$ROOT" && python -m cli.export
+                cd "$ROOT" && python -m cli.export "$@"
                 ;;
               help|--help|-h)
                 echo "MPF2K CLI - Available Commands:"

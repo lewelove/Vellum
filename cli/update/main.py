@@ -1,4 +1,5 @@
 import tomllib
+import sys
 from pathlib import Path
 from tqdm import tqdm
 
@@ -9,6 +10,9 @@ def run_update():
     config_path = Path("config.toml")
     if not config_path.exists():
         return
+
+    # Simple flag parsing
+    force_mode = "--force" in sys.argv
 
     with open(config_path, "rb") as f:
         config = tomllib.load(f)
@@ -23,7 +27,9 @@ def run_update():
     
     for anchor in tqdm(anchors, desc="Updating Library", unit="album"):
         album_root = anchor.parent
-        trust = verify_trust(album_root)
+        
+        # Pass the force flag to sentry
+        trust = verify_trust(album_root, force=force_mode)
         
         if trust != TrustState.VALID:
             # Pass library_root to compiler for relative path calculations
