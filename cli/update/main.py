@@ -26,7 +26,8 @@ def run_update():
         trust = verify_trust(album_root)
         
         if trust != TrustState.VALID:
-            compile_album(album_root, supported_exts)
+            # Pass library_root to compiler for relative path calculations
+            compile_album(album_root, supported_exts, library_root=lib_root)
             updates_count += 1
 
     print(f"\nUpdate Complete. {updates_count} albums refreshed.")

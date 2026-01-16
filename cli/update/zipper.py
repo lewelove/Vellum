@@ -6,14 +6,14 @@ def natural_sort_key(s):
 
 def scan_physical_spine(album_root: Path, supported_exts: list) -> list:
     """
-    Phase 1: Scans and returns a naturally sorted list of relative paths.
+    PHASE 1: THE SPINE
+    Returns list of relative paths sorted naturally.
     """
     files = []
     for ext in supported_exts:
         files.extend(album_root.rglob(f"*{ext}"))
     
     files = [f for f in files if not f.name.startswith('.')]
-    
     rel_files = [p.relative_to(album_root) for p in files]
     rel_files.sort(key=lambda p: natural_sort_key(str(p)))
     
@@ -21,37 +21,34 @@ def scan_physical_spine(album_root: Path, supported_exts: list) -> list:
 
 def zip_tracks(inflated_tracks: list, physical_files: list) -> list:
     """
-    Phase 4 (Logic): Matches inflated metadata tracks to physical files 
-    using DISCNUMBER and TRACKNUMBER.
+    PHASE 4: THE ZIP
+    Matches tracks to files based on DISCNUMBER and TRACKNUMBER.
+    Injects 'track_path' into the track dictionary.
     """
-    zipped = []
     
-    # Map key -> metadata dict
-    # Key is tuple (disc_str, track_str)
-    track_map = {}
+    # Map (Disc, Track) -> Track Dict Object (Reference)
+    target_map = {}
     
-    # We assume Phase 3 has already populated/defaulted DISCNUMBER/TRACKNUMBER
     for t in inflated_tracks:
-        dn = str(t.get("DISCNUMBER", "1"))
-        tn = str(t.get("TRACKNUMBER", "0")) 
-        key = (dn, tn)
-        track_map[key] = t
+        d = str(t.get("DISCNUMBER", "1"))
+        n = str(t.get("TRACKNUMBER", "0"))
+        target_map[(d, n)] = t
 
-    # Sort keys: Disc asc, Track asc
-    def sort_k(k):
-        d_int = int(k[0]) if k[0].isdigit() else 0
-        t_int = int(k[1]) if k[1].isdigit() else 0
-        return (d_int, t_int)
+    # Sort keys to iterate in order: Disc 1 Track 1, Disc 1 Track 2...
+    sorted_keys = sorted(target_map.keys(), key=lambda k: (
+        int(k[0]) if k[0].isdigit() else 0, 
+        int(k[1]) if k[1].isdigit() else 0
+    ))
 
-    sorted_keys = sorted(track_map.keys(), key=sort_k)
-    
-    # Zip against physical spine
-    used_files = 0
+    # Assign files
+    file_idx = 0
     for key in sorted_keys:
-        if used_files < len(physical_files):
-            file_path = physical_files[used_files]
-            meta = track_map[key]
-            zipped.append({"meta": meta, "file": file_path})
-            used_files += 1
-            
-    return zipped
+        if file_idx < len(physical_files):
+            # Inject the path directly
+            target_map[key]["track_path"] = str(physical_files[file_idx])
+            file_idx += 1
+        else:
+            # No file for this entry
+            target_map[key]["track_path"] = ""
+
+    return inflated_tracks
