@@ -26,7 +26,12 @@ def resolve_tag_album(ctx):
 
 # DATE
 def resolve_tag_date(ctx):
-    return str(ctx["source"].get("DATE", "0000"))
+    candidates = ["ORIGINAL_RELEASE_DATE", "DATE", "YEAR", "RELEASE_DATE"]
+    for key in candidates:
+        val = ctx["source"].get(key)
+        if val: 
+            return str(val)
+    return "0000"
 
 # GENRE
 def resolve_tag_genre(ctx):
@@ -43,22 +48,23 @@ def resolve_tag_totaldiscs(ctx):
 
 # ORIGINAL_YYYY_MM
 def resolve_tag_original_yyyy_mm(ctx):
-    val = ctx["source"].get("ORIGINAL_YYYY_MM")
-    if val: return str(val)
+    candidates = ["ORIGINAL_YYYY_MM", "ORIGINALYEARMONTH"]
+    for key in candidates:
+        val = ctx["source"].get(key)
+        if val: 
+            return str(val)
     date_val = resolve_tag_date(ctx)
     return f"{date_val[:4]}-00"
 
 # ORIGINAL_YEAR
 def resolve_tag_original_year(ctx):
     # Depends on ORIGINAL_YYYY_MM
-    # In a pure key-loop, we might not have the resolved value yet if order matters.
-    # We re-derive or use source. The SSOT says: calculate from ORIGINAL_YYYY_MM.
-    # For safety in this stateless loop, we re-call the resolver or check source.
     yyyy_mm = resolve_tag_original_yyyy_mm(ctx)
     return yyyy_mm[:4]
 
 # ORIGINAL_DATE
 def resolve_tag_original_date(ctx):
+    # Depends on ORIGINAL_YYYY_MM
     yyyy_mm = resolve_tag_original_yyyy_mm(ctx)
     return _format_human_date(yyyy_mm)
 
@@ -115,15 +121,30 @@ def resolve_tag_unix_added_primary(ctx):
 
 # UNIX_ADDED_LOCAL
 def resolve_tag_unix_added_local(ctx):
-    return str(ctx["source"].get("UNIX_ADDED_LOCAL", ""))
+    candidates = ["UNIX_ADDED_LOCAL", "UNIXTIMEFOOBAR"]
+    for key in candidates:
+        val = ctx["source"].get(key)
+        if val: 
+            return str(val)
+    return ""
 
 # UNIX_ADDED_APPLEMUSIC
 def resolve_tag_unix_added_applemusic(ctx):
-    return str(ctx["source"].get("UNIX_ADDED_APPLEMUSIC", ""))
+    candidates = ["UNIX_ADDED_APPLEMUSIC", "UNIXTIMEAPPLE"]
+    for key in candidates:
+        val = ctx["source"].get(key)
+        if val: 
+            return str(val)
+    return ""
 
 # UNIX_ADDED_YOUTUBE
 def resolve_tag_unix_added_youtube(ctx):
-    return str(ctx["source"].get("UNIX_ADDED_YOUTUBE", ""))
+    candidates = ["UNIX_ADDED_YOUTUBE", "UNIXTIMEYOUTUBE"]
+    for key in candidates:
+        val = ctx["source"].get(key)
+        if val: 
+            return str(val)
+    return ""
 
 # CUSTOM_ID
 def resolve_tag_custom_id(ctx):
@@ -137,7 +158,12 @@ def resolve_tag_custom_albumartist(ctx):
 
 # CUSTOM_STRING
 def resolve_tag_custom_string(ctx):
-    return str(ctx["source"].get("CUSTOM_STRING", ""))
+    candidates = ["CUSTOM_STRING", "CUSTOMSTRING"]
+    for key in candidates:
+        val = ctx["source"].get(key)
+        if val: 
+            return str(val)
+    return ""
 
 # OLD_COMMENT
 def resolve_tag_old_comment(ctx):
