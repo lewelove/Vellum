@@ -8,7 +8,7 @@ grouping_keys = ["ALBUMARTIST", "ALBUM", "CUSTOM_ID"]
 naming_separator = "_"
 naming_sanitization_char = "_"
 
-[generate.album]
+[compress.album]
 layout = [
   "\n",
   "ALBUM",
@@ -24,7 +24,7 @@ layout = [
   { "\n# -- MusicBraiz Metadata --" = ["MUSICBRAINZ_ALBUMID", "MUSICBRAINZ_ALBUMARTISTID", "MUSICBRAINZ_ARTISTID", "MUSICBRAINZ_RELEASEGROUPID"] },
 ]
 
-[generate.tracks]
+[compress.tracks]
 layout = [
   "TRACKNUMBER",
   "TITLE",
