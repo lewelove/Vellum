@@ -52,10 +52,10 @@ ALBUM_HELPERS = [
     "metadata_toml_mtime",
     "unix_added",
     "date_added",
-    "album_duration_in_ms",
+    # "album_duration_in_ms",
     "album_duration_time",
     "cover_path",
-    "cover_path_absolute",
+    # "cover_path_absolute",
     "cover_byte_size",
     "cover_mtime"
 ]
