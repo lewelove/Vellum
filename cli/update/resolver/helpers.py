@@ -10,6 +10,16 @@ def _get_audio_info(ctx, attr, default=0):
         return default
     return getattr(audio.info, attr, default)
 
+def _format_ms_to_time(ms):
+    if not ms:
+        return "00:00"
+    seconds = ms // 1000
+    m, s = divmod(seconds, 60)
+    h, m = divmod(m, 60)
+    if h > 0:
+        return f"{h:02d}:{m:02d}:{s:02d}"
+    return f"{m:02d}:{s:02d}"
+
 # --- ALBUM SCOPE ---
 
 def resolve_helper_album_root_path(ctx):
@@ -57,6 +67,25 @@ def resolve_helper_date_added(ctx):
         return dt.strftime("%B %d %Y")
     except:
         return ""
+
+def resolve_helper_album_duration_in_ms(ctx):
+    """
+    Sum of track_duration_in_ms from all resolved tracks.
+    Compiler passes 'all_tracks_final' in ctx.
+    """
+    total = 0
+    tracks = ctx.get("all_tracks_final", [])
+    for t in tracks:
+        val = t.get("track_duration_in_ms", 0)
+        try:
+            total += int(val)
+        except (ValueError, TypeError):
+            continue
+    return total
+
+def resolve_helper_album_duration_time(ctx):
+    ms = resolve_helper_album_duration_in_ms(ctx)
+    return _format_ms_to_time(ms)
 
 def resolve_helper_cover_path(ctx):
     album_root = ctx.get("album_root")
@@ -186,9 +215,4 @@ def resolve_helper_track_duration_in_ms(ctx):
 
 def resolve_helper_track_duration_time(ctx):
     ms = resolve_helper_track_duration_in_ms(ctx)
-    seconds = ms // 1000
-    m, s = divmod(seconds, 60)
-    h, m = divmod(m, 60)
-    if h > 0:
-        return f"{h:02d}:{m:02d}:{s:02d}"
-    return f"{m:02d}:{s:02d}"
+    return _format_ms_to_time(ms)
