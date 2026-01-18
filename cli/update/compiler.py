@@ -5,25 +5,70 @@ from pathlib import Path
 from mutagen.flac import FLAC
 
 from cli.update.consts import ALBUM_TAGS, ALBUM_HELPERS, TRACK_TAGS, TRACK_HELPERS
-from cli.update.resolver import tags, helpers
+from cli.update.resolver import setup_registry, find_resolver
 from cli.update.zipper import scan_physical_spine, zip_tracks, parse_int
 from cli.update.writer import write_lock
+from cli.generate.compressor import get_layout_keys
 
-def get_resolver_func(module, key, prefix):
+def build_master_lists(config):
     """
-    Registry Lookup: resolve_tag_ALBUMARTIST or resolve_helper_unix_added
+    Merges Consts with Keys found in Config.
     """
-    func_name = f"{prefix}_{key.lower()}"
-    return getattr(module, func_name, None)
+    # 1. Extract Config Keys
+    alb_cfg = config.get("lock", {}).get("layout", {}).get("album", [])
+    trk_cfg = config.get("lock", {}).get("layout", {}).get("tracks", [])
+    
+    alb_cfg_keys = get_layout_keys(alb_cfg)
+    trk_cfg_keys = get_layout_keys(trk_cfg)
+    
+    # 2. Merge logic (Set to avoid dupes, but keep order for std lists?)
+    # Actually order doesn't matter for calculation, only for Writer.
+    # We just need to know WHAT to calculate.
+    
+    def merge(std_list, new_keys, is_tag):
+        final = set(std_list)
+        for k in new_keys:
+            # Simple heuristic: Uppercase = TAG, Lowercase = HELPER
+            # But the caller splits this. 
+            # We assume config keys follow convention.
+            if is_tag and k.isupper():
+                final.add(k)
+            elif not is_tag and not k.isupper():
+                final.add(k)
+        return list(final)
+
+    # 3. Construct Lists
+    final_album_tags = merge(ALBUM_TAGS, alb_cfg_keys, True)
+    final_album_helpers = merge(ALBUM_HELPERS, alb_cfg_keys, False)
+    
+    final_track_tags = merge(TRACK_TAGS, trk_cfg_keys, True)
+    final_track_helpers = merge(TRACK_HELPERS, trk_cfg_keys, False)
+    
+    return final_album_tags, final_album_helpers, final_track_tags, final_track_helpers
 
 def compile_album(album_root: Path, supported_exts: list, library_root: Path = None):
+    # --- CONFIG & REGISTRY SETUP ---
+    config_path = Path("config.toml")
+    if not config_path.exists():
+        return # Should probably raise
+        
+    with open(config_path, "rb") as f:
+        config = tomllib.load(f)
+
+    # Init Registry (only runs once)
+    ext_folder = config.get("compiler", {}).get("extensions_folder")
+    setup_registry(ext_folder)
+
+    # Build Lists
+    A_TAGS, A_HELPERS, T_TAGS, T_HELPERS = build_master_lists(config)
+    
+    # Standard Setup
     if not library_root:
         library_root = album_root.parent 
 
     meta_path = album_root / "metadata.toml"
     
     # --- PREAMBLE: Hashing & Mtime ---
-    # We capture mtime here to ensure the lock reflects the state at compile time
     try:
         meta_mtime = int(os.path.getmtime(meta_path))
     except OSError:
@@ -54,61 +99,39 @@ def compile_album(album_root: Path, supported_exts: list, library_root: Path = N
             inflated_tracks.append({**album_defaults, **t})
 
     # --- PHASE 3: DISCNUMBER & TRACKNUMBER RESOLUTION ---
-    
-    # 1. Resolve and Defaulting
     disc_counts = {}
-    
     for track in inflated_tracks:
-        # Resolve Disc (Defaults to "1")
-        if "DISCNUMBER" not in track:
-             track["DISCNUMBER"] = "1"
-        
-        # Sanitize Disc
+        if "DISCNUMBER" not in track: track["DISCNUMBER"] = "1"
         dn_str = str(track["DISCNUMBER"]).split('/')[0].strip()
         track["DISCNUMBER"] = dn_str
         
-        # Track Counter Logic (Running Index per Disc)
-        current_count = disc_counts.get(dn_str, 0)
-        current_count += 1
+        current_count = disc_counts.get(dn_str, 0) + 1
         disc_counts[dn_str] = current_count
         
-        # Resolve Track (Use explicit or running index)
         if "TRACKNUMBER" in track:
-             tn_str = str(track["TRACKNUMBER"]).split('/')[0].strip()
-             track["TRACKNUMBER"] = tn_str
+             track["TRACKNUMBER"] = str(track["TRACKNUMBER"]).split('/')[0].strip()
         else:
              track["TRACKNUMBER"] = str(current_count)
 
-    # 2. Validation (No Duplicates allowed)
     seen_pairs = set()
     for track in inflated_tracks:
-        d = parse_int(track.get("DISCNUMBER"))
-        n = parse_int(track.get("TRACKNUMBER"))
-        pair = (d, n)
-        
+        pair = (parse_int(track.get("DISCNUMBER")), parse_int(track.get("TRACKNUMBER")))
         if pair in seen_pairs:
-            raise ValueError(f"Duplicate Disc/Track found in {album_root}: Disc {d}, Track {n}")
+            raise ValueError(f"Duplicate Disc/Track in {album_root}")
         seen_pairs.add(pair)
 
-    # 3. Sorting (Crucial for Zipper)
     inflated_tracks.sort(key=lambda t: (parse_int(t["DISCNUMBER"]), parse_int(t["TRACKNUMBER"])))
 
     # --- PHASE 4: TRACK_PATH RESOLUTION (ZIPPER) & NORMALIZATION ---
-    
-    # 1. The Zip (Map Files based on Gap Logic)
     zip_tracks(inflated_tracks, physical_spine)
     
-    # 2. Normalization (Rewrite TRACKNUMBER to 1..N per disc)
     curr_disc = None
     curr_idx = 0
-    
     for track in inflated_tracks:
         d = parse_int(track["DISCNUMBER"])
-        
         if d != curr_disc:
             curr_disc = d
             curr_idx = 0
-            
         curr_idx += 1
         track["TRACKNUMBER"] = str(curr_idx)
 
@@ -119,16 +142,13 @@ def compile_album(album_root: Path, supported_exts: list, library_root: Path = N
     
     for track_source in inflated_tracks:
         final_track = {}
-        
         t_path_rel = track_source.get("track_path", "")
         t_path_abs = (album_root / t_path_rel) if t_path_rel else None
         
         audio_obj = None
         if t_path_abs and t_path_abs.exists():
-            try:
-                audio_obj = FLAC(t_path_abs)
-            except Exception:
-                pass
+            try: audio_obj = FLAC(t_path_abs)
+            except: pass
 
         track_ctx = {
             "source": track_source,
@@ -138,29 +158,27 @@ def compile_album(album_root: Path, supported_exts: list, library_root: Path = N
             "audio_obj": audio_obj
         }
 
-        for key in TRACK_TAGS:
-            resolver = get_resolver_func(tags, key, "resolve_tag")
+        # Resolve Tags
+        for key in T_TAGS:
+            resolver = find_resolver(key, "TAG")
             if resolver:
                 final_track[key] = resolver(track_ctx)
             else:
                 final_track[key] = str(track_source.get(key, ""))
 
-        for key in TRACK_HELPERS:
-            resolver = get_resolver_func(helpers, key, "resolve_helper")
+        # Resolve Helpers
+        for key in T_HELPERS:
+            resolver = find_resolver(key, "HELPER")
             if resolver:
                 final_track[key] = resolver(track_ctx)
             else:
                 final_track[key] = ""
 
-        if audio_obj:
-            del audio_obj
-            
+        if audio_obj: del audio_obj
         final_tracks.append(final_track)
 
     # B. ALBUM RESOLUTION
     final_album = {}
-    
-    # Recalculate unique discs based on Normalized data
     unique_discs = set(t["DISCNUMBER"] for t in final_tracks)
     
     album_ctx = {
@@ -174,19 +192,21 @@ def compile_album(album_root: Path, supported_exts: list, library_root: Path = N
         "all_tracks_final": final_tracks
     }
 
-    for key in ALBUM_TAGS:
-        resolver = get_resolver_func(tags, key, "resolve_tag")
+    for key in A_TAGS:
+        resolver = find_resolver(key, "TAG")
         if resolver:
             final_album[key] = resolver(album_ctx)
         else:
             final_album[key] = str(album_defaults.get(key, ""))
 
-    for key in ALBUM_HELPERS:
-        resolver = get_resolver_func(helpers, key, "resolve_helper")
+    for key in A_HELPERS:
+        resolver = find_resolver(key, "HELPER")
         if resolver:
             final_album[key] = resolver(album_ctx)
         else:
             final_album[key] = ""
 
-    # --- PHASE 6: COMPRESSION AND OUTPUT ---
-    write_lock(album_root, final_album, final_tracks)
+    # --- PHASE 6: OUTPUT ---
+    # Pass the config layout to the writer
+    layout_cfg = config.get("lock", {}).get("layout", {})
+    write_lock(album_root, final_album, final_tracks, layout_cfg)

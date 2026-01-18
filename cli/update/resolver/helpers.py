@@ -165,9 +165,31 @@ def resolve_helper_track_size(ctx):
         return 0
 
 def resolve_helper_lyrics_path(ctx):
+    # 1. Manual Override
+    if "lyrics_path" in ctx["source"]:
+        return str(ctx["source"]["lyrics_path"])
+        
+    # 2. Embedded Sentinel
+    if ctx["source"].get("LYRICS"):
+        return "<METADATA>"
+
+    # 3. Implicit Discovery
     path = ctx.get("track_path_resolved")
     if not path: return ""
     
+    # Check lyrics/ subdir in album root
+    lyrics_dir = ctx["album_root"] / "lyrics"
+    if lyrics_dir.exists() and lyrics_dir.is_dir():
+        stem = path.stem # 01 - Track Title
+        for ext in [".txt", ".lrc"]:
+            cand = lyrics_dir / (stem + ext)
+            if cand.exists():
+                try:
+                    return str(cand.relative_to(ctx["album_root"]))
+                except ValueError:
+                    pass
+    
+    # Check sidecar (next to file)
     base = path.with_suffix("")
     for ext in [".lrc", ".txt"]:
         cand = base.with_suffix(ext)
@@ -176,11 +198,13 @@ def resolve_helper_lyrics_path(ctx):
                 return str(cand.relative_to(ctx["album_root"]))
             except ValueError:
                 pass
+                
     return ""
 
 def resolve_helper_lyrics_path_absolute(ctx):
     lp = resolve_helper_lyrics_path(ctx)
-    if not lp: return ""
+    if not lp or lp == "<METADATA>": return ""
+    
     full = ctx["album_root"] / lp
     try:
         return str(full.relative_to(ctx["library_root"]))

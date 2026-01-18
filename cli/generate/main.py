@@ -138,10 +138,10 @@ def run_generate():
                 f.write("\n".join(render_toml_block(tp, tracks_layout)) + "\n\n")
 
         # 7. Cover Extraction
-        cover_candidates = ["cover.jpg", "cover.png", "folder.jpg", "folder.png"]
-        has_cover = any((anchor_path / c).exists() for c in cover_candidates)
+        # cover_candidates = ["cover.jpg", "cover.png", "folder.jpg", "folder.png"]
+        # has_cover = any((anchor_path / c).exists() for c in cover_candidates)
         
-        if not has_cover and sorted_tracks:
+        if sorted_tracks:
             first_track_path = Path(sorted_tracks[0]["track_path_absolute"])
             extract_cover_from_track(first_track_path, anchor_path / "cover")
 

@@ -223,6 +223,14 @@ def resolve_tag_tracknumber(ctx):
 def resolve_tag_discnumber(ctx):
     return str(ctx["source"].get("DISCNUMBER", "1"))
 
+# LYRICS
+def resolve_tag_lyrics(ctx):
+    """
+    Standard tag for lyrics.
+    If present in metadata.toml, it acts as the data source.
+    """
+    return str(ctx["source"].get("LYRICS", ""))
+
 # MUSICBRAINZ_ARTISTID
 def resolve_tag_musicbrainz_artistid(ctx):
     return str(ctx["source"].get("MUSICBRAINZ_ARTISTID", ""))
@@ -234,4 +242,3 @@ def resolve_tag_musicbrainz_releasetrackid(ctx):
 # MUSICBRAINZ_TRACKID
 def resolve_tag_musicbrainz_trackid(ctx):
     return str(ctx["source"].get("MUSICBRAINZ_TRACKID", ""))
-
