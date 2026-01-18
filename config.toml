@@ -77,10 +77,11 @@ album = [
   "cover_mtime",
   "cover_byte_size",
   "*",
+  "\n",
 ]
 
 tracks = [
-  "is_cd",
+  # "is_cd",
   "TITLE",
   "ARTIST",
   "track_path",
@@ -102,6 +103,7 @@ tracks = [
   "MUSICBRAINZ_TRACKID",
   "MUSICBRAINZ_RELEASETRACKID",
   "MUSICBRAINZ_ARTISTID",
+  "*",
   "\n",
 ]
 

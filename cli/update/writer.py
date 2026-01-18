@@ -9,14 +9,24 @@ def format_val(value):
 def render_lock_block(pool: dict, layout: list) -> list:
     """
     Renders a dictionary to TOML lines based on layout list.
-    Handles *, \n, headers, and simple strings.
-    Always appends unconsumed keys at the end.
+    Supports inline '*' injection for appendix keys.
     """
     lines = []
     
     # 1. Identify consumed keys
     explicit_keys = get_layout_keys(layout) if layout else set()
+    appendix_keys = sorted([k for k in pool.keys() if k not in explicit_keys])
     
+    appendix_consumed = False
+
+    def emit_appendix():
+        nonlocal appendix_consumed
+        if appendix_consumed:
+            return
+        for k in appendix_keys:
+            lines.append(f'{k} = {format_val(pool[k])}')
+        appendix_consumed = True
+
     # 2. Render Explicit Layout
     if layout:
         for item in layout:
@@ -24,17 +34,19 @@ def render_lock_block(pool: dict, layout: list) -> list:
                 if item == "\n":
                     lines.append("")
                 elif item == "*":
-                    # Placeholder for split, handled by appendix check
-                    continue 
+                    # INJECTION POINT: Dump appendix here
+                    emit_appendix()
                 elif item in pool:
                     lines.append(f'{item} = {format_val(pool[item])}')
             
             elif isinstance(item, dict):
                 for header, tags in item.items():
                     has_content = False
-                    # Lookahead to see if we need the header
+                    # Lookahead
                     for t in tags:
-                        if t != "*" and t != "\n" and t in pool:
+                        if t == "*" and not appendix_consumed and appendix_keys:
+                            has_content = True
+                        elif t != "\n" and t in pool:
                             has_content = True
                     
                     if has_content:
@@ -42,20 +54,14 @@ def render_lock_block(pool: dict, layout: list) -> list:
                         for t in tags:
                             if t == "\n":
                                 lines.append("")
+                            elif t == "*":
+                                emit_appendix()
                             elif t in pool:
                                 lines.append(f'{t} = {format_val(pool[t])}')
 
-    # 3. Render Appendix (Unconsumed Keys)
-    # This logic covers both the "*" behavior and the safety fallback
-    appendix_keys = sorted([k for k in pool.keys() if k not in explicit_keys])
-    
-    if appendix_keys:
-        # Add spacer if we had content before
-        if lines and lines[-1] != "":
-            lines.append("")
-            
-        for k in appendix_keys:
-            lines.append(f'{k} = {format_val(pool[k])}')
+    # 3. Safety Net: If '*' was missing or didn't run, dump remaining keys at the end
+    if not appendix_consumed:
+        emit_appendix()
             
     return lines
 
