@@ -135,7 +135,6 @@ tracks = [
   "track_duration_in_ms",
   "track_duration_in_samples",
   "lyrics_path",
-  "lyrics_path_absolute",
   "track_path_absolute",
   "LYRICS",
   "MUSICBRAINZ_TRACKID",

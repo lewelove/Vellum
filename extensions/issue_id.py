@@ -1,3 +1,5 @@
+from cli.update.resolver.tags import resolve_album_tag_release_yyyy_mm
+
 def resolve_album_tag_country(ctx):
     return str(ctx["source"].get("COUNTRY", ""))
 
@@ -9,22 +11,6 @@ def resolve_album_tag_catalognumber(ctx):
 
 def resolve_album_tag_media(ctx):
     return str(ctx["source"].get("MEDIA", ""))
-
-################################################################
-def resolve_album_tag_date(ctx):
-    candidates = ["DATE", "YEAR", "ORIGINALYEAR"]
-    for key in candidates:
-        val = ctx["source"].get(key)
-        if val: 
-            return str(val)
-    return "0000"
-
-def resolve_album_tag_release_yyyy_mm(ctx):
-    val = ctx["source"].get("RELEASE_YYYY_MM")
-    if val: return str(val)
-    date_val = resolve_album_tag_date(ctx)
-    return f"{date_val[:4]}-00"
-################################################################
 
 def resolve_album_tag_comment(ctx):
     val = ctx["source"].get("COMMENT")
