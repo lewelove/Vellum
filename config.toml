@@ -23,6 +23,14 @@ extensions_folder = "~/dev/mpf2k/extensions/"
   "DISCID"
 ]
 
+
+"replay_gain" = [
+  "REPLAYGAIN_ALBUM_GAIN", 
+  "REPLAYGAIN_ALBUM_PEAK",
+  "REPLAYGAIN_TRACK_GAIN",
+  "REPLAYGAIN_TRACK_PEAK",
+]
+
 "url" = [
   "DISCOGS_URL", 
   "MUSICBRAINZ_URL"
@@ -52,9 +60,9 @@ extensions_folder = "~/dev/mpf2k/extensions/"
   "MUSICBRAINZ_TRACKID"
 ]
 
-"test_logic" = [
-  "is_cd"
-]
+# "test_logic" = [
+#   "is_cd"
+# ]
 
 [lock.layout]
 album = [
@@ -102,6 +110,9 @@ album = [
   "TOTALDISCS",
   "TOTALTRACKS",
   "\n",
+  "REPLAYGAIN_ALBUM_GAIN", 
+  "REPLAYGAIN_ALBUM_PEAK",
+  "\n",
   "MUSICBRAINZ_ALBUMID",
   "MUSICBRAINZ_ALBUMARTISTID",
   "MUSICBRAINZ_RELEASEGROUPID",
@@ -119,7 +130,6 @@ album = [
 ]
 
 tracks = [
-  # "is_cd",
   "TITLE",
   "ARTIST",
   "track_path",
@@ -134,9 +144,11 @@ tracks = [
   "track_size",
   "track_duration_in_ms",
   "track_duration_in_samples",
-  "lyrics_path",
   "track_library_path",
   "LYRICS",
+  "lyrics_path",
+  "REPLAYGAIN_TRACK_GAIN",
+  "REPLAYGAIN_TRACK_PEAK",
   "MUSICBRAINZ_TRACKID",
   "MUSICBRAINZ_RELEASETRACKID",
   "MUSICBRAINZ_ARTISTID",
