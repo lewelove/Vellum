@@ -9,7 +9,7 @@ naming_separator = "_"
 naming_sanitization_char = "_"
 
 [compiler]
-extensions_folder = "~/.config/mpf2k/extensions"
+extensions_folder = "~/dev/mpf2k/extensions/"
 
 [lock.layout]
 album = [
@@ -72,6 +72,7 @@ album = [
 ]
 
 tracks = [
+  "is_cd",
   "TITLE",
   "ARTIST",
   "track_path",
@@ -89,12 +90,11 @@ tracks = [
   "lyrics_path",
   "lyrics_path_absolute",
   "track_path_absolute",
-  "\n",
   "LYRICS",
   "MUSICBRAINZ_TRACKID",
   "MUSICBRAINZ_RELEASETRACKID",
   "MUSICBRAINZ_ARTISTID",
-  "*",
+  "\n",
 ]
 
 [compress.album]
