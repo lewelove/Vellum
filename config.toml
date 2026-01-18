@@ -15,8 +15,8 @@ extensions_folder = "~/dev/mpf2k/extensions/"
 # No album-scope extensions currently
 
 [compiler.extensions.tracks]
-# "custom_logic" = [
-#   "is_cd"
+"custom_logic" = [
+  "is_cd"
 ]
 
 [lock.layout]
