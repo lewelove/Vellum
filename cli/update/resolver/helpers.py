@@ -175,15 +175,15 @@ def resolve_track_helper_lyrics_path(ctx):
                 
     return ""
 
-def resolve_track_helper_lyrics_path_absolute(ctx):
-    lp = resolve_track_helper_lyrics_path(ctx)
-    if not lp or lp == "<METADATA>": return ""
-    
-    full = ctx["album_root"] / lp
-    try:
-        return str(full.relative_to(ctx["library_root"]))
-    except ValueError:
-        return str(full)
+# def resolve_track_helper_lyrics_path_absolute(ctx):
+#     lp = resolve_track_helper_lyrics_path(ctx)
+#     if not lp or lp == "<METADATA>": return ""
+#
+#     full = ctx["album_root"] / lp
+#     try:
+#         return str(full.relative_to(ctx["library_root"]))
+#     except ValueError:
+#         return str(full)
 
 def resolve_track_helper_encoding(ctx):
     audio = ctx.get("audio_obj")

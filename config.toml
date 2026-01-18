@@ -12,7 +12,47 @@ naming_sanitization_char = "_"
 extensions_folder = "~/dev/mpf2k/extensions/"
 
 [compiler.extensions]
-"custom_logic" = [
+"issue_id" = [
+  "COUNTRY", 
+  "LABEL", 
+  "CATALOGNUMBER", 
+  "MEDIA", 
+  "COMMENT", 
+  "CTDBID", 
+  "ACCURIPID", 
+  "DISCID"
+]
+
+"url" = [
+  "DISCOGS_URL", 
+  "MUSICBRAINZ_URL"
+]
+
+"history" = [
+  "UNIX_ADDED_PRIMARY", 
+  "UNIX_ADDED_LOCAL", 
+  "UNIX_ADDED_FOOBAR", 
+  "UNIX_ADDED_APPLEMUSIC", 
+  "UNIX_ADDED_YOUTUBE"
+]
+
+"custom" = [
+  "CUSTOM_ID", 
+  "CUSTOM_ALBUMARTIST", 
+  "CUSTOM_STRING", 
+  "OLD_COMMENT"
+]
+
+"musicbrainz" = [
+  "MUSICBRAINZ_ALBUMARTISTID", 
+  "MUSICBRAINZ_RELEASEGROUPID", 
+  "MUSICBRAINZ_ALBUMID", 
+  "MUSICBRAINZ_ARTISTID", 
+  "MUSICBRAINZ_RELEASETRACKID", 
+  "MUSICBRAINZ_TRACKID"
+]
+
+"test_logic" = [
   "is_cd"
 ]
 
@@ -48,6 +88,7 @@ album = [
   "date_added",
   "\n",
   "UNIX_ADDED_LOCAL",
+  "UNIX_ADDED_FOOBAR", 
   "UNIX_ADDED_APPLEMUSIC",
   "UNIX_ADDED_YOUTUBE",
   "UNIX_ADDED_PRIMARY",

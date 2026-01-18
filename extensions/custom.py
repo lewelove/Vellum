@@ -4,7 +4,7 @@ def resolve_album_tag_custom_id(ctx):
 def resolve_album_tag_custom_albumartist(ctx):
     val = ctx["source"].get("CUSTOM_ALBUMARTIST")
     if val: return str(val)
-    return resolve_album_tag_albumartist(ctx)
+    return str(ctx["source"].get("ALBUMARTIST", "Unknown"))
 
 def resolve_album_tag_custom_string(ctx):
     candidates = ["CUSTOM_STRING", "CUSTOMSTRING"]
