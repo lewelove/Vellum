@@ -118,7 +118,7 @@ def resolve_album_helper_cover_mtime(ctx):
 def resolve_track_helper_track_path(ctx):
     return ctx["source"].get("track_path", "")
 
-def resolve_track_helper_track_path_absolute(ctx):
+def resolve_track_helper_track_library_path(ctx):
     tp = ctx["source"].get("track_path")
     if not tp: return ""
     full = ctx["album_root"] / tp
