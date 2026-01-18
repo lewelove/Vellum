@@ -5,104 +5,60 @@ import sys
 from pathlib import Path
 from mutagen.flac import FLAC
 
-from cli.update.consts import ALBUM_TAGS, ALBUM_HELPERS, TRACK_TAGS, TRACK_HELPERS
-from cli.update.resolver import setup_registry, find_resolver
+from cli.update.resolver import setup_registry, find_resolver, get_registered_keys
 from cli.update.zipper import scan_physical_spine, zip_tracks, parse_int
 from cli.update.writer import write_lock
 from cli.generate.compressor import get_layout_keys
 
-def build_master_lists(config):
+def validate_layout(config):
     """
-    Merges Consts with Keys found in Config [compiler.extensions].
-    Validates that [lock.layout] only uses known keys.
+    Validates that [lock.layout] only uses keys registered in the system.
+    Returns the master lists of keys to calculate.
     """
-    ext_cfg = config.get("compiler", {}).get("extensions", {})
-    
-    # 1. Parse Extensions Config to find available keys
-    ext_album_keys = set()
-    for keys in ext_cfg.get("album", {}).values():
-        ext_album_keys.update(keys)
-        
-    ext_tracks_keys = set()
-    for keys in ext_cfg.get("tracks", {}).values():
-        ext_tracks_keys.update(keys)
+    # 1. Retrieve Available Keys from Registry
+    A_TAGS, A_HELPERS, T_TAGS, T_HELPERS = get_registered_keys()
 
-    # 2. Build Calculation Sets (Standard + Extension)
-    # We segregate by case: Upper = TAG, Lower = HELPER
-    
-    def separate_keys(source_list):
-        tags = set()
-        helpers = set()
-        for k in source_list:
-            if k.isupper():
-                tags.add(k)
-            else:
-                helpers.add(k)
-        return tags, helpers
+    # 2. Build Allowed Sets
+    allowed_album = set(A_TAGS) | set(A_HELPERS)
+    allowed_tracks = set(T_TAGS) | set(T_HELPERS)
 
-    std_a_tags = set(ALBUM_TAGS)
-    std_a_helpers = set(ALBUM_HELPERS)
-    
-    std_t_tags = set(TRACK_TAGS)
-    std_t_helpers = set(TRACK_HELPERS)
-    
-    ext_a_tags, ext_a_helpers = separate_keys(ext_album_keys)
-    ext_t_tags, ext_t_helpers = separate_keys(ext_tracks_keys)
-    
-    # The Master Lists of "What can be calculated"
-    calc_album_tags = std_a_tags | ext_a_tags
-    calc_album_helpers = std_a_helpers | ext_a_helpers
-    calc_track_tags = std_t_tags | ext_t_tags
-    calc_track_helpers = std_t_helpers | ext_t_helpers
-
-    # 3. Validation against Layout
-    # Everything in layout MUST be calculable (present in the master lists)
+    # 3. Retrieve Requested Keys from Layout
     layout_cfg = config.get("lock", {}).get("layout", {})
-    
     layout_album_keys = get_layout_keys(layout_cfg.get("album", []))
     layout_track_keys = get_layout_keys(layout_cfg.get("tracks", []))
     
-    # Allowed sets
-    allowed_album = calc_album_tags | calc_album_helpers
-    allowed_tracks = calc_track_tags | calc_track_helpers
-    
+    # 4. Compare
     unknown_album = layout_album_keys - allowed_album
     unknown_tracks = layout_track_keys - allowed_tracks
     
     if unknown_album:
         print(f"Compiler Error: [lock.layout.album] contains unknown keys: {unknown_album}")
-        print("Ensure these keys are either Standard Keys or registered in [compiler.extensions.album]")
+        print("Ensure these keys are defined in Standard Library or registered Extensions.")
         sys.exit(1)
         
     if unknown_tracks:
         print(f"Compiler Error: [lock.layout.tracks] contains unknown keys: {unknown_tracks}")
-        print("Ensure these keys are either Standard Keys or registered in [compiler.extensions.tracks]")
+        print("Ensure these keys are defined in Standard Library or registered Extensions.")
         sys.exit(1)
 
-    # 4. Return the lists to calculate
-    return (
-        list(calc_album_tags), 
-        list(calc_album_helpers), 
-        list(calc_track_tags), 
-        list(calc_track_helpers)
-    )
+    return A_TAGS, A_HELPERS, T_TAGS, T_HELPERS
 
 def compile_album(album_root: Path, supported_exts: list, library_root: Path = None):
     # --- CONFIG & REGISTRY SETUP ---
     config_path = Path("config.toml")
     if not config_path.exists():
-        return # Should probably raise
+        return 
         
     with open(config_path, "rb") as f:
         config = tomllib.load(f)
 
-    # Init Registry (only runs once) with EXPLICIT config
+    # Init Registry (only runs once)
     ext_folder = config.get("compiler", {}).get("extensions_folder")
     ext_config = config.get("compiler", {}).get("extensions", {})
     setup_registry(ext_folder, ext_config)
 
-    # Build Lists (Includes Validation)
-    A_TAGS, A_HELPERS, T_TAGS, T_HELPERS = build_master_lists(config)
+    # Build & Validate Lists
+    A_TAGS, A_HELPERS, T_TAGS, T_HELPERS = validate_layout(config)
     
     # Standard Setup
     if not library_root:
@@ -202,7 +158,7 @@ def compile_album(album_root: Path, supported_exts: list, library_root: Path = N
 
         # Resolve Tags
         for key in T_TAGS:
-            resolver = find_resolver(key, "TAG")
+            resolver = find_resolver(key, "TRACK_TAGS")
             if resolver:
                 final_track[key] = resolver(track_ctx)
             else:
@@ -210,7 +166,7 @@ def compile_album(album_root: Path, supported_exts: list, library_root: Path = N
 
         # Resolve Helpers
         for key in T_HELPERS:
-            resolver = find_resolver(key, "HELPER")
+            resolver = find_resolver(key, "TRACK_HELPERS")
             if resolver:
                 final_track[key] = resolver(track_ctx)
             else:
@@ -235,20 +191,19 @@ def compile_album(album_root: Path, supported_exts: list, library_root: Path = N
     }
 
     for key in A_TAGS:
-        resolver = find_resolver(key, "TAG")
+        resolver = find_resolver(key, "ALBUM_TAGS")
         if resolver:
             final_album[key] = resolver(album_ctx)
         else:
             final_album[key] = str(album_defaults.get(key, ""))
 
     for key in A_HELPERS:
-        resolver = find_resolver(key, "HELPER")
+        resolver = find_resolver(key, "ALBUM_HELPERS")
         if resolver:
             final_album[key] = resolver(album_ctx)
         else:
             final_album[key] = ""
 
     # --- PHASE 6: OUTPUT ---
-    # Pass the config layout to the writer
     layout_cfg = config.get("lock", {}).get("layout", {})
     write_lock(album_root, final_album, final_tracks, layout_cfg)

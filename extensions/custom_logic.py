@@ -1,4 +1,4 @@
-def resolve_helper_is_cd(ctx):
+def resolve_track_helper_is_cd(ctx):
     # Access the audio physics via 'audio_obj' (Mutagen object)
     # Note: 'audio_obj' might be None if the file is missing/corrupt
     audio = ctx.get("audio_obj")

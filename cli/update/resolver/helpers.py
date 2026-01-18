@@ -20,9 +20,9 @@ def _format_ms_to_time(ms):
         return f"{h:02d}:{m:02d}:{s:02d}"
     return f"{m:02d}:{s:02d}"
 
-# --- ALBUM SCOPE ---
+# --- ALBUM HELPERS ---
 
-def resolve_helper_album_root_path(ctx):
+def resolve_album_helper_album_root_path(ctx):
     album_root = ctx.get("album_root")
     library_root = ctx.get("library_root")
     try:
@@ -30,14 +30,13 @@ def resolve_helper_album_root_path(ctx):
     except (ValueError, AttributeError):
         return ""
 
-def resolve_helper_metadata_toml_hash(ctx):
+def resolve_album_helper_metadata_toml_hash(ctx):
     return ctx.get("metadata_toml_hash", "")
 
-def resolve_helper_metadata_toml_mtime(ctx):
+def resolve_album_helper_metadata_toml_mtime(ctx):
     return ctx.get("metadata_toml_mtime", 0)
 
-def resolve_helper_unix_added(ctx):
-# This logic can be moved to ui in the future to set priority dynamically
+def resolve_album_helper_unix_added(ctx):
     priority_keys = [
         "UNIX_ADDED_PRIMARY",
         "UNIX_ADDED_LOCAL",
@@ -58,9 +57,8 @@ def resolve_helper_unix_added(ctx):
                 
     return 0
 
-def resolve_helper_date_added(ctx):
-# Same as in resolve_helper_unix_added
-    unix = resolve_helper_unix_added(ctx)
+def resolve_album_helper_date_added(ctx):
+    unix = resolve_album_helper_unix_added(ctx)
     if unix <= 0: return ""
     try:
         dt = datetime.datetime.fromtimestamp(unix)
@@ -68,26 +66,18 @@ def resolve_helper_date_added(ctx):
     except:
         return ""
 
-def resolve_helper_album_duration_in_ms(ctx):
-    """
-    Sum of track_duration_in_ms from all resolved tracks.
-    Compiler passes 'all_tracks_final' in ctx.
-    """
-    total = 0
+def resolve_album_helper_album_duration_time(ctx):
+    total_ms = 0
     tracks = ctx.get("all_tracks_final", [])
     for t in tracks:
         val = t.get("track_duration_in_ms", 0)
         try:
-            total += int(val)
+            total_ms += int(val)
         except (ValueError, TypeError):
             continue
-    return total
+    return _format_ms_to_time(total_ms)
 
-def resolve_helper_album_duration_time(ctx):
-    ms = resolve_helper_album_duration_in_ms(ctx)
-    return _format_ms_to_time(ms)
-
-def resolve_helper_cover_path(ctx):
+def resolve_album_helper_cover_path(ctx):
     album_root = ctx.get("album_root")
     priorities = ["cover.jpg", "cover.png", "folder.jpg", "folder.png", "front.jpg"]
     
@@ -103,19 +93,8 @@ def resolve_helper_cover_path(ctx):
                 
     return "default_cover.png"
 
-def resolve_helper_cover_path_absolute(ctx):
-    cp = resolve_helper_cover_path(ctx)
-    if not cp or cp == "default_cover.png":
-        return "public/default_cover.png"
-    
-    full = ctx["album_root"] / cp
-    try:
-        return str(full.relative_to(ctx["library_root"]))
-    except ValueError:
-        return str(full)
-
-def resolve_helper_cover_byte_size(ctx):
-    cp = resolve_helper_cover_path(ctx)
+def resolve_album_helper_cover_byte_size(ctx):
+    cp = resolve_album_helper_cover_path(ctx)
     if not cp or cp == "default_cover.png":
         return 0
     
@@ -124,8 +103,8 @@ def resolve_helper_cover_byte_size(ctx):
     except OSError:
         return 0
 
-def resolve_helper_cover_mtime(ctx):
-    cp = resolve_helper_cover_path(ctx)
+def resolve_album_helper_cover_mtime(ctx):
+    cp = resolve_album_helper_cover_path(ctx)
     if not cp or cp == "default_cover.png":
         return 0
         
@@ -134,12 +113,12 @@ def resolve_helper_cover_mtime(ctx):
     except OSError:
         return 0
 
-# --- TRACK SCOPE ---
+# --- TRACK HELPERS ---
 
-def resolve_helper_track_path(ctx):
+def resolve_track_helper_track_path(ctx):
     return ctx["source"].get("track_path", "")
 
-def resolve_helper_track_path_absolute(ctx):
+def resolve_track_helper_track_path_absolute(ctx):
     tp = ctx["source"].get("track_path")
     if not tp: return ""
     full = ctx["album_root"] / tp
@@ -148,7 +127,7 @@ def resolve_helper_track_path_absolute(ctx):
     except ValueError:
         return str(full)
 
-def resolve_helper_track_mtime(ctx):
+def resolve_track_helper_track_mtime(ctx):
     path = ctx.get("track_path_resolved")
     if not path: return 0
     try:
@@ -156,7 +135,7 @@ def resolve_helper_track_mtime(ctx):
     except OSError:
         return 0
 
-def resolve_helper_track_size(ctx):
+def resolve_track_helper_track_size(ctx):
     path = ctx.get("track_path_resolved")
     if not path: return 0
     try:
@@ -164,23 +143,19 @@ def resolve_helper_track_size(ctx):
     except OSError:
         return 0
 
-def resolve_helper_lyrics_path(ctx):
-    # 1. Manual Override
+def resolve_track_helper_lyrics_path(ctx):
     if "lyrics_path" in ctx["source"]:
         return str(ctx["source"]["lyrics_path"])
         
-    # 2. Embedded Sentinel
     if ctx["source"].get("LYRICS"):
         return "<METADATA>"
 
-    # 3. Implicit Discovery
     path = ctx.get("track_path_resolved")
     if not path: return ""
     
-    # Check lyrics/ subdir in album root
     lyrics_dir = ctx["album_root"] / "lyrics"
     if lyrics_dir.exists() and lyrics_dir.is_dir():
-        stem = path.stem # 01 - Track Title
+        stem = path.stem 
         for ext in [".txt", ".lrc"]:
             cand = lyrics_dir / (stem + ext)
             if cand.exists():
@@ -189,7 +164,6 @@ def resolve_helper_lyrics_path(ctx):
                 except ValueError:
                     pass
     
-    # Check sidecar (next to file)
     base = path.with_suffix("")
     for ext in [".lrc", ".txt"]:
         cand = base.with_suffix(ext)
@@ -201,8 +175,8 @@ def resolve_helper_lyrics_path(ctx):
                 
     return ""
 
-def resolve_helper_lyrics_path_absolute(ctx):
-    lp = resolve_helper_lyrics_path(ctx)
+def resolve_track_helper_lyrics_path_absolute(ctx):
+    lp = resolve_track_helper_lyrics_path(ctx)
     if not lp or lp == "<METADATA>": return ""
     
     full = ctx["album_root"] / lp
@@ -211,32 +185,32 @@ def resolve_helper_lyrics_path_absolute(ctx):
     except ValueError:
         return str(full)
 
-def resolve_helper_encoding(ctx):
+def resolve_track_helper_encoding(ctx):
     audio = ctx.get("audio_obj")
     if not audio: return "UNKNOWN"
     cls_name = audio.__class__.__name__
     if "FLAC" in cls_name: return "FLAC"
     return "UNKNOWN"
 
-def resolve_helper_bits_per_sample(ctx):
+def resolve_track_helper_bits_per_sample(ctx):
     return _get_audio_info(ctx, "bits_per_sample", 0)
 
-def resolve_helper_channels(ctx):
+def resolve_track_helper_channels(ctx):
     return _get_audio_info(ctx, "channels", 0)
 
-def resolve_helper_sample_rate(ctx):
+def resolve_track_helper_sample_rate(ctx):
     return _get_audio_info(ctx, "sample_rate", 0)
 
-def resolve_helper_track_duration_in_samples(ctx):
+def resolve_track_helper_track_duration_in_samples(ctx):
     return _get_audio_info(ctx, "total_samples", 0)
 
-def resolve_helper_track_duration_in_ms(ctx):
+def resolve_track_helper_track_duration_in_ms(ctx):
     audio = ctx.get("audio_obj")
     if not audio or not hasattr(audio, "info"):
         return 0
     length = getattr(audio.info, 'length', 0)
     return int(length * 1000)
 
-def resolve_helper_track_duration_time(ctx):
-    ms = resolve_helper_track_duration_in_ms(ctx)
+def resolve_track_helper_track_duration_time(ctx):
+    ms = resolve_track_helper_track_duration_in_ms(ctx)
     return _format_ms_to_time(ms)
