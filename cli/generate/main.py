@@ -3,7 +3,7 @@ import sys
 from pathlib import Path
 from tqdm import tqdm
 
-from cli.update.main import run_update
+# from cli.update.main import run_update  <-- REMOVED to break cycle
 from .extractor import PhysicalExtractor
 from .engine import render_toml_block
 from .compressor import compress
@@ -30,6 +30,9 @@ def extract_cover_from_track(track_path: Path, destination_base: Path):
         pass
 
 def run_generate():
+    # Defer import to avoid circular dependency with cli.update
+    from cli.update.main import run_update
+
     config_path = Path("config.toml")
     if not config_path.exists():
         print("Error: config.toml not found.")

@@ -72,7 +72,6 @@ album = [
 ]
 
 tracks = [
-  "",
   "TITLE",
   "ARTIST",
   "track_path",
