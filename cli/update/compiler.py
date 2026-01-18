@@ -1,6 +1,7 @@
 import tomllib
 import hashlib
 import os
+import sys
 from pathlib import Path
 from mutagen.flac import FLAC
 
@@ -12,39 +13,79 @@ from cli.generate.compressor import get_layout_keys
 
 def build_master_lists(config):
     """
-    Merges Consts with Keys found in Config.
+    Merges Consts with Keys found in Config [compiler.extensions].
+    Validates that [lock.layout] only uses known keys.
     """
-    # 1. Extract Config Keys
-    alb_cfg = config.get("lock", {}).get("layout", {}).get("album", [])
-    trk_cfg = config.get("lock", {}).get("layout", {}).get("tracks", [])
+    ext_cfg = config.get("compiler", {}).get("extensions", {})
     
-    alb_cfg_keys = get_layout_keys(alb_cfg)
-    trk_cfg_keys = get_layout_keys(trk_cfg)
-    
-    # 2. Merge logic (Set to avoid dupes, but keep order for std lists?)
-    # Actually order doesn't matter for calculation, only for Writer.
-    # We just need to know WHAT to calculate.
-    
-    def merge(std_list, new_keys, is_tag):
-        final = set(std_list)
-        for k in new_keys:
-            # Simple heuristic: Uppercase = TAG, Lowercase = HELPER
-            # But the caller splits this. 
-            # We assume config keys follow convention.
-            if is_tag and k.isupper():
-                final.add(k)
-            elif not is_tag and not k.isupper():
-                final.add(k)
-        return list(final)
+    # 1. Parse Extensions Config to find available keys
+    ext_album_keys = set()
+    for keys in ext_cfg.get("album", {}).values():
+        ext_album_keys.update(keys)
+        
+    ext_tracks_keys = set()
+    for keys in ext_cfg.get("tracks", {}).values():
+        ext_tracks_keys.update(keys)
 
-    # 3. Construct Lists
-    final_album_tags = merge(ALBUM_TAGS, alb_cfg_keys, True)
-    final_album_helpers = merge(ALBUM_HELPERS, alb_cfg_keys, False)
+    # 2. Build Calculation Sets (Standard + Extension)
+    # We segregate by case: Upper = TAG, Lower = HELPER
     
-    final_track_tags = merge(TRACK_TAGS, trk_cfg_keys, True)
-    final_track_helpers = merge(TRACK_HELPERS, trk_cfg_keys, False)
+    def separate_keys(source_list):
+        tags = set()
+        helpers = set()
+        for k in source_list:
+            if k.isupper():
+                tags.add(k)
+            else:
+                helpers.add(k)
+        return tags, helpers
+
+    std_a_tags = set(ALBUM_TAGS)
+    std_a_helpers = set(ALBUM_HELPERS)
     
-    return final_album_tags, final_album_helpers, final_track_tags, final_track_helpers
+    std_t_tags = set(TRACK_TAGS)
+    std_t_helpers = set(TRACK_HELPERS)
+    
+    ext_a_tags, ext_a_helpers = separate_keys(ext_album_keys)
+    ext_t_tags, ext_t_helpers = separate_keys(ext_tracks_keys)
+    
+    # The Master Lists of "What can be calculated"
+    calc_album_tags = std_a_tags | ext_a_tags
+    calc_album_helpers = std_a_helpers | ext_a_helpers
+    calc_track_tags = std_t_tags | ext_t_tags
+    calc_track_helpers = std_t_helpers | ext_t_helpers
+
+    # 3. Validation against Layout
+    # Everything in layout MUST be calculable (present in the master lists)
+    layout_cfg = config.get("lock", {}).get("layout", {})
+    
+    layout_album_keys = get_layout_keys(layout_cfg.get("album", []))
+    layout_track_keys = get_layout_keys(layout_cfg.get("tracks", []))
+    
+    # Allowed sets
+    allowed_album = calc_album_tags | calc_album_helpers
+    allowed_tracks = calc_track_tags | calc_track_helpers
+    
+    unknown_album = layout_album_keys - allowed_album
+    unknown_tracks = layout_track_keys - allowed_tracks
+    
+    if unknown_album:
+        print(f"Compiler Error: [lock.layout.album] contains unknown keys: {unknown_album}")
+        print("Ensure these keys are either Standard Keys or registered in [compiler.extensions.album]")
+        sys.exit(1)
+        
+    if unknown_tracks:
+        print(f"Compiler Error: [lock.layout.tracks] contains unknown keys: {unknown_tracks}")
+        print("Ensure these keys are either Standard Keys or registered in [compiler.extensions.tracks]")
+        sys.exit(1)
+
+    # 4. Return the lists to calculate
+    return (
+        list(calc_album_tags), 
+        list(calc_album_helpers), 
+        list(calc_track_tags), 
+        list(calc_track_helpers)
+    )
 
 def compile_album(album_root: Path, supported_exts: list, library_root: Path = None):
     # --- CONFIG & REGISTRY SETUP ---
@@ -55,11 +96,12 @@ def compile_album(album_root: Path, supported_exts: list, library_root: Path = N
     with open(config_path, "rb") as f:
         config = tomllib.load(f)
 
-    # Init Registry (only runs once)
+    # Init Registry (only runs once) with EXPLICIT config
     ext_folder = config.get("compiler", {}).get("extensions_folder")
-    setup_registry(ext_folder)
+    ext_config = config.get("compiler", {}).get("extensions", {})
+    setup_registry(ext_folder, ext_config)
 
-    # Build Lists
+    # Build Lists (Includes Validation)
     A_TAGS, A_HELPERS, T_TAGS, T_HELPERS = build_master_lists(config)
     
     # Standard Setup
