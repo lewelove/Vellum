@@ -78,6 +78,7 @@
           pkg-config
           openssl
           mpf2k-cli
+          sqlite
         ];
       in
       {
