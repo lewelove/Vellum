@@ -1,5 +1,9 @@
-export async function getLibrary() {
-  const response = await fetch("/api/library");
+export async function getLibrary(params = {}) {
+  // Serialize flat params object to URLSearchParams
+  const query = new URLSearchParams(params).toString();
+  const url = query ? `/api/library?${query}` : "/api/library";
+  
+  const response = await fetch(url);
   if (!response.ok) throw new Error("Failed to fetch library");
   return await response.json();
 }

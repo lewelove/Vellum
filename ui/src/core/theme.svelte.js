@@ -18,9 +18,9 @@ export const theme = $state({
 
   typography: {
     "font-size-title": 14,
-    "font-weight-title": 100,
+    "font-weight-title": 400,
     "font-size-artist": 12,
-    "font-weight-artist": 100,
+    "font-weight-artist": 400,
   },
 
   albumGrid: {
@@ -29,7 +29,7 @@ export const theme = $state({
     "gap-y": 12,
     "cover-size": 200,
     "text-gap-main": 8,
-    "text-gap-lesser": 4,
+    "text-gap-lesser": 8,
     "drawer-gap-main": 0,
     "drawer-chevron-height": 12,
     "drawer-chevron-width": 24,

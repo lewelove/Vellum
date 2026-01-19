@@ -50,16 +50,17 @@
     <div class="drawer-content">
       <header class="drawer-header">
         <div class="header-left">
+          <!-- Binds directly to Pixel-Ready DTO -->
           <h2 class="d-title">{activeAlbum.title}</h2>
           <h3 class="d-artist">{activeAlbum.artist}</h3>
         </div>
         <div class="header-right">
-          <!-- We use the actual length of the tracks array from the DTO -->
+          <!-- Uses actual array length -->
           <span class="d-info">{activeAlbum.tracks.length} Tracks</span>
         </div>
       </header>
       
-      <!-- Tracks are guaranteed to exist by the architecture -->
+      <!-- Tracks are guaranteed to exist -->
       <DrawerTracks tracks={activeAlbum.tracks} cols={trackCols} />
     </div>
   </div>
