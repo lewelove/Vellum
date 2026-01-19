@@ -1,32 +1,51 @@
-import { getLibrary } from "$core/api.js";
+import { getLibrary, getCapabilities, getSidebarGroup } from "$core/api.js";
 
 class LibraryState {
   albums = $state([]);
   expandedAlbumId = $state(null);
   isLoading = $state(false);
 
-  // View State (Filters & Sorting)
-  view = $state({
-    sortCol: "date_added",
-    sortDir: "DESC",
-    filterCol: null,
-    filterVal: null
+  // Capabilities (What features the server has)
+  capabilities = $state({
+    grouping: [],
+    filtering: [],
+    sorting: []
   });
+
+  // Active View State
+  activeSort = $state({ key: "date_added", dir: "DESC" });
+  activeFilter = $state({ key: null, val: null });
+  
+  // Cache for sidebar data to prevent refetching
+  sidebarCache = new Map();
+
+  async init() {
+    try {
+      this.capabilities = await getCapabilities();
+      this.load();
+    } catch (e) {
+      console.error("Init error:", e);
+    }
+  }
 
   async load() {
     this.isLoading = true;
     try {
       const params = {
-        sort_col: this.view.sortCol,
-        sort_dir: this.view.sortDir
+        sort: this.activeSort.key,
+        // The API defaults to DESC, but explicit is better
+        // Note: Our API logic currently infers DIR from params or default, 
+        // we map it here conceptually.
       };
       
-      if (this.view.filterCol && this.view.filterVal) {
-        params.filter_col = this.view.filterCol;
-        params.filter_val = this.view.filterVal;
+      // If our sort direction logic in UI becomes dynamic, pass it
+      // params.sort_dir = this.activeSort.dir;
+
+      if (this.activeFilter.key && this.activeFilter.val) {
+        params.filter = this.activeFilter.key;
+        params.val = this.activeFilter.val;
       }
 
-      // Backend returns Pixel-Ready DTO (Albums with tracks included)
       this.albums = await getLibrary(params);
     } catch (e) {
       console.error("Failed to load library:", e);
@@ -35,34 +54,39 @@ class LibraryState {
     }
   }
 
-  // Sidebar Logic: Fetch Groups (e.g., list of Genres)
-  async getGroups(key) {
+  // Called by SidebarSection
+  async fetchSidebarGroup(key) {
+    if (this.sidebarCache.has(key)) {
+      return this.sidebarCache.get(key);
+    }
     try {
-      return await getLibrary({ group_by: key });
+      const data = await getSidebarGroup(key);
+      this.sidebarCache.set(key, data);
+      return data;
     } catch (e) {
-      console.error("Failed to fetch groups:", e);
+      console.error("Group fetch error:", e);
       return [];
     }
   }
 
   toggleExpand(id) {
-    if (this.expandedAlbumId === id) {
-      this.expandedAlbumId = null;
-    } else {
-      this.expandedAlbumId = id;
-    }
+    this.expandedAlbumId = (this.expandedAlbumId === id) ? null : id;
   }
   
-  applyFilter(col, val) {
-    this.view.filterCol = col;
-    this.view.filterVal = val;
-    this.expandedAlbumId = null; // Collapse drawer on view change
+  applyFilter(key, val) {
+    // If clicking the same filter, clear it (Toggle behavior)
+    if (this.activeFilter.key === key && this.activeFilter.val === val) {
+      this.activeFilter = { key: null, val: null };
+    } else {
+      this.activeFilter = { key, val };
+    }
+    this.expandedAlbumId = null; 
     this.load();
   }
 
-  applySort(col, dir = "ASC") {
-    this.view.sortCol = col;
-    this.view.sortDir = dir;
+  applySort(key) {
+    // Simple toggle logic could go here, for now just set key
+    this.activeSort.key = key;
     this.expandedAlbumId = null;
     this.load();
   }

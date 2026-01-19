@@ -3,16 +3,24 @@
   import { library } from "$state/library.svelte.js";
   import { getThemeVariables } from "$core/theme.svelte.js";
   import AlbumGrid from "$modules/album-grid/AlbumGrid.svelte";
+  import Sidebar from "$modules/sidebar/Sidebar.svelte";
 
   let themeStyles = $derived(getThemeVariables());
 
   onMount(() => {
-    library.load();
+    // Initialize capabilities, then load library
+    library.init();
   });
 </script>
 
 <main style={themeStyles}>
-  <AlbumGrid />
+  <aside class="sidebar-pane">
+    <Sidebar />
+  </aside>
+  
+  <section class="content-pane">
+    <AlbumGrid />
+  </section>
 </main>
 
 <style>
@@ -24,26 +32,17 @@
     background-color: var(--background-main);
   }
 
-  .sidebar {
-    width: 240px;
+  .sidebar-pane {
+    flex: 0 0 260px; /* Fixed Width */
     height: 100%;
-    background-color: var(--palette-100);
     border-right: 1px solid var(--border-muted);
-    flex-shrink: 0;
+    z-index: 10;
   }
 
-  .content-area {
+  .content-pane {
     flex: 1;
     height: 100%;
     position: relative;
     overflow: hidden;
-  }
-
-  .details {
-    width: 450px;
-    height: 100%;
-    background-color: var(--background-main);
-    border-left: 1px solid var(--border-muted);
-    flex-shrink: 0;
   }
 </style>
