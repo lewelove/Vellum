@@ -1,7 +1,7 @@
 <script>
   let { tracks = [], cols = 1 } = $props();
 
-  // Distribution Engine: Split tracks into vertical segments for columns
+  // Distribution Engine
   let columnData = $derived.by(() => {
     const rowsPerCol = Math.ceil(tracks.length / cols);
     const result = [];
@@ -15,16 +15,16 @@
 <div class="tracks-grid" style="grid-template-columns: repeat({cols}, 1fr);">
   {#each columnData as column}
     <div class="track-column">
-      {#each column as track, i}
+      {#each column as track}
         <div class="track-row">
-          <!-- Segment 1: Gutter (Index) -->
-          <span class="track-index">{tracks.indexOf(track) + 1}</span>
+          <!-- Segment 1: Gutter (Track Number) -->
+          <span class="track-index">{track.number}</span>
           
           <!-- Segment 2: Title Block -->
-          <span class="track-title">{track}</span>
+          <span class="track-title">{track.title}</span>
           
           <!-- Segment 3: Meta (Duration) -->
-          <span class="track-meta">3:45</span>
+          <span class="track-meta">{track.duration}</span>
         </div>
       {/each}
     </div>

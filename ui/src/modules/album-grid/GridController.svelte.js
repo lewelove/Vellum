@@ -13,9 +13,9 @@ export class GridController {
     if (!library.expandedAlbumId) return null;
     const album = library.albums.find(a => a.id === library.expandedAlbumId);
     
-    // Use totalTracks from DB for layout calculation
-    // fallback to 0 if undefined
-    const count = album ? (album.totalTracks || 0) : 0;
+    // Use the actual tracks array length from the DTO.
+    // The Custodian architecture guarantees this array exists and is populated.
+    const count = album ? album.tracks.length : 0;
     
     return album ? this.layout.getQuantizedDrawer(count) : null;
   });
