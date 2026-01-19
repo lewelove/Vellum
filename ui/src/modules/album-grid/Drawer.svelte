@@ -131,15 +131,15 @@
     color: var(--text-main); 
     font-size: var(--drawer-font-size-album); 
     line-height: 1.2;
-    font-weight: 500;
-    font-style: italic;
+    font-weight: 400;
+    /* font-style: italic; */
   }
   
   .d-artist { 
     margin: 4px 0 0 0; 
     color: var(--text-muted); 
     font-size: var(--drawer-font-size-artist); 
-    font-weight: 400;
+    font-weight: 300;
   }
 
   .d-info {

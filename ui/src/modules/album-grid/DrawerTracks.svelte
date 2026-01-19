@@ -68,6 +68,8 @@
     flex: 1;
     text-overflow: ellipsis;
     overflow: hidden;
+    font-weight: 400;
+    /* font-family: monospace; */
   }
 
   /* Segment 3: Meta Segment */
