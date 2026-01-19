@@ -42,7 +42,8 @@
                 cd "$ROOT/ui" && npm run dev
                 ;;
               server)
-                cd "$ROOT" && python server/main.py "$@"
+                # CHANGED: Run as module (-m) to ensure sys.path includes ROOT
+                cd "$ROOT" && python -m server.main "$@"
                 ;;
               update)
                 cd "$ROOT" && python -m cli.update "$@"

@@ -16,6 +16,9 @@
   } = $props();
 
   let pointerOffset = $derived((activeIndexInRow * (cardSize + gap)) + (cardSize / 2));
+  
+  // Check if tracks are loaded
+  let hasTracks = $derived(activeAlbum.tracks && activeAlbum.tracks.length > 0);
 </script>
 
 <div class="drawer-container" style="width: {width}px; height: {height}px;">
@@ -54,12 +57,18 @@
           <h3 class="d-artist">{activeAlbum.artist}</h3>
         </div>
         <div class="header-right">
-          <span class="d-info">45:12</span>
-          <span class="d-genre">Electronic / Downtempo</span>
+          <span class="d-info">{activeAlbum.totalTracks} Tracks</span>
+          <!-- TODO: Add genre once DB provides it in shelf view or fetch it -->
         </div>
       </header>
       
-      <DrawerTracks tracks={activeAlbum.tracks} cols={trackCols} />
+      {#if hasTracks}
+        <DrawerTracks tracks={activeAlbum.tracks} cols={trackCols} />
+      {:else}
+        <div class="loading-state">
+          <span>Loading tracks...</span>
+        </div>
+      {/if}
     </div>
   </div>
 </div>
@@ -98,6 +107,8 @@
 
   .drawer-content {
     padding: var(--drawer-padding-y) var(--drawer-padding-x);
+    height: 100%;
+    box-sizing: border-box;
   }
 
   .drawer-header {
@@ -138,9 +149,18 @@
     font-weight: 400;
   }
 
-  .d-info, .d-genre {
+  .d-info {
     font-size: 14px;
     color: var(--text-muted);
     line-height: 1.4;
+  }
+
+  .loading-state {
+    width: 100%;
+    height: 100px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
   }
 </style>

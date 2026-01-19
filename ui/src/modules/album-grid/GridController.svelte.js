@@ -12,7 +12,12 @@ export class GridController {
   drawerInfo = $derived.by(() => {
     if (!library.expandedAlbumId) return null;
     const album = library.albums.find(a => a.id === library.expandedAlbumId);
-    return album ? this.layout.getQuantizedDrawer(album.tracks.length) : null;
+    
+    // Use totalTracks from DB for layout calculation
+    // fallback to 0 if undefined
+    const count = album ? (album.totalTracks || 0) : 0;
+    
+    return album ? this.layout.getQuantizedDrawer(count) : null;
   });
 
   totalRowsCount = $derived(this.rows.length + (this.drawerInfo ? this.drawerInfo.rows : 0));

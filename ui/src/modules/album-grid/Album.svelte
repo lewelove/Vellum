@@ -1,12 +1,15 @@
 <script>
   let { album, active, onclick } = $props();
+
+  // URL encode the ID to be safe for the path
+  let coverUrl = $derived(`/api/assets/${encodeURIComponent(album.id)}/cover`);
 </script>
 
 <div class="album-unit">
   <button 
     class="album-cover" 
     class:active
-    style="background-color: {album.color};"
+    style="background-color: {album.color}; background-image: url('{coverUrl}');"
     {onclick}
   ></button>
   
@@ -39,6 +42,8 @@
     /* Slide OVER the crease */
     position: relative;
     z-index: 2;
+    background-size: cover;
+    background-position: center;
   }
 
   .album-info {
