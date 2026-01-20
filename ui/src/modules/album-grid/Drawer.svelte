@@ -4,65 +4,34 @@
   let { 
     activeAlbum, 
     width, 
-    cardSize, 
     gap, 
-    activeIndexInRow, 
     height,       
     bandA,        
     bandB,        
     trackCols,
-    chevronWidth,
     bandCHeight
   } = $props();
 
-  let pointerOffset = $derived((activeIndexInRow * (cardSize + gap)) + (cardSize / 2));
+  // Simplified Drawer: Only content is rendered, relying on layout engine for spacing/heights
 </script>
 
 <div class="drawer-container" style="width: {width}px; height: {height}px;">
-  <!-- Band A: Top Spacer -->
-  <div class="band-a" style="height: {bandA}px;"></div>
+  <!-- Spacer Band to match GridController geometry -->
+  <div style="height: {bandA + bandB}px;"></div>
 
-  <!-- Band B: The Chevron Bridge -->
-  <div class="band-b" style="height: {bandB}px;">
-    <div class="pointer-wrapper" style="left: {pointerOffset}px; width: {chevronWidth}px; height: {bandB}px;">
-      <svg 
-        width={chevronWidth} 
-        height={bandB + 1} 
-        viewBox="0 0 {chevronWidth} {bandB + 1}" 
-        fill="none" 
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <path 
-          d="M0 {bandB + 1} L{chevronWidth / 2} 1 L{chevronWidth} {bandB + 1} L0 {bandB + 1}Z" 
-          fill="var(--background-drawer)"
-        />
-        <path 
-          d="M0 {bandB + 1} L{chevronWidth / 2} 1 L{chevronWidth} {bandB + 1}" 
-          stroke="var(--border-muted)" 
-          stroke-width="1.2"
-        />
-      </svg>
-    </div>
-  </div>
-
-  <!-- Band C: Content Area -->
-  <div class="band-c" style="height: {bandCHeight}px;">
-    <div class="drawer-content">
+  <!-- Content Area -->
+  <div class="drawer-content" style="height: {bandCHeight}px;">
       <header class="drawer-header">
         <div class="header-left">
-          <!-- Binds directly to Pixel-Ready DTO -->
           <h2 class="d-title">{activeAlbum.title}</h2>
           <h3 class="d-artist">{activeAlbum.artist}</h3>
         </div>
         <div class="header-right">
-          <!-- Uses actual array length -->
           <span class="d-info">{activeAlbum.tracks.length} Tracks</span>
         </div>
       </header>
       
-      <!-- Tracks are guaranteed to exist -->
       <DrawerTracks tracks={activeAlbum.tracks} cols={trackCols} />
-    </div>
   </div>
 </div>
 
@@ -75,33 +44,11 @@
     overflow: hidden;
   }
 
-  .band-a { background-color: transparent; }
-
-  .band-b {
-    position: relative;
-    z-index: 2;
-  }
-
-  .pointer-wrapper {
-    position: absolute;
-    bottom: -1px;
-    transform: translateX(-50%);
-    display: flex;
-    align-items: flex-end;
-  }
-
-  .band-c {
-    position: relative;
-    z-index: 1;
+  .drawer-content {
     background-color: var(--background-drawer);
     border: 1px solid var(--border-muted);
     box-sizing: border-box;
-  }
-
-  .drawer-content {
     padding: var(--drawer-padding-y) var(--drawer-padding-x);
-    height: 100%;
-    box-sizing: border-box;
   }
 
   .drawer-header {
@@ -132,7 +79,6 @@
     font-size: var(--drawer-font-size-album); 
     line-height: 1.2;
     font-weight: 400;
-    /* font-style: italic; */
   }
   
   .d-artist { 

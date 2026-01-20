@@ -20,6 +20,8 @@
           python-multipart 
           mutagen
           tqdm
+          pillow
+          xxhash
         ]);
 
         mpf2k-cli = pkgs.writeShellApplication {

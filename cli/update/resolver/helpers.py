@@ -1,5 +1,7 @@
 import os
 import datetime
+import xxhash
+import base64
 from pathlib import Path
 
 # --- UTILS ---
@@ -93,6 +95,27 @@ def resolve_album_helper_cover_path(ctx):
                 
     return "default_cover.png"
 
+def resolve_album_helper_cover_hash(ctx):
+    """
+    Calculates xxHash64 of the cover image content.
+    Returns URL-safe Base64 string.
+    """
+    rel_path = resolve_album_helper_cover_path(ctx)
+    if not rel_path or rel_path == "default_cover.png":
+        return ""
+        
+    abs_path = ctx["album_root"] / rel_path
+    if not abs_path.exists():
+        return ""
+        
+    try:
+        with open(abs_path, "rb") as f:
+            digest = xxhash.xxh64(f.read()).digest()
+            # Base64 encode and strip padding '=' for cleaner URLs
+            return base64.urlsafe_b64encode(digest).decode('ascii').rstrip('=')
+    except Exception:
+        return ""
+
 def resolve_album_helper_cover_byte_size(ctx):
     cp = resolve_album_helper_cover_path(ctx)
     if not cp or cp == "default_cover.png":
@@ -174,16 +197,6 @@ def resolve_track_helper_lyrics_path(ctx):
                 pass
                 
     return ""
-
-# def resolve_track_helper_lyrics_path_absolute(ctx):
-#     lp = resolve_track_helper_lyrics_path(ctx)
-#     if not lp or lp == "<METADATA>": return ""
-#
-#     full = ctx["album_root"] / lp
-#     try:
-#         return str(full.relative_to(ctx["library_root"]))
-#     except ValueError:
-#         return str(full)
 
 def resolve_track_helper_encoding(ctx):
     audio = ctx.get("audio_obj")

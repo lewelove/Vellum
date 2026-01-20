@@ -9,6 +9,7 @@ from cli.update.resolver import setup_registry, find_resolver, get_registered_ke
 from cli.update.zipper import scan_physical_spine, zip_tracks, parse_int
 from cli.update.writer import write_lock
 from cli.generate.compressor import get_layout_keys
+from cli.update.image_processor import generate_thumbnail
 
 def validate_layout(config):
     """
@@ -204,6 +205,28 @@ def compile_album(album_root: Path, supported_exts: list, library_root: Path = N
         else:
             final_album[key] = ""
 
-    # --- PHASE 6: OUTPUT ---
+    # --- PHASE 6: THUMBNAIL GENERATION ---
+    cover_hash = final_album.get("cover_hash")
+    cover_rel_path = final_album.get("cover_path")
+    
+    if cover_hash and cover_rel_path and cover_rel_path != "default_cover.png":
+        cache_folder_str = config.get("storage", {}).get("thumbnail_cache_folder")
+        if cache_folder_str:
+            cache_folder = Path(cache_folder_str).expanduser().resolve()
+            # CHANGED: Use .png extension
+            dest_thumb = cache_folder / f"{cover_hash}.png"
+            
+            if not dest_thumb.exists():
+                src_cover = album_root / cover_rel_path
+                if src_cover.exists():
+                    theme_cfg = config.get("theme", {})
+                    generate_thumbnail(
+                        src_cover, 
+                        dest_thumb, 
+                        size=theme_cfg.get("thumbnail_size", 200),
+                        resampling=theme_cfg.get("thumbnail_resampling", "LANCZOS")
+                    )
+
+    # --- PHASE 7: OUTPUT ---
     layout_cfg = config.get("lock", {}).get("layout", {})
     write_lock(album_root, final_album, final_tracks, layout_cfg)

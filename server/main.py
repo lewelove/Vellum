@@ -13,6 +13,7 @@ from mpd import MPDClient
 CONFIG = {}
 LIBRARY_JSON_PATH = Path("~/.mpf2k/library.json").expanduser().resolve()
 LIBRARY_ROOT = None
+THUMBNAIL_ROOT = None
 ALBUM_MAP = {} # album_id -> { cover_path, ... }
 TRACK_MAP = {} # track_id -> absolute_path
 
@@ -65,11 +66,15 @@ def load_library_map():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global CONFIG, LIBRARY_ROOT
+    global CONFIG, LIBRARY_ROOT, THUMBNAIL_ROOT
     CONFIG = load_config()
     root_str = CONFIG.get("storage", {}).get("library_root")
+    thumb_str = CONFIG.get("storage", {}).get("thumbnail_cache_folder")
+    
     if root_str:
         LIBRARY_ROOT = Path(root_str).expanduser().resolve()
+    if thumb_str:
+        THUMBNAIL_ROOT = Path(thumb_str).expanduser().resolve()
         
     load_library_map()
     yield
@@ -95,7 +100,36 @@ def get_library_json():
     """
     if not LIBRARY_JSON_PATH.exists():
         raise HTTPException(status_code=404, detail="Library artifact not found")
-    return FileResponse(LIBRARY_JSON_PATH)
+    
+    # Explicitly prevent caching for the main database file
+    return FileResponse(
+        LIBRARY_JSON_PATH, 
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0",
+        }
+    )
+
+@app.get("/api/covers/{cover_hash}.png")
+def get_cover_thumbnail(cover_hash: str):
+    if not THUMBNAIL_ROOT:
+        raise HTTPException(status_code=500, detail="Thumbnail configuration missing")
+        
+    # CHANGED: Serve .png
+    file_path = (THUMBNAIL_ROOT / f"{cover_hash}.png").resolve()
+    
+    if not str(file_path).startswith(str(THUMBNAIL_ROOT)):
+         raise HTTPException(status_code=403)
+
+    if not file_path.exists():
+        raise HTTPException(status_code=404)
+        
+    # Thumbnails SHOULD be cached heavily (1 year)
+    return FileResponse(
+        file_path,
+        headers={"Cache-Control": "public, max-age=31536000"}
+    )
 
 @app.get("/api/assets/{album_id:path}/cover")
 def get_album_cover(album_id: str):

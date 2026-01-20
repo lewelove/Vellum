@@ -2,7 +2,10 @@
 
 export async function getLibraryArtifact() {
   // Fetches the static JSON database
-  const response = await fetch("/library.json");
+  // We append a timestamp to bypass browser caching
+  const bust = Date.now();
+  const response = await fetch(`/library.json?t=${bust}`);
+  
   if (!response.ok) throw new Error("Failed to load library artifact");
   return await response.json();
 }

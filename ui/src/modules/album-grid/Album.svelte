@@ -1,15 +1,17 @@
 <script>
   let { album, active, onclick } = $props();
 
-  // URL encode the ID to be safe for the path
-  let coverUrl = $derived(`/api/assets/${encodeURIComponent(album.id)}/cover`);
+  // CHANGED: Request .png
+  let coverUrl = $derived(album.cover_hash 
+    ? `/api/covers/${album.cover_hash}.png` 
+    : "");
 </script>
 
 <div class="album-unit">
   <button 
     class="album-cover" 
     class:active
-    style="background-color: {album.color}; background-image: url('{coverUrl}');"
+    style="background-color: {album.color}; {coverUrl ? `background-image: url('${coverUrl}');` : ''}"
     {onclick}
   ></button>
   
@@ -44,6 +46,7 @@
     z-index: 2;
     background-size: cover;
     background-position: center;
+    border-radius: 2px; /* Slight polish for thumbnails */
   }
 
   .album-info {
