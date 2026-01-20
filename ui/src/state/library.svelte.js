@@ -22,7 +22,7 @@ class LibraryState {
   expandedAlbumId = $state(null);
   
   activeFilter = $state({ key: null, val: null });
-  activeSort = $state({ key: "date_added" });
+  activeSort = $state({ key: "az" });
 
   // 1. FILTERING ENGINE
   filteredAlbums = $derived.by(() => {
