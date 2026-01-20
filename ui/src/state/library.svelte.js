@@ -1,8 +1,7 @@
-import { getLibraryArtifact } from "$core/api.js";
+import { connectSocket } from "$core/api.js";
 import { applyFilter } from "../logic/filters.js";
 import { sorters } from "../logic/sorters.js";
 import { generateSidebarGroup } from "../logic/groupers.js";
-import { theme } from "$core/theme.svelte.js";
 
 function generateColor(id) {
   let hash = 0;
@@ -15,10 +14,11 @@ function generateColor(id) {
 }
 
 class LibraryState {
-  rawAlbums = []; // The Nested Lake
+  rawAlbums = $state([]); // Reactive Source of Truth
   
-  // Reactive State
+  // Reactive UI State
   isLoading = $state(true);
+  isConnected = $state(false);
   expandedAlbumId = $state(null);
   
   activeFilter = $state({ key: null, val: null });
@@ -35,16 +35,9 @@ class LibraryState {
     // Clone to avoid mutating filtered source during sort
     const list = [...this.filteredAlbums];
     
-    // Inject Colors (if not present) - UI Enhancement
-    // We do this lazily or here. Since data is fresh from JSON, let's just ensure colors exist.
-    // In a production app, we might bake this in the build step, but this is fast enough.
-    list.forEach(a => {
-        if (!a.color) a.color = generateColor(a.id);
-        // Map keys to UI expectations if necessary (though our JSON keys mostly match)
-        a.title = a.ALBUM;
-        a.artist = a.ALBUMARTIST;
-    });
-
+    // Note: Colors are now likely stable in rawAlbums, but we ensure here if needed
+    // or rely on the server/processing to have set them.
+    
     const sorter = sorters[this.activeSort.key] || sorters.date_added;
     list.sort(sorter);
 
@@ -55,14 +48,62 @@ class LibraryState {
     grouping: ["genre", "decade"]
   };
 
-  async init() {
-    this.isLoading = true;
-    try {
-      this.rawAlbums = await getLibraryArtifact();
-    } catch (e) {
-      console.error("Library load failed", e);
-    } finally {
-      this.isLoading = false;
+  init() {
+    connectSocket(
+      () => { this.isConnected = true; },
+      (event) => this.handleMessage(event)
+    );
+  }
+
+  handleMessage(event) {
+    if (event.data instanceof Blob) {
+      // Handle binary if we sent binary, but we send text JSON
+      const reader = new FileReader();
+      reader.onload = () => {
+        this.processPayload(JSON.parse(reader.result));
+      };
+      reader.readAsText(event.data);
+    } else {
+      this.processPayload(JSON.parse(event.data));
+    }
+  }
+
+  processPayload(msg) {
+    if (msg.type === "INIT") {
+      this.processInit(msg.data);
+    } else if (msg.type === "UPDATE") {
+      this.processUpdate(msg.id, msg.payload);
+    }
+  }
+
+  processInit(data) {
+    // Enhance data for UI
+    data.forEach(a => {
+      a.color = generateColor(a.id);
+      a.title = a.ALBUM;
+      a.artist = a.ALBUMARTIST;
+    });
+    
+    // Atomic replacement of state
+    this.rawAlbums = data;
+    this.isLoading = false;
+  }
+
+  processUpdate(id, albumData) {
+    // Enhance
+    albumData.color = generateColor(albumData.id);
+    albumData.title = albumData.ALBUM;
+    albumData.artist = albumData.ALBUMARTIST;
+
+    const index = this.rawAlbums.findIndex(a => a.id === id);
+    
+    if (index !== -1) {
+      // Replace existing
+      // Svelte 5 array mutation is fine if using $state
+      this.rawAlbums[index] = albumData;
+    } else {
+      // New Album
+      this.rawAlbums.push(albumData);
     }
   }
 

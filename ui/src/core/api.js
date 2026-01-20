@@ -1,13 +1,34 @@
-// The API layer is now minimal. Logic moved to Client.
+// NEW: WebSocket based architecture
 
-export async function getLibraryArtifact() {
-  // Fetches the static JSON database
-  // We append a timestamp to bypass browser caching
-  const bust = Date.now();
-  const response = await fetch(`/library.json?t=${bust}`);
-  
-  if (!response.ok) throw new Error("Failed to load library artifact");
-  return await response.json();
+export function connectSocket(onOpen, onMessage) {
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  // Use current host to allow accessing from LAN if needed
+  const host = window.location.host; 
+  const url = `${protocol}//${host}/ws`;
+
+  let socket = new WebSocket(url);
+
+  socket.onopen = () => {
+    console.log("Live Lake Connected");
+    if (onOpen) onOpen();
+  };
+
+  socket.onmessage = (event) => {
+    if (onMessage) onMessage(event);
+  };
+
+  socket.onclose = () => {
+    console.log("Live Lake Disconnected. Reconnecting in 2s...");
+    setTimeout(() => {
+      connectSocket(onOpen, onMessage);
+    }, 2000);
+  };
+
+  socket.onerror = (err) => {
+    console.error("Socket error", err);
+  };
+
+  return socket;
 }
 
 export async function playAlbum(id) {

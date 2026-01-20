@@ -22,6 +22,10 @@
           tqdm
           pillow
           xxhash
+          orjson
+          httpx
+          websockets
+          uvloop
         ]);
 
         mpf2k-cli = pkgs.writeShellApplication {
@@ -43,7 +47,7 @@
                 cd "$ROOT" && python -m cli.update "$@"
                 ;;
               build)
-                cd "$ROOT" && python -m cli.build "$@"
+                echo "Deprecated: The server now builds state in RAM. Run 'mpf2k server' instead."
                 ;;
               generate)
                 cd "$ROOT" && python -m cli.generate "$@"
@@ -54,9 +58,8 @@
               help|--help|-h)
                 echo "MPF2K CLI Commands:"
                 echo "  ui       : Start UI Dev Server"
-                echo "  server   : Start Backend"
-                echo "  update   : Compile metadata locks"
-                echo "  build    : Aggregate locks into library.json"
+                echo "  server   : Start Backend (Live State Manager)"
+                echo "  update   : Compile metadata locks & Hot Reload Server"
                 echo "  generate : Initialize metadata from files"
                 echo "  export   : Export snapshot"
                 ;;

@@ -3,6 +3,7 @@ import sys
 import json
 import os
 import time
+import httpx
 from pathlib import Path
 from tqdm import tqdm
 
@@ -25,6 +26,17 @@ def save_cache(cache):
     with open(CACHE_FILE, "w") as f:
         json.dump(cache, f)
 
+def notify_server(album_root: Path):
+    """
+    Sends a fire-and-forget notification to the running server.
+    """
+    url = "http://127.0.0.1:8000/api/internal/reload"
+    try:
+        httpx.post(url, params={"path": str(album_root)}, timeout=0.5)
+    except httpx.RequestError:
+        # Server might be down, which is fine for offline updates
+        pass
+
 def run_update():
     config_path = Path("config.toml")
     if not config_path.exists():
@@ -40,7 +52,6 @@ def run_update():
     gen_cfg = config.get("generate", {})
     supported_exts = gen_cfg.get("supported_extensions", [".flac"])
     
-    # 1. Load Sentry Cache
     sentry_cache = load_cache()
     new_cache = {}
     
@@ -64,10 +75,13 @@ def run_update():
         cached_info = sentry_cache.get(album_path_str, {})
         cached_mtime = cached_info.get("mtime", 0)
         
-        # If folder mtime hasn't changed, and we aren't forcing, assume validity.
-        # This relies on the OS updating folder mtime when file contents change/rename/delete.
-        if not force_mode and current_mtime == cached_mtime and current_mtime != 0:
-            # Propagate cache entry
+        should_process = force_mode
+        if not should_process:
+            if current_mtime == 0 or current_mtime != cached_mtime:
+                should_process = True
+
+        if not should_process:
+            # Cache hit
             new_cache[album_path_str] = cached_info
             skips_count += 1
             continue
@@ -77,12 +91,15 @@ def run_update():
         
         if trust != TrustState.VALID:
             compile_album(album_root, supported_exts, library_root=lib_root)
+            
+            # --- HOT RELOAD TRIGGER ---
+            # Notify server immediately after compilation
+            notify_server(album_root)
+            
             updates_count += 1
             
-        # Update Cache with current mtime after successful verification/compilation
         new_cache[album_path_str] = {"mtime": current_mtime}
 
-    # 2. Save Sentry Cache
     save_cache(new_cache)
 
     print(f"\nUpdate Complete. {updates_count} albums refreshed. {skips_count} albums skipped (cached).")
