@@ -1,11 +1,43 @@
 // Pure JS Sorting Logic for ALBUMS
 
+/**
+ * Normalizes an artist name for sorting by removing leading "The ".
+ */
+const getSortableArtist = (name) => {
+  if (!name) return "";
+  const n = name.trim();
+  if (n.toLowerCase().startsWith("the ")) {
+    return n.slice(4).trim();
+  }
+  return n;
+};
+
 export const sorters = {
+  // Complex "Smart" Sort: Artist (A-Z) -> Date (Oldest) -> Album Title (A-Z)
+  default: (a, b) => {
+    // 1. Compare Normalized Artist Name
+    const artistA = getSortableArtist(a.CUSTOM_ALBUMARTIST).toLowerCase();
+    const artistB = getSortableArtist(b.CUSTOM_ALBUMARTIST).toLowerCase();
+    const artistComp = artistA.localeCompare(artistB);
+    if (artistComp !== 0) return artistComp;
+
+    // 2. Compare Date (Oldest to Newest)
+    const dateA = a.DATE || "0000";
+    const dateB = b.DATE || "0000";
+    const dateComp = dateA.localeCompare(dateB);
+    if (dateComp !== 0) return dateComp;
+
+    // 3. Compare Album Title (Final Tie-breaker)
+    const titleA = (a.ALBUM || "").toLowerCase();
+    const titleB = (b.ALBUM || "").toLowerCase();
+    return titleA.localeCompare(titleB);
+  },
+
   date_added: (a, b) => (b.unix_added || 0) - (a.unix_added || 0), // DESC
   
   az: (a, b) => (a.ALBUM || "").localeCompare(b.ALBUM || ""),
   
-  artist: (a, b) => (a.ALBUMARTIST || "").localeCompare(b.ALBUMARTIST || ""),
+  artist: (a, b) => (a.CUSTOM_ALBUMARTIST || "").localeCompare(b.CUSTOM_ALBUMARTIST || ""),
   
   year: (a, b) => {
     const dateA = a.DATE || "0000";
