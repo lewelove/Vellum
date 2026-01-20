@@ -6,13 +6,12 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from fastapi import FastAPI, HTTPException, Body
 from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from mpd import MPDClient
 
 # --- Global State ---
 CONFIG = {}
-LIBRARY_PATH = Path("~/.mpf2k/library.json").expanduser().resolve()
+LIBRARY_JSON_PATH = Path("~/.mpf2k/library.json").expanduser().resolve()
 LIBRARY_ROOT = None
 ALBUM_MAP = {} # album_id -> { cover_path, ... }
 TRACK_MAP = {} # track_id -> absolute_path
@@ -28,39 +27,39 @@ def load_config():
 
 def load_library_map():
     """
-    Loads library.json into RAM to serve as a Lookup Table
+    Loads nested library.json into RAM to serve as a Lookup Table
     for Asset Serving and Playback resolution.
     """
     global ALBUM_MAP, TRACK_MAP
     
-    if not LIBRARY_PATH.exists():
-        print(f"Warning: {LIBRARY_PATH} not found. Run 'mpf2k build'.")
+    if not LIBRARY_JSON_PATH.exists():
+        print(f"Warning: {LIBRARY_JSON_PATH} not found. Run 'mpf2k build'.")
         return
 
     print("Loading Library Map...")
-    with open(LIBRARY_PATH, "r", encoding="utf-8") as f:
-        tracks = json.load(f)
+    with open(LIBRARY_JSON_PATH, "r", encoding="utf-8") as f:
+        albums = json.load(f)
         
-    for t in tracks:
-        a_id = t.get("album_id")
-        t_id = t.get("id")
+    for album in albums:
+        a_id = album.get("id")
         
-        # Build Album Map (Last write wins, assuming consistency)
-        if a_id and a_id not in ALBUM_MAP:
+        # Build Album Map
+        if a_id:
             ALBUM_MAP[a_id] = {
-                "cover_path": t.get("cover_path")
+                "cover_path": album.get("cover_path")
             }
             
-        # Build Track Map
-        if t_id:
-            # Resolve absolute path
-            # The JSON contains 'track_library_path' (relative to lib root)
-            # We need absolute for MPD
-            abs_path = LIBRARY_ROOT / t.get("track_path") # 'track_path' is relative to album
-            # Wait, flat lake has merged keys. 'track_path' is relative to album.
-            # 'album_root_path' or 'album_id' is relative to lib.
-            full_path = LIBRARY_ROOT / a_id / t.get("track_path")
-            TRACK_MAP[t_id] = str(full_path)
+        # Build Track Map (Iterate into nested tracks)
+        # Note: In the Nested Architecture, 'tracks' is a list inside the album object
+        for t in album.get("tracks", []):
+            t_id = t.get("track_library_path")
+            t_path_rel = t.get("track_path")
+            
+            if t_id and t_path_rel:
+                # Resolve absolute path for MPD
+                # track_path is relative to the album folder (a_id)
+                full_path = LIBRARY_ROOT / a_id / t_path_rel
+                TRACK_MAP[t_id] = str(full_path)
 
 # --- Lifecycle ---
 
@@ -89,6 +88,15 @@ app.add_middleware(
 
 # --- Endpoints ---
 
+@app.get("/library.json")
+def get_library_json():
+    """
+    Serves the raw JSON database to the UI.
+    """
+    if not LIBRARY_JSON_PATH.exists():
+        raise HTTPException(status_code=404, detail="Library artifact not found")
+    return FileResponse(LIBRARY_JSON_PATH)
+
 @app.get("/api/assets/{album_id:path}/cover")
 def get_album_cover(album_id: str):
     if not LIBRARY_ROOT or album_id not in ALBUM_MAP:
@@ -111,27 +119,19 @@ def get_album_cover(album_id: str):
 @app.post("/api/play/{album_id:path}")
 def play_album(album_id: str):
     """
-    Legacy support: Plays entire album by ID.
+    Plays entire album by ID.
     Finds all tracks in TRACK_MAP belonging to this album.
     """
-    # In the Flat Lake RAM model, we don't have an index by album_id for tracks 
-    # explicitly in the simplified TRACK_MAP. 
-    # For robust implementation, we can re-scan the list or better, 
-    # accept a list of track IDs from the UI (Preferred).
-    # But to keep API contract:
-    
-    # We will assume the UI sends specific commands in future, 
-    # but for now, we scan the map (It's fast enough for a single request).
-    
     paths_to_queue = []
     prefix = str(LIBRARY_ROOT / album_id)
     
-    # This is inefficient O(N) but acceptable for a "Play Album" event which happens rarely.
+    # Iterate all known tracks to find matches (Fast enough for single user)
+    # Alternatively, we could have stored tracks inside ALBUM_MAP for faster lookup
     for t_id, abs_path in TRACK_MAP.items():
         if abs_path.startswith(prefix):
             paths_to_queue.append(abs_path)
             
-    paths_to_queue.sort() # Physics sort (alphabetical/path)
+    paths_to_queue.sort()
 
     if not paths_to_queue:
         raise HTTPException(status_code=404, detail="No tracks found")
@@ -145,9 +145,6 @@ def _send_to_mpd(paths):
         client.connect("localhost", 6600)
         client.clear()
         for p in paths:
-            # MPD expects paths relative to its music directory 
-            # OR absolute paths if configured strictly.
-            # Assuming MPD Music Dir == LIBRARY_ROOT:
             rel_p = str(Path(p).relative_to(LIBRARY_ROOT))
             client.add(rel_p)
         client.play()
