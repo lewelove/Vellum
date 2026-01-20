@@ -5,28 +5,22 @@
   let { groupKey } = $props();
   
   let isOpen = $state(false);
-  let items = $state([]);
-  let loading = $state(false);
+  
+  // Sync Data Loading
+  // In the new architecture, data is in RAM, so we don't need async fetching.
+  // We derive the items directly from the library state.
+  let items = $derived(isOpen ? library.getSidebarGroup(groupKey) : []);
 
-  // Derived check: Is one of my items currently the active filter?
   let hasActiveSelection = $derived(
     library.activeFilter.key && 
     items.some(i => i.filterTarget === library.activeFilter.key && i.value === library.activeFilter.val)
   );
 
-  async function toggle() {
+  function toggle() {
     isOpen = !isOpen;
-    if (isOpen && items.length === 0) {
-      loading = true;
-      items = await library.fetchSidebarGroup(groupKey);
-      loading = false;
-    }
   }
 
   function formatLabel(key) {
-    // Basic formatting: "group_genre" -> "Genre"
-    // Ideally the backend capabilities would return a display label.
-    // For now, capitalize first letter.
     return key.charAt(0).toUpperCase() + key.slice(1);
   }
 </script>
@@ -39,9 +33,6 @@
 
   {#if isOpen}
     <div class="section-content">
-      {#if loading}
-        <div class="loading">Loading...</div>
-      {:else}
         {#each items as item}
           <SidebarItem 
             label={item.label} 
@@ -50,7 +41,6 @@
             onclick={() => library.applyFilter(item.filterTarget, item.value)}
           />
         {/each}
-      {/if}
     </div>
   {/if}
 </div>
@@ -97,12 +87,5 @@
 
   .section-content {
     padding-bottom: 8px;
-  }
-
-  .loading {
-    padding: 8px 16px 8px 32px;
-    font-size: 12px;
-    color: var(--text-muted);
-    font-style: italic;
   }
 </style>

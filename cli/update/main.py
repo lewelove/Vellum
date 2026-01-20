@@ -1,28 +1,38 @@
 import tomllib
 import sys
-import hashlib
+import json
+import os
+import time
 from pathlib import Path
 from tqdm import tqdm
 
 from .sentry import verify_trust, TrustState
 from .compiler import compile_album
-from .database import Database
 
-def get_file_content_hash(path: Path) -> str:
-    sha256 = hashlib.sha256()
-    with open(path, "rb") as f:
-        while chunk := f.read(8192):
-            sha256.update(chunk)
-    return sha256.hexdigest()
+CACHE_FILE = Path("~/.mpf2k/cache.json").expanduser().resolve()
+
+def load_cache():
+    if CACHE_FILE.exists():
+        try:
+            with open(CACHE_FILE, "r") as f:
+                return json.load(f)
+        except:
+            pass
+    return {}
+
+def save_cache(cache):
+    CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with open(CACHE_FILE, "w") as f:
+        json.dump(cache, f)
 
 def run_update():
     config_path = Path("config.toml")
     if not config_path.exists():
+        print("Config not found")
         return
 
-    # Simple flag parsing
     force_mode = "--force" in sys.argv
-
+    
     with open(config_path, "rb") as f:
         config = tomllib.load(f)
 
@@ -30,53 +40,49 @@ def run_update():
     gen_cfg = config.get("generate", {})
     supported_exts = gen_cfg.get("supported_extensions", [".flac"])
     
-    # Initialize Database
-    # Using default path ~/.mpf2k/library.db
-    db_path = Path("~/.mpf2k/library.db").expanduser().resolve()
-    db = Database(db_path, config_path)
-
+    # 1. Load Sentry Cache
+    sentry_cache = load_cache()
+    new_cache = {}
+    
     anchors = list(lib_root.rglob("metadata.toml"))
     
     updates_count = 0
-    processed_ids = []
+    skips_count = 0
     
-    for anchor in tqdm(anchors, desc="Updating Library", unit="album"):
+    print(f"Scanning {len(anchors)} albums...")
+
+    for anchor in tqdm(anchors, desc="Verifying Library", unit="album"):
         album_root = anchor.parent
+        album_path_str = str(album_root)
         
-        # 1. Verify / Compile
+        # --- SENTRY FAST CHECK (Folder Mtime) ---
+        try:
+            current_mtime = int(os.path.getmtime(album_root))
+        except OSError:
+            current_mtime = 0
+            
+        cached_info = sentry_cache.get(album_path_str, {})
+        cached_mtime = cached_info.get("mtime", 0)
+        
+        # If folder mtime hasn't changed, and we aren't forcing, assume validity.
+        # This relies on the OS updating folder mtime when file contents change/rename/delete.
+        if not force_mode and current_mtime == cached_mtime and current_mtime != 0:
+            # Propagate cache entry
+            new_cache[album_path_str] = cached_info
+            skips_count += 1
+            continue
+
+        # --- DEEP CHECK (Compiler Logic) ---
         trust = verify_trust(album_root, force=force_mode)
         
         if trust != TrustState.VALID:
             compile_album(album_root, supported_exts, library_root=lib_root)
             updates_count += 1
             
-        # 2. Database Sync
-        lock_path = album_root / "metadata.lock"
-        if lock_path.exists():
-            try:
-                # Calculate ID
-                album_id = str(album_root.relative_to(lib_root))
-                
-                # Get Lock Hash for caching
-                lock_hash = get_file_content_hash(lock_path)
-                
-                # Load Data
-                with open(lock_path, "rb") as f:
-                    lock_data = tomllib.load(f)
-                
-                # Sync
-                db.sync_album(album_id, lock_data, lock_hash)
-                
-                # Mark as processed
-                processed_ids.append(album_id)
-                
-            except Exception as e:
-                tqdm.write(f"Error syncing DB for {album_root}: {e}")
+        # Update Cache with current mtime after successful verification/compilation
+        new_cache[album_path_str] = {"mtime": current_mtime}
 
-    # 3. Prune Database (Garbage Collection)
-    if processed_ids:
-        db.prune(processed_ids)
-    
-    db.close()
+    # 2. Save Sentry Cache
+    save_cache(new_cache)
 
-    print(f"\nUpdate Complete. {updates_count} albums refreshed.")
+    print(f"\nUpdate Complete. {updates_count} albums refreshed. {skips_count} albums skipped (cached).")

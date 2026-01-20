@@ -1,21 +1,9 @@
-export async function getLibrary(params = {}) {
-  const query = new URLSearchParams(params).toString();
-  const url = query ? `/api/library?${query}` : "/api/library";
-  
-  const response = await fetch(url);
-  if (!response.ok) throw new Error("Failed to fetch library");
-  return await response.json();
-}
+// The API layer is now minimal. Logic moved to Client.
 
-export async function getCapabilities() {
-  const response = await fetch("/api/capabilities");
-  if (!response.ok) throw new Error("Failed to fetch capabilities");
-  return await response.json();
-}
-
-export async function getSidebarGroup(key) {
-  const response = await fetch(`/api/sidebar/${key}`);
-  if (!response.ok) throw new Error(`Failed to fetch group ${key}`);
+export async function getLibraryArtifact() {
+  // Fetches the static JSON database
+  const response = await fetch("/library.json");
+  if (!response.ok) throw new Error("Failed to load library artifact");
   return await response.json();
 }
 

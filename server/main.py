@@ -1,26 +1,21 @@
 import sys
-print("DEBUG: Server script starting...", file=sys.stderr)
-
 import uvicorn
-import sqlite3
-import hashlib
 import json
 import tomllib
 from contextlib import asynccontextmanager
 from pathlib import Path
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Body
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from typing import Optional
-
-# New Modular Imports
-from server.context import QueryContext
-from server.registry import load_plugins, get_capabilities, get_grouper, get_filter, get_sorter
+from mpd import MPDClient
 
 # --- Global State ---
 CONFIG = {}
-MEM_CONN = None
-VALID_ALBUM_COLUMNS = set()
+LIBRARY_PATH = Path("~/.mpf2k/library.json").expanduser().resolve()
+LIBRARY_ROOT = None
+ALBUM_MAP = {} # album_id -> { cover_path, ... }
+TRACK_MAP = {} # track_id -> absolute_path
 
 # --- Helpers ---
 
@@ -31,53 +26,54 @@ def load_config():
     with open(config_path, "rb") as f:
         return tomllib.load(f)
 
-def get_library_root():
-    root = CONFIG.get("storage", {}).get("library_root")
-    if root:
-        return Path(root).expanduser().resolve()
-    return None
-
-def init_db():
-    global MEM_CONN, VALID_ALBUM_COLUMNS
-    db_path = Path("~/.mpf2k/library.db").expanduser().resolve()
+def load_library_map():
+    """
+    Loads library.json into RAM to serve as a Lookup Table
+    for Asset Serving and Playback resolution.
+    """
+    global ALBUM_MAP, TRACK_MAP
     
-    MEM_CONN = sqlite3.connect(":memory:", check_same_thread=False)
-    MEM_CONN.row_factory = sqlite3.Row
+    if not LIBRARY_PATH.exists():
+        print(f"Warning: {LIBRARY_PATH} not found. Run 'mpf2k build'.")
+        return
 
-    if db_path.exists():
-        print(f"Loading database from {db_path} into RAM...")
-        try:
-            disk_conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
-            disk_conn.backup(MEM_CONN)
-            disk_conn.close()
-            print("Database loaded into memory.")
-        except Exception as e:
-            print(f"Error loading database: {e}")
-    else:
-        print(f"Warning: Database at {db_path} not found. Starting empty.")
-
-    try:
-        cursor = MEM_CONN.execute("PRAGMA table_info(albums)")
-        VALID_ALBUM_COLUMNS = {row["name"] for row in cursor.fetchall()}
-    except Exception:
-        VALID_ALBUM_COLUMNS = set()
-
-def generate_color(album_id: str) -> str:
-    palette = ["#EA4335", "#34A853", "#FBBC04", "#4285F4", "#A142F4", "#F4426C", "#42F4E2"]
-    hash_val = int(hashlib.md5(album_id.encode("utf-8")).hexdigest(), 16)
-    return palette[hash_val % len(palette)]
+    print("Loading Library Map...")
+    with open(LIBRARY_PATH, "r", encoding="utf-8") as f:
+        tracks = json.load(f)
+        
+    for t in tracks:
+        a_id = t.get("album_id")
+        t_id = t.get("id")
+        
+        # Build Album Map (Last write wins, assuming consistency)
+        if a_id and a_id not in ALBUM_MAP:
+            ALBUM_MAP[a_id] = {
+                "cover_path": t.get("cover_path")
+            }
+            
+        # Build Track Map
+        if t_id:
+            # Resolve absolute path
+            # The JSON contains 'track_library_path' (relative to lib root)
+            # We need absolute for MPD
+            abs_path = LIBRARY_ROOT / t.get("track_path") # 'track_path' is relative to album
+            # Wait, flat lake has merged keys. 'track_path' is relative to album.
+            # 'album_root_path' or 'album_id' is relative to lib.
+            full_path = LIBRARY_ROOT / a_id / t.get("track_path")
+            TRACK_MAP[t_id] = str(full_path)
 
 # --- Lifecycle ---
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global CONFIG
+    global CONFIG, LIBRARY_ROOT
     CONFIG = load_config()
-    init_db()
-    load_plugins() # Initialize the Registry
+    root_str = CONFIG.get("storage", {}).get("library_root")
+    if root_str:
+        LIBRARY_ROOT = Path(root_str).expanduser().resolve()
+        
+    load_library_map()
     yield
-    if MEM_CONN:
-        MEM_CONN.close()
 
 # --- App Definition ---
 
@@ -93,183 +89,72 @@ app.add_middleware(
 
 # --- Endpoints ---
 
-@app.get("/api/capabilities")
-def get_api_capabilities():
-    """Returns available filters, sorters, and groupers."""
-    return get_capabilities()
-
-@app.get("/api/sidebar/{group_key}")
-def get_sidebar_group(group_key: str):
-    """Executes a specific grouping logic."""
-    if not MEM_CONN:
-        return []
-
-    grouper = get_grouper(group_key)
-    if not grouper:
-        raise HTTPException(status_code=404, detail=f"Grouper '{group_key}' not found")
-
-    # Create Context
-    ctx = QueryContext(
-        db_conn=MEM_CONN,
-        config=CONFIG,
-        db_columns=VALID_ALBUM_COLUMNS
-    )
-
-    try:
-        # Execute Plugin Logic
-        # Grouper returns dict with "sql", "filter_target", "display_name"
-        spec = grouper(ctx)
-        
-        sql = spec.get("sql")
-        target = spec.get("filter_target")
-        
-        if not sql:
-            return []
-            
-        cursor = MEM_CONN.execute(sql)
-        rows = cursor.fetchall()
-        
-        # Transform into UI-friendly format
-        return [
-            {
-                "label": str(row["value"]),
-                "value": str(row["value"]),
-                "count": row["count"],
-                "filterTarget": target
-            }
-            for row in rows
-        ]
-
-    except Exception as e:
-        print(f"Grouping Error ({group_key}): {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.get("/api/library")
-def get_library(
-    filter_key: Optional[str] = Query(None, alias="filter"),
-    filter_val: Optional[str] = Query(None, alias="val"),
-    sort_key: str = Query("date_added", alias="sort"),
-    sort_dir: str = "DESC"
-):
-    """
-    Modular Query Factory.
-    """
-    if not MEM_CONN:
-        return []
-
-    # 1. Base Context
-    ctx = QueryContext(
-        db_conn=MEM_CONN,
-        config=CONFIG,
-        db_columns=VALID_ALBUM_COLUMNS,
-        user_value=None,
-        request_params={"filter": filter_key, "val": filter_val, "sort": sort_key, "dir": sort_dir}
-    )
-
-    # 2. Filter Logic
-    where_clauses = []
-    params = []
-
-    if filter_key:
-        filter_func = get_filter(filter_key)
-        if filter_func:
-            # Inject Value
-            ctx.user_value = filter_val
-            # Execute
-            f_result = filter_func(ctx)
-            
-            if f_result and "where" in f_result:
-                where_clauses.append(f_result["where"])
-                params.extend(f_result.get("params", []))
-        else:
-            print(f"Warning: Unknown filter '{filter_key}'")
-
-    where_sql = "WHERE " + " AND ".join(where_clauses) if where_clauses else ""
-
-    # 3. Sort Logic
-    sort_func = get_sorter(sort_key)
-    if sort_func:
-        ctx.user_value = sort_dir
-        order_sql = sort_func(ctx)
-    else:
-        # Fallback
-        order_sql = f"date_added {sort_dir}"
-
-    # 4. Final Assembly
-    sql = f"""
-        SELECT 
-            a.id,
-            a.ALBUM,
-            a.ALBUMARTIST,
-            a.cover_path,
-            (
-                SELECT json_group_array(json_object(
-                    'number', t.TRACKNUMBER,
-                    'title', t.TITLE,
-                    'duration', t.track_duration_time,
-                    'path', t.track_library_path
-                ))
-                FROM (
-                    SELECT * FROM tracks tr 
-                    WHERE tr.album_id = a.id
-                    ORDER BY CAST(tr.DISCNUMBER AS INTEGER), CAST(tr.TRACKNUMBER AS INTEGER)
-                ) t
-            ) as tracks_json
-        FROM albums a
-        {where_sql}
-        ORDER BY {order_sql}
-    """
-
-    try:
-        cursor = MEM_CONN.execute(sql, params)
-        rows = cursor.fetchall()
-        
-        albums = []
-        for row in rows:
-            try:
-                tracks_list = json.loads(row["tracks_json"])
-            except (ValueError, TypeError):
-                tracks_list = []
-
-            albums.append({
-                "id": row["id"],
-                "title": row["ALBUM"],
-                "artist": row["ALBUMARTIST"],
-                "color": generate_color(row["id"]),
-                "cover_path": row["cover_path"],
-                "tracks": tracks_list
-            })
-            
-        return albums
-
-    except Exception as e:
-        print(f"Query Error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-# (Asset and Play endpoints remain unchanged, omitted for brevity but assumed present)
 @app.get("/api/assets/{album_id:path}/cover")
 def get_album_cover(album_id: str):
-    lib_root = get_library_root()
-    if not lib_root or not MEM_CONN:
+    if not LIBRARY_ROOT or album_id not in ALBUM_MAP:
         raise HTTPException(status_code=404)
-    try:
-        cursor = MEM_CONN.execute("SELECT cover_path FROM albums WHERE id = ?", (album_id,))
-        row = cursor.fetchone()
-        if not row:
-            cursor = MEM_CONN.execute("SELECT cover_path FROM tracks WHERE album_id = ? LIMIT 1", (album_id,))
-            row = cursor.fetchone()
-        if not row or not row["cover_path"] or row["cover_path"] == "default_cover.png":
-            raise HTTPException(status_code=404)
-        return FileResponse(lib_root / album_id / row["cover_path"])
-    except:
+        
+    cover_rel = ALBUM_MAP[album_id].get("cover_path")
+    if not cover_rel or cover_rel == "default_cover.png":
         raise HTTPException(status_code=404)
+        
+    # Security: Ensure path is within library
+    file_path = (LIBRARY_ROOT / album_id / cover_rel).resolve()
+    if not str(file_path).startswith(str(LIBRARY_ROOT)):
+         raise HTTPException(status_code=403)
+
+    if not file_path.exists():
+        raise HTTPException(status_code=404)
+        
+    return FileResponse(file_path)
 
 @app.post("/api/play/{album_id:path}")
 def play_album(album_id: str):
-    # (Same implementation as before)
-    return {"status": "ok"}
+    """
+    Legacy support: Plays entire album by ID.
+    Finds all tracks in TRACK_MAP belonging to this album.
+    """
+    # In the Flat Lake RAM model, we don't have an index by album_id for tracks 
+    # explicitly in the simplified TRACK_MAP. 
+    # For robust implementation, we can re-scan the list or better, 
+    # accept a list of track IDs from the UI (Preferred).
+    # But to keep API contract:
+    
+    # We will assume the UI sends specific commands in future, 
+    # but for now, we scan the map (It's fast enough for a single request).
+    
+    paths_to_queue = []
+    prefix = str(LIBRARY_ROOT / album_id)
+    
+    # This is inefficient O(N) but acceptable for a "Play Album" event which happens rarely.
+    for t_id, abs_path in TRACK_MAP.items():
+        if abs_path.startswith(prefix):
+            paths_to_queue.append(abs_path)
+            
+    paths_to_queue.sort() # Physics sort (alphabetical/path)
+
+    if not paths_to_queue:
+        raise HTTPException(status_code=404, detail="No tracks found")
+        
+    _send_to_mpd(paths_to_queue)
+    return {"status": "ok", "count": len(paths_to_queue)}
+
+def _send_to_mpd(paths):
+    client = MPDClient()
+    try:
+        client.connect("localhost", 6600)
+        client.clear()
+        for p in paths:
+            # MPD expects paths relative to its music directory 
+            # OR absolute paths if configured strictly.
+            # Assuming MPD Music Dir == LIBRARY_ROOT:
+            rel_p = str(Path(p).relative_to(LIBRARY_ROOT))
+            client.add(rel_p)
+        client.play()
+        client.close()
+    except Exception as e:
+        print(f"MPD Error: {e}")
+        raise HTTPException(status_code=500, detail="MPD Connection Failed")
 
 if __name__ == "__main__":
-    # Ensure 'server.main:app' matches the module path
-    uvicorn.run("server.main:app", host="127.0.0.1", port=8000, reload=True)
+    uvicorn.run("server.main:app", host="127.0.0.1", port=8000)

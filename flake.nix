@@ -11,7 +11,6 @@
       let
         pkgs = import nixpkgs { inherit system; };
 
-        # --- Python Stack ---
         pythonEnv = pkgs.python3.withPackages (ps: with ps; [
           fastapi
           uvicorn
@@ -23,30 +22,26 @@
           tqdm
         ]);
 
-        # --- Unified CLI Wrapper ---
         mpf2k-cli = pkgs.writeShellApplication {
           name = "mpf2k";
           runtimeInputs = [ pythonEnv pkgs.nodejs_22 pkgs.git ];
           text = ''
             ROOT=$(git rev-parse --show-toplevel)
-            
             COMMAND=''${1:-"help"}
-            
-            # Shift the first argument (command) so "$@" contains flags like --force
-            if [ "$#" -gt 0 ]; then
-              shift
-            fi
+            if [ "$#" -gt 0 ]; then shift; fi
 
             case "$COMMAND" in
               ui)
                 cd "$ROOT/ui" && npm run dev
                 ;;
               server)
-                # CHANGED: Run as module (-m) to ensure sys.path includes ROOT
                 cd "$ROOT" && python -m server.main "$@"
                 ;;
               update)
                 cd "$ROOT" && python -m cli.update "$@"
+                ;;
+              build)
+                cd "$ROOT" && python -m cli.build "$@"
                 ;;
               generate)
                 cd "$ROOT" && python -m cli.generate "$@"
@@ -55,37 +50,33 @@
                 cd "$ROOT" && python -m cli.export "$@"
                 ;;
               help|--help|-h)
-                echo "MPF2K CLI - Available Commands:"
-                echo "  ui       : Start Svelte/Vite development server"
-                echo "  server   : Start Python FastAPI backend"
-                echo "  generate : Run the metadata compiler"
-                echo "  update   : Update metadata.lock files"
-                echo "  export   : Export merged metadata and assets"
-                echo "  help     : Show this help message"
+                echo "MPF2K CLI Commands:"
+                echo "  ui       : Start UI Dev Server"
+                echo "  server   : Start Backend"
+                echo "  update   : Compile metadata locks"
+                echo "  build    : Aggregate locks into library.json"
+                echo "  generate : Initialize metadata from files"
+                echo "  export   : Export snapshot"
                 ;;
               *)
                 echo "Error: Unknown command '$COMMAND'"
-                echo "Run 'mpf2k help' for usage."
                 exit 1
                 ;;
             esac
           '';
         };
 
-        # --- System Dependencies ---
         devPackages = with pkgs; [
           pythonEnv
           nodejs_22
           pkg-config
           openssl
           mpf2k-cli
-          sqlite
         ];
       in
       {
         devShells.default = pkgs.mkShell {
           buildInputs = devPackages;
-
           shellHook = ''
             export PYTHONDONTWRITEBYTECODE=1
             export PATH="$PWD/ui/node_modules/.bin:$PATH"
