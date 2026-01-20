@@ -30,9 +30,13 @@ export const theme = $state({
     "cover-size": 200,
     "text-gap-main": 8,
     "text-gap-lesser": 8,
+    "font-line-height-title": 18,
+    "font-line-height-artist": 16,
     "drawer-gap-main": 0,
     "drawer-chevron-height": 12,
     "drawer-chevron-width": 24,
+    // Material Design elevation (dp4 equivalent)
+    "album-cover-shadow": "0px 2px 4px -1px rgba(0,0,0,0.2), 0px 4px 5px 0px rgba(0,0,0,0.14), 0px 1px 10px 0px rgba(0,0,0,0.12)"
   },
 
   drawer: {
@@ -61,7 +65,7 @@ export function getThemeVariables() {
   
   for (const cat of numericCategories) {
     for (const [key, value] of Object.entries(theme[cat])) {
-      if (key.includes("weight")) {
+      if (key.includes("weight") || key.includes("shadow")) { // Added shadow check
         styles += `--${key}: ${value}; `;
       } else {
         styles += `--${key}: ${value}px; `;

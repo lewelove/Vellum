@@ -13,9 +13,9 @@ export class LayoutManager {
     theme.albumGrid["gap-y"] +       
     theme.albumGrid["cover-size"] +     
     theme.albumGrid["text-gap-main"] +  
-    theme.typography["font-size-title"] +     
+    theme.albumGrid["font-line-height-title"] +     
     theme.albumGrid["text-gap-lesser"] +
-    theme.typography["font-size-artist"]
+    theme.albumGrid["font-line-height-artist"]
   );
 
   cols = $derived(Math.floor((Math.max(0, this.containerWidth - 40) + this.gapX) / (this.cardSize + this.gapX)) || 1);

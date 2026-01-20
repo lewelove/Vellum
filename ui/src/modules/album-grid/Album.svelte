@@ -1,7 +1,8 @@
 <script>
   let { album, active, onclick } = $props();
 
-  // CHANGED: Request .png
+  // New Content Addressable URL
+  // If no hash exists (e.g. no cover), the server 404s and we show background color
   let coverUrl = $derived(album.cover_hash 
     ? `/api/covers/${album.cover_hash}.png` 
     : "");
@@ -46,7 +47,13 @@
     z-index: 2;
     background-size: cover;
     background-position: center;
-    border-radius: 2px; /* Slight polish for thumbnails */
+    border-radius: 0px;
+    box-shadow: var(--album-cover-shadow);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .album-cover:hover {
+    /* filter: brightness(1.1); */
   }
 
   .album-info {
@@ -61,9 +68,9 @@
   .album-title {
     display: block;
     font-size: var(--font-size-title);
+    line-height: var(--font-line-height-title);
+    height: var(--font-line-height-title);
     font-weight: var(--font-weight-title);
-    line-height: var(--font-size-title);
-    height: var(--font-size-title);
     color: var(--text-main);
     white-space: nowrap;
     overflow: hidden;
@@ -74,9 +81,9 @@
   .album-artist {
     display: block;
     font-size: var(--font-size-artist);
+    line-height: var(--font-line-height-artist);
+    height: var(--font-line-height-artist);
     font-weight: var(--font-weight-artist);
-    line-height: var(--font-size-artist);
-    height: var(--font-size-artist);
     color: var(--text-muted); 
     white-space: nowrap;
     overflow: hidden;
