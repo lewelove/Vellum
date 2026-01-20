@@ -29,14 +29,15 @@ export const theme = $state({
     "gap-y": 12,
     "cover-size": 200,
     "text-gap-main": 8,
-    "text-gap-lesser": 8,
+    "text-gap-lesser": 2,
     "font-line-height-title": 18,
     "font-line-height-artist": 16,
     "drawer-gap-main": 0,
     "drawer-chevron-height": 12,
     "drawer-chevron-width": 24,
     // Material Design elevation (dp4 equivalent)
-    "album-cover-shadow": "0px 2px 4px -1px rgba(0,0,0,0.2), 0px 4px 5px 0px rgba(0,0,0,0.14), 0px 1px 10px 0px rgba(0,0,0,0.12)"
+    "album-cover-shadow": "0px 0px 8px -1px rgba(0,0,0,0.4), 0px 0px 8px 0px rgba(0,0,0,0.2)"
+    // "album-cover-shadow": "0px 0px 5px -1px rgba(0,0,0,0.4), 0px 0px 5px 0px rgba(0,0,0,0.2), 0px 0px 10px 0px rgba(0,0,0,0.15)"
   },
 
   drawer: {

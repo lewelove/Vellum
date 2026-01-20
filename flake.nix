@@ -46,9 +46,6 @@
               update)
                 cd "$ROOT" && python -m cli.update "$@"
                 ;;
-              build)
-                echo "Deprecated: The server now builds state in RAM. Run 'mpf2k server' instead."
-                ;;
               generate)
                 cd "$ROOT" && python -m cli.generate "$@"
                 ;;
