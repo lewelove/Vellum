@@ -86,4 +86,6 @@ def write_lock(album_root: Path, album_data: dict, tracks_data: list, layout_cfg
 
     lock_json_path = album_root / "metadata.lock.json"
     with open(lock_json_path, "w", encoding="utf-8") as f:
-        json.dump(lock_object, f, ensure_ascii=False, indent=None, separators=(',', ':'))
+        # Indent=2 for readability, sort_keys=True for deterministic Git diffs
+        json.dump(lock_object, f, ensure_ascii=False, indent=2, sort_keys=True)
+        f.write("\n")

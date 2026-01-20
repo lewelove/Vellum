@@ -28,58 +28,63 @@ def run_build():
     # Scan for all JSON locks
     lock_files = list(lib_root.rglob("metadata.lock.json"))
     
-    flat_lake = []
+    library_lake = []
+    
+    # Keys to exclude from the UI artifact to save space/noise
+    EXCLUDED_KEYS = {
+        "metadata_toml_hash", 
+        "metadata_toml_mtime", 
+        "lock_hash",
+    }
     
     for lock in tqdm(lock_files, desc="Aggregating", unit="album"):
         try:
             with open(lock, "r", encoding="utf-8") as f:
                 data = json.load(f)
-                
-            album_info = data.get("album", {})
-            tracks = data.get("tracks", [])
             
-            # Identify the Album ID (Relative Path)
-            # We rely on the album_root_path helper computed by compiler
-            alb_id = album_info.get("album_root_path")
+            album_source = data.get("album", {})
+            tracks_source = data.get("tracks", [])
             
-            # Fallback if helper missing
+            # 1. Resolve ID
+            # The compiler calculates 'album_root_path', use it or derive relative path
+            alb_id = album_source.get("album_root_path")
             if not alb_id:
                 alb_id = str(lock.parent.relative_to(lib_root))
             
-            # Normalize Album Info for efficient repetition
-            # We create a "Track Object" that contains everything needed for the UI
-            for track in tracks:
-                # Merge Album Tags into Track for Flat Lake Structure
-                # (The UI handles grouping, so redundant data is fine for RAM speed)
-                flat_track = {
-                    **album_info, # Base tags
-                    **track,      # Track specifics override album
-                    "album_id": alb_id,
-                    "id": track.get("track_library_path") # Unique ID
-                }
-                
-                # Cleanup internal compiler keys to save RAM
-                keys_to_remove = ["metadata_toml_hash", "metadata_toml_mtime", "lock_hash"]
-                for k in keys_to_remove:
-                    flat_track.pop(k, None)
-                    
-                flat_lake.append(flat_track)
-                
+            # 2. Flatten Album Object
+            # Instead of { album: {...}, tracks: [...] }, we create { ...album_tags, id: "...", tracks: [...] }
+            # This reduces nesting depth for the UI while keeping the logical grouping.
+            clean_album = { 
+                "id": alb_id 
+            }
+            
+            # Merge source tags, excluding compiler internals
+            for k, v in album_source.items():
+                if k not in EXCLUDED_KEYS:
+                    clean_album[k] = v
+            
+            # 3. Attach Tracks
+            clean_album["tracks"] = tracks_source
+            
+            library_lake.append(clean_album)
+
         except Exception as e:
             tqdm.write(f"Error processing {lock}: {e}")
 
-    # Write Artifacts
-    print(f"Writing {len(flat_lake)} tracks to artifacts...")
+    # Sort by ID (Folder Path) to ensure deterministic output order across builds
+    library_lake.sort(key=lambda x: x["id"])
+
+    print(f"Writing {len(library_lake)} albums to artifacts...")
     
-    # 1. UI
-    ui_dest.parent.mkdir(parents=True, exist_ok=True)
-    with open(ui_dest, "w", encoding="utf-8") as f:
-        json.dump(flat_lake, f, ensure_ascii=False)
-        
-    # 2. Server
-    server_dest.parent.mkdir(parents=True, exist_ok=True)
-    with open(server_dest, "w", encoding="utf-8") as f:
-        json.dump(flat_lake, f, ensure_ascii=False)
-        
+    def write_artifact(path: Path):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            # Indented JSON for readability as requested
+            json.dump(library_lake, f, ensure_ascii=False, indent=2)
+            f.write("\n")
+
+    write_artifact(ui_dest)
+    write_artifact(server_dest)
+    
     elapsed = time.time() - start_time
     print(f"Build Complete in {elapsed:.2f}s.")

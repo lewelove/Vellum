@@ -1,5 +1,5 @@
 [storage]
-library_root = "/run/media/lewelove/1000xhome/backup-everything/FB2K/Library Historyfied!/"
+library_root = "~/dev/mpf2k-test-library/albums"
 library_export = "~/dev/mpf2k-test-library/metadata_output"
 
 [generate]
