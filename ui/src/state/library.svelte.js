@@ -23,6 +23,7 @@ class LibraryState {
   
   activeFilter = $state({ key: null, val: null });
   activeSort = $state({ key: "default" });
+  activeSidebarGrouper = $state("genre");
 
   // 1. FILTERING ENGINE
   filteredAlbums = $derived.by(() => {
@@ -112,6 +113,10 @@ class LibraryState {
     return generateSidebarGroup(this.rawAlbums, key);
   }
 
+  setSidebarGrouper(key) {
+    this.activeSidebarGrouper = key;
+  }
+
   applyFilter(key, val) {
     if (this.activeFilter.key === key && this.activeFilter.val === val) {
       this.activeFilter = { key: null, val: null };
@@ -119,6 +124,10 @@ class LibraryState {
       this.activeFilter = { key, val };
     }
     this.expandedAlbumId = null;
+  }
+
+  applySort(key) {
+    this.activeSort = { key };
   }
 
   toggleExpand(id) {

@@ -23,6 +23,11 @@ export const groupers = {
   }
 };
 
+export const GROUPER_LABELS = {
+  genre: "Genre",
+  decade: "Decade"
+};
+
 export function generateSidebarGroup(albums, groupKey) {
   if (!groupers[groupKey]) return [];
   
