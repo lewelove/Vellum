@@ -102,6 +102,7 @@
     font-weight: 500;
     cursor: pointer;
     transition: background-color 0.1s;
+    outline: none; /* Removes focus border */
   }
 
   .nav-button:hover {
@@ -129,6 +130,7 @@
     text-transform: uppercase;
     letter-spacing: 0.05em;
     cursor: pointer;
+    outline: none; /* Removes focus border */
   }
 
   .group-toggle:hover {
@@ -173,6 +175,7 @@
     font-family: var(--font-stack);
     font-size: 13px;
     cursor: pointer;
+    outline: none; /* Removes focus border */
   }
 
   .menu-item:hover {

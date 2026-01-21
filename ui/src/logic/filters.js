@@ -4,6 +4,10 @@
 export const filters = {
   genre: (album, val) => album.GENRE === val,
   
+  // NEW LOGIC HERE
+  // Ensure we compare strings to strings, as 'val' from the sidebar is likely a string
+  totaltracks: (album, val) => album.TOTALTRACKS === String(val),
+
   search: (album, val) => {
     const q = val.toLowerCase();
     

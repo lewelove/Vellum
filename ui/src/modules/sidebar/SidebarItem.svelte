@@ -22,6 +22,7 @@
     font-size: 13px;
     text-align: left;
     transition: color 0.1s, background-color 0.1s;
+    outline: none; /* Removes focus border */
   }
 
   .sidebar-item:hover {

@@ -2,6 +2,7 @@
 // Iterates over Albums to create Sidebar counts.
 
 export const groupers = {
+
   genre: (albums) => {
     const map = new Map();
     albums.forEach(a => {
@@ -20,12 +21,23 @@ export const groupers = {
       }
     });
     return map;
-  }
+  },
+
+  totaltracks: (albums) => {
+    const map = new Map();
+    albums.forEach(a => {
+      const t = a.TOTALTRACKS || "0";
+      map.set(t, (map.get(t) || 0) + 1);
+    });
+    return map;
+  },
+
 };
 
 export const GROUPER_LABELS = {
   genre: "Genre",
-  decade: "Decade"
+  decade: "Decade",
+  totaltracks: "Total Tracks",
 };
 
 export function generateSidebarGroup(albums, groupKey) {
@@ -43,6 +55,6 @@ export function generateSidebarGroup(albums, groupKey) {
     });
   }
   
-  result.sort((a, b) => a.value.localeCompare(b.value));
+  result.sort((a, b) => a.value.localeCompare(b.value, undefined, { numeric: true }));
   return result;
 }
