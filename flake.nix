@@ -30,7 +30,7 @@
 
         mpf2k-cli = pkgs.writeShellApplication {
           name = "mpf2k";
-          runtimeInputs = [ pythonEnv pkgs.nodejs_22 pkgs.git ];
+          runtimeInputs = [ pythonEnv pkgs.nodejs_22 pkgs.git pkgs.cargo pkgs.rustc pkgs.pkg-config pkgs.openssl ];
           text = ''
             ROOT=$(git rev-parse --show-toplevel)
             COMMAND=''${1:-"help"}
@@ -49,16 +49,22 @@
               generate)
                 cd "$ROOT" && python -m cli.generate "$@"
                 ;;
+              generate_rs)
+                # Compiles and runs the Rust implementation
+                # Passes all arguments ($@) to the rust binary
+                cd "$ROOT/cli_rs" && cargo run --release -- "$@"
+                ;;
               export)
                 cd "$ROOT" && python -m cli.export "$@"
                 ;;
               help|--help|-h)
                 echo "MPF2K CLI Commands:"
-                echo "  ui       : Start UI Dev Server"
-                echo "  server   : Start Backend (Live State Manager)"
-                echo "  update   : Compile metadata locks & Hot Reload Server"
-                echo "  generate : Initialize metadata from files"
-                echo "  export   : Export snapshot"
+                echo "  ui          : Start UI Dev Server"
+                echo "  server      : Start Backend (Live State Manager)"
+                echo "  update      : Compile metadata locks & Hot Reload Server"
+                echo "  generate    : Initialize metadata from files (Python)"
+                echo "  generate_rs : Initialize metadata from files (Rust)"
+                echo "  export      : Export snapshot"
                 ;;
               *)
                 echo "Error: Unknown command '$COMMAND'"
@@ -74,6 +80,12 @@
           pkg-config
           openssl
           mpf2k-cli
+          # Rust Toolchain
+          cargo
+          rustc
+          rust-analyzer
+          clippy
+          rustfmt
         ];
       in
       {

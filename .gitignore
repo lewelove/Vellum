@@ -2,3 +2,4 @@
 node_modules/
 reference-screenshots/
 temp_metadata/
+**/target/

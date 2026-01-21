@@ -1,0 +1,23 @@
+[package]
+name = "mpf2k_cli"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# CLI & Config
+clap = { version = "4.4", features = ["derive"] }
+serde = { version = "1.0", features = ["derive"] }
+toml = "0.8"
+serde_json = "1.0"
+dirs = "5.0"
+
+# Filesystem & Concurrency
+walkdir = "2.4"
+rayon = "1.8"
+glob = "0.3"
+
+# Metadata & Processing
+lofty = "0.17"
+indicatif = "0.17"
+lexical-sort = "0.3"
+anyhow = "1.0"
