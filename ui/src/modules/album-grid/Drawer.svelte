@@ -1,4 +1,5 @@
 <script>
+  import { playAlbum } from "$core/api.js";
   import DrawerTracks from "./DrawerTracks.svelte";
   import SmartImage from "./SmartImage.svelte";
 
@@ -20,6 +21,14 @@
 
   // Calculate horizontal center of the active album relative to the drawer's width
   let chevronLeft = $derived((activeIndexInRow * (cardSize + gap)) + (cardSize / 2));
+
+  async function handlePlay() {
+    try {
+      await playAlbum(activeAlbum.id);
+    } catch (err) {
+      console.error("Failed to play album:", err);
+    }
+  }
 </script>
 
 <div class="drawer-container" style="width: {width}px; height: {height}px;">
@@ -47,7 +56,12 @@
         <!-- RIGHT: Header + Tracks -->
         <div class="info-col">
           <div class="header-text">
-            <h2 class="d-title">{activeAlbum.title}</h2>
+            <div class="title-row">
+              <h2 class="d-title">{activeAlbum.title}</h2>
+              <button class="play-button" onclick={handlePlay} title="Replace queue and play album">
+                PLAY ALBUM
+              </button>
+            </div>
             <h3 class="d-artist">{activeAlbum.artist}</h3>
           </div>
           
@@ -137,11 +151,35 @@
     justify-content: flex-end;
   }
 
+  .title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+
   .d-title { 
     margin: 0; 
     color: var(--text-main); 
     font-size: var(--drawer-font-size-album); 
     font-weight: 400;
+  }
+
+  .play-button {
+    background: none;
+    border: 1px solid var(--border-muted);
+    color: var(--text-muted);
+    padding: 4px 12px;
+    font-family: var(--font-stack);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    transition: all 0.1s ease;
+  }
+
+  .play-button:hover {
+    color: var(--text-main);
+    background-color: rgba(255, 255, 255, 0.05);
+    border-color: var(--text-muted);
   }
   
   .d-artist { 

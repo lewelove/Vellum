@@ -3,16 +3,6 @@ import { applyFilter } from "../logic/filters.js";
 import { sorters } from "../logic/sorters.js";
 import { generateSidebarGroup } from "../logic/groupers.js";
 
-function generateColor(id) {
-  let hash = 0;
-  for (let i = 0; i < id.length; i++) {
-    hash = id.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  const palette = ["#121212"];
-  const index = Math.abs(hash) % palette.length;
-  return palette[index];
-}
-
 class LibraryState {
   rawAlbums = $state([]); // Reactive Source of Truth
   
@@ -35,9 +25,6 @@ class LibraryState {
   albums = $derived.by(() => {
     // Clone to avoid mutating filtered source during sort
     const list = [...this.filteredAlbums];
-    
-    // Note: Colors are now likely stable in rawAlbums, but we ensure here if needed
-    // or rely on the server/processing to have set them.
     
     const sorter = sorters[this.activeSort.key] || sorters.date_added;
     list.sort(sorter);
@@ -80,7 +67,6 @@ class LibraryState {
   processInit(data) {
     // Enhance data for UI
     data.forEach(a => {
-      a.color = generateColor(a.id);
       a.title = a.ALBUM;
       a.artist = a.ALBUMARTIST;
     });
@@ -92,7 +78,6 @@ class LibraryState {
 
   processUpdate(id, albumData) {
     // Enhance
-    albumData.color = generateColor(albumData.id);
     albumData.title = albumData.ALBUM;
     albumData.artist = albumData.ALBUMARTIST;
 

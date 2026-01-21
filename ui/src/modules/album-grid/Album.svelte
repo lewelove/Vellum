@@ -12,7 +12,7 @@
   <button 
     class="album-cover" 
     class:active
-    style="background-color: {album.color}; {coverUrl ? `background-image: url('${coverUrl}');` : ''}"
+    style="{coverUrl ? `background-image: url('${coverUrl}');` : ''}"
     {onclick}
   ></button>
   
@@ -42,9 +42,9 @@
     width: var(--cover-size);
     height: var(--cover-size);
     margin-bottom: var(--text-gap-main);
-    /* Slide OVER the crease */
     position: relative;
     z-index: 2;
+    background-color: #323232;
     background-size: cover;
     background-position: center;
     border-radius: 0px;
@@ -60,7 +60,6 @@
     display: flex;
     flex-direction: column;
     text-align: left;
-    /* Slide UNDER the crease (implicit z-index: 0) */
     position: relative;
     z-index: 0;
   }

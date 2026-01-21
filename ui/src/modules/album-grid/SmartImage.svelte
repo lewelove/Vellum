@@ -78,7 +78,7 @@
     opacity: 0;
     background-color: #292929;
     box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-    transition: opacity 0.05s ease-in;
+    transition: opacity 0.1s ease-in;
     
     /* image-rendering: -webkit-optimize-contrast; */
     /* image-rendering: crisp-edges; */
