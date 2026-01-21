@@ -21,8 +21,19 @@ export class LayoutManager {
   cols = $derived(Math.floor((Math.max(0, this.containerWidth - 40) + this.gapX) / (this.cardSize + this.gapX)) || 1);
   gridWidth = $derived(Math.floor((this.cols * this.cardSize) + ((this.cols - 1) * this.gapX)));
 
-  // Determine how many columns to use for the track list inside the drawer
-  trackCols = $derived(this.containerWidth > 800 ? 2 : 1);
+  // --- DRAWER LAYOUT ENGINE ---
+  
+  // Available width for the content column (Text + Tracks)
+  drawerTrackWidth = $derived(
+    this.containerWidth 
+    - (theme.drawer["drawer-padding-x"] * 2) 
+    - theme.drawer["drawer-cover-size"] 
+    - theme.drawer["drawer-split-gap"]
+  );
+
+  // Dynamic column calculation for the tracklist section
+  // If we have enough space, split tracks into columns
+  trackCols = $derived(this.drawerTrackWidth > 550 ? 2 : 1);
 
   chunk(arr) {
     const results = [];
@@ -36,36 +47,47 @@ export class LayoutManager {
     return (totalRowsCount * this.rowHeight) + this.topOffset;
   }
 
-  getQuantizedDrawer(trackCount) {
+  getNaturalDrawer(trackCount) {
+    const dSettings = theme.drawer;
     const chevronHeight = theme.albumGrid["drawer-chevron-height"];
     const gapMain = theme.albumGrid["drawer-gap-main"]; 
-    const dSettings = theme.drawer;
-
+    
+    // Spacers (Band A + Band B)
+    // Band A: Gap between grid row and drawer start
+    // Band B: Chevron area
     const bandA = gapMain; 
     const bandB = chevronHeight; 
     const overhead = bandA + bandB;
     
     const paddingTotal = dSettings["drawer-padding-y"] * 2;
-    const headerTotal = dSettings["drawer-font-size-album"] + dSettings["drawer-font-size-artist"] + 24; 
     
-    // Distribution Logic: Calculate vertical height based on track columns
+    // 1. Calculate Left Column Height (Fixed Cover)
+    const leftColHeight = dSettings["drawer-cover-size"];
+
+    // 2. Calculate Right Column Height (Header + Tracks)
+    // Approximate Header Block
+    const titleH = dSettings["drawer-font-size-album"] * 1.3;
+    const artistH = dSettings["drawer-font-size-artist"] * 1.3;
+    const headerGap = 24; 
+    const headerBlock = titleH + artistH + headerGap;
+
     const tracksPerCol = Math.ceil(trackCount / this.trackCols);
-    const tracksTotalHeight = tracksPerCol * dSettings["drawer-track-y"];
+    const tracksBlock = tracksPerCol * dSettings["drawer-track-y"];
     
-    const naturalContentHeight = paddingTotal + headerTotal + tracksTotalHeight; 
+    const rightColHeight = headerBlock + tracksBlock;
     
-    const totalRequired = overhead + naturalContentHeight;
-    const virtualRows = Math.ceil(totalRequired / this.rowHeight);
-    const totalHeight = virtualRows * this.rowHeight;
+    // 3. Natural Height (Max of cols + Padding)
+    const naturalContentHeight = paddingTotal + Math.max(leftColHeight, rightColHeight);
+    
+    const totalHeight = overhead + naturalContentHeight;
     
     return {
       height: totalHeight,
-      rows: virtualRows,
       bandA,
       bandB,
       trackCols: this.trackCols,
       chevronWidth: theme.albumGrid["drawer-chevron-width"],
-      bandCHeight: totalHeight - overhead
+      bandCHeight: naturalContentHeight
     };
   }
 }

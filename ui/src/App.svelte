@@ -33,7 +33,7 @@
   }
 
   .sidebar-pane {
-    flex: 0 0 260px; /* Fixed Width */
+    flex: 0 0 150px; /* Fixed Width */
     height: 100%;
     border-right: 1px solid var(--border-muted);
     z-index: 10;

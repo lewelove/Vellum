@@ -47,6 +47,8 @@ export const theme = $state({
     "drawer-font-size-artist": 16,
     "drawer-font-size-track": 14,
     "drawer-track-y": 22,
+    "drawer-cover-size": 540,
+    "drawer-split-gap": 24
   }
 
 });
