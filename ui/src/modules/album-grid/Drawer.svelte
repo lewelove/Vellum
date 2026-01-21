@@ -141,9 +141,7 @@
     margin: 0; 
     color: var(--text-main); 
     font-size: var(--drawer-font-size-album); 
-    line-height: 1.1;
-    font-weight: 600;
-    letter-spacing: -0.01em;
+    font-weight: 400;
   }
   
   .d-artist { 

@@ -1,8 +1,5 @@
-// NEW: WebSocket based architecture
-
 export function connectSocket(onOpen, onMessage) {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  // Use current host to allow accessing from LAN if needed
   const host = window.location.host; 
   const url = `${protocol}//${host}/ws`;
 

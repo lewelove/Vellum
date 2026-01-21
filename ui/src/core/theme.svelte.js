@@ -35,7 +35,6 @@ export const theme = $state({
     "drawer-gap-main": 0,
     "drawer-chevron-height": 12,
     "drawer-chevron-width": 24,
-    // Material Design elevation (dp4 equivalent)
     "album-cover-shadow": "0px 0px 8px -1px rgba(0,0,0,0.2), 0px 0px 6px 0px rgba(0,0,0,0.2)"
     // "album-cover-shadow": "0px 0px 5px -1px rgba(0,0,0,0.4), 0px 0px 5px 0px rgba(0,0,0,0.2), 0px 0px 10px 0px rgba(0,0,0,0.15)"
   },
@@ -46,7 +45,7 @@ export const theme = $state({
     "drawer-font-size-album": 18,
     "drawer-font-size-artist": 16,
     "drawer-font-size-track": 14,
-    "drawer-track-y": 22,
+    "drawer-track-y": 26,
     "drawer-cover-size": 464,
     "drawer-split-gap": 24
   }

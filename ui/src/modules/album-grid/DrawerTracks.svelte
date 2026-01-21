@@ -1,7 +1,6 @@
 <script>
   let { tracks = [], cols = 1 } = $props();
 
-  // Distribution Engine
   let columnData = $derived.by(() => {
     const rowsPerCol = Math.ceil(tracks.length / cols);
     const result = [];
@@ -34,7 +33,7 @@
 <style>
   .tracks-grid {
     display: grid;
-    gap: 40px; /* Horizontal gap between columns */
+    gap: 40px;
     width: 100%;
   }
 

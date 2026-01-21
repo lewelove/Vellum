@@ -8,21 +8,14 @@
   let isLoaded = $state(false);
   let currentSrc = $state("");
   
-  // Singleton Pica instance
   const pica = new Pica();
 
   async function processImage(url) {
     if (!url || url === currentSrc) return;
     currentSrc = url;
-    
-    // We keep isLoaded true if it's already showing an image to prevent flickering 
-    // unless you want a brief blank state between different albums.
     isLoaded = false;
 
     try {
-      // 1. Parallel Fetch & Decode
-      // We fetch the blob and immediately start decoding it into a bitmap
-      // This happens off the main thread.
       const response = await fetch(url);
       const blob = await response.blob();
       
@@ -31,7 +24,6 @@
         premultiplyAlpha: 'none'
       });
 
-      // 2. High-DPI Canvas Setup
       const dpr = window.devicePixelRatio || 1;
       const targetWidth = width * dpr;
       const targetHeight = height * dpr;
@@ -40,8 +32,6 @@
         canvasEl.width = targetWidth;
         canvasEl.height = targetHeight;
 
-        // 3. Pica Resampling
-        // Pica can take a ImageBitmap directly, which is faster than an <img> tag
         await pica.resize(bitmap, canvasEl, {
           quality: 3,
           alpha: false,
@@ -51,7 +41,6 @@
         isLoaded = true;
       }
 
-      // 4. Memory Cleanup
       bitmap.close(); 
     } catch (err) {
       console.error("High-speed render failed:", err);
@@ -80,8 +69,6 @@
   .smart-image-wrapper {
     position: relative;
     overflow: hidden;
-    background-color: #121212; /* Neutral dark background for the "pop" */
-    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
   }
 
   .output-canvas {
@@ -89,12 +76,12 @@
     top: 0;
     left: 0;
     opacity: 0;
-    /* Ultra-fast transition for the "pop" effect */
-    transition: opacity 0.15s ease-in;
+    background-color: #292929;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    transition: opacity 0.05s ease-in;
     
-    /* Optimize for sharp rendering */
-    image-rendering: -webkit-optimize-contrast;
-    image-rendering: crisp-edges;
+    /* image-rendering: -webkit-optimize-contrast; */
+    /* image-rendering: crisp-edges; */
   }
 
   .output-canvas.visible {
