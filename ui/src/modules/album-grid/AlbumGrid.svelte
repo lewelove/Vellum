@@ -79,19 +79,21 @@
 
         {#if ctrl.drawerInfo && row.find(a => a.id === library.expandedAlbumId)}
           <div class="drawer-plane">
-            <Drawer 
-              activeAlbum={row.find(a => a.id === library.expandedAlbumId)}
-              activeIndexInRow={row.findIndex(a => a.id === library.expandedAlbumId)}
-              width={ctrl.layout.gridWidth} 
-              cardSize={ctrl.layout.cardSize}
-              gap={ctrl.layout.gapX}
-              height={ctrl.drawerInfo.height}
-              bandA={ctrl.drawerInfo.bandA}
-              bandB={ctrl.drawerInfo.bandB}
-              trackCols={ctrl.drawerInfo.trackCols}
-              chevronWidth={ctrl.drawerInfo.chevronWidth}
-              bandCHeight={ctrl.drawerInfo.bandCHeight}
-            />
+            {#key library.expandedAlbumId}
+              <Drawer 
+                activeAlbum={row.find(a => a.id === library.expandedAlbumId)}
+                activeIndexInRow={row.findIndex(a => a.id === library.expandedAlbumId)}
+                width={ctrl.layout.gridWidth} 
+                cardSize={ctrl.layout.cardSize}
+                gap={ctrl.layout.gapX}
+                height={ctrl.drawerInfo.height}
+                bandA={ctrl.drawerInfo.bandA}
+                bandB={ctrl.drawerInfo.bandB}
+                trackCols={ctrl.drawerInfo.trackCols}
+                chevronWidth={ctrl.drawerInfo.chevronWidth}
+                bandCHeight={ctrl.drawerInfo.bandCHeight}
+              />
+            {/key}
           </div>
         {/if}
       {/each}

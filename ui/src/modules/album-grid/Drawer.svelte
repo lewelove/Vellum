@@ -1,5 +1,6 @@
 <script>
   import DrawerTracks from "./DrawerTracks.svelte";
+  import SmartImage from "./SmartImage.svelte";
 
   let { 
     activeAlbum, 
@@ -14,11 +15,10 @@
     gap
   } = $props();
 
-  // High-Res Asset URL - Uses cover_path resolution via server API
+  // High-Res Asset URL
   let coverUrl = $derived(`/api/assets/${encodeURIComponent(activeAlbum.id)}/cover`);
 
   // Calculate horizontal center of the active album relative to the drawer's width
-  // Formula: (Index * (Size + Gap)) + (Half of Size)
   let chevronLeft = $derived((activeIndexInRow * (cardSize + gap)) + (cardSize / 2));
 </script>
 
@@ -35,13 +35,12 @@
   <div class="drawer-content" style="height: {bandCHeight}px;">
       
       <div class="split-layout">
-        <!-- LEFT: Cover -->
+        <!-- LEFT: High-Fidelity Cover Rendering -->
         <div class="cover-col">
-          <img 
+          <SmartImage 
             src={coverUrl} 
-            alt="Album Cover" 
-            class="d-cover"
-            loading="lazy" 
+            width={464} 
+            height={464} 
           />
         </div>
 
@@ -85,16 +84,15 @@
     border-top-color: transparent;
     border-left-color: transparent;
     border-right-color: transparent;
-    border-bottom-color: var(--border-muted); /* Match drawer border */
+    border-bottom-color: var(--border-muted);
     transform: translateX(-50%);
     z-index: 2;
   }
 
-  /* Secondary pointer to create the "hollow" effect or match background */
   .chevron-pointer::after {
     content: '';
     position: absolute;
-    top: 2px; /* Offset to show the border */
+    top: 2px;
     left: -12px;
     width: 0;
     height: 0;
@@ -123,15 +121,6 @@
     flex-direction: column;
     width: var(--drawer-cover-size);
     flex-shrink: 0;
-  }
-
-  .d-cover {
-    width: var(--drawer-cover-size);
-    height: var(--drawer-cover-size);
-    object-fit: cover;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-    background-color: rgba(255,255,255,0.05);
-    animation: fadeIn 0.4s ease-out;
   }
 
   .info-col {
@@ -167,10 +156,5 @@
   .tracks-wrapper {
     flex: 1;
     overflow-y: hidden; 
-  }
-
-  @keyframes fadeIn {
-    from { opacity: 0; transform: scale(0.98); }
-    to { opacity: 1; transform: scale(1); }
   }
 </style>
