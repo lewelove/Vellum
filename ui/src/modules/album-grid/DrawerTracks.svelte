@@ -18,13 +18,13 @@
       {#each column as track}
         <div class="track-row">
           <!-- Segment 1: Gutter (Track Number) -->
-          <span class="track-index">{track.number}</span>
+          <span class="track-index">{track.TRACKNUMBER}</span>
           
           <!-- Segment 2: Title Block -->
-          <span class="track-title">{track.title}</span>
+          <span class="track-title">{track.TITLE}</span>
           
           <!-- Segment 3: Meta (Duration) -->
-          <span class="track-meta">{track.duration}</span>
+          <span class="track-meta">{track.track_duration_time}</span>
         </div>
       {/each}
     </div>
@@ -69,7 +69,6 @@
     text-overflow: ellipsis;
     overflow: hidden;
     font-weight: 400;
-    /* font-family: monospace; */
   }
 
   /* Segment 3: Meta Segment */
