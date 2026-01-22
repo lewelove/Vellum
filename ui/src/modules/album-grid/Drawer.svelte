@@ -13,7 +13,8 @@
     trackCols,
     bandCHeight,
     cardSize,
-    gap
+    gap,
+    drawerCoverSize
   } = $props();
 
   // High-Res Asset URL
@@ -48,8 +49,8 @@
         <div class="cover-col">
           <SmartImage 
             src={coverUrl} 
-            width={464} 
-            height={464} 
+            width={drawerCoverSize} 
+            height={drawerCoverSize} 
           />
         </div>
 

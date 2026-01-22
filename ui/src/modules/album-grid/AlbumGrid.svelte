@@ -125,6 +125,7 @@
                   trackCols={ctrl.drawerInfo.trackCols}
                   chevronWidth={ctrl.drawerInfo.chevronWidth}
                   bandCHeight={ctrl.drawerInfo.bandCHeight}
+                  drawerCoverSize={ctrl.drawerInfo.drawerCoverSize}
                 />
               {/key}
             </div>

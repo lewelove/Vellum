@@ -67,7 +67,8 @@ export class LayoutManager {
     const rightColHeight = headerBlock + tracksBlock;
     
     // 3. Natural Height (Max of cols + Padding)
-    const naturalContentHeight = paddingTotal + Math.max(leftColHeight, rightColHeight);
+    // Fix: +2px accounts for the 1px top/bottom borders on the drawer content box
+    const naturalContentHeight = paddingTotal + Math.max(leftColHeight, rightColHeight) + 2;
     
     const totalHeight = overhead + naturalContentHeight;
     
@@ -77,7 +78,8 @@ export class LayoutManager {
       bandB,
       trackCols: this.trackCols,
       chevronWidth: theme.albumGrid["drawer-chevron-width"],
-      bandCHeight: naturalContentHeight
+      bandCHeight: naturalContentHeight,
+      drawerCoverSize: dSettings["drawer-cover-size"] // EXPOSED HERE
     };
   }
 
