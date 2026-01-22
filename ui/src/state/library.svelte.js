@@ -15,6 +15,9 @@ class LibraryState {
   activeSort = $state({ key: "default" });
   activeSidebarGrouper = $state("genre");
 
+  // Signal to reset scroll position (incremented on view changes)
+  viewVersion = $state(0);
+
   // 1. FILTERING ENGINE
   filteredAlbums = $derived.by(() => {
     if (!this.activeFilter.key) return this.rawAlbums;
@@ -109,10 +112,12 @@ class LibraryState {
       this.activeFilter = { key, val };
     }
     this.expandedAlbumId = null;
+    this.viewVersion++; // Trigger scroll reset
   }
 
   applySort(key) {
     this.activeSort = { key };
+    this.viewVersion++; // Trigger scroll reset
   }
 
   toggleExpand(id) {

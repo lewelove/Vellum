@@ -81,4 +81,9 @@ export class GridController {
   handleWheel(e) {
     this.scroll.handleWheel(e, this.maxSlots);
   }
+
+  resetScroll() {
+    this.scroll.syncToSlot(0);
+    this.scroll.currentY = 0;
+  }
 }

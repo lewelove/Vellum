@@ -27,6 +27,14 @@
     prevCols = ctrl.layout.cols;
   });
 
+  // Watch for Sidebar "view resets" (Filters, Sorts)
+  $effect(() => {
+    // Create dependency on viewVersion
+    const _v = library.viewVersion;
+    // Reset scroll to top
+    ctrl.resetScroll();
+  });
+
   onMount(() => {
     loop();
   });
