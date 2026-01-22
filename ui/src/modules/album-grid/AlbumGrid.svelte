@@ -19,7 +19,6 @@
   let prevCols = 0;
   $effect(() => {
     if (ctrl.layout.cols !== prevCols && prevCols !== 0) {
-      // Recalculate slot when resizing columns to maintain relative position
       const topAlbumIdx = ctrl.scroll.targetSlot * prevCols;
       const newSlot = Math.floor(topAlbumIdx / ctrl.layout.cols);
       ctrl.scroll.syncToSlot(newSlot);
@@ -27,11 +26,8 @@
     prevCols = ctrl.layout.cols;
   });
 
-  // Watch for Sidebar "view resets" (Filters, Sorts)
   $effect(() => {
-    // Create dependency on viewVersion
     const _v = library.viewVersion;
-    // Reset scroll to top
     ctrl.resetScroll();
   });
 
@@ -56,48 +52,42 @@
     }}
   >
     <!-- 
-      CREASE RESTORATION:
-      1. margin-bottom negative to allow content to flow "under" it physically.
-      2. z-index: 1 to act as the baseline layer (Above text, Below covers).
+      LAYER 1: BACKGROUND (Text Only)
+      This layer scrolls *under* the crease.
+    -->
+    <div class="scroll-content background-layer" style="height: {ctrl.contentHeight}px; z-index: 0;">
+      {#each ctrl.virtualRows as row (row.index)}
+        <div class="row" style="transform: translateY({row.y}px); width: {ctrl.layout.gridWidth}px; height: {ctrl.layout.rowHeight}px;">
+          <div class="row-inner" style="gap: var(--gap-x);">
+              {#each row.data as album (album.id)}
+                <Album {album} mode="info" />
+              {/each}
+          </div>
+        </div>
+      {/each}
+    </div>
+
+    <!-- 
+      LAYER 2: THE CREASE (Sticky)
+      Placed exactly between the text and the covers in the DOM.
     -->
     <div
       class="top-crease"
       style="height: {ctrl.layout.creaseHeight}px; margin-bottom: -{ctrl.layout.creaseHeight}px;"
     ></div>
 
-    <Scrollbar 
-      viewportHeight={ctrl.viewportHeight} 
-      contentHeight={ctrl.contentHeight} 
-      currentY={ctrl.scroll.currentY} 
-    />
-
-    <!-- Phantom container for scroll height -->
-    <div 
-      class="scroll-content" 
-      style="height: {ctrl.contentHeight}px;"
-    >
-      <!-- Absolute positioned virtual rows -->
+    <!-- 
+      LAYER 3: FOREGROUND (Covers + Drawer)
+      This layer scrolls *over* the crease. 
+    -->
+    <div class="scroll-content foreground-layer" style="height: {ctrl.contentHeight}px; z-index: 2;">
       {#each ctrl.virtualRows as row (row.index)}
-        <!-- 
-          ROW Z-INDEX LOGIC (REFACTORED for INTERWEAVING):
-          We switch from `transform` to `top` to prevent the creation of a Stacking Context.
-          This allows the children (Text z0, Covers z2) to interleave with the Crease (z1).
-          z-index is strictly 'auto' to ensure the row container remains transparent to the stack.
-        -->
-        <div 
-          class="row" 
-          style="
-            top: {row.y}px; 
-            left: 0;
-            width: {ctrl.layout.gridWidth}px; 
-            height: {ctrl.layout.rowHeight}px; 
-            z-index: auto;
-          "
-        >
+        <div class="row" style="transform: translateY({row.y}px); width: {ctrl.layout.gridWidth}px; height: {ctrl.layout.rowHeight}px; z-index: {row.isExpandedRow ? 10 : 'auto'};">
           <div class="row-inner" style="gap: var(--gap-x);">
               {#each row.data as album (album.id)}
                 <Album 
                   {album} 
+                  mode="cover"
                   active={library.expandedAlbumId === album.id}
                   onclick={() => library.toggleExpand(album.id)} 
                 />
@@ -130,6 +120,12 @@
         </div>
       {/each}
     </div>
+
+    <Scrollbar 
+      viewportHeight={ctrl.viewportHeight} 
+      contentHeight={ctrl.contentHeight} 
+      currentY={ctrl.scroll.currentY} 
+    />
   </div>
 </div>
 
@@ -156,13 +152,21 @@
       width: 100%;
       height: var(--crease-height);
       background-color: var(--background-main);
-      z-index: 1; /* Low index: Below Covers (z2), Above Text (z0) */
-      pointer-events: none; /* Let clicks pass through to Covers */
+      z-index: 1; 
+      pointer-events: none; 
     }
 
     .scroll-content {
       width: 100%;
-      position: relative;
+      position: absolute;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+    }
+
+    /* Only the foreground layer should intercept clicks to covers */
+    .foreground-layer {
+      pointer-events: auto;
     }
     
     .row {
@@ -173,6 +177,7 @@
         display: flex;
         flex-direction: column;
         overflow: visible; 
+        will-change: transform;
     }
     
     .row-inner {

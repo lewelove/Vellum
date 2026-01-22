@@ -1,22 +1,28 @@
 <script>
-  let { album, active, onclick } = $props();
+  let { album, active, onclick, mode = "full" } = $props();
 
   // New Content Addressable URL
-  // If no hash exists (e.g. no cover), the server 404s and we show background color
   let coverUrl = $derived(album.cover_hash 
     ? `/api/covers/${album.cover_hash}.png` 
     : "");
 </script>
 
 <div class="album-unit">
+  <!-- 
+    We use 'visibility: hidden' instead of removing the element.
+    This ensures "Spatial Parity": the text is pushed down by the exact
+    same 200px + gap even in the background layer where the cover isn't "seen".
+  -->
   <button 
     class="album-cover" 
     class:active
+    class:ghost={mode === "info"}
     style="{coverUrl ? `background-image: url('${coverUrl}');` : ''}"
     {onclick}
+    tabindex={mode === "info" ? -1 : 0}
   ></button>
   
-  <div class="album-info">
+  <div class="album-info" class:ghost={mode === "cover"}>
     <span class="album-title">{album.title}</span>
     <span class="album-artist">{album.artist}</span>
   </div>
@@ -29,7 +35,6 @@
     flex-shrink: 0; 
     width: var(--cover-size);
     padding-top: var(--gap-y);
-    /* No Stacking Context here */
     position: relative;
   }
 
@@ -52,16 +57,18 @@
     transition: transform 0.2s ease, box-shadow 0.2s ease;
   }
 
-  .album-cover:hover {
-    /* filter: brightness(1.1); */
-  }
-
   .album-info {
     display: flex;
     flex-direction: column;
     text-align: left;
     position: relative;
     z-index: 0;
+  }
+
+  /* The "Ghost" state maintains layout space but hides content */
+  .ghost {
+    visibility: hidden !important;
+    pointer-events: none !important;
   }
 
   .album-title {
