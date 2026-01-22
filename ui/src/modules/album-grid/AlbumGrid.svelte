@@ -19,6 +19,7 @@
   let prevCols = 0;
   $effect(() => {
     if (ctrl.layout.cols !== prevCols && prevCols !== 0) {
+      // Recalculate slot when resizing columns to maintain relative position
       const topAlbumIdx = ctrl.scroll.targetSlot * prevCols;
       const newSlot = Math.floor(topAlbumIdx / ctrl.layout.cols);
       ctrl.scroll.syncToSlot(newSlot);
@@ -46,6 +47,11 @@
       ctrl.handleWheel(e); 
     }}
   >
+    <!-- 
+      CREASE RESTORATION:
+      1. margin-bottom negative to allow content to flow "under" it physically.
+      2. z-index: 1 to act as the baseline layer (Above text, Below covers).
+    -->
     <div
       class="top-crease"
       style="height: {ctrl.layout.creaseHeight}px; margin-bottom: -{ctrl.layout.creaseHeight}px;"
@@ -53,21 +59,38 @@
 
     <Scrollbar 
       viewportHeight={ctrl.viewportHeight} 
-      contentHeight={ctrl.contentHeight + ctrl.layout.rowHeight} 
+      contentHeight={ctrl.contentHeight} 
       currentY={ctrl.scroll.currentY} 
     />
 
+    <!-- Phantom container for scroll height -->
     <div 
       class="scroll-content" 
-      style="padding-top: {ctrl.layout.topOffset}px; padding-bottom: {ctrl.layout.rowHeight}px;"
+      style="height: {ctrl.contentHeight}px;"
     >
-      {#each ctrl.rows as row, i (i)}
+      <!-- Absolute positioned virtual rows -->
+      {#each ctrl.virtualRows as row (row.index)}
+        <!-- 
+          ROW Z-INDEX LOGIC:
+          - Default: 'auto'. This PREVENTS a new stacking context. 
+            Allows children (Covers z=2) to pop ABOVE the Crease (z=1),
+            while children (Text z=0) slide UNDER the Crease (z=1).
+          - Expanded: '10'. Creates a context to ensure Drawer sits above 
+            subsequent rows.
+        -->
         <div 
           class="row" 
-          style="width: {ctrl.layout.gridWidth}px; height: {ctrl.layout.rowHeight}px;"
+          style="
+            top: 0; 
+            left: 0;
+            width: {ctrl.layout.gridWidth}px; 
+            height: {ctrl.layout.rowHeight}px; 
+            transform: translateY({row.y}px);
+            z-index: {row.isExpandedRow ? 10 : 'auto'};
+          "
         >
           <div class="row-inner" style="gap: var(--gap-x);">
-              {#each row as album (album.id)}
+              {#each row.data as album (album.id)}
                 <Album 
                   {album} 
                   active={library.expandedAlbumId === album.id}
@@ -75,27 +98,30 @@
                 />
               {/each}
           </div>
-        </div>
 
-        {#if ctrl.drawerInfo && row.find(a => a.id === library.expandedAlbumId)}
-          <div class="drawer-plane">
-            {#key library.expandedAlbumId}
-              <Drawer 
-                activeAlbum={row.find(a => a.id === library.expandedAlbumId)}
-                activeIndexInRow={row.findIndex(a => a.id === library.expandedAlbumId)}
-                width={ctrl.layout.gridWidth} 
-                cardSize={ctrl.layout.cardSize}
-                gap={ctrl.layout.gapX}
-                height={ctrl.drawerInfo.height}
-                bandA={ctrl.drawerInfo.bandA}
-                bandB={ctrl.drawerInfo.bandB}
-                trackCols={ctrl.drawerInfo.trackCols}
-                chevronWidth={ctrl.drawerInfo.chevronWidth}
-                bandCHeight={ctrl.drawerInfo.bandCHeight}
-              />
-            {/key}
-          </div>
-        {/if}
+          {#if row.isExpandedRow && ctrl.drawerInfo && row.data.find(a => a.id === library.expandedAlbumId)}
+            <div 
+              class="drawer-plane"
+              style="top: {ctrl.layout.rowHeight}px;"
+            >
+              {#key library.expandedAlbumId}
+                <Drawer 
+                  activeAlbum={row.data.find(a => a.id === library.expandedAlbumId)}
+                  activeIndexInRow={row.data.findIndex(a => a.id === library.expandedAlbumId)}
+                  width={ctrl.layout.gridWidth} 
+                  cardSize={ctrl.layout.cardSize}
+                  gap={ctrl.layout.gapX}
+                  height={ctrl.drawerInfo.height}
+                  bandA={ctrl.drawerInfo.bandA}
+                  bandB={ctrl.drawerInfo.bandB}
+                  trackCols={ctrl.drawerInfo.trackCols}
+                  chevronWidth={ctrl.drawerInfo.chevronWidth}
+                  bandCHeight={ctrl.drawerInfo.bandCHeight}
+                />
+              {/key}
+            </div>
+          {/if}
+        </div>
       {/each}
     </div>
   </div>
@@ -124,22 +150,23 @@
       width: 100%;
       height: var(--crease-height);
       background-color: var(--background-main);
-      z-index: 1;
-      pointer-events: none;
+      z-index: 1; /* Low index: Below Covers (z2), Above Text (z0) */
+      pointer-events: none; /* Let clicks pass through to Covers */
     }
 
     .scroll-content {
       width: 100%;
-      display: flex;
-      flex-direction: column;
+      position: relative;
     }
     
     .row {
+        position: absolute;
         margin: 0 auto;
+        right: 0;
+        left: 0;
         display: flex;
         flex-direction: column;
         overflow: visible; 
-        position: relative;
     }
     
     .row-inner {
@@ -149,7 +176,9 @@
     }
 
     .drawer-plane {
-      position: relative;
-      z-index: 0;
+      position: absolute;
+      left: 0;
+      width: 100%;
+      z-index: 5;
     }
 </style>

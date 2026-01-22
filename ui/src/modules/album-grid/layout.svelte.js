@@ -23,7 +23,6 @@ export class LayoutManager {
 
   // --- DRAWER LAYOUT ENGINE ---
   
-  // Available width for the content column (Text + Tracks)
   drawerTrackWidth = $derived(
     this.containerWidth 
     - (theme.drawer["drawer-padding-x"] * 2) 
@@ -31,8 +30,6 @@ export class LayoutManager {
     - theme.drawer["drawer-split-gap"]
   );
 
-  // Dynamic column calculation for the tracklist section
-  // If we have enough space, split tracks into columns
   trackCols = $derived(this.drawerTrackWidth > 550 ? 2 : 1);
 
   chunk(arr) {
@@ -43,18 +40,12 @@ export class LayoutManager {
     return results;
   }
 
-  getContentHeight(totalRowsCount) {
-    return (totalRowsCount * this.rowHeight) + this.topOffset;
-  }
-
   getNaturalDrawer(trackCount) {
     const dSettings = theme.drawer;
     const chevronHeight = theme.albumGrid["drawer-chevron-height"];
     const gapMain = theme.albumGrid["drawer-gap-main"]; 
     
     // Spacers (Band A + Band B)
-    // Band A: Gap between grid row and drawer start
-    // Band B: Chevron area
     const bandA = gapMain; 
     const bandB = chevronHeight; 
     const overhead = bandA + bandB;
@@ -65,7 +56,6 @@ export class LayoutManager {
     const leftColHeight = dSettings["drawer-cover-size"];
 
     // 2. Calculate Right Column Height (Header + Tracks)
-    // Approximate Header Block
     const titleH = dSettings["drawer-font-size-album"] * 1.3;
     const artistH = dSettings["drawer-font-size-artist"] * 1.3;
     const headerGap = 24; 
@@ -88,6 +78,37 @@ export class LayoutManager {
       trackCols: this.trackCols,
       chevronWidth: theme.albumGrid["drawer-chevron-width"],
       bandCHeight: naturalContentHeight
+    };
+  }
+
+  // --- VIRTUALIZATION HELPERS ---
+
+  getTotalHeight(rowCount, drawerInfo) {
+    return (rowCount * this.rowHeight) + (drawerInfo ? drawerInfo.height : 0) + this.topOffset;
+  }
+
+  getRowY(index, expandedRowIndex, drawerHeight) {
+    let y = (index * this.rowHeight) + this.topOffset;
+    if (expandedRowIndex !== -1 && index > expandedRowIndex) {
+      y += drawerHeight;
+    }
+    return y;
+  }
+
+  /**
+   * Calculates which row indices are currently visible in the viewport.
+   * Includes a buffer to handle inertia/fast scrolling.
+   */
+  getVisibleIndices(scrollY, viewportHeight, rowCount) {
+    const buffer = 4;
+    // Basic projection based on fixed row height
+    // (Actual positions might vary due to drawer, but this covers the scan area)
+    const start = Math.floor(scrollY / this.rowHeight) - buffer;
+    const end = Math.ceil((scrollY + viewportHeight) / this.rowHeight) + buffer;
+    
+    return {
+      start: Math.max(0, start),
+      end: Math.min(rowCount - 1, end)
     };
   }
 }

@@ -7,32 +7,74 @@ export class GridController {
   scroll = new ScrollEngine();
   viewportHeight = $state(0);
 
-  rows = $derived(this.layout.chunk(library.albums));
-  
+  // 1. Raw Data Chunking
+  allRows = $derived(this.layout.chunk(library.albums));
+
+  // 2. Drawer Logic
+  expandedRowIndex = $derived.by(() => {
+    if (!library.expandedAlbumId) return -1;
+    // Find row index: floor(flatIndex / cols)
+    const flatIndex = library.albums.findIndex(a => a.id === library.expandedAlbumId);
+    if (flatIndex === -1) return -1;
+    return Math.floor(flatIndex / this.layout.cols);
+  });
+
   drawerInfo = $derived.by(() => {
-    if (!library.expandedAlbumId) return null;
+    if (this.expandedRowIndex === -1) return null;
     const album = library.albums.find(a => a.id === library.expandedAlbumId);
-    
     const count = album ? album.tracks.length : 0;
-    
     return album ? this.layout.getNaturalDrawer(count) : null;
   });
 
-  contentHeight = $derived(
-    this.layout.getContentHeight(this.rows.length) + 
-    (this.drawerInfo ? this.drawerInfo.height : 0)
-  );
-  
-  drawerRows = $derived(this.drawerInfo ? (this.drawerInfo.height / this.layout.rowHeight) : 0);
-  totalRowsCount = $derived(this.rows.length + this.drawerRows);
+  drawerHeight = $derived(this.drawerInfo ? this.drawerInfo.height : 0);
 
+  // 3. Scroll Limits Logic (Restored)
+  // Convert drawer pixels to "row units" to integrate with slot-based logic
+  drawerRows = $derived(this.drawerHeight / this.layout.rowHeight);
+  
+  // Total virtual rows (Data rows + Drawer space)
+  totalRowsCount = $derived(this.allRows.length + this.drawerRows);
+
+  // How many rows fit in viewport?
   visibleRows = $derived(Math.ceil(this.viewportHeight / this.layout.rowHeight));
+
+  // Clamp max slot: Stop scrolling when the last item hits the bottom of the viewport
   maxSlots = $derived(Math.max(0, (this.totalRowsCount + 1 - this.visibleRows)));
 
+  // 4. Content Height
+  // Includes the "+1" virtual row buffer at the end
+  contentHeight = $derived(
+    this.layout.getTotalHeight(this.allRows.length, this.drawerInfo) + this.layout.rowHeight
+  );
+
+  // 5. Virtual Window Calculation
+  virtualRows = $derived.by(() => {
+    // Determine range to render based on current scroll position
+    const { start, end } = this.layout.getVisibleIndices(
+      this.scroll.currentY, 
+      this.viewportHeight, 
+      this.allRows.length
+    );
+
+    const result = [];
+    for (let i = start; i <= end; i++) {
+      result.push({
+        index: i,
+        // Calculate absolute position (accounting for drawer displacement)
+        y: this.layout.getRowY(i, this.expandedRowIndex, this.drawerHeight),
+        data: this.allRows[i],
+        isExpandedRow: (i === this.expandedRowIndex)
+      });
+    }
+    return result;
+  });
+
   update(mainEl) {
+    // ScrollEngine updates currentY based on targetSlot * rowHeight
     this.scroll.update(this.layout.rowHeight);
+    
     if (mainEl) {
-      mainEl.scrollTop = Math.round(this.scroll.currentY);
+      mainEl.scrollTop = this.scroll.currentY;
     }
   }
 
