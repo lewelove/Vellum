@@ -79,22 +79,19 @@
       <!-- Absolute positioned virtual rows -->
       {#each ctrl.virtualRows as row (row.index)}
         <!-- 
-          ROW Z-INDEX LOGIC:
-          - Default: 'auto'. This PREVENTS a new stacking context. 
-            Allows children (Covers z=2) to pop ABOVE the Crease (z=1),
-            while children (Text z=0) slide UNDER the Crease (z=1).
-          - Expanded: '10'. Creates a context to ensure Drawer sits above 
-            subsequent rows.
+          ROW Z-INDEX LOGIC (REFACTORED for INTERWEAVING):
+          We switch from `transform` to `top` to prevent the creation of a Stacking Context.
+          This allows the children (Text z0, Covers z2) to interleave with the Crease (z1).
+          z-index is strictly 'auto' to ensure the row container remains transparent to the stack.
         -->
         <div 
           class="row" 
           style="
-            top: 0; 
+            top: {row.y}px; 
             left: 0;
             width: {ctrl.layout.gridWidth}px; 
             height: {ctrl.layout.rowHeight}px; 
-            transform: translateY({row.y}px);
-            z-index: {row.isExpandedRow ? 10 : 'auto'};
+            z-index: auto;
           "
         >
           <div class="row-inner" style="gap: var(--gap-x);">
