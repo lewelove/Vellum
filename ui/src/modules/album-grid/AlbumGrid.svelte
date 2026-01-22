@@ -53,9 +53,7 @@
   >
     <!-- 
       LAYER 1: BACKGROUND (Text Only)
-      HINTING FIX: 
-      1. Math.round() prevents sub-pixel blur on the Y axis.
-      2. Solid background-color tells the browser it is safe to use subpixel hinting.
+      Renders text at standard document resolution (no GPU promotion) to enable subpixel hinting.
     -->
     <div 
       class="scroll-content background-layer" 
@@ -71,6 +69,29 @@
                 <Album {album} mode="info" />
               {/each}
           </div>
+
+          <!-- BACKGROUND DRAWER: Standard rendering for high-quality text -->
+          {#if row.isExpandedRow && ctrl.drawerInfo && row.data.find(a => a.id === library.expandedAlbumId)}
+            <div class="drawer-plane" style="top: {ctrl.layout.rowHeight}px;">
+              {#key library.expandedAlbumId}
+                <Drawer 
+                  mode="text"
+                  activeAlbum={row.data.find(a => a.id === library.expandedAlbumId)}
+                  activeIndexInRow={row.data.findIndex(a => a.id === library.expandedAlbumId)}
+                  width={ctrl.layout.gridWidth} 
+                  cardSize={ctrl.layout.cardSize}
+                  gap={ctrl.layout.gapX}
+                  height={ctrl.drawerInfo.height}
+                  bandA={ctrl.drawerInfo.bandA}
+                  bandB={ctrl.drawerInfo.bandB}
+                  trackCols={ctrl.drawerInfo.trackCols}
+                  chevronWidth={ctrl.drawerInfo.chevronWidth}
+                  bandCHeight={ctrl.drawerInfo.bandCHeight}
+                  drawerCoverSize={ctrl.drawerInfo.drawerCoverSize}
+                />
+              {/key}
+            </div>
+          {/if}
         </div>
       {/each}
     </div>
@@ -82,8 +103,8 @@
     ></div>
 
     <!-- 
-      LAYER 3: FOREGROUND (Covers + Drawer)
-      We use Math.round here as well to keep both passes perfectly aligned.
+      LAYER 3: FOREGROUND (Covers + Drawer Visuals)
+      Promoted to GPU via will-change for smooth animations.
     -->
     <div class="scroll-content foreground-layer" style="height: {ctrl.contentHeight}px; z-index: 2;">
       {#each ctrl.virtualRows as row (row.index)}
@@ -102,13 +123,12 @@
               {/each}
           </div>
 
+          <!-- FOREGROUND DRAWER: Visual pass for cover art, borders, and interaction -->
           {#if row.isExpandedRow && ctrl.drawerInfo && row.data.find(a => a.id === library.expandedAlbumId)}
-            <div 
-              class="drawer-plane"
-              style="top: {ctrl.layout.rowHeight}px;"
-            >
+            <div class="drawer-plane" style="top: {ctrl.layout.rowHeight}px;">
               {#key library.expandedAlbumId}
                 <Drawer 
+                  mode="ui"
                   activeAlbum={row.data.find(a => a.id === library.expandedAlbumId)}
                   activeIndexInRow={row.data.findIndex(a => a.id === library.expandedAlbumId)}
                   width={ctrl.layout.gridWidth} 
@@ -184,14 +204,9 @@
         display: flex;
         flex-direction: column;
         overflow: visible; 
-        /* GPU acceleration */
         will-change: transform;
     }
 
-    /* 
-       Optimization: We remove will-change from the text rows to prevent the browser 
-       from rasterizing text into a blurry bitmap during scroll. 
-    */
     .text-row {
         will-change: auto;
     }

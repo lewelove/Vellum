@@ -14,7 +14,8 @@
     bandCHeight,
     cardSize,
     gap,
-    drawerCoverSize
+    drawerCoverSize,
+    mode = "ui" // "ui" or "text"
   } = $props();
 
   // High-Res Asset URL
@@ -34,19 +35,29 @@
 
 <div class="drawer-container" style="width: {width}px; height: {height}px;">
   <!-- Spacer Band (Alignment + Pointer) -->
-  <div class="pointer-band" style="height: {bandA + bandB}px;">
+  <div class="pointer-band" class:ghost={mode === "text"} style="height: {bandA + bandB}px;">
     <div 
       class="chevron-pointer" 
       style="left: {chevronLeft}px; border-bottom-width: {bandB}px; border-left-width: {bandB}px; border-right-width: {bandB}px;"
     ></div>
   </div>
 
-  <!-- Content Area -->
-  <div class="drawer-content" style="height: {bandCHeight}px;">
+  <!-- 
+    Content Area 
+    Logic: 
+    1. mode="text" (Background) provides the SOLID color for the font engine.
+    2. mode="ui" (Foreground) is TRANSPARENT so we can see the text behind it.
+  -->
+  <div 
+    class="drawer-content" 
+    class:bg-fill={mode === "text"}
+    class:ui-frame={mode === "ui"}
+    style="height: {bandCHeight}px;"
+  >
       
       <div class="split-layout">
-        <!-- LEFT: High-Fidelity Cover Rendering -->
-        <div class="cover-col">
+        <!-- LEFT: Visual Column -->
+        <div class="cover-col" class:ghost={mode === "text"}>
           <SmartImage 
             src={coverUrl} 
             width={drawerCoverSize} 
@@ -54,19 +65,26 @@
           />
         </div>
 
-        <!-- RIGHT: Header + Tracks -->
+        <!-- RIGHT: Information Column -->
         <div class="info-col">
           <div class="header-text">
             <div class="title-row">
-              <h2 class="d-title">{activeAlbum.title}</h2>
-              <button class="play-button" onclick={handlePlay} title="Replace queue and play album">
+              <h2 class="d-title" class:ghost={mode === "ui"}>{activeAlbum.title}</h2>
+              
+              <button 
+                class="play-button" 
+                class:ghost={mode === "text"} 
+                onclick={handlePlay} 
+                title="Replace queue and play album"
+                tabindex={mode === "text" ? -1 : 0}
+              >
                 PLAY ALBUM
               </button>
             </div>
-            <h3 class="d-artist">{activeAlbum.artist}</h3>
+            <h3 class="d-artist" class:ghost={mode === "ui"}>{activeAlbum.artist}</h3>
           </div>
           
-          <div class="tracks-wrapper">
+          <div class="tracks-wrapper" class:ghost={mode === "ui"}>
             <DrawerTracks tracks={activeAlbum.tracks} cols={trackCols} />
           </div>
         </div>
@@ -83,11 +101,6 @@
     box-sizing: border-box;
     overflow: hidden;
     position: relative;
-    
-    /* 
-       HINTING RECOVERY: 
-       Force subpixel anti-aliasing for the entire drawer subtree. 
-    */
     -webkit-font-smoothing: subpixel-antialiased;
     -moz-osx-font-smoothing: auto;
     text-rendering: optimizeLegibility;
@@ -125,11 +138,29 @@
   }
 
   .drawer-content {
-    background-color: var(--background-drawer);
-    border: 1px solid var(--border-muted);
     box-sizing: border-box;
     padding: var(--drawer-padding-y) var(--drawer-padding-x);
     overflow: hidden;
+    /* Default state is transparent to let background layer through */
+    background-color: transparent;
+    border: 1px solid transparent;
+  }
+
+  /* The background pass pass provides the fill and the border */
+  .bg-fill {
+    background-color: var(--background-drawer);
+    border: 1px solid var(--border-muted);
+  }
+
+  /* The foreground pass pass is just a container for cover/buttons */
+  .ui-frame {
+    background-color: transparent;
+    border: 1px solid transparent;
+  }
+
+  .ghost {
+    visibility: hidden !important;
+    pointer-events: none !important;
   }
 
   .split-layout {
