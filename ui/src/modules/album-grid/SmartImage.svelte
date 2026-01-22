@@ -1,6 +1,6 @@
 <script>
   import { onMount, onDestroy } from "svelte";
-  import Pica from "pica";
+  import { pica } from "$core/pica.js";
 
   let { src, width, height } = $props();
 
@@ -8,8 +8,6 @@
   let isLoaded = $state(false);
   let currentSrc = $state("");
   
-  const pica = new Pica();
-
   async function processImage(url) {
     if (!url || url === currentSrc) return;
     currentSrc = url;
@@ -32,6 +30,7 @@
         canvasEl.width = targetWidth;
         canvasEl.height = targetHeight;
 
+        // Using the singleton pica instance
         await pica.resize(bitmap, canvasEl, {
           quality: 3,
           alpha: false,
@@ -79,9 +78,6 @@
     background-color: #292929;
     box-shadow: 0 10px 30px rgba(0,0,0,0.5);
     transition: opacity 0.1s ease-in;
-    
-    /* image-rendering: -webkit-optimize-contrast; */
-    /* image-rendering: crisp-edges; */
   }
 
   .output-canvas.visible {

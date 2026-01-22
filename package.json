@@ -7,5 +7,9 @@
   "scripts": {
     "ui": "npm run dev -w ui",
     "server": "python server/main.py"
+  },
+  "dependencies": {
+    "@duckdb/duckdb-wasm": "^1.33.1-dev18.0",
+    "apache-arrow": "^21.1.0"
   }
 }
