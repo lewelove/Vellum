@@ -35,6 +35,10 @@
     display: grid;
     gap: 40px;
     width: 100%;
+    
+    /* Ensure subpixel hinting for small track text */
+    -webkit-font-smoothing: subpixel-antialiased;
+    text-rendering: optimizeLegibility;
   }
 
   .track-column {

@@ -83,6 +83,14 @@
     box-sizing: border-box;
     overflow: hidden;
     position: relative;
+    
+    /* 
+       HINTING RECOVERY: 
+       Force subpixel anti-aliasing for the entire drawer subtree. 
+    */
+    -webkit-font-smoothing: subpixel-antialiased;
+    -moz-osx-font-smoothing: auto;
+    text-rendering: optimizeLegibility;
   }
 
   .pointer-band {

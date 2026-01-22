@@ -53,11 +53,19 @@
   >
     <!-- 
       LAYER 1: BACKGROUND (Text Only)
-      This layer scrolls *under* the crease.
+      HINTING FIX: 
+      1. Math.round() prevents sub-pixel blur on the Y axis.
+      2. Solid background-color tells the browser it is safe to use subpixel hinting.
     -->
-    <div class="scroll-content background-layer" style="height: {ctrl.contentHeight}px; z-index: 0;">
+    <div 
+      class="scroll-content background-layer" 
+      style="height: {ctrl.contentHeight}px; z-index: 0; background-color: var(--background-main);"
+    >
       {#each ctrl.virtualRows as row (row.index)}
-        <div class="row" style="transform: translateY({row.y}px); width: {ctrl.layout.gridWidth}px; height: {ctrl.layout.rowHeight}px;">
+        <div 
+          class="row text-row" 
+          style="transform: translateY({Math.round(row.y)}px); width: {ctrl.layout.gridWidth}px; height: {ctrl.layout.rowHeight}px;"
+        >
           <div class="row-inner" style="gap: var(--gap-x);">
               {#each row.data as album (album.id)}
                 <Album {album} mode="info" />
@@ -67,10 +75,7 @@
       {/each}
     </div>
 
-    <!-- 
-      LAYER 2: THE CREASE (Sticky)
-      Placed exactly between the text and the covers in the DOM.
-    -->
+    <!-- LAYER 2: THE CREASE (Sticky) -->
     <div
       class="top-crease"
       style="height: {ctrl.layout.creaseHeight}px; margin-bottom: -{ctrl.layout.creaseHeight}px;"
@@ -78,11 +83,14 @@
 
     <!-- 
       LAYER 3: FOREGROUND (Covers + Drawer)
-      This layer scrolls *over* the crease. 
+      We use Math.round here as well to keep both passes perfectly aligned.
     -->
     <div class="scroll-content foreground-layer" style="height: {ctrl.contentHeight}px; z-index: 2;">
       {#each ctrl.virtualRows as row (row.index)}
-        <div class="row" style="transform: translateY({row.y}px); width: {ctrl.layout.gridWidth}px; height: {ctrl.layout.rowHeight}px; z-index: {row.isExpandedRow ? 10 : 'auto'};">
+        <div 
+          class="row" 
+          style="transform: translateY({Math.round(row.y)}px); width: {ctrl.layout.gridWidth}px; height: {ctrl.layout.rowHeight}px; z-index: {row.isExpandedRow ? 10 : 'auto'};"
+        >
           <div class="row-inner" style="gap: var(--gap-x);">
               {#each row.data as album (album.id)}
                 <Album 
@@ -164,7 +172,6 @@
       pointer-events: none;
     }
 
-    /* Only the foreground layer should intercept clicks to covers */
     .foreground-layer {
       pointer-events: auto;
     }
@@ -177,7 +184,16 @@
         display: flex;
         flex-direction: column;
         overflow: visible; 
+        /* GPU acceleration */
         will-change: transform;
+    }
+
+    /* 
+       Optimization: We remove will-change from the text rows to prevent the browser 
+       from rasterizing text into a blurry bitmap during scroll. 
+    */
+    .text-row {
+        will-change: auto;
     }
     
     .row-inner {

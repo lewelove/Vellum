@@ -9,9 +9,8 @@
 
 <div class="album-unit">
   <!-- 
-    We use 'visibility: hidden' instead of removing the element.
-    This ensures "Spatial Parity": the text is pushed down by the exact
-    same 200px + gap even in the background layer where the cover isn't "seen".
+    GHOSTING: maintains layout space even when hidden to ensure the text 
+    in the background layer aligns perfectly with the covers in the foreground.
   -->
   <button 
     class="album-cover" 
@@ -36,6 +35,13 @@
     width: var(--cover-size);
     padding-top: var(--gap-y);
     position: relative;
+    /* 
+       HINTING RECOVERY: Force the text engine to prioritize subpixel 
+       anti-aliasing even inside a transformed row. 
+    */
+    -webkit-font-smoothing: subpixel-antialiased;
+    -moz-osx-font-smoothing: auto;
+    text-rendering: optimizeLegibility;
   }
 
   .album-cover {
@@ -65,7 +71,6 @@
     z-index: 0;
   }
 
-  /* The "Ghost" state maintains layout space but hides content */
   .ghost {
     visibility: hidden !important;
     pointer-events: none !important;
