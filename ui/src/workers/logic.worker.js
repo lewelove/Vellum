@@ -16,11 +16,13 @@ self.onmessage = (e) => {
     switch (type) {
       // 1. Ingest & Initialize
       case "INIT": {
-        // Handle stringified JSON from main thread (avoids main thread parse cost)
-        const parsed = typeof payload === 'string' ? JSON.parse(payload) : payload;
-        
-        // Handle potential envelope { type: 'INIT', data: [...] } vs raw array
-        const data = Array.isArray(parsed) ? parsed : (parsed.data || []);
+        // Robust data extraction: ensure we have an array of albums
+        let data = [];
+        if (Array.isArray(payload)) {
+          data = payload;
+        } else if (payload && Array.isArray(payload.data)) {
+          data = payload.data;
+        }
         
         // Data Enhancement (occurs once here)
         data.forEach(a => {
@@ -31,7 +33,6 @@ self.onmessage = (e) => {
         rawAlbums = data;
 
         // A. Send FULL DATA to Main Thread to populate the Object Cache.
-        // This is the heavy transfer (~9MB), happens only once.
         postMessage({ 
           type: "INIT_DATA", 
           data: rawAlbums,
@@ -52,8 +53,11 @@ self.onmessage = (e) => {
 
         // Update local Worker state
         const index = rawAlbums.findIndex(a => a.id === payload.id);
-        if (index !== -1) rawAlbums[index] = albumData;
-        else rawAlbums.push(albumData);
+        if (index !== -1) {
+          rawAlbums[index] = albumData;
+        } else {
+          rawAlbums.push(albumData);
+        }
 
         // Sync this specific object to Main Thread Cache
         postMessage({ type: "UPDATE_DATA", data: albumData });
@@ -95,14 +99,11 @@ function processView(filter, sort) {
   }
 
   // B. Sort (Operations on Full Objects)
-  // We Copy array to prevent mutation of the source
   result = [...result]; 
-  const sorter = sorters[sort.key] || sorters.date_added;
+  const sorter = sorters[sort.key] || sorters.default;
   result.sort(sorter);
 
   // C. Optimize Output (IDs Only)
-  // Map the objects to a list of ID strings.
-  // Transferring Strings is O(n) but very lightweight compared to Objects.
   const viewIds = result.map(a => a.id);
 
   const tEnd = performance.now();

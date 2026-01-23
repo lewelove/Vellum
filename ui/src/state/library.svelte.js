@@ -64,7 +64,6 @@ class LibraryState {
         
         // Hydrate IDs -> Objects
         // Map lookup is O(1). This loop is extremely fast.
-        // We use .filter(Boolean) just in case of race conditions (e.g. ID exists but cache missing)
         this.albums = ids.map(id => this.albumCache.get(id)).filter(Boolean);
         
         this.isLoading = false;
@@ -97,19 +96,32 @@ class LibraryState {
     if (event.data instanceof Blob) {
       const reader = new FileReader();
       reader.onload = () => {
-        // Send RAW STRING to worker.
-        // Worker will perform JSON.parse() off the main thread.
-        this.worker.postMessage({ type: "INIT", payload: reader.result });
+        try {
+          const json = JSON.parse(reader.result);
+          
+          // ROUTING LOGIC: Correctly identify if message is a full INIT or a single UPDATE
+          // This prevents hot reloads from wiping the library state.
+          if (json.type === "UPDATE") {
+            this.worker.postMessage({ type: "UPDATE", payload: json.payload });
+          } else if (json.type === "INIT") {
+            this.worker.postMessage({ type: "INIT", payload: json.data || json });
+          }
+        } catch (err) {
+          console.error("Failed to parse binary websocket message:", err);
+        }
       };
       reader.readAsText(event.data);
     } else {
-      // Hot Reload Update
-      const json = JSON.parse(event.data);
-      if (json.type === "UPDATE") {
-         this.worker.postMessage({ type: "UPDATE", payload: json.payload });
-      } else if (json.type === "INIT") {
-         // Fallback for non-binary init
-         this.worker.postMessage({ type: "INIT", payload: json.data });
+      // String Fallback
+      try {
+        const json = JSON.parse(event.data);
+        if (json.type === "UPDATE") {
+          this.worker.postMessage({ type: "UPDATE", payload: json.payload });
+        } else if (json.type === "INIT") {
+          this.worker.postMessage({ type: "INIT", payload: json.data || json });
+        }
+      } catch (err) {
+        console.error("Failed to parse string websocket message:", err);
       }
     }
   }
