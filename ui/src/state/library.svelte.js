@@ -173,6 +173,11 @@ class LibraryState {
     this.refreshSidebar();
   }
 
+  /**
+   * Primary Navigation Method.
+   * Applying a filter implies entering a specific view, which should always
+   * respect the user's Global Sort Preference.
+   */
   applyFilter(key, val) {
     if (this.activeFilter.key === key && this.activeFilter.val === val) {
       this.activeFilter = { key: null, val: null };
@@ -180,11 +185,37 @@ class LibraryState {
       this.activeFilter = { key, val };
     }
     this.expandedAlbumId = null;
+    
+    // Enforce Global Sort Preference
+    this.activeSort = { key: this.userSortPreference };
+    
     this.refreshView(true);
   }
 
   /**
-   * Applies a temporary sort override (e.g., for Recently Added view)
+   * Atomic Action: Switch to "Recently Added" view.
+   * Clears filters and forces date-based sorting override.
+   */
+  showRecentlyAdded() {
+    this.activeFilter = { key: null, val: null };
+    this.activeSort = { key: "date_added" };
+    this.expandedAlbumId = null;
+    this.refreshView(true);
+  }
+
+  /**
+   * Atomic Action: Switch to "Media Library" view.
+   * Clears filters and restores user preference sorting.
+   */
+  showMediaLibrary() {
+    this.activeFilter = { key: null, val: null };
+    this.activeSort = { key: this.userSortPreference };
+    this.expandedAlbumId = null;
+    this.refreshView(true);
+  }
+
+  /**
+   * Applies a temporary sort override (e.g., manually triggered)
    * Does NOT persist to user preference.
    */
   applySort(key) {
@@ -203,7 +234,8 @@ class LibraryState {
   }
 
   /**
-   * Restores the user's preferred sort (e.g., when returning to Media Library)
+   * Restores the user's preferred sort.
+   * Kept for compatibility, though showMediaLibrary() is preferred for navigation.
    */
   restoreUserSort() {
     this.activeSort = { key: this.userSortPreference };

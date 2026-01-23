@@ -16,13 +16,11 @@
   let items = $derived(library.getSidebarGroup(library.activeSidebarGrouper));
 
   function handleMediaLibrary() {
-    library.applyFilter(null, null);
-    library.restoreUserSort();
+    library.showMediaLibrary();
   }
 
   function handleRecentlyAdded() {
-    library.applyFilter(null, null);
-    library.applySort("date_added");
+    library.showRecentlyAdded();
   }
 
   function toggleSortMenu() {
