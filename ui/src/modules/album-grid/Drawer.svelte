@@ -19,7 +19,7 @@
   } = $props();
 
   // High-Res Asset URL
-  let coverUrl = $derived(`/api/assets/${encodeURIComponent(activeAlbum.id)}/cover`);
+  let coverUrl =$derived(`/api/assets/${encodeURIComponent(activeAlbum.id)}/cover?h=${activeAlbum.cover_hash}`);
 
   // Calculate horizontal center of the active album relative to the drawer's width
   let chevronLeft = $derived((activeIndexInRow * (cardSize + gap)) + (cardSize / 2));
