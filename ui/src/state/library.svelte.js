@@ -1,108 +1,129 @@
 import { connectSocket } from "$core/api.js";
-import { applyFilter } from "../logic/filters.js";
-import { sorters } from "../logic/sorters.js";
-import { generateSidebarGroup } from "../logic/groupers.js";
+import LogicWorker from "../workers/logic.worker.js?worker"; // Vite Worker Import
 
 class LibraryState {
-  rawAlbums = $state([]); // Reactive Source of Truth
+  // UI State (Result from Worker)
+  albums = $state([]); 
   
-  // Reactive UI State
   isLoading = $state(true);
   isConnected = $state(false);
   expandedAlbumId = $state(null);
   
+  // Controls
   activeFilter = $state({ key: null, val: null });
   activeSort = $state({ key: "default" });
   activeSidebarGrouper = $state("genre");
+  
+  // Sidebar Data (Async)
+  sidebarGroups = $state(new Map()); // key -> items[]
 
-  // Signal to reset scroll position (incremented on view changes)
   viewVersion = $state(0);
-
-  // 1. FILTERING ENGINE
-  filteredAlbums = $derived.by(() => {
-    if (!this.activeFilter.key) return this.rawAlbums;
-    return this.rawAlbums.filter(a => applyFilter(a, this.activeFilter.key, this.activeFilter.val));
-  });
-
-  // 2. SORTING ENGINE
-  albums = $derived.by(() => {
-    // Clone to avoid mutating filtered source during sort
-    const list = [...this.filteredAlbums];
-    
-    const sorter = sorters[this.activeSort.key] || sorters.date_added;
-    list.sort(sorter);
-
-    return list;
-  });
-
-  capabilities = {
-    grouping: ["genre", "decade"]
-  };
+  worker = null;
 
   init() {
+    // 1. Start Worker
+    this.worker = new LogicWorker();
+    
+    this.worker.onmessage = (e) => {
+      const { type, data, timing, result, key } = e.data;
+
+      if (type === "VIEW_UPDATED") {
+        console.log(`⏱️ [Worker] Logic: ${timing} ms | Transfer: ${(performance.now() - this._tRequest).toFixed(2)} ms`);
+        this.albums = data;
+        this.isLoading = false;
+        
+        // Reset scroll on view change
+        if (this._pendingViewReset) {
+            this.viewVersion++;
+            this._pendingViewReset = false;
+        }
+      } 
+      else if (type === "READY") {
+        console.log("Worker initialized with", e.data.count, "albums");
+        // Trigger initial sort
+        this.refreshView(false);
+        // Load initial sidebar
+        this.refreshSidebar();
+      }
+      else if (type === "GROUP_RESULT") {
+        // Update sidebar cache
+        const newMap = new Map(this.sidebarGroups);
+        newMap.set(key, result);
+        this.sidebarGroups = newMap;
+      }
+    };
+
+    // 2. Connect Socket
     connectSocket(
       () => { this.isConnected = true; },
-      (event) => this.handleMessage(event)
+      (event) => this.handleSocketMessage(event)
     );
   }
 
-  handleMessage(event) {
+  handleSocketMessage(event) {
+    // Pass raw data directly to worker
+    // If it's a blob, we read text then pass. 
+    // If it's string (Hot Reload), pass directly.
+    
     if (event.data instanceof Blob) {
-      // Handle binary if we sent binary, but we send text JSON
       const reader = new FileReader();
       reader.onload = () => {
-        this.processPayload(JSON.parse(reader.result));
+        // Send RAW STRING to worker (Parsing happens off-thread)
+        this.worker.postMessage({ type: "INIT", payload: reader.result });
       };
       reader.readAsText(event.data);
     } else {
-      this.processPayload(JSON.parse(event.data));
+      const json = JSON.parse(event.data);
+      if (json.type === "INIT") {
+         // Should not happen with current server logic but safety check
+         this.worker.postMessage({ type: "INIT", payload: json.data });
+      } else if (json.type === "UPDATE") {
+         this.worker.postMessage({ type: "UPDATE", payload: json.payload });
+      }
     }
   }
 
-  processPayload(msg) {
-    if (msg.type === "INIT") {
-      this.processInit(msg.data);
-    } else if (msg.type === "UPDATE") {
-      this.processUpdate(msg.id, msg.payload);
-    }
-  }
+  // --- API ---
 
-  processInit(data) {
-    // Enhance data for UI
-    data.forEach(a => {
-      a.title = a.ALBUM;
-      a.artist = a.ALBUMARTIST;
+  _tRequest = 0;
+  _pendingViewReset = false;
+
+  refreshView(resetScroll = true) {
+    if (!this.worker) return;
+    this._tRequest = performance.now();
+    this._pendingViewReset = resetScroll;
+    
+    this.worker.postMessage({
+      type: "PROCESS",
+      payload: {
+        filter: $state.snapshot(this.activeFilter),
+        sort: $state.snapshot(this.activeSort)
+      }
     });
-    
-    // Atomic replacement of state
-    this.rawAlbums = data;
-    this.isLoading = false;
   }
 
-  processUpdate(id, albumData) {
-    // Enhance
-    albumData.title = albumData.ALBUM;
-    albumData.artist = albumData.ALBUMARTIST;
-
-    const index = this.rawAlbums.findIndex(a => a.id === id);
-    
-    if (index !== -1) {
-      // Replace existing
-      // Svelte 5 array mutation is fine if using $state
-      this.rawAlbums[index] = albumData;
-    } else {
-      // New Album
-      this.rawAlbums.push(albumData);
-    }
+  refreshSidebar() {
+    if (!this.worker) return;
+    this.worker.postMessage({ 
+      type: "GROUP", 
+      payload: { key: this.activeSidebarGrouper } 
+    });
   }
 
-  // Sidebar Logic
+  // --- UI Bindings ---
+
   getSidebarGroup(key) {
-    return generateSidebarGroup(this.rawAlbums, key);
+    // Trigger calc if missing (async)
+    if (!this.sidebarGroups.has(key) && this.worker) {
+        this.worker.postMessage({ type: "GROUP", payload: { key } });
+        return []; // Return empty while loading
+    }
+    return this.sidebarGroups.get(key) || [];
   }
 
   setSidebarGrouper(key) {
     this.activeSidebarGrouper = key;
+    this.refreshSidebar();
   }
 
   applyFilter(key, val) {
@@ -112,12 +133,12 @@ class LibraryState {
       this.activeFilter = { key, val };
     }
     this.expandedAlbumId = null;
-    this.viewVersion++; // Trigger scroll reset
+    this.refreshView(true);
   }
 
   applySort(key) {
     this.activeSort = { key };
-    this.viewVersion++; // Trigger scroll reset
+    this.refreshView(true);
   }
 
   toggleExpand(id) {

@@ -41,12 +41,13 @@ def resolve_album_helper_metadata_toml_mtime(ctx):
 def resolve_album_helper_unix_added(ctx):
     priority_keys = [
         "UNIX_ADDED_PRIMARY",
-        "UNIX_ADDED_LOCAL",
         "UNIX_ADDED_APPLEMUSIC",
         "UNIX_ADDED_YOUTUBE",
+        "UNIX_ADDED_FOOBAR",
+        "UNIX_ADDED_LOCAL",
         "UNIXTIMEAPPLE",
-        "UNIXTIMEFOOBAR",
         "UNIXTIMEYOUTUBE",
+        "UNIXTIMEFOOBAR",
     ]
     
     for key in priority_keys:
