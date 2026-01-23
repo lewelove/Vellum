@@ -38,3 +38,11 @@ export const sorters = {
     return dateB.localeCompare(dateA); // DESC
   }
 };
+
+export const SORTER_LABELS = {
+  default: "Default",
+  date_added: "Date Added",
+  az: "A-Z",
+  artist: "Artist",
+  year: "Year"
+};

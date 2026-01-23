@@ -17,7 +17,13 @@ class LibraryState {
   // Controls
   expandedAlbumId = $state(null);
   activeFilter = $state({ key: null, val: null });
+  
+  // activeSort determines the current view's order
   activeSort = $state({ key: "default" });
+  
+  // userSortPreference stores the user's choice for the Media Library view
+  userSortPreference = $state("default");
+  
   activeSidebarGrouper = $state("genre");
 
   // Signal to reset scroll position
@@ -177,8 +183,30 @@ class LibraryState {
     this.refreshView(true);
   }
 
+  /**
+   * Applies a temporary sort override (e.g., for Recently Added view)
+   * Does NOT persist to user preference.
+   */
   applySort(key) {
     this.activeSort = { key };
+    this.refreshView(true);
+  }
+
+  /**
+   * Sets the user's global library sort preference.
+   * Updates the view immediately.
+   */
+  setUserSort(key) {
+    this.userSortPreference = key;
+    this.activeSort = { key };
+    this.refreshView(true);
+  }
+
+  /**
+   * Restores the user's preferred sort (e.g., when returning to Media Library)
+   */
+  restoreUserSort() {
+    this.activeSort = { key: this.userSortPreference };
     this.refreshView(true);
   }
 
