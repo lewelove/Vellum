@@ -68,16 +68,19 @@ def run_update():
         
         # --- SENTRY FAST CHECK (Folder Mtime) ---
         try:
-            current_mtime = int(os.path.getmtime(album_root))
+            folder_mtime = int(os.path.getmtime(album_root))
+            meta_mtime = int(os.path.getmtime(anchor))
+            # We use the max of both to ensure any change triggers the deep check
+            current_mtime_sum = folder_mtime + meta_mtime
         except OSError:
-            current_mtime = 0
+            current_mtime_sum = 0
             
         cached_info = sentry_cache.get(album_path_str, {})
-        cached_mtime = cached_info.get("mtime", 0)
+        cached_mtime = cached_info.get("mtime_sum", 0)
         
         should_process = force_mode
         if not should_process:
-            if current_mtime == 0 or current_mtime != cached_mtime:
+            if current_mtime_sum == 0 or current_mtime_sum != cached_mtime:
                 should_process = True
 
         if not should_process:
@@ -98,7 +101,7 @@ def run_update():
             
             updates_count += 1
             
-        new_cache[album_path_str] = {"mtime": current_mtime}
+        new_cache[album_path_str] = {"mtime_sum": current_mtime_sum}
 
     save_cache(new_cache)
 

@@ -82,7 +82,7 @@ def resolve_album_helper_album_duration_time(ctx):
 
 def resolve_album_helper_cover_path(ctx):
     album_root = ctx.get("album_root")
-    priorities = ["cover.jpg", "cover.png", "folder.jpg", "folder.png", "front.jpg"]
+    priorities = ["cover.png", "cover.jpg", "folder.jpg", "folder.png", "front.jpg"]
     
     for p in priorities:
         if (album_root / p).exists():
