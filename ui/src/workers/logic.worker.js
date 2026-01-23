@@ -2,62 +2,74 @@ import { applyFilter } from "../logic/filters.js";
 import { sorters } from "../logic/sorters.js";
 import { generateSidebarGroup } from "../logic/groupers.js";
 
+// The Worker's "Source of Truth"
 let rawAlbums = [];
+
+// State for re-processing updates without requiring new payloads
+let currentFilter = { key: null, val: null };
+let currentSort = { key: "default" };
 
 self.onmessage = (e) => {
   const { type, payload } = e.data;
 
   try {
     switch (type) {
-      // 1. Ingest (Parse off-thread)
+      // 1. Ingest & Initialize
       case "INIT": {
-        // payload is the raw JSON string or object
+        // Handle stringified JSON from main thread (avoids main thread parse cost)
         const parsed = typeof payload === 'string' ? JSON.parse(payload) : payload;
         
-        // FIX: Extract array from envelope { type: 'INIT', data: [...] } if present
+        // Handle potential envelope { type: 'INIT', data: [...] } vs raw array
         const data = Array.isArray(parsed) ? parsed : (parsed.data || []);
         
-        // Enhance data (moved from library.svelte.js)
+        // Data Enhancement (occurs once here)
         data.forEach(a => {
           a.title = a.ALBUM;
           a.artist = a.ALBUMARTIST;
         });
 
         rawAlbums = data;
-        
-        // Return stats + initial view
+
+        // A. Send FULL DATA to Main Thread to populate the Object Cache.
+        // This is the heavy transfer (~9MB), happens only once.
         postMessage({ 
-          type: "READY", 
-          count: rawAlbums.length,
-          view: rawAlbums // Initial view is unsorted/unfiltered
+          type: "INIT_DATA", 
+          data: rawAlbums,
+          count: rawAlbums.length 
         });
-        break;
-      }
 
-      // 2. Incremental Updates (Hot Reload)
-      case "UPDATE": {
-        // payload is the single album object
-        const albumData = payload;
-        albumData.title = albumData.ALBUM;
-        albumData.artist = albumData.ALBUMARTIST;
-
-        const index = rawAlbums.findIndex(a => a.id === payload.id);
-        if (index !== -1) rawAlbums[index] = albumData;
-        else rawAlbums.push(albumData);
-
-        // Re-run the current view logic immediately
+        // B. Immediately calculate the initial view (sends IDs only).
         processView(currentFilter, currentSort);
         break;
       }
 
-      // 3. The Heavy Lifting
+      // 2. Hot Reload / Single Update
+      case "UPDATE": {
+        const albumData = payload;
+        // Enhance new data
+        albumData.title = albumData.ALBUM;
+        albumData.artist = albumData.ALBUMARTIST;
+
+        // Update local Worker state
+        const index = rawAlbums.findIndex(a => a.id === payload.id);
+        if (index !== -1) rawAlbums[index] = albumData;
+        else rawAlbums.push(albumData);
+
+        // Sync this specific object to Main Thread Cache
+        postMessage({ type: "UPDATE_DATA", data: albumData });
+        
+        // Re-run the current view
+        processView(currentFilter, currentSort);
+        break;
+      }
+
+      // 3. View Processing (Filter/Sort)
       case "PROCESS": {
-        const { filter, sort } = payload;
-        processView(filter, sort);
+        processView(payload.filter, payload.sort);
         break;
       }
       
-      // 4. Sidebar Counts
+      // 4. Sidebar Grouping
       case "GROUP": {
         const result = generateSidebarGroup(rawAlbums, payload.key);
         postMessage({ type: "GROUP_RESULT", key: payload.key, result });
@@ -69,35 +81,35 @@ self.onmessage = (e) => {
   }
 };
 
-// State for re-processing updates
-let currentFilter = { key: null, val: null };
-let currentSort = { key: "default" };
-
 function processView(filter, sort) {
-  // Update local state
+  // Update local scope state
   currentFilter = filter;
   currentSort = sort;
 
   const tStart = performance.now();
 
-  // A. Filter
+  // A. Filter (Operations on Full Objects)
   let result = rawAlbums;
   if (filter && filter.key) {
     result = rawAlbums.filter(a => applyFilter(a, filter.key, filter.val));
   }
 
-  // B. Sort
-  // We copy the array because .sort() mutates in place
+  // B. Sort (Operations on Full Objects)
+  // We Copy array to prevent mutation of the source
   result = [...result]; 
   const sorter = sorters[sort.key] || sorters.date_added;
   result.sort(sorter);
 
+  // C. Optimize Output (IDs Only)
+  // Map the objects to a list of ID strings.
+  // Transferring Strings is O(n) but very lightweight compared to Objects.
+  const viewIds = result.map(a => a.id);
+
   const tEnd = performance.now();
 
-  // C. Respond
   postMessage({ 
     type: "VIEW_UPDATED", 
-    data: result,
+    ids: viewIds, 
     timing: (tEnd - tStart).toFixed(2)
   });
 }
