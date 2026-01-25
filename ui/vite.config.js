@@ -6,9 +6,7 @@ export default defineConfig({
   plugins: [svelte()],
   resolve: {
     alias: {
-      '$core': path.resolve(__dirname, './src/core'),
       '$modules': path.resolve(__dirname, './src/modules'),
-      '$state': path.resolve(__dirname, './src/state'),
     }
   },
   server: {

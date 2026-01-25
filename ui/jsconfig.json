@@ -13,9 +13,7 @@
     "checkJs": true,
     "baseUrl": ".",
     "paths": {
-      "$core/*": ["./src/core/*"],
-      "$modules/*": ["./src/modules/*"],
-      "$state/*": ["./src/state/*"]
+      "$modules/*": ["./src/modules/*"]
     }
   },
   "include": ["src/**/*.d.ts", "src/**/*.js", "src/**/*.svelte"]

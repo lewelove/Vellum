@@ -1,5 +1,5 @@
 <script>
-  import { library } from "$state/library.svelte.js";
+  import { library } from "../../library.svelte.js";
   import SidebarItem from "./SidebarItem.svelte";
 
   let { groupKey } = $props();

@@ -1,6 +1,6 @@
 <script>
   import { onMount, onDestroy } from "svelte";
-  import { pica } from "$core/pica.js";
+  import { pica } from "../../pica.js";
 
   let { src, width, height } = $props();
 

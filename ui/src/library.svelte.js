@@ -1,5 +1,5 @@
-import { connectSocket } from "$core/api.js";
-import LogicWorker from "../workers/logic.worker.js?worker"; // Vite Worker Import
+import { connectSocket } from "./api.js";
+import LogicWorker from "./workers/logic.worker.js?worker"; // Vite Worker Import
 
 class LibraryState {
   // --- UI STATE ---

@@ -1,5 +1,5 @@
 <script>
-  import { library } from "$state/library.svelte.js";
+  import { library } from "../../library.svelte.js";
   import { GROUPER_LABELS } from "../../logic/groupers.js";
   import { SORTER_LABELS } from "../../logic/sorters.js";
   import SidebarItem from "./SidebarItem.svelte";

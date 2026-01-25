@@ -1,5 +1,5 @@
 <script>
-  import { playAlbum } from "$core/api.js";
+  import { playAlbum } from "../../api.js";
   import DrawerTracks from "./DrawerTracks.svelte";
   import SmartImage from "./SmartImage.svelte";
 

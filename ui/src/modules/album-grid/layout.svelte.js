@@ -1,4 +1,4 @@
-import { theme } from "$core/theme.svelte.js";
+import { theme } from "../../theme.svelte.js";
 
 export class LayoutManager {
   containerWidth = $state(0);

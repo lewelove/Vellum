@@ -1,7 +1,7 @@
 <script>
   import { onMount } from "svelte";
-  import { library } from "$state/library.svelte.js";
-  import { getThemeVariables } from "$core/theme.svelte.js";
+  import { library } from "./library.svelte.js";
+  import { getThemeVariables } from "./theme.svelte.js";
   import AlbumGrid from "$modules/album-grid/AlbumGrid.svelte";
   import Sidebar from "$modules/sidebar/Sidebar.svelte";
 
