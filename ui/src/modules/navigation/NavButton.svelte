@@ -8,6 +8,7 @@
 <button 
   class="nav-button" 
   class:active={isActive} 
+  class:queue-mode={nav.activeTab === 'queue'}
   onclick={() => setTab(tab)}
   title={tab}
 >
@@ -18,23 +19,38 @@
   .nav-button {
     width: 48px;
     height: 48px;
-    background-color: var(--palette-100);
+    background-color: var(--background-drawer);
     border: none;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: background-color 0.2s, transform 0.1s;
+    transition: background-color 0.2s, transform 0.1s, box-shadow 0.2s;
+    pointer-events: auto;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
     /* Squircle Clip Path */
     clip-path: path('M 0,24 C 0,4.8 4.8,0 24,0 C 43.2,0 48,4.8 48,24 C 48,43.2 43.2,48 24,48 C 4.8,48 0,43.2 0,24 Z');
+  }
+
+  .nav-button.queue-mode {
+    background-color: transparent;
+    box-shadow: none;
   }
 
   .nav-button:hover {
     background-color: var(--palette-300);
   }
 
+  .nav-button.queue-mode:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+
   .nav-button.active {
     background-color: var(--text-main);
+  }
+
+  .nav-button.queue-mode.active {
+    background-color: rgba(255, 255, 255, 0.2);
   }
 
   .nav-icon {
@@ -46,5 +62,14 @@
 
   .nav-button.active .nav-icon {
     filter: invert(0.1);
+  }
+
+  .nav-button.queue-mode .nav-icon {
+    filter: invert(1);
+    opacity: 0.8;
+  }
+
+  .nav-button.queue-mode.active .nav-icon {
+    opacity: 1;
   }
 </style>

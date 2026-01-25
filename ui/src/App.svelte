@@ -16,7 +16,6 @@
 </script>
 
 <main style={themeStyles}>
-  <!-- Persistent nav sits on top of everything at the fixed width -->
   <nav class="nav-anchor">
     <NavTabs />
   </nav>
@@ -53,11 +52,12 @@
     width: 150px;
     height: 80px; 
     z-index: 100;
+    pointer-events: none;
   }
 
   .sidebar-pane {
     position: absolute;
-    top: 80px; 
+    top: 0; 
     left: 0;
     width: 150px;
     bottom: 0;

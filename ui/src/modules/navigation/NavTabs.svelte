@@ -16,7 +16,7 @@
     gap: 12px;
     width: 100%;
     height: 100%;
-    background-color: var(--background-drawer);
     box-sizing: border-box;
+    pointer-events: none;
   }
 </style>

@@ -42,8 +42,6 @@
 </script>
 
 <div class="sidebar-container">
-  <!-- NavTabs removed from here, now in App.svelte -->
-
   <div class="sidebar-nav">
     <button class="nav-button" onclick={handleMediaLibrary}>
       Media Library
@@ -118,7 +116,8 @@
     display: flex;
     flex-direction: column;
     background-color: var(--background-drawer);
-    border-top: 1px solid rgba(255, 255, 255, 0.05); /* Visual separation from Nav */
+    padding-top: 80px; 
+    box-sizing: border-box;
   }
 
   .sidebar-nav {
