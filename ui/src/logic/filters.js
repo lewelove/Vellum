@@ -4,14 +4,11 @@
 export const filters = {
   genre: (album, val) => album.GENRE === val,
   
-  // NEW LOGIC HERE
-  // Ensure we compare strings to strings, as 'val' from the sidebar is likely a string
   totaltracks: (album, val) => album.TOTALTRACKS === String(val),
 
   search: (album, val) => {
     const q = val.toLowerCase();
     
-    // Check Album Metadata
     if (
       (album.ALBUM && album.ALBUM.toLowerCase().includes(q)) ||
       (album.ALBUMARTIST && album.ALBUMARTIST.toLowerCase().includes(q))
@@ -19,7 +16,6 @@ export const filters = {
       return true;
     }
     
-    // Check Track Titles
     if (album.tracks && album.tracks.some(t => t.TITLE && t.TITLE.toLowerCase().includes(q))) {
       return true;
     }
@@ -28,7 +24,6 @@ export const filters = {
   },
   
   decade: (album, val) => {
-    // val is "1990s"
     if (!album.DATE) return false;
     const year = parseInt(album.DATE.substring(0, 4));
     const start = parseInt(val.substring(0, 4));
@@ -37,7 +32,6 @@ export const filters = {
   },
   
   recent: (album) => {
-    // Added in last 30 days
     const now = Math.floor(Date.now() / 1000);
     const added = parseInt(album.unix_added || 0);
     return (now - added) < (86400 * 30);

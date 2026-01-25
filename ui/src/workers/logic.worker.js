@@ -2,10 +2,8 @@ import { applyFilter } from "../logic/filters.js";
 import { sorters } from "../logic/sorters.js";
 import { generateSidebarGroup } from "../logic/groupers.js";
 
-// The Worker's "Source of Truth"
 let rawAlbums = [];
 
-// State for re-processing updates without requiring new payloads
 let currentFilter = { key: null, val: null };
 let currentSort = { key: "default" };
 
@@ -14,9 +12,8 @@ self.onmessage = (e) => {
 
   try {
     switch (type) {
-      // 1. Ingest & Initialize
+
       case "INIT": {
-        // Robust data extraction: ensure we have an array of albums
         let data = [];
         if (Array.isArray(payload)) {
           data = payload;
@@ -24,7 +21,6 @@ self.onmessage = (e) => {
           data = payload.data;
         }
         
-        // Data Enhancement (occurs once here)
         data.forEach(a => {
           a.title = a.ALBUM;
           a.artist = a.ALBUMARTIST;
@@ -32,26 +28,21 @@ self.onmessage = (e) => {
 
         rawAlbums = data;
 
-        // A. Send FULL DATA to Main Thread to populate the Object Cache.
         postMessage({ 
           type: "INIT_DATA", 
           data: rawAlbums,
           count: rawAlbums.length 
         });
 
-        // B. Immediately calculate the initial view (sends IDs only).
         processView(currentFilter, currentSort);
         break;
       }
 
-      // 2. Hot Reload / Single Update
       case "UPDATE": {
         const albumData = payload;
-        // Enhance new data
         albumData.title = albumData.ALBUM;
         albumData.artist = albumData.ALBUMARTIST;
 
-        // Update local Worker state
         const index = rawAlbums.findIndex(a => a.id === payload.id);
         if (index !== -1) {
           rawAlbums[index] = albumData;
@@ -59,21 +50,17 @@ self.onmessage = (e) => {
           rawAlbums.push(albumData);
         }
 
-        // Sync this specific object to Main Thread Cache
         postMessage({ type: "UPDATE_DATA", data: albumData });
         
-        // Re-run the current view
         processView(currentFilter, currentSort);
         break;
       }
 
-      // 3. View Processing (Filter/Sort)
       case "PROCESS": {
         processView(payload.filter, payload.sort);
         break;
       }
       
-      // 4. Sidebar Grouping
       case "GROUP": {
         const result = generateSidebarGroup(rawAlbums, payload.key);
         postMessage({ type: "GROUP_RESULT", key: payload.key, result });
@@ -86,24 +73,21 @@ self.onmessage = (e) => {
 };
 
 function processView(filter, sort) {
-  // Update local scope state
+
   currentFilter = filter;
   currentSort = sort;
 
   const tStart = performance.now();
 
-  // A. Filter (Operations on Full Objects)
   let result = rawAlbums;
   if (filter && filter.key) {
     result = rawAlbums.filter(a => applyFilter(a, filter.key, filter.val));
   }
 
-  // B. Sort (Operations on Full Objects)
   result = [...result]; 
   const sorter = sorters[sort.key] || sorters.default;
   result.sort(sorter);
 
-  // C. Optimize Output (IDs Only)
   const viewIds = result.map(a => a.id);
 
   const tEnd = performance.now();
