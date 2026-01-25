@@ -6,11 +6,11 @@ import orjson
 import asyncio
 import concurrent.futures
 from contextlib import asynccontextmanager
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
-from mpd import MPDClient
+from mpd import MPDClient, ConnectionError
 
 # --- Configuration & Globals ---
 
@@ -32,6 +32,24 @@ class LibraryState:
         self.albums = []  # List[dict]
         self.album_map = {}  # id -> dict (Reference to object in self.albums)
         self.track_map = {}  # track_library_path -> absolute_path_str
+        self.path_lookup = {} # mpd_relative_path -> album_id
+
+    def _normalize_path_key(self, path_str: str) -> str:
+        """
+        Normalizes a path string for reliable dictionary lookups.
+        On Linux, paths should already be forward slashes.
+        We just strip the leading slash if present.
+        """
+        if not path_str:
+            return ""
+        
+        # Use PurePosixPath to standardize separators if they happen to be mixed
+        # but on Linux this is mostly a no-op aside from cleanliness.
+        try:
+            s = PurePosixPath(path_str).as_posix()
+            return s.lstrip('/')
+        except Exception:
+            return path_str.lstrip('/')
 
     def _parse_lock_file(self, lock_path: Path):
         """
@@ -55,13 +73,24 @@ class LibraryState:
             clean_album["tracks"] = tracks_source
             
             track_mapping = {}
+            mpd_paths = {}
+            
             for t in tracks_source:
                 t_id = t.get("track_library_path")
                 t_path_rel = t.get("track_path")
                 if t_id and t_path_rel:
                     track_mapping[t_id] = t_path_rel 
+                    
+                    # Store mapping for MPD lookup
+                    try:
+                        # Construct full relative path from library root
+                        full_rel_path = PurePosixPath(alb_id).joinpath(t_path_rel).as_posix()
+                        normalized_key = self._normalize_path_key(full_rel_path)
+                        mpd_paths[normalized_key] = alb_id
+                    except Exception:
+                        pass
 
-            return (clean_album, track_mapping)
+            return (clean_album, track_mapping, mpd_paths)
             
         except Exception as e:
             print(f"Error loading {lock_path}: {e}")
@@ -86,11 +115,12 @@ class LibraryState:
         self.albums = []
         self.album_map = {}
         self.track_map = {}
+        self.path_lookup = {}
         
         count = 0
         for res in results:
             if not res: continue
-            album_data, t_map = res
+            album_data, t_map, p_map = res
             
             self.albums.append(album_data)
             alb_id = album_data["id"]
@@ -100,10 +130,12 @@ class LibraryState:
                 full_path = LIBRARY_ROOT / alb_id / t_rel
                 self.track_map[t_id] = str(full_path)
             
+            self.path_lookup.update(p_map)
+            
             count += 1
 
         self.albums.sort(key=lambda x: x["id"])
-        print(f"Live Lake Initialized: {count} albums in RAM.")
+        print(f"Live Lake Initialized: {count} albums in RAM. {len(self.path_lookup)} track paths indexed.")
 
     def update_album(self, folder_path_str: str):
         """
@@ -120,7 +152,7 @@ class LibraryState:
         if not res: 
             return None
             
-        new_album, new_t_map = res
+        new_album, new_t_map, new_p_map = res
         alb_id = new_album["id"]
         
         existing = self.album_map.get(alb_id)
@@ -135,10 +167,72 @@ class LibraryState:
         for t_id, t_rel in new_t_map.items():
             full_path = LIBRARY_ROOT / alb_id / t_rel
             self.track_map[t_id] = str(full_path)
+        
+        self.path_lookup.update(new_p_map)
             
         return new_album
 
 STATE = LibraryState()
+
+# --- MPD Monitor ---
+
+async def mpd_monitor_loop():
+    """
+    Persistent task that listens for MPD events and broadcasts status.
+    """
+    client = MPDClient()
+    client.timeout = None # IDLE waits indefinitely
+    
+    host = "localhost"
+    port = 6600
+    
+    print("Starting MPD Monitor...")
+    
+    loop = asyncio.get_running_loop()
+
+    while True:
+        try:
+            # Connect if needed
+            try:
+                client.ping()
+            except (ConnectionError, OSError):
+                try:
+                    client.connect(host, port)
+                except Exception:
+                    await asyncio.sleep(2)
+                    continue
+
+            # Fetch current status
+            status = client.status()
+            current_song = client.currentsong()
+            
+            # Resolve Album ID
+            raw_file_path = current_song.get("file")
+            album_id = None
+            
+            if raw_file_path:
+                normalized_key = STATE._normalize_path_key(raw_file_path)
+                album_id = STATE.path_lookup.get(normalized_key)
+            
+            payload = {
+                "type": "MPD_STATUS",
+                "state": status.get("state"),
+                "file": raw_file_path,
+                "album_id": album_id,
+                "elapsed": status.get("elapsed"),
+                "duration": status.get("duration"),
+                "title": current_song.get("title"),
+                "artist": current_song.get("artist"),
+            }
+            
+            await manager.broadcast_bytes(orjson.dumps(payload))
+
+            # Wait for event
+            await loop.run_in_executor(None, lambda: client.idle("player", "playlist", "options"))
+            
+        except Exception as e:
+            print(f"MPD Monitor Error: {e}")
+            await asyncio.sleep(1)
 
 # --- Lifecycle ---
 
@@ -157,6 +251,8 @@ async def lifespan(app: FastAPI):
         
     if LIBRARY_ROOT:
         await STATE.initialize()
+    
+    asyncio.create_task(mpd_monitor_loop())
         
     yield
 
@@ -247,17 +343,11 @@ def get_album_cover(album_id: str):
 
 @app.post("/api/play/{album_id:path}")
 def play_album(album_id: str):
-    """
-    Retrieves the ordered tracklist from the Live Lake, clears the current
-    MPD queue, and starts playback of the selected album.
-    """
     album = STATE.album_map.get(album_id)
     if not album:
         raise HTTPException(status_code=404, detail="Album not found")
     
     paths_to_queue = []
-    # Iterating through album['tracks'] preserves the Natural Order 
-    # established by the Compiler (Phase 3/4).
     for t in album.get("tracks", []):
         t_id = t.get("track_library_path")
         if t_id in STATE.track_map:
@@ -270,16 +360,11 @@ def play_album(album_id: str):
     return {"status": "ok", "count": len(paths_to_queue)}
 
 def _send_to_mpd(paths):
-    """
-    Internal helper to communicate with MPD. 
-    Clears current queue and appends new tracks.
-    """
     client = MPDClient()
     try:
         client.connect("localhost", 6600)
         client.clear()
         for p in paths:
-            # Resolve absolute server path to a path relative to MPD's music root
             rel_p = str(Path(p).relative_to(LIBRARY_ROOT))
             client.add(rel_p)
         client.play()

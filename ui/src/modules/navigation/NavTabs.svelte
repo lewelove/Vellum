@@ -10,10 +10,14 @@
 <style>
   .nav-tabs-container {
     display: flex;
-    flex-direction: column;
-    gap: 12px;
-    padding: 24px 0;
+    flex-direction: row;
+    justify-content: center;
     align-items: center;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    gap: 12px;
+    /* Removed padding to ensure it fits within the 150px parent width without overflow */
+    width: 100%;
+    height: 100%;
+    background-color: var(--background-drawer);
+    box-sizing: border-box;
   }
 </style>

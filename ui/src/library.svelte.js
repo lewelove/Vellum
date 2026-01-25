@@ -1,11 +1,12 @@
 import { connectSocket } from "./api.js";
-import LogicWorker from "./workers/logic.worker.js?worker"; // Vite Worker Import
+import { player, updatePlayerState } from "./modules/player.svelte.js"; // Import Player Store
+import LogicWorker from "./workers/logic.worker.js?worker"; 
 
 class LibraryState {
 
   albums = $state([]); 
   
-  sidebarGroups = $state(new Map()); // key -> items[]
+  sidebarGroups = $state(new Map()); 
   
   isLoading = $state(true);
   isConnected = $state(false);
@@ -79,12 +80,7 @@ class LibraryState {
       reader.onload = () => {
         try {
           const json = JSON.parse(reader.result);
-          
-          if (json.type === "UPDATE") {
-            this.worker.postMessage({ type: "UPDATE", payload: json.payload });
-          } else if (json.type === "INIT") {
-            this.worker.postMessage({ type: "INIT", payload: json.data || json });
-          }
+          this.dispatchSocketAction(json);
         } catch (err) {
           console.error("Failed to parse binary websocket message:", err);
         }
@@ -93,20 +89,26 @@ class LibraryState {
     } else {
       try {
         const json = JSON.parse(event.data);
-        if (json.type === "UPDATE") {
-          this.worker.postMessage({ type: "UPDATE", payload: json.payload });
-        } else if (json.type === "INIT") {
-          this.worker.postMessage({ type: "INIT", payload: json.data || json });
-        }
+        this.dispatchSocketAction(json);
       } catch (err) {
         console.error("Failed to parse string websocket message:", err);
       }
     }
   }
 
+  dispatchSocketAction(json) {
+    if (json.type === "UPDATE") {
+      this.worker.postMessage({ type: "UPDATE", payload: json.payload });
+    } else if (json.type === "INIT") {
+      this.worker.postMessage({ type: "INIT", payload: json.data || json });
+    } else if (json.type === "MPD_STATUS") {
+      updatePlayerState(json);
+    }
+  }
+
   refreshView(resetScroll = true) {
     if (!this.worker) return;
-    this._tRequest = performance.now(); // Start timer
+    this._tRequest = performance.now(); 
     this._pendingViewReset = resetScroll;
     
     this.worker.postMessage({
@@ -139,11 +141,6 @@ class LibraryState {
     this.refreshSidebar();
   }
 
-  /**
-   * Primary Navigation Method.
-   * Applying a filter implies entering a specific view, which should always
-   * respect the user's Global Sort Preference.
-   */
   applyFilter(key, val) {
     if (this.activeFilter.key === key && this.activeFilter.val === val) {
       this.activeFilter = { key: null, val: null };
@@ -157,10 +154,6 @@ class LibraryState {
     this.refreshView(true);
   }
 
-  /**
-   * Atomic Action: Switch to "Recently Added" view.
-   * Clears filters and forces date-based sorting override.
-   */
   showRecentlyAdded() {
     this.activeFilter = { key: null, val: null };
     this.activeSort = { key: "date_added" };
@@ -168,10 +161,6 @@ class LibraryState {
     this.refreshView(true);
   }
 
-  /**
-   * Atomic Action: Switch to "Media Library" view.
-   * Clears filters and restores user preference sorting.
-   */
   showMediaLibrary() {
     this.activeFilter = { key: null, val: null };
     this.activeSort = { key: this.userSortPreference };
@@ -179,29 +168,17 @@ class LibraryState {
     this.refreshView(true);
   }
 
-  /**
-   * Applies a temporary sort override (e.g., manually triggered)
-   * Does NOT persist to user preference.
-   */
   applySort(key) {
     this.activeSort = { key };
     this.refreshView(true);
   }
 
-  /**
-   * Sets the user's global library sort preference.
-   * Updates the view immediately.
-   */
   setUserSort(key) {
     this.userSortPreference = key;
     this.activeSort = { key };
     this.refreshView(true);
   }
 
-  /**
-   * Restores the user's preferred sort.
-   * Kept for compatibility, though showMediaLibrary() is preferred for navigation.
-   */
   restoreUserSort() {
     this.activeSort = { key: this.userSortPreference };
     this.refreshView(true);

@@ -2,7 +2,6 @@
   import { library } from "../../library.svelte.js";
   import { GROUPER_LABELS } from "../../logic/groupers.js";
   import { SORTER_LABELS } from "../../logic/sorters.js";
-  import NavTabs from "../navigation/NavTabs.svelte";
   import SidebarItem from "./SidebarItem.svelte";
 
   let isSortMenuOpen = $state(false);
@@ -43,7 +42,7 @@
 </script>
 
 <div class="sidebar-container">
-  <NavTabs />
+  <!-- NavTabs removed from here, now in App.svelte -->
 
   <div class="sidebar-nav">
     <button class="nav-button" onclick={handleMediaLibrary}>
@@ -119,6 +118,7 @@
     display: flex;
     flex-direction: column;
     background-color: var(--background-drawer);
+    border-top: 1px solid rgba(255, 255, 255, 0.05); /* Visual separation from Nav */
   }
 
   .sidebar-nav {

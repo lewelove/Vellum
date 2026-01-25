@@ -9,6 +9,7 @@
   class="nav-button" 
   class:active={isActive} 
   onclick={() => setTab(tab)}
+  title={tab}
 >
   <img src="/icons/{icon}" alt={tab} class="nav-icon" />
 </button>

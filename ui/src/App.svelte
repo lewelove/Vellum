@@ -6,6 +6,7 @@
   import AlbumGrid from "$modules/album-grid/AlbumGrid.svelte";
   import Sidebar from "$modules/sidebar/Sidebar.svelte";
   import QueueView from "$modules/queue/QueueView.svelte";
+  import NavTabs from "$modules/navigation/NavTabs.svelte";
 
   let themeStyles = $derived(getThemeVariables());
 
@@ -15,17 +16,25 @@
 </script>
 
 <main style={themeStyles}>
-  <aside class="sidebar-pane">
-    <Sidebar />
-  </aside>
-  
-  <section class="content-pane">
-    {#if nav.activeTab === 'home'}
+  <!-- Fixed Navigation Top-Left -->
+  <nav class="nav-anchor">
+    <NavTabs />
+  </nav>
+
+  {#if nav.activeTab === 'home'}
+    <aside class="sidebar-pane">
+      <Sidebar />
+    </aside>
+    
+    <section class="content-pane">
       <AlbumGrid />
-    {:else if nav.activeTab === 'queue'}
+    </section>
+    
+  {:else if nav.activeTab === 'queue'}
+    <section class="fullscreen-pane">
       <QueueView />
-    {/if}
-  </section>
+    </section>
+  {/if}
 </main>
 
 <style>
@@ -34,20 +43,46 @@
     width: 100vw;
     height: 100vh;
     overflow: hidden;
+    position: relative;
     background-color: var(--background-main);
   }
 
+  .nav-anchor {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 150px;
+    height: 80px; 
+    z-index: 50; /* Above all content */
+  }
+
   .sidebar-pane {
-    flex: 0 0 150px; 
-    height: 100%;
+    position: absolute;
+    top: 80px; /* Below nav-anchor */
+    left: 0;
+    width: 150px;
+    bottom: 0;
     border-right: 1px solid var(--border-muted);
-    z-index: 10;
+    z-index: 40;
+    background-color: var(--background-drawer);
   }
 
   .content-pane {
-    flex: 1;
-    height: 100%;
-    position: relative;
+    position: absolute;
+    top: 0;
+    left: 150px;
+    right: 0;
+    bottom: 0;
     overflow: hidden;
+    z-index: 1;
+  }
+
+  .fullscreen-pane {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
   }
 </style>

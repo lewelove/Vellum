@@ -14,6 +14,7 @@
     style="{coverUrl ? `background-image: url('${coverUrl}');` : ''}"
     {onclick}
     tabindex={mode === "info" ? -1 : 0}
+    aria-label="Select album {album.title}"
   ></button>
   
   <div class="album-info" class:ghost={mode === "cover"}>
