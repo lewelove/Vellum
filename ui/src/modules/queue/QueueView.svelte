@@ -10,7 +10,7 @@
 
 <div class="queue-view-container">
   {#if coverUrl}
-    <div class="fullscreen-art">
+    <div class="fullscreen-cover">
       <img src={coverUrl} alt="Now Playing" class="now-playing-cover" />
     </div>
   {:else}
@@ -25,20 +25,20 @@
     width: 100%;
     height: 100%;
     position: relative;
-    background-color: var(--background-main);
+    background-color: var(--background-drawer);
     overflow: hidden;
     display: flex;
     align-items: center;
     justify-content: center;
   }
 
-  .fullscreen-art {
+  .fullscreen-cover {
     width: 100vw;
     height: 100vh;
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: var(--background-main);
+    background-color: var(--background-drawer);
   }
 
   .now-playing-cover {
