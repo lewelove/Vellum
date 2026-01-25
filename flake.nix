@@ -1,5 +1,5 @@
 {
-  description = "MPF2K Monorepo Development Environment";
+  description = "Eluxum Development Environment";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -28,8 +28,8 @@
           uvloop
         ]);
 
-        mpf2k-cli = pkgs.writeShellApplication {
-          name = "mpf2k";
+        eluxum-cli = pkgs.writeShellApplication {
+          name = "eluxum";
           runtimeInputs = [ pythonEnv pkgs.nodejs_22 pkgs.git pkgs.cargo pkgs.rustc pkgs.pkg-config pkgs.openssl ];
           text = ''
             ROOT=$(git rev-parse --show-toplevel)
@@ -50,15 +50,13 @@
                 cd "$ROOT" && python -m cli.generate "$@"
                 ;;
               generate_rs)
-                # Compiles and runs the Rust implementation
-                # Passes all arguments ($@) to the rust binary
                 cd "$ROOT/cli_rs" && cargo run --release -- "$@"
                 ;;
               export)
                 cd "$ROOT" && python -m cli.export "$@"
                 ;;
               help|--help|-h)
-                echo "MPF2K CLI Commands:"
+                echo "Eluxum CLI Commands:"
                 echo "  ui          : Start UI Dev Server"
                 echo "  server      : Start Backend (Live State Manager)"
                 echo "  update      : Compile metadata locks & Hot Reload Server"
@@ -79,8 +77,7 @@
           nodejs_22
           pkg-config
           openssl
-          mpf2k-cli
-          # Rust Toolchain
+          eluxum-cli
           cargo
           rustc
           rust-analyzer

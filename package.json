@@ -1,5 +1,5 @@
 {
-  "name": "mpf2k-monorepo",
+  "name": "eluxum",
   "private": true,
   "workspaces": [
     "ui"
