@@ -16,7 +16,7 @@
 </script>
 
 <main style={themeStyles}>
-  <!-- Fixed Navigation Top-Left -->
+  <!-- Persistent nav sits on top of everything at the fixed width -->
   <nav class="nav-anchor">
     <NavTabs />
   </nav>
@@ -39,11 +39,10 @@
 
 <style>
   main {
-    display: flex;
+    position: relative;
     width: 100vw;
     height: 100vh;
     overflow: hidden;
-    position: relative;
     background-color: var(--background-main);
   }
 
@@ -53,18 +52,19 @@
     left: 0;
     width: 150px;
     height: 80px; 
-    z-index: 50; /* Above all content */
+    z-index: 100;
   }
 
   .sidebar-pane {
     position: absolute;
-    top: 80px; /* Below nav-anchor */
+    top: 80px; 
     left: 0;
     width: 150px;
     bottom: 0;
     border-right: 1px solid var(--border-muted);
-    z-index: 40;
+    z-index: 10;
     background-color: var(--background-drawer);
+    overflow-y: auto;
   }
 
   .content-pane {
@@ -74,15 +74,14 @@
     right: 0;
     bottom: 0;
     overflow: hidden;
-    z-index: 1;
   }
 
   .fullscreen-pane {
     position: absolute;
     top: 0;
     left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 5;
   }
 </style>

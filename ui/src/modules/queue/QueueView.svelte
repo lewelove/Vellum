@@ -2,7 +2,6 @@
   import { player } from "../player.svelte.js";
   import { pica } from "../../pica.js";
 
-  // Fix: Explicit state for canvas element reference to satisfy Svelte 5 strictness
   let canvasEl = $state(null);
   let containerHeight = $state(0);
   
@@ -41,9 +40,7 @@
   }
 
   $effect(() => {
-    // Svelte 5 effect tracks dependencies. 
-    // canvasEl is now a state, so changes to it (mounting) will trigger this.
-    if (canvasEl) {
+    if (canvasEl && coverUrl && containerHeight > 0) {
       renderBackground(coverUrl, containerHeight);
     }
   });
@@ -77,6 +74,9 @@
     position: relative;
     background-color: var(--background-main);
     overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .background-canvas {
@@ -84,19 +84,16 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    height: 110%; 
+    height: 120%; 
     width: auto;
-    opacity: 0.4;
-    filter: blur(60px);
+    opacity: 0.3;
+    filter: blur(80px);
     z-index: 0;
+    pointer-events: none;
   }
 
   .foreground-content {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
+    position: relative;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -105,42 +102,41 @@
   }
 
   .now-playing-cover {
-    width: 40vh;
-    height: 40vh;
+    width: 60vh;
+    height: 60vh;
+    max-width: 80vw;
     object-fit: cover;
-    box-shadow: 0 20px 50px rgba(0,0,0,0.5);
-    margin-bottom: 32px;
+    box-shadow: 0 40px 100px rgba(0,0,0,0.7);
+    margin-bottom: 40px;
+    background-color: #222;
   }
 
   .track-info {
     text-align: center;
-    max-width: 600px;
+    max-width: 80%;
   }
 
   .track-title {
-    font-size: 24px;
+    font-size: 32px;
     font-weight: 500;
     color: var(--text-main);
-    margin: 0 0 8px 0;
-    text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    margin: 0 0 12px 0;
+    text-shadow: 0 4px 12px rgba(0,0,0,0.8);
   }
 
   .track-artist {
-    font-size: 18px;
+    font-size: 22px;
     font-weight: 400;
     color: var(--text-muted);
     margin: 0;
-    text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    text-shadow: 0 4px 12px rgba(0,0,0,0.8);
   }
 
   .empty-state {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
     color: var(--text-muted);
-    font-size: 14px;
-    letter-spacing: 0.1em;
+    font-size: 18px;
+    letter-spacing: 0.3em;
     text-transform: uppercase;
+    font-weight: 500;
   }
 </style>

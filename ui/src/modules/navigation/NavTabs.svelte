@@ -14,7 +14,6 @@
     justify-content: center;
     align-items: center;
     gap: 12px;
-    /* Removed padding to ensure it fits within the 150px parent width without overflow */
     width: 100%;
     height: 100%;
     background-color: var(--background-drawer);
