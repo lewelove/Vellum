@@ -2,17 +2,15 @@
   import { library } from "../../library.svelte.js";
   import { GROUPER_LABELS } from "../../logic/groupers.js";
   import { SORTER_LABELS } from "../../logic/sorters.js";
+  import NavTabs from "../navigation/NavTabs.svelte";
   import SidebarItem from "./SidebarItem.svelte";
 
   let isSortMenuOpen = $state(false);
   let isGroupMenuOpen = $state(false);
 
   let groupLabel = $derived(GROUPER_LABELS[library.activeSidebarGrouper] || "Unknown");
-  // The label displayed depends on the *user's preference*, not necessarily the active override 
-  // (though usually they match in Media Library view).
   let sortLabel = $derived(SORTER_LABELS[library.userSortPreference] || "Unknown");
 
-  // Derive items based on active grouper
   let items = $derived(library.getSidebarGroup(library.activeSidebarGrouper));
 
   function handleMediaLibrary() {
@@ -45,6 +43,8 @@
 </script>
 
 <div class="sidebar-container">
+  <NavTabs />
+
   <div class="sidebar-nav">
     <button class="nav-button" onclick={handleMediaLibrary}>
       Media Library
@@ -124,7 +124,7 @@
   .sidebar-nav {
     display: flex;
     flex-direction: column;
-    padding: 24px 0 12px 0;
+    padding: 12px 0 12px 0;
   }
 
   .nav-button {
