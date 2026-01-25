@@ -1,7 +1,6 @@
 ## Eluxum
-`...postum avion, wizard kiss and all be gone...`
 
----
+`...postum avion, wizard kiss and all be gone...`
 
 Plaintext driven, local-first album centric library gallery and web-based `mpd` client.
 
