@@ -7,13 +7,10 @@ export class GridController {
   scroll = new ScrollEngine();
   viewportHeight = $state(0);
 
-  // 1. Raw Data Chunking
   allRows = $derived(this.layout.chunk(library.albums));
 
-  // 2. Drawer Logic
   expandedRowIndex = $derived.by(() => {
     if (!library.expandedAlbumId) return -1;
-    // Find row index: floor(flatIndex / cols)
     const flatIndex = library.albums.findIndex(a => a.id === library.expandedAlbumId);
     if (flatIndex === -1) return -1;
     return Math.floor(flatIndex / this.layout.cols);
@@ -28,7 +25,6 @@ export class GridController {
 
   drawerHeight = $derived(this.drawerInfo ? this.drawerInfo.height : 0);
 
-  // 3. Scroll Limits Logic (Restored)
   // Convert drawer pixels to "row units" to integrate with slot-based logic
   drawerRows = $derived(this.drawerHeight / this.layout.rowHeight);
   
@@ -41,13 +37,11 @@ export class GridController {
   // Clamp max slot: Stop scrolling when the last item hits the bottom of the viewport
   maxSlots = $derived(Math.max(0, (this.totalRowsCount + 1 - this.visibleRows)));
 
-  // 4. Content Height
   // Includes the "+1" virtual row buffer at the end
   contentHeight = $derived(
     this.layout.getTotalHeight(this.allRows.length, this.drawerInfo) + this.layout.rowHeight
   );
 
-  // 5. Virtual Window Calculation
   virtualRows = $derived.by(() => {
     // Determine range to render based on current scroll position
     const { start, end } = this.layout.getVisibleIndices(

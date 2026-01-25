@@ -15,7 +15,6 @@ def run_export():
     with open(config_path, "rb") as f:
         config = tomllib.load(f)
 
-    # Configuration extraction
     lib_root = Path(config["storage"]["library_root"]).expanduser().resolve()
     export_root = Path(config["storage"]["library_export"]).expanduser().resolve()
     
@@ -25,7 +24,6 @@ def run_export():
     
     export_root.mkdir(parents=True, exist_ok=True)
 
-    # Discovery of album directories
     album_folders = [p.parent for p in lib_root.rglob("metadata.toml")]
 
     print(f"Exporting {len(album_folders)} albums to: {export_root}")
@@ -34,17 +32,14 @@ def run_export():
         meta_path = album_path / "metadata.toml"
         files_path = album_path / "files.toml"
 
-        # 1. THE ECHO: Diagnostic requirement to identify crash location
         tqdm.write(f"Processing: {album_path.relative_to(lib_root)}")
 
-        # 2. LOAD MANIFESTS: Intentional crash on malformed TOML
         with open(meta_path, "rb") as f:
             meta_data = tomllib.load(f)
             
         with open(files_path, "rb") as f:
             files_data = tomllib.load(f)
 
-        # 3. SLUG GENERATION: Based on grouping logic in config
         meta_album = meta_data.get("album", {})
         slug_components = []
         for key in group_keys:
@@ -54,11 +49,8 @@ def run_export():
         
         slug = generate_filename(slug_components, naming_sep)
 
-        # 4. FLAT MERGING: No namespaces, merging metadata and physics
-        # Merge Album keys
         merged_album = {**meta_album, **files_data.get("album", {})}
         
-        # Merge Track keys by zipping indices
         m_tracks = meta_data.get("tracks", [])
         f_tracks = files_data.get("tracks", [])
         merged_tracks = []
@@ -66,7 +58,6 @@ def run_export():
         for m_t, f_t in zip(m_tracks, f_tracks):
             merged_tracks.append({**m_t, **f_t})
 
-        # 5. METADATA EXPORT: metadata+files_{slug}.toml
         export_toml_path = export_root / f"metadata+files_{slug}.toml"
         with open(export_toml_path, "w", encoding="utf-8") as f:
             f.write("[album]\n")
@@ -75,7 +66,6 @@ def run_export():
                 f.write("[[tracks]]\n")
                 f.write("\n".join(render_toml_block(t)) + "\n\n")
 
-        # 6. COVER EXPORT: cover_{slug}.ext
         cover_rel = files_data.get("album", {}).get("cover_path")
         if cover_rel:
             src_cover = album_path / cover_rel

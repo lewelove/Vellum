@@ -23,10 +23,8 @@ def generate_thumbnail(
     """
     try:
         with Image.open(source_path) as img:
-            # 1. Convert to RGB (handles RGBA, P, etc.)
             img = img.convert("RGB")
             
-            # 2. Center Crop Logic (1:1 Aspect Ratio)
             width, height = img.size
             short_side = min(width, height)
             
@@ -37,14 +35,11 @@ def generate_thumbnail(
             
             img = img.crop((left, top, right, bottom))
             
-            # 3. Resize
             resample_method = get_resampling_method(resampling)
             img = img.resize((size, size), resample_method)
             
-            # 4. Save as PNG (Always Lossless)
             dest_path.parent.mkdir(parents=True, exist_ok=True)
             
-            # optimize=True allows PIL to do basic zlib optimization (fast)
             img.save(dest_path, "PNG", optimize=True)
             
     except Exception as e:

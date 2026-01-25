@@ -12,7 +12,6 @@ def render_toml_block(pool: dict, layout: list = None) -> list:
     """
     lines = []
     
-    # 1. Partition keys
     explicit_keys = get_layout_keys(layout) if layout else set()
     appendix_keys = sorted([k for k in pool.keys() if k not in explicit_keys])
     

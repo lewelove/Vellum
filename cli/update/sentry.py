@@ -29,22 +29,18 @@ def verify_trust(album_root: Path, force: bool = False) -> TrustState:
         return TrustState.FORCED
 
     meta_path = album_root / "metadata.toml"
-    # We prioritize the JSON lock as it is the SSOT for the Aggregator
     lock_path = album_root / "metadata.lock.json"
     
     if not lock_path.exists():
-        # Fallback: If only TOML exists, we treat it as MISSING JSON -> Recompile
         return TrustState.MISSING
 
     try:
-        # JSON load is much faster than TOML
         import json
         with open(lock_path, "rb") as f:
             lock_data = json.load(f)
     except Exception:
         return TrustState.MISSING
 
-    # --- METADATA INTENT CHECK ---
     lock_meta_hash = lock_data.get("album", {}).get("metadata_toml_hash")
     lock_meta_mtime = lock_data.get("album", {}).get("metadata_toml_mtime", 0)
     
@@ -54,7 +50,6 @@ def verify_trust(album_root: Path, force: bool = False) -> TrustState:
     except OSError:
         pass
 
-    # Optimization: Trust mtime if it matches exactly
     is_mtime_valid = (current_mtime != 0 and current_mtime == lock_meta_mtime)
     
     if not is_mtime_valid:
@@ -62,7 +57,6 @@ def verify_trust(album_root: Path, force: bool = False) -> TrustState:
         if lock_meta_hash != current_meta_hash:
             return TrustState.BROKEN_INTENT
 
-    # --- PHYSICS CHECK ---
     for track in lock_data.get("tracks", []):
         track_path_str = track.get("track_path", "")
         if not track_path_str:
@@ -84,7 +78,6 @@ def verify_trust(album_root: Path, force: bool = False) -> TrustState:
         if curr_mtime != cached_mtime or curr_size != cached_size:
             return TrustState.BROKEN_PHYSICS
 
-    # --- ASSETS CHECK ---
     cover_rel = lock_data.get("album", {}).get("cover_path")
     if cover_rel and cover_rel != "default_cover.png":
         cover_path = album_root / cover_rel

@@ -34,7 +34,6 @@ def notify_server(album_root: Path):
     try:
         httpx.post(url, params={"path": str(album_root)}, timeout=0.5)
     except httpx.RequestError:
-        # Server might be down, which is fine for offline updates
         pass
 
 def run_update():
@@ -66,11 +65,9 @@ def run_update():
         album_root = anchor.parent
         album_path_str = str(album_root)
         
-        # --- SENTRY FAST CHECK (Folder Mtime) ---
         try:
             folder_mtime = int(os.path.getmtime(album_root))
             meta_mtime = int(os.path.getmtime(anchor))
-            # We use the max of both to ensure any change triggers the deep check
             current_mtime_sum = folder_mtime + meta_mtime
         except OSError:
             current_mtime_sum = 0
@@ -84,19 +81,15 @@ def run_update():
                 should_process = True
 
         if not should_process:
-            # Cache hit
             new_cache[album_path_str] = cached_info
             skips_count += 1
             continue
 
-        # --- DEEP CHECK (Compiler Logic) ---
         trust = verify_trust(album_root, force=force_mode)
         
         if trust != TrustState.VALID:
             compile_album(album_root, supported_exts, library_root=lib_root)
             
-            # --- HOT RELOAD TRIGGER ---
-            # Notify server immediately after compilation
             notify_server(album_root)
             
             updates_count += 1

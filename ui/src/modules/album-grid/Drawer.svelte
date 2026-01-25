@@ -18,10 +18,8 @@
     mode = "ui" // "ui" or "text"
   } = $props();
 
-  // High-Res Asset URL
   let coverUrl =$derived(`/api/assets/${encodeURIComponent(activeAlbum.id)}/cover?h=${activeAlbum.cover_hash}`);
 
-  // Calculate horizontal center of the active album relative to the drawer's width
   let chevronLeft = $derived((activeIndexInRow * (cardSize + gap)) + (cardSize / 2));
 
   async function handlePlay() {
@@ -34,7 +32,6 @@
 </script>
 
 <div class="drawer-container" style="width: {width}px; height: {height}px;">
-  <!-- Spacer Band (Alignment + Pointer) -->
   <div class="pointer-band" class:ghost={mode === "text"} style="height: {bandA + bandB}px;">
     <div 
       class="chevron-pointer" 
@@ -42,12 +39,6 @@
     ></div>
   </div>
 
-  <!-- 
-    Content Area 
-    Logic: 
-    1. mode="text" (Background) provides the SOLID color for the font engine.
-    2. mode="ui" (Foreground) is TRANSPARENT so we can see the text behind it.
-  -->
   <div 
     class="drawer-content" 
     class:bg-fill={mode === "text"}
@@ -56,7 +47,6 @@
   >
       
       <div class="split-layout">
-        <!-- LEFT: Visual Column -->
         <div class="cover-col" class:ghost={mode === "text"}>
           <SmartImage 
             src={coverUrl} 
@@ -65,7 +55,6 @@
           />
         </div>
 
-        <!-- RIGHT: Information Column -->
         <div class="info-col">
           <div class="header-text">
             <div class="title-row">
@@ -141,18 +130,15 @@
     box-sizing: border-box;
     padding: var(--drawer-padding-y) var(--drawer-padding-x);
     overflow: hidden;
-    /* Default state is transparent to let background layer through */
     background-color: transparent;
     border: 1px solid transparent;
   }
 
-  /* The background pass pass provides the fill and the border */
   .bg-fill {
     background-color: var(--background-drawer);
     border: 1px solid var(--border-muted);
   }
 
-  /* The foreground pass pass is just a container for cover/buttons */
   .ui-frame {
     background-color: transparent;
     border: 1px solid transparent;

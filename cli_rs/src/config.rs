@@ -2,7 +2,7 @@ use serde::Deserialize;
 use std::collections::HashMap;
 
 #[derive(Debug, Deserialize)]
-#[allow(dead_code)] // Silences warnings for fields we don't use yet
+#[allow(dead_code)]
 pub struct AppConfig {
     pub storage: StorageConfig,
     pub generate: Option<GenerateConfig>,

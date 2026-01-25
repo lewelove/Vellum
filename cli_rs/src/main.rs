@@ -10,16 +10,13 @@ use config::AppConfig;
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
-    /// Optional target path to generate metadata for.
+
     #[arg(value_name = "PATH")]
     path: Option<String>,
 
-    /// Force regeneration of all metadata, ignoring existing files
     #[arg(long, short)]
     force: bool,
 
-    /// Number of parallel threads (Default: logical CPUs). 
-    /// Set to 1 for HDDs to prevent disk thrashing.
     #[arg(long, short = 'j')]
     jobs: Option<usize>,
 }
@@ -67,7 +64,6 @@ fn resolve_library_root(config: &AppConfig, cli_path: Option<String>) -> Result<
 fn main() -> Result<()> {
     let args = Args::parse();
 
-    // Global Thread Pool Setup
     if let Some(jobs) = args.jobs {
         rayon::ThreadPoolBuilder::new()
             .num_threads(jobs)
@@ -80,6 +76,5 @@ fn main() -> Result<()> {
     
     println!("Target Root: {:?}", target_root);
 
-    // Dispatch to the Generate Module
     generate::run(target_root, &config, args.force)
 }

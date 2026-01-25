@@ -40,11 +40,8 @@ def compress(
     if not raw_tracks: 
         return {}, []
 
-    # 1. Analyze constraints
     forced_track_keys = get_layout_keys(tracks_layout) if tracks_layout else set()
     
-    # 2. Identify intersection of keys (Common Keys potential candidates)
-    # We only care about keys present in the first track, as a key must be in ALL tracks to be promoted.
     first_track = raw_tracks[0]
     candidate_keys = set(first_track.keys())
     
@@ -54,21 +51,16 @@ def compress(
     album_pool = {}
     keys_to_promote = []
     
-    # 3. Validation of Equality
     for key in candidate_keys:
-        # Check strict equality across all tracks
         is_identical = all(t[key] == first_track[key] for t in raw_tracks)
         
         if is_identical:
-            # Rule 4: If forced, do not promote
             if key in forced_track_keys:
                 continue
                 
-            # Rule 3: Promote
             keys_to_promote.append(key)
             album_pool[key] = first_track[key]
 
-    # 4. Construct Result
     final_track_pools = []
     for track in raw_tracks:
         t_pool = track.copy()

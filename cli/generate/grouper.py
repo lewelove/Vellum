@@ -95,7 +95,6 @@ def resolve_anchor(tracks: List[Dict[str, Any]], library_root: str) -> Tuple[Opt
     for p in paths:
         try:
             rel = p.relative_to(anchor)
-            # "." is depth 0. parts returns tuple of path segments.
             if rel == Path("."):
                 depth = 0
             else:

@@ -1,17 +1,12 @@
 <script>
   let { album, active, onclick, mode = "full" } = $props();
 
-  // New Content Addressable URL
   let coverUrl = $derived(album.cover_hash 
     ? `/api/covers/${album.cover_hash}.png` 
     : "");
 </script>
 
 <div class="album-unit">
-  <!-- 
-    GHOSTING: maintains layout space even when hidden to ensure the text 
-    in the background layer aligns perfectly with the covers in the foreground.
-  -->
   <button 
     class="album-cover" 
     class:active

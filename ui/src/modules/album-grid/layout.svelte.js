@@ -21,8 +21,6 @@ export class LayoutManager {
   cols = $derived(Math.floor((Math.max(0, this.containerWidth - 40) + this.gapX) / (this.cardSize + this.gapX)) || 1);
   gridWidth = $derived(Math.floor((this.cols * this.cardSize) + ((this.cols - 1) * this.gapX)));
 
-  // --- DRAWER LAYOUT ENGINE ---
-  
   drawerTrackWidth = $derived(
     this.containerWidth 
     - (theme.drawer["drawer-padding-x"] * 2) 
@@ -45,17 +43,14 @@ export class LayoutManager {
     const chevronHeight = theme.albumGrid["drawer-chevron-height"];
     const gapMain = theme.albumGrid["drawer-gap-main"]; 
     
-    // Spacers (Band A + Band B)
     const bandA = gapMain; 
     const bandB = chevronHeight; 
     const overhead = bandA + bandB;
     
     const paddingTotal = dSettings["drawer-padding-y"] * 2;
     
-    // 1. Calculate Left Column Height (Fixed Cover)
     const leftColHeight = dSettings["drawer-cover-size"];
 
-    // 2. Calculate Right Column Height (Header + Tracks)
     const titleH = dSettings["drawer-font-size-album"] * 1.3;
     const artistH = dSettings["drawer-font-size-artist"] * 1.3;
     const headerGap = 24; 
@@ -66,8 +61,7 @@ export class LayoutManager {
     
     const rightColHeight = headerBlock + tracksBlock;
     
-    // 3. Natural Height (Max of cols + Padding)
-    // Fix: +2px accounts for the 1px top/bottom borders on the drawer content box
+    // +2px accounts for the 1px top/bottom borders on the drawer content box
     const naturalContentHeight = paddingTotal + Math.max(leftColHeight, rightColHeight) + 2;
     
     const totalHeight = overhead + naturalContentHeight;
@@ -79,11 +73,9 @@ export class LayoutManager {
       trackCols: this.trackCols,
       chevronWidth: theme.albumGrid["drawer-chevron-width"],
       bandCHeight: naturalContentHeight,
-      drawerCoverSize: dSettings["drawer-cover-size"] // EXPOSED HERE
+      drawerCoverSize: dSettings["drawer-cover-size"]
     };
   }
-
-  // --- VIRTUALIZATION HELPERS ---
 
   getTotalHeight(rowCount, drawerInfo) {
     return (rowCount * this.rowHeight) + (drawerInfo ? drawerInfo.height : 0) + this.topOffset;

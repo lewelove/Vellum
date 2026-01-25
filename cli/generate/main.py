@@ -3,7 +3,6 @@ import sys
 from pathlib import Path
 from tqdm import tqdm
 
-# from cli.update.main import run_update  <-- REMOVED to break cycle
 from .extractor import PhysicalExtractor
 from .engine import render_toml_block
 from .compressor import compress
@@ -30,7 +29,6 @@ def extract_cover_from_track(track_path: Path, destination_base: Path):
         pass
 
 def run_generate():
-    # Defer import to avoid circular dependency with cli.update
     from cli.update.main import run_update
 
     config_path = Path("config.toml")
@@ -38,7 +36,6 @@ def run_generate():
         print("Error: config.toml not found.")
         return
 
-    # Parse Flags
     force_mode = "--force" in sys.argv
 
     with open(config_path, "rb") as f:
@@ -54,18 +51,14 @@ def run_generate():
     album_layout = compress_cfg.get("album", {}).get("layout", [])
     tracks_layout = compress_cfg.get("tracks", {}).get("layout", [])
 
-    # 1. First, ensure existing locks are valid
     print("Refreshing existing locks...")
     run_update()
 
-    # 2. Scanning
     print(f"Scanning library at: {lib_root}")
     files_found = []
     for ext in supported_exts:
         files_found.extend(lib_root.rglob(f"*{ext}"))
 
-    # 3. Filtering (Incremental Mode)
-    # If not force, we only process files NOT already tracked in a metadata.lock
     if not force_mode:
         tracked_paths = set()
         lock_files = list(lib_root.rglob("metadata.lock"))
@@ -88,7 +81,6 @@ def run_generate():
         print("No new files to process.")
         return
 
-    # 4. Harvesting
     raw_inventory = []
     for file_path in tqdm(files_to_process, desc="Harvesting Tags", unit="file"):
         audio_obj, tags = PhysicalExtractor.get_audio_payload(file_path)
@@ -101,12 +93,10 @@ def run_generate():
         print("No tags detected in new files.")
         return
 
-    # 5. Grouping
     print("Grouping tracks...")
     album_buckets = group_tracks(raw_inventory, grouping_keys)
     print(f"Found {len(album_buckets)} album groups to generate.")
 
-    # 6. Metadata Generation
     for group_id, tracks in tqdm(album_buckets.items(), desc="Generating Metadata", unit="album"):
         anchor_path, is_valid = resolve_anchor(tracks, lib_root)
         
@@ -116,7 +106,6 @@ def run_generate():
 
         sorted_tracks = sort_album_tracks(tracks)
 
-        # Remove internal helper before compression
         clean_tracks = []
         for t in sorted_tracks:
             clean = t.copy()
@@ -124,7 +113,6 @@ def run_generate():
                 del clean["track_path_absolute"]
             clean_tracks.append(clean)
 
-        # Compress tags based on equality and tracks_layout constraints
         album_pool, track_pools = compress(
             clean_tracks, 
             tracks_layout=tracks_layout
@@ -140,15 +128,10 @@ def run_generate():
                 f.write("[[tracks]]\n")
                 f.write("\n".join(render_toml_block(tp, tracks_layout)) + "\n\n")
 
-        # 7. Cover Extraction
-        # cover_candidates = ["cover.jpg", "cover.png", "folder.jpg", "folder.png"]
-        # has_cover = any((anchor_path / c).exists() for c in cover_candidates)
-        
         if sorted_tracks:
             first_track_path = Path(sorted_tracks[0]["track_path_absolute"])
             extract_cover_from_track(first_track_path, anchor_path / "cover")
 
-    # 8. Final Lock Generation
     print("\nFinalizing locks for new metadata...")
     run_update()
 

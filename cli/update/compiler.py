@@ -16,19 +16,15 @@ def validate_layout(config):
     Validates that [lock.layout] only uses keys registered in the system.
     Returns the master lists of keys to calculate.
     """
-    # 1. Retrieve Available Keys from Registry
     A_TAGS, A_HELPERS, T_TAGS, T_HELPERS = get_registered_keys()
 
-    # 2. Build Allowed Sets
     allowed_album = set(A_TAGS) | set(A_HELPERS)
     allowed_tracks = set(T_TAGS) | set(T_HELPERS)
 
-    # 3. Retrieve Requested Keys from Layout
     layout_cfg = config.get("lock", {}).get("layout", {})
     layout_album_keys = get_layout_keys(layout_cfg.get("album", []))
     layout_track_keys = get_layout_keys(layout_cfg.get("tracks", []))
     
-    # 4. Compare
     unknown_album = layout_album_keys - allowed_album
     unknown_tracks = layout_track_keys - allowed_tracks
     
@@ -45,7 +41,6 @@ def validate_layout(config):
     return A_TAGS, A_HELPERS, T_TAGS, T_HELPERS
 
 def compile_album(album_root: Path, supported_exts: list, library_root: Path = None):
-    # --- CONFIG & REGISTRY SETUP ---
     config_path = Path("config.toml")
     if not config_path.exists():
         return 
@@ -53,21 +48,17 @@ def compile_album(album_root: Path, supported_exts: list, library_root: Path = N
     with open(config_path, "rb") as f:
         config = tomllib.load(f)
 
-    # Init Registry (only runs once)
     ext_folder = config.get("compiler", {}).get("extensions_folder")
     ext_config = config.get("compiler", {}).get("extensions", {})
     setup_registry(ext_folder, ext_config)
 
-    # Build & Validate Lists
     A_TAGS, A_HELPERS, T_TAGS, T_HELPERS = validate_layout(config)
     
-    # Standard Setup
     if not library_root:
         library_root = album_root.parent 
 
     meta_path = album_root / "metadata.toml"
     
-    # --- PREAMBLE: Hashing & Mtime ---
     try:
         meta_mtime = int(os.path.getmtime(meta_path))
     except OSError:
@@ -81,10 +72,8 @@ def compile_album(album_root: Path, supported_exts: list, library_root: Path = N
             sha256.update(chunk)
     meta_hash = sha256.hexdigest()
 
-    # --- PHASE 1: THE SPINE ---
     physical_spine = scan_physical_spine(album_root, supported_exts)
 
-    # --- PHASE 2: INFLATION ---
     album_defaults = raw_meta.get("album", {})
     raw_tracks_source = raw_meta.get("tracks", [])
     
@@ -97,7 +86,6 @@ def compile_album(album_root: Path, supported_exts: list, library_root: Path = N
         for t in raw_tracks_source:
             inflated_tracks.append({**album_defaults, **t})
 
-    # --- PHASE 3: DISCNUMBER & TRACKNUMBER RESOLUTION ---
     disc_counts = {}
     for track in inflated_tracks:
         if "DISCNUMBER" not in track: track["DISCNUMBER"] = "1"
@@ -121,7 +109,6 @@ def compile_album(album_root: Path, supported_exts: list, library_root: Path = N
 
     inflated_tracks.sort(key=lambda t: (parse_int(t["DISCNUMBER"]), parse_int(t["TRACKNUMBER"])))
 
-    # --- PHASE 4: TRACK_PATH RESOLUTION (ZIPPER) & NORMALIZATION ---
     zip_tracks(inflated_tracks, physical_spine)
     
     curr_disc = None
@@ -134,9 +121,6 @@ def compile_album(album_root: Path, supported_exts: list, library_root: Path = N
         curr_idx += 1
         track["TRACKNUMBER"] = str(curr_idx)
 
-    # --- PHASE 5: STANDARD KEY RESOLUTION ---
-    
-    # A. TRACK RESOLUTION
     final_tracks = []
     
     for track_source in inflated_tracks:
@@ -157,7 +141,6 @@ def compile_album(album_root: Path, supported_exts: list, library_root: Path = N
             "audio_obj": audio_obj
         }
 
-        # Resolve Tags
         for key in T_TAGS:
             resolver = find_resolver(key, "TRACK_TAGS")
             if resolver:
@@ -165,7 +148,6 @@ def compile_album(album_root: Path, supported_exts: list, library_root: Path = N
             else:
                 final_track[key] = str(track_source.get(key, ""))
 
-        # Resolve Helpers
         for key in T_HELPERS:
             resolver = find_resolver(key, "TRACK_HELPERS")
             if resolver:
@@ -176,7 +158,6 @@ def compile_album(album_root: Path, supported_exts: list, library_root: Path = N
         if audio_obj: del audio_obj
         final_tracks.append(final_track)
 
-    # B. ALBUM RESOLUTION
     final_album = {}
     unique_discs = set(t["DISCNUMBER"] for t in final_tracks)
     
@@ -205,7 +186,6 @@ def compile_album(album_root: Path, supported_exts: list, library_root: Path = N
         else:
             final_album[key] = ""
 
-    # --- PHASE 6: THUMBNAIL GENERATION ---
     cover_hash = final_album.get("cover_hash")
     cover_rel_path = final_album.get("cover_path")
     
@@ -213,7 +193,6 @@ def compile_album(album_root: Path, supported_exts: list, library_root: Path = N
         cache_folder_str = config.get("storage", {}).get("thumbnail_cache_folder")
         if cache_folder_str:
             cache_folder = Path(cache_folder_str).expanduser().resolve()
-            # CHANGED: Use .png extension
             dest_thumb = cache_folder / f"{cover_hash}.png"
             
             if not dest_thumb.exists():
@@ -227,6 +206,5 @@ def compile_album(album_root: Path, supported_exts: list, library_root: Path = N
                         resampling=theme_cfg.get("thumbnail_resampling", "LANCZOS")
                     )
 
-    # --- PHASE 7: OUTPUT ---
     layout_cfg = config.get("lock", {}).get("layout", {})
     write_lock(album_root, final_album, final_tracks, layout_cfg)

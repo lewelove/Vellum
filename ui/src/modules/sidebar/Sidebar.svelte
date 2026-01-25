@@ -45,7 +45,6 @@
 </script>
 
 <div class="sidebar-container">
-  <!-- 1. Static Navigation -->
   <div class="sidebar-nav">
     <button class="nav-button" onclick={handleMediaLibrary}>
       Media Library
@@ -55,10 +54,8 @@
     </button>
   </div>
 
-  <!-- 2. Controls Section -->
   <div class="sidebar-controls">
     
-    <!-- Sort Toggle -->
     <div class="control-wrapper">
       <button class="control-toggle" onclick={toggleSortMenu} class:active={isSortMenuOpen}>
         <span class="control-label">Sort: {sortLabel}</span>
@@ -80,7 +77,6 @@
       {/if}
     </div>
 
-    <!-- Group Toggle -->
     <div class="control-wrapper">
       <button class="control-toggle" onclick={toggleGroupMenu} class:active={isGroupMenuOpen}>
         <span class="control-label">Group: {groupLabel}</span>
@@ -104,7 +100,6 @@
 
   </div>
 
-  <!-- 3. Dynamic List -->
   <div class="sidebar-scroll">
     {#each items as item}
       <SidebarItem 
@@ -126,7 +121,6 @@
     background-color: var(--background-drawer);
   }
 
-  /* Navigation Section */
   .sidebar-nav {
     display: flex;
     flex-direction: column;
@@ -151,7 +145,6 @@
     background-color: rgba(255, 255, 255, 0.05);
   }
 
-  /* Controls Section */
   .sidebar-controls {
     display: flex;
     flex-direction: column;
@@ -204,7 +197,6 @@
     transform: rotate(-90deg);
   }
 
-  /* Dropdown Menu */
   .control-menu {
     position: absolute;
     top: 100%;
@@ -241,7 +233,6 @@
     background-color: rgba(255, 255, 255, 0.1);
   }
 
-  /* Scroll List */
   .sidebar-scroll {
     flex: 1;
     overflow-y: auto;

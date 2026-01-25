@@ -57,7 +57,6 @@ def write_lock(album_root: Path, album_data: dict, tracks_data: list, layout_cfg
     2. metadata.lock.json (Machine Optimized, Compiler Artifact)
     """
     
-    # --- 1. WRITE TOML (LEGACY/DEBUG) ---
     toml_lines = []
     alb_layout = layout_cfg.get("album", [])
     trk_layout = layout_cfg.get("tracks", [])
@@ -77,8 +76,6 @@ def write_lock(album_root: Path, album_data: dict, tracks_data: list, layout_cfg
     with open(lock_toml_path, "w", encoding="utf-8") as f:
         f.write(cleaned_content.strip() + "\n")
 
-    # --- 2. WRITE JSON (RUNTIME ARTIFACT) ---
-    # We construct a single dict representing the Lock Object
     lock_object = {
         "album": album_data,
         "tracks": tracks_data
@@ -86,6 +83,5 @@ def write_lock(album_root: Path, album_data: dict, tracks_data: list, layout_cfg
 
     lock_json_path = album_root / "metadata.lock.json"
     with open(lock_json_path, "w", encoding="utf-8") as f:
-        # Indent=2 for readability, sort_keys=True for deterministic Git diffs
         json.dump(lock_object, f, ensure_ascii=False, indent=2, sort_keys=True)
         f.write("\n")

@@ -16,13 +16,8 @@
     <div class="track-column">
       {#each column as track}
         <div class="track-row">
-          <!-- Segment 1: Gutter (Track Number) -->
           <span class="track-index">{track.TRACKNUMBER}</span>
-          
-          <!-- Segment 2: Title Block -->
           <span class="track-title">{track.TITLE}</span>
-          
-          <!-- Segment 3: Meta (Duration) -->
           <span class="track-meta">{track.track_duration_time}</span>
         </div>
       {/each}
@@ -36,7 +31,6 @@
     gap: 40px;
     width: 100%;
     
-    /* Ensure subpixel hinting for small track text */
     -webkit-font-smoothing: subpixel-antialiased;
     text-rendering: optimizeLegibility;
   }
@@ -57,7 +51,6 @@
     overflow: hidden;
   }
 
-  /* Segment 1: Fixed Gutter */
   .track-index {
     flex: 0 0 28px;
     text-align: right;
@@ -66,7 +59,6 @@
     font-family: monospace;
   }
 
-  /* Segment 2: Fluid Title */
   .track-title {
     flex: 1;
     text-overflow: ellipsis;
@@ -74,7 +66,6 @@
     font-weight: 400;
   }
 
-  /* Segment 3: Meta Segment */
   .track-meta {
     flex: 0 0 45px;
     text-align: right;

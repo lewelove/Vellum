@@ -51,10 +51,6 @@
       ctrl.handleWheel(e); 
     }}
   >
-    <!-- 
-      LAYER 1: BACKGROUND (Text Only)
-      Renders text at standard document resolution (no GPU promotion) to enable subpixel hinting.
-    -->
     <div 
       class="scroll-content background-layer" 
       style="height: {ctrl.contentHeight}px; z-index: 0; background-color: var(--background-main);"
@@ -70,7 +66,6 @@
               {/each}
           </div>
 
-          <!-- BACKGROUND DRAWER: Standard rendering for high-quality text -->
           {#if row.isExpandedRow && ctrl.drawerInfo && row.data.find(a => a.id === library.expandedAlbumId)}
             <div class="drawer-plane" style="top: {ctrl.layout.rowHeight}px;">
               {#key library.expandedAlbumId}
@@ -96,16 +91,11 @@
       {/each}
     </div>
 
-    <!-- LAYER 2: THE CREASE (Sticky) -->
     <div
       class="top-crease"
       style="height: {ctrl.layout.creaseHeight}px; margin-bottom: -{ctrl.layout.creaseHeight}px;"
     ></div>
 
-    <!-- 
-      LAYER 3: FOREGROUND (Covers + Drawer Visuals)
-      Promoted to GPU via will-change for smooth animations.
-    -->
     <div class="scroll-content foreground-layer" style="height: {ctrl.contentHeight}px; z-index: 2;">
       {#each ctrl.virtualRows as row (row.index)}
         <div 
@@ -123,7 +113,6 @@
               {/each}
           </div>
 
-          <!-- FOREGROUND DRAWER: Visual pass for cover art, borders, and interaction -->
           {#if row.isExpandedRow && ctrl.drawerInfo && row.data.find(a => a.id === library.expandedAlbumId)}
             <div class="drawer-plane" style="top: {ctrl.layout.rowHeight}px;">
               {#key library.expandedAlbumId}

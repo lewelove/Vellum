@@ -20,7 +20,6 @@ pub fn run(target_root: PathBuf, config: &AppConfig, _force: bool) -> Result<()>
         .map(|g| g.grouping_keys.clone())
         .unwrap_or_else(|| vec!["ALBUMARTIST".to_string(), "ALBUM".to_string()]);
 
-    // 1. Scan
     println!("Scanning files...");
     let files = scanner::scan_files(&target_root, &supported_exts)?;
     println!("Found {} files.", files.len());
@@ -29,7 +28,6 @@ pub fn run(target_root: PathBuf, config: &AppConfig, _force: bool) -> Result<()>
         return Ok(());
     }
 
-    // 2. Harvest (Parallel/Sequential based on global pool)
     println!("Harvesting tags...");
     let pb = ProgressBar::new(files.len() as u64);
     pb.set_style(ProgressStyle::default_bar()
@@ -47,35 +45,30 @@ pub fn run(target_root: PathBuf, config: &AppConfig, _force: bool) -> Result<()>
     
     pb.finish_with_message("Harvest complete");
 
-    // 3. Group
     println!("Grouping {} tracks...", tracks.len());
     let groups = logic::group_tracks(tracks, &grouping_keys);
     println!("Found {} groups.", groups.len());
 
-    // 4. Process Groups
     println!("Generating metadata...");
     
     let pb_groups = ProgressBar::new(groups.len() as u64);
     let group_list: Vec<_> = groups.into_iter().collect();
 
     let results: Vec<Result<()>> = group_list.par_iter().map(|(_key, tracks)| {
-        // A. Resolve Anchor
+
         let anchor = match logic::resolve_anchor(tracks, &target_root) {
             Some(a) => a,
             None => return Ok(()),
         };
 
-        // B. Sort
         let mut sorted_tracks = tracks.clone();
         logic::sort_tracks(&mut sorted_tracks);
 
-        // C. Compress
         let (album_pool, track_pools) = compressor::compress(
             &sorted_tracks, 
             config.compress.as_ref().and_then(|c| c.tracks.as_ref())
         );
 
-        // D. Render TOML
         let mut output = String::new();
         output.push_str("[album]\n");
         let alb_lines = writer::render_toml_block(
@@ -93,12 +86,10 @@ pub fn run(target_root: PathBuf, config: &AppConfig, _force: bool) -> Result<()>
             output.push_str("\n\n");
         }
 
-        // E. Write Metadata
         let meta_path = anchor.join("metadata.toml");
         fs::write(&meta_path, output)
             .with_context(|| format!("Failed to write {:?}", meta_path))?;
 
-        // F. Extract Cover
         let cover_candidates = ["cover.jpg", "cover.png", "folder.jpg", "folder.png"];
         let has_cover = cover_candidates.iter().any(|c| anchor.join(c).exists());
         

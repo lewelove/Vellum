@@ -1,11 +1,3 @@
-/* @font-face { */
-/*   font-display: swap; */
-/*   font-family: 'Noto Sans'; */
-/*   font-style: normal; */
-/*   font-weight: 400; */
-/*   src: url('/fonts/noto-sans-v42-latin_latin-ext-300.woff2') format('woff2'); */
-/* } */
-
 :root {
   --font-stack: 'Noto Sans', sans-serif;
 }

@@ -30,7 +30,6 @@
         canvasEl.width = targetWidth;
         canvasEl.height = targetHeight;
 
-        // Using the singleton pica instance
         await pica.resize(bitmap, canvasEl, {
           quality: 3,
           alpha: false,
