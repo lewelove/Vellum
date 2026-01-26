@@ -66,7 +66,7 @@
 <style>
   .smart-image-wrapper {
     position: relative;
-    overflow: hidden;
+    overflow: visible;
   }
 
   .output-canvas {
@@ -74,12 +74,12 @@
     top: 0;
     left: 0;
     opacity: 0;
-    background-color: #292929;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    background-color: var(--background-drawer);
     transition: opacity 0.1s ease-in;
   }
 
   .output-canvas.visible {
+    box-shadow: var(--album-cover-shadow);
     opacity: 1;
   }
 </style>

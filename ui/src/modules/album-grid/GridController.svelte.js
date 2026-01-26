@@ -43,24 +43,31 @@ export class GridController {
   );
 
   virtualRows = $derived.by(() => {
-    // Determine range to render based on current scroll position
+    // 1. Determine standard visible range
     const { start, end } = this.layout.getVisibleIndices(
       this.scroll.currentY, 
       this.viewportHeight, 
       this.allRows.length
     );
 
-    const result = [];
+    // 2. Build a set of indices to render
+    const indicesToRender = new Set();
     for (let i = start; i <= end; i++) {
-      result.push({
-        index: i,
-        // Calculate absolute position (accounting for drawer displacement)
-        y: this.layout.getRowY(i, this.expandedRowIndex, this.drawerHeight),
-        data: this.allRows[i],
-        isExpandedRow: (i === this.expandedRowIndex)
-      });
+      indicesToRender.add(i);
     }
-    return result;
+
+    // 3. CRITICAL: Force include the expanded row index so it never unloads
+    if (this.expandedRowIndex !== -1) {
+      indicesToRender.add(this.expandedRowIndex);
+    }
+
+    // 4. Map to row objects
+    return Array.from(indicesToRender).map(i => ({
+      index: i,
+      y: this.layout.getRowY(i, this.expandedRowIndex, this.drawerHeight),
+      data: this.allRows[i],
+      isExpandedRow: (i === this.expandedRowIndex)
+    }));
   });
 
   update(mainEl) {

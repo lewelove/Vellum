@@ -16,7 +16,7 @@ naming_separator = "_"
 naming_sanitization_char = "_"
 
 [compiler]
-extensions_folder = "~/dev/mpf2k/extensions/"
+extensions_folder = "~/dev/eluxum/extensions/"
 
 [compiler.extensions]
 "issue_id" = [
