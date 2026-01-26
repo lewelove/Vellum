@@ -1,6 +1,5 @@
 <script>
   import { onMount } from "svelte";
-  import { spring } from "svelte/motion";
   import { library } from "./library.svelte.js";
   import { nav, setTab } from "./navigation.svelte.js";
   import { getThemeVariables } from "./theme.svelte.js";
@@ -20,20 +19,10 @@
   let isResizingLeft = $state(false);
 
   let viewportWidth = $state(0);
-  const activeIndex = $derived(nav.activeTab === "home" ? 0 : 1);
-  const pos = spring(0, { stiffness: 0.08, damping: 0.6 });
+  let isQueueVisible = $derived(nav.activeTab === "queue");
 
-  // Define the offset variable for children (like QueueView) to compensate for the shift
+  // Define the offset variable for children to compensate for the shift
   let sidebarOffset = $derived(sidebarMode === 'static' ? sidebarWidth : 0);
-
-  $effect(() => {
-    if (viewportWidth > 0) {
-      const target = activeIndex * viewportWidth;
-      const dpr = window.devicePixelRatio || 1;
-      const snapped = Math.round(target * dpr) / dpr;
-      pos.set(snapped);
-    }
-  });
 
   function toggleSidebarMode() {
     sidebarMode = (sidebarMode === "dynamic") ? "static" : "dynamic";
@@ -82,11 +71,18 @@
     class:offset-left={sidebarMode === 'static'}
     class:resizing={isResizingLeft}
   >
-    <div class="view-stage" style="transform: translate3d(-{$pos}px, 0, 0);">
-      <div class="view-page">
+    <!-- Multi-surface stack -->
+    <div class="view-stack">
+      <!-- Base Layer: Album Grid -->
+      <div class="view-page grid-layer">
         <AlbumGrid />
       </div>
-      <div class="view-page">
+
+      <!-- Overlay Layer: Queue View -->
+      <div 
+        class="view-page queue-layer" 
+        class:visible={isQueueVisible}
+      >
         <QueueView />
       </div>
     </div>
@@ -128,7 +124,6 @@
     transition: left 0.25s cubic-bezier(0.2, 0, 0, 1), width 0.25s cubic-bezier(0.2, 0, 0, 1);
   }
 
-  /* When static, push the start of the viewport but also reduce width to prevent overflow */
   .content-viewport.offset-left { 
     left: var(--sidebar-width); 
     width: calc(100% - var(--sidebar-width));
@@ -136,17 +131,33 @@
 
   .content-viewport.resizing { transition: none; }
 
-  .view-stage {
-    display: flex;
-    width: 200%;
-    height: 100%;
-    will-change: transform;
-  }
-  .view-page {
-    width: 50%;
-    height: 100%;
-    flex-shrink: 0;
+  .view-stack {
     position: relative;
+    width: 100%;
+    height: 100%;
+  }
+
+  .view-page {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  .grid-layer {
+    z-index: 1;
+  }
+
+  .queue-layer {
+    z-index: 2;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.1s ease-out;
+  }
+
+  .queue-layer.visible {
+    opacity: 1;
+    pointer-events: auto;
   }
 
   .sidebar-shell {
@@ -172,7 +183,6 @@
     display: flex;
     flex-direction: column;
     transition: transform 0.25s cubic-bezier(0.2, 0, 0, 1);
-    /* box-shadow: 0 0 20px rgba(0,0,0,0.4); */
   }
 
   .sidebar-trigger {
