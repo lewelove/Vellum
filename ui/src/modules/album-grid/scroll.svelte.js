@@ -3,7 +3,7 @@ export class ScrollEngine {
   targetSlot = $state(0); 
   wheelAccumulator = 0;
   
-  constructor(damping = 0.10, threshold = 40) {
+  constructor(damping = 0.08, threshold = 40) {
     this.damping = damping;
     this.threshold = threshold;
   }

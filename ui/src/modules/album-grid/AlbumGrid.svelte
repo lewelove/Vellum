@@ -13,7 +13,7 @@
 
   // Input State for Continuous Velocity Scrolling
   const activeKeys = new Set();
-  const SCROLL_SPEED = 0.12; // Fractional rows per frame (~60fps)
+  const SCROLL_SPEED = 0.2; // Fractional rows per frame (~60fps)
 
   function loop() {
     // 1. Process Input State (Game Loop Pattern)
