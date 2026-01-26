@@ -76,6 +76,7 @@ export class GridController {
     this.scroll.handleWheel(e, this.maxSlots);
   }
 
+  // Accepts float values for smooth continuous scrolling
   scrollRow(delta) {
     const newSlot = this.scroll.targetSlot + delta;
     this.scroll.targetSlot = Math.max(0, Math.min(newSlot, this.maxSlots));

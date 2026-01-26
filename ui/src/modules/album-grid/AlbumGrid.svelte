@@ -11,11 +11,26 @@
   let mainEl;
   let rafId;
 
-  // Throttling configuration
-  let lastInputTime = 0;
-  const SCROLL_THROTTLE_MS = 200; // Adjust this: 50ms = fast, 150ms = slow
+  // Input State for Continuous Velocity Scrolling
+  const activeKeys = new Set();
+  const SCROLL_SPEED = 0.12; // Fractional rows per frame (~60fps)
 
   function loop() {
+    // 1. Process Input State (Game Loop Pattern)
+    let delta = 0;
+    
+    if (activeKeys.has('j') || activeKeys.has('arrowdown')) {
+      delta += SCROLL_SPEED;
+    }
+    if (activeKeys.has('k') || activeKeys.has('arrowup')) {
+      delta -= SCROLL_SPEED;
+    }
+
+    if (delta !== 0) {
+      ctrl.scrollRow(delta);
+    }
+
+    // 2. Process Physics & Rendering
     ctrl.update(mainEl);
     rafId = requestAnimationFrame(loop);
   }
@@ -24,23 +39,23 @@
     const tag = document.activeElement?.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA') return;
 
-    if (e.key === 'j' || e.key === 'ArrowDown') {
+    const key = e.key.toLowerCase();
+    if (['j', 'k', 'arrowdown', 'arrowup'].includes(key)) {
       e.preventDefault();
-      
-      const now = Date.now();
-      if (now - lastInputTime > SCROLL_THROTTLE_MS) {
-        ctrl.scrollRow(1);
-        lastInputTime = now;
-      }
-    } else if (e.key === 'k' || e.key === 'ArrowUp') {
-      e.preventDefault();
-      
-      const now = Date.now();
-      if (now - lastInputTime > SCROLL_THROTTLE_MS) {
-        ctrl.scrollRow(-1);
-        lastInputTime = now;
-      }
+      activeKeys.add(key);
     }
+  }
+
+  function handleKeyup(e) {
+    const key = e.key.toLowerCase();
+    if (activeKeys.has(key)) {
+      activeKeys.delete(key);
+    }
+  }
+
+  function handleBlur() {
+    // Safety: Clear keys if window loses focus (e.g. Alt-Tab)
+    activeKeys.clear();
   }
 
   let prevCols = 0;
@@ -60,11 +75,15 @@
 
   onMount(() => {
     window.addEventListener("keydown", handleKeydown);
+    window.addEventListener("keyup", handleKeyup);
+    window.addEventListener("blur", handleBlur);
     loop();
   });
 
   onDestroy(() => {
     window.removeEventListener("keydown", handleKeydown);
+    window.removeEventListener("keyup", handleKeyup);
+    window.removeEventListener("blur", handleBlur);
     if (rafId) cancelAnimationFrame(rafId);
   });
 </script>

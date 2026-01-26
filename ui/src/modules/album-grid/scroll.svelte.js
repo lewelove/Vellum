@@ -24,7 +24,13 @@ export class ScrollEngine {
     
     if (Math.abs(this.wheelAccumulator) > this.threshold) {
       const direction = this.wheelAccumulator > 0 ? 1 : -1;
-      this.targetSlot = Math.max(0, Math.min(this.targetSlot + direction, maxSlots));
+      
+      // Snap to the nearest integer alignment before stepping.
+      // This ensures that if the keyboard left us at 14.3, 
+      // a wheel scroll snaps us back to the grid (e.g. 15.0 or 14.0).
+      const base = Math.round(this.targetSlot);
+      
+      this.targetSlot = Math.max(0, Math.min(base + direction, maxSlots));
       this.wheelAccumulator = 0;
     }
   }
