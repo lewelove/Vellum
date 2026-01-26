@@ -1,5 +1,4 @@
 <script>
-  import { onMount } from "svelte";
   import { player } from "../player.svelte.js";
   import QueueTracks from "./QueueTracks.svelte";
 
@@ -8,37 +7,20 @@
     activeId ? `/api/assets/${encodeURIComponent(activeId)}/cover` : ""
   );
 
-  let sidebarWidth = $state(320);
-  let isResizing = $state(false);
+  let innerWidth = $state(0);
+  let innerHeight = $state(0);
 
-  function startResizing(e) {
-    isResizing = true;
-    const startX = e.clientX;
-    const startWidth = sidebarWidth;
-
-    const onMouseMove = (moveEvent) => {
-      const delta = startX - moveEvent.clientX;
-      sidebarWidth = Math.max(200, Math.min(window.innerWidth - 100, startWidth + delta));
-    };
-
-    const onMouseUp = () => {
-      isResizing = false;
-      localStorage.setItem("eluxum-queue-width", sidebarWidth);
-      window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("mouseup", onMouseUp);
-    };
-
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup", onMouseUp);
-  }
-
-  onMount(() => {
-    const saved = localStorage.getItem("eluxum-queue-width");
-    if (saved) sidebarWidth = parseInt(saved);
-  });
+  // Constant Width based on window dimensions
+  let sidebarWidth = $derived(Math.max(0, (innerWidth - innerHeight) / 2));
 </script>
 
-<div class="queue-view-container" class:resizing={isResizing}>
+<svelte:window bind:innerWidth bind:innerHeight />
+
+<div class="queue-view-container">
+  <!-- 
+    Cover area is the background layer, covering the full viewport.
+    This ensures the image centers against the screen, not the remaining space.
+  -->
   <div class="cover-area">
     {#if coverUrl}
       <div class="fullscreen-cover">
@@ -51,36 +33,33 @@
     {/if}
   </div>
 
-  <div class="resizer" onmousedown={startResizing}></div>
-
-  <div class="tracks-area" style="width: {sidebarWidth}px">
-    <QueueTracks />
-  </div>
+  <!-- 
+    Tracks area overlayed on the right with fixed calculated width.
+    The 1px border is removed.
+  -->
+  {#if sidebarWidth > 0}
+    <div class="tracks-overlay" style="width: {sidebarWidth}px">
+      <QueueTracks />
+    </div>
+  {/if}
 </div>
 
 <style>
   .queue-view-container {
     width: 100%;
     height: 100%;
-    display: flex;
-    flex-direction: row;
-    background-color: var(--background-drawer);
+    position: relative;
+    background-color: #242424;
     overflow: hidden;
-  }
-
-  .queue-view-container.resizing {
-    cursor: col-resize;
-    user-select: none;
   }
 
   .cover-area {
-    flex: 1;
-    height: 100%;
+    position: absolute;
+    inset: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: #000;
-    overflow: hidden;
+    z-index: 1;
   }
 
   .fullscreen-cover {
@@ -98,28 +77,16 @@
     display: block;
   }
 
-  .resizer {
-    width: 1px;
-    height: 100%;
-    background-color: var(--border-muted);
-    cursor: col-resize;
-    position: relative;
-    z-index: 10;
-  }
-
-  .resizer::after {
-    content: '';
+  .tracks-overlay {
     position: absolute;
+    right: 0;
     top: 0;
     bottom: 0;
-    left: -4px;
-    right: -4px;
-  }
-
-  .tracks-area {
-    height: 100%;
-    flex-shrink: 0;
-    border-left: 1px solid rgba(0, 0, 0, 0.2);
+    z-index: 10;
+    background-color: var(--background-drawer);
+    /* Shadow provides separation since the border was removed */
+    /* box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5); */
+    overflow: hidden;
   }
 
   .empty-state {

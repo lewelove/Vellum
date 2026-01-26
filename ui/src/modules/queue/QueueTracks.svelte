@@ -78,7 +78,7 @@
     padding: 6px 16px 6px 12px;
     font-family: var(--font-stack);
     color: var(--text-muted);
-    border-left: 3px solid transparent;
+    /* border-left: 3px solid transparent; */
   }
 
   .queue-row:hover {
