@@ -58,7 +58,7 @@
     font-size: 14px;
     font-weight: 500;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    /* letter-spacing: 0.05em; */
   }
 
   .count {
@@ -75,18 +75,18 @@
   .queue-row {
     display: flex;
     align-items: center;
-    padding: 6px 16px 6px 12px;
+    padding: 6px 12px 6px 12px;
     font-family: var(--font-stack);
     color: var(--text-muted);
   }
 
   .queue-row:hover {
-    background-color: rgba(255, 255, 255, 0.03);
+    background-color: rgba(255, 255, 255, 0.02);
     color: var(--text-main);
   }
 
   .queue-row.active {
-    background-color: rgba(255, 255, 255, 0.05);
+    background-color: rgba(255, 255, 255, 0.04);
     color: var(--text-main);
     border-left-color: var(--text-main);
   }
@@ -94,10 +94,11 @@
   .col-index {
     flex: 0 0 32px;
     text-align: right;
-    font-size: 12px;
+    font-size: 14px;
     font-family: monospace;
     opacity: 0.6;
-    margin-right: 12px;
+    margin-right: 16px;
+    /* margin-left: 8px; */
   }
 
   .col-info {
@@ -108,7 +109,7 @@
   }
 
   .q-title {
-    font-size: 13px;
+    font-size: 16px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -116,7 +117,7 @@
   }
 
   .q-artist {
-    font-size: 11px;
+    font-size: 14px;
     opacity: 0.7;
     white-space: nowrap;
     overflow: hidden;

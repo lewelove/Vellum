@@ -161,7 +161,7 @@
     left: 0; 
     width: var(--sidebar-width); 
     visibility: visible;
-    pointer-events: auto;
+    pointer-events: none;
   }
 
   .sidebar-panel {
@@ -172,7 +172,7 @@
     display: flex;
     flex-direction: column;
     transition: transform 0.25s cubic-bezier(0.2, 0, 0, 1);
-    box-shadow: 0 0 20px rgba(0,0,0,0.4);
+    /* box-shadow: 0 0 20px rgba(0,0,0,0.4); */
   }
 
   .sidebar-trigger {
