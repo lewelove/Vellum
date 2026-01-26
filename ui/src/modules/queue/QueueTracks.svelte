@@ -1,15 +1,11 @@
 <script>
-  import { onMount } from "svelte";
   import { player } from "../player.svelte.js";
   import { library } from "../../library.svelte.js";
 
-  let { isVisible } = $props();
-
   let mappedTracks = $derived(player.queue.map(item => {
-    // MPD 'file' matches 'track_library_path' in metadata
     const meta = library.getTrackByPath(item.file);
     return {
-      id: item.id, // MPD pos/id
+      id: item.id,
       file: item.file,
       isPlaying: player.currentFile === item.file,
       trackNo: meta ? meta.TRACKNUMBER : "#",
@@ -17,11 +13,9 @@
       artist: meta ? meta.ARTIST : (item.artist || ""),
     };
   }));
-
-  // Scroll current track into view logic could be added here
 </script>
 
-<div class="queue-tracks-container" class:visible={isVisible}>
+<div class="queue-tracks-container">
   <div class="tracks-header">
     <span class="header-label">Play Queue</span>
     <span class="count">{mappedTracks.length}</span>
@@ -50,12 +44,7 @@
     flex-direction: column;
     padding-top: 12px;
     box-sizing: border-box;
-    opacity: 0;
-    transition: opacity 0.2s;
-  }
-
-  .queue-tracks-container.visible {
-    opacity: 1;
+    background-color: var(--background-drawer);
   }
 
   .tracks-header {

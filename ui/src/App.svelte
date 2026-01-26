@@ -9,36 +9,18 @@
   import AlbumGrid from "./modules/album-grid/AlbumGrid.svelte";
   import Sidebar from "./modules/sidebar/Sidebar.svelte";
   import QueueView from "./modules/queue/QueueView.svelte";
-  import QueueTracks from "./modules/queue/QueueTracks.svelte";
   import NavTabs from "./modules/navigation/NavTabs.svelte";
 
   // Reactive Theme Variables
   let themeStyles = $derived(getThemeVariables());
   
-  // Safe State Initialization
+  // Sidebar State
   let sidebarMode = $state("dynamic");
   let sidebarWidth = $state(160);
   let isResizingLeft = $state(false);
 
-  let queueSidebarMode = $state("dynamic");
-  let queueSidebarWidth = $state(280);
-  let isResizingRight = $state(false);
-  
-  let isRightHovered = $state(false);
-  let isNavSettled = $state(true);
   let viewportWidth = $state(0);
-
   const activeIndex = $derived(nav.activeTab === "home" ? 0 : 1);
-  
-  // Queue Sidebar is only allowed to be active on the queue tab
-  const isQueueSidebarActive = $derived(
-    nav.activeTab === 'queue' && (
-      isRightHovered ||
-      queueSidebarMode === 'static' ||
-      isNavSettled
-    )
-  );
-  
   const pos = spring(0, { stiffness: 0.08, damping: 0.6 });
 
   $effect(() => {
@@ -47,10 +29,6 @@
       const dpr = window.devicePixelRatio || 1;
       const snapped = Math.round(target * dpr) / dpr;
       pos.set(snapped);
-      
-      isNavSettled = false;
-      const timer = setTimeout(() => { isNavSettled = true; }, 450);
-      return () => clearTimeout(timer);
     }
   });
 
@@ -59,16 +37,10 @@
     localStorage.setItem("eluxum-sidebar-mode", sidebarMode);
   }
 
-  function toggleQueueSidebarMode() {
-    queueSidebarMode = (queueSidebarMode === "dynamic") ? "static" : "dynamic";
-    localStorage.setItem("eluxum-queue-sidebar-mode", queueSidebarMode);
-  }
-
   function handleKeydown(e) {
     if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
     const key = e.key.toLowerCase();
     if (key === 's') toggleSidebarMode();
-    if (key === 'q') toggleQueueSidebarMode();
     if (key === '1' || key === 'h' || key === 'arrowleft') setTab('home');
     if (key === '2' || key === 'l' || key === 'arrowright') setTab('queue');
   }
@@ -86,19 +58,6 @@
     window.addEventListener("mouseup", up);
   }
 
-  function startResizingRight() {
-    isResizingRight = true;
-    const move = (e) => { queueSidebarWidth = Math.max(200, Math.min(window.innerWidth - e.clientX, 600)); };
-    const up = () => {
-      isResizingRight = false;
-      localStorage.setItem("eluxum-queue-sidebar-width", queueSidebarWidth);
-      window.removeEventListener("mousemove", move);
-      window.removeEventListener("mouseup", up);
-    };
-    window.addEventListener("mousemove", move);
-    window.addEventListener("mouseup", up);
-  }
-
   onMount(() => {
     library.init();
     
@@ -107,26 +66,18 @@
     const savedLWidth = localStorage.getItem("eluxum-sidebar-width");
     if (savedLWidth) sidebarWidth = parseInt(savedLWidth);
 
-    const savedRMode = localStorage.getItem("eluxum-queue-sidebar-mode");
-    if (savedRMode) queueSidebarMode = savedRMode;
-    const savedRWidth = localStorage.getItem("eluxum-queue-sidebar-width");
-    if (savedRWidth) queueSidebarWidth = parseInt(savedRWidth);
-
     window.addEventListener("keydown", handleKeydown);
     return () => window.removeEventListener("keydown", handleKeydown);
   });
 </script>
 
-<main 
-  style="{themeStyles} --sidebar-width: {sidebarWidth}px; --queue-sidebar-width: {queueSidebarWidth}px;"
->
+<main style="{themeStyles} --sidebar-width: {sidebarWidth}px;">
   
   <section 
     class="content-viewport"
     bind:clientWidth={viewportWidth}
     class:offset-left={sidebarMode === 'static'}
-    class:offset-right={nav.activeTab === 'queue' && queueSidebarMode === 'static'}
-    class:resizing={isResizingLeft || isResizingRight}
+    class:resizing={isResizingLeft}
   >
     <div class="view-stage" style="transform: translate3d(-{$pos}px, 0, 0);">
       <div class="view-page">
@@ -144,22 +95,6 @@
       <div class="nav-anchor"><NavTabs /></div>
       <div class="sidebar-inner"><Sidebar /></div>
       <div class="sidebar-resizer" onmousedown={startResizingLeft}></div>
-    </div>
-  </aside>
-
-  <!-- Added class:active-tab to prevent ghost hover interactions when on Home -->
-  <aside class="sidebar-shell right" 
-    class:static={queueSidebarMode === 'static'} 
-    class:dynamic={queueSidebarMode === 'dynamic'}
-    class:active={isQueueSidebarActive}
-    class:active-tab={nav.activeTab === 'queue'}
-    onmouseenter={() => { if (nav.activeTab === 'queue') isRightHovered = true; }}
-    onmouseleave={() => isRightHovered = false}
-  >
-    <div class="sidebar-trigger right-trigger"></div>
-    <div class="sidebar-panel">
-      <div class="sidebar-inner"><QueueTracks isVisible={isQueueSidebarActive} /></div>
-      <div class="sidebar-resizer right-resizer" onmousedown={startResizingRight}></div>
     </div>
   </aside>
 
@@ -184,10 +119,9 @@
     inset: 0;
     overflow: hidden;
     z-index: 10;
-    transition: left 0.25s cubic-bezier(0.2, 0, 0, 1), right 0.25s cubic-bezier(0.2, 0, 0, 1);
+    transition: left 0.25s cubic-bezier(0.2, 0, 0, 1);
   }
   .content-viewport.offset-left { left: var(--sidebar-width); }
-  .content-viewport.offset-right { right: var(--queue-sidebar-width); }
   .content-viewport.resizing { transition: none; }
 
   .view-stage {
@@ -209,17 +143,14 @@
     bottom: 0;
     z-index: 100;
     pointer-events: none;
-    visibility: hidden; /* Default hidden unless tab matches */
   }
   
-  /* Only make the sidebar shell visible and interactive on its respective tab */
-  .sidebar-shell.left, .sidebar-shell.active-tab {
+  .sidebar-shell.left { 
+    left: 0; 
+    width: var(--sidebar-width); 
     visibility: visible;
     pointer-events: auto;
   }
-
-  .sidebar-shell.left { left: 0; width: var(--sidebar-width); }
-  .sidebar-shell.right { right: 0; width: var(--queue-sidebar-width); }
 
   .sidebar-panel {
     position: absolute;
@@ -241,22 +172,14 @@
     pointer-events: auto;
   }
   .left .sidebar-trigger { left: 0; }
-  .right .sidebar-trigger { right: -2px; width: 26px; }
 
   .sidebar-shell.dynamic.left .sidebar-panel { transform: translateX(-100%); }
   .sidebar-shell.dynamic.left:hover .sidebar-panel { transform: translateX(0); }
   
-  .sidebar-shell.dynamic.right .sidebar-panel { transform: translateX(100%); }
-  
-  /* CSS Hover only works if tab is active */
-  .sidebar-shell.dynamic.right.active-tab:hover .sidebar-panel,
-  .sidebar-shell.dynamic.right.active .sidebar-panel { transform: translateX(0); }
-
   .sidebar-shell.static .sidebar-panel { transform: translateX(0); box-shadow: none; }
   .sidebar-shell.static .sidebar-trigger { display: none; }
 
   .left .sidebar-panel { border-right: 1px solid var(--border-muted); }
-  .right .sidebar-panel { border-left: 1px solid var(--border-muted); }
 
   .sidebar-resizer {
     position: absolute;
@@ -267,7 +190,6 @@
     z-index: 120;
   }
   .left .sidebar-resizer { right: -3px; }
-  .right .sidebar-resizer { left: -3px; }
 
   .nav-anchor { height: var(--nav-height); display: flex; align-items: center; justify-content: center; }
   .sidebar-inner { flex: 1; overflow: hidden; }
