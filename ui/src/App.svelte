@@ -1,7 +1,7 @@
 <script>
   import { onMount } from "svelte";
   import { library } from "./library.svelte.js";
-  import { nav } from "./navigation.svelte.js";
+  import { nav, setTab } from "./navigation.svelte.js";
   import { getThemeVariables } from "./theme.svelte.js";
   import AlbumGrid from "$modules/album-grid/AlbumGrid.svelte";
   import Sidebar from "$modules/sidebar/Sidebar.svelte";
@@ -19,11 +19,17 @@
   }
 
   function handleKeydown(e) {
-    if (e.key.toLowerCase() === 's') {
-      const tag = document.activeElement?.tagName;
-      if (tag !== 'INPUT' && tag !== 'TEXTAREA') {
-        toggleSidebarMode();
-      }
+    const tag = document.activeElement?.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+
+    const key = e.key.toLowerCase();
+
+    if (key === 's') {
+      toggleSidebarMode();
+    } else if (key === '1') {
+      setTab('home');
+    } else if (key === '2') {
+      setTab('queue');
     }
   }
 

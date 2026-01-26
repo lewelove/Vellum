@@ -27,9 +27,8 @@
     justify-content: center;
     transition: background-color 0.2s, transform 0.1s, box-shadow 0.2s;
     pointer-events: auto;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-    /* Squircle Clip Path */
-    clip-path: path('M 0,24 C 0,4.8 4.8,0 24,0 C 43.2,0 48,4.8 48,24 C 48,43.2 43.2,48 24,48 C 4.8,48 0,43.2 0,24 Z');
+    /* box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4); */
+    border-radius: 12px;
   }
 
   .nav-button.queue-mode {

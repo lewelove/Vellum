@@ -16,6 +16,19 @@
     rafId = requestAnimationFrame(loop);
   }
 
+  function handleKeydown(e) {
+    const tag = document.activeElement?.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+
+    if (e.key === 'j' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      ctrl.scrollRow(1);
+    } else if (e.key === 'k' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      ctrl.scrollRow(-1);
+    }
+  }
+
   let prevCols = 0;
   $effect(() => {
     if (ctrl.layout.cols !== prevCols && prevCols !== 0) {
@@ -32,10 +45,12 @@
   });
 
   onMount(() => {
+    window.addEventListener("keydown", handleKeydown);
     loop();
   });
 
   onDestroy(() => {
+    window.removeEventListener("keydown", handleKeydown);
     if (rafId) cancelAnimationFrame(rafId);
   });
 </script>
