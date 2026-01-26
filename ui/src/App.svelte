@@ -13,6 +13,10 @@
   // State for Sidebar Mode: 'dynamic' (auto-hide) or 'static' (pinned)
   let sidebarMode = $state("dynamic");
 
+  // Resizing State
+  let sidebarWidth = $state(140);
+  let isResizing = $state(false);
+
   function toggleSidebarMode() {
     sidebarMode = sidebarMode === "dynamic" ? "static" : "dynamic";
     localStorage.setItem("eluxum-sidebar-mode", sidebarMode);
@@ -33,13 +37,43 @@
     }
   }
 
+  // Resizing Logic
+  function startResizing(e) {
+    e.preventDefault();
+    isResizing = true;
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", stopResizing);
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  }
+
+  function handleMouseMove(e) {
+    if (!isResizing) return;
+    // Clamp width between 140px and 400px
+    sidebarWidth = Math.max(140, Math.min(e.clientX, 400));
+  }
+
+  function stopResizing() {
+    isResizing = false;
+    window.removeEventListener("mousemove", handleMouseMove);
+    window.removeEventListener("mouseup", stopResizing);
+    document.body.style.cursor = "";
+    document.body.style.userSelect = "";
+    localStorage.setItem("eluxum-sidebar-width", sidebarWidth.toString());
+  }
+
   onMount(() => {
     library.init();
     
     // Restore preference
-    const saved = localStorage.getItem("eluxum-sidebar-mode");
-    if (saved === "static" || saved === "dynamic") {
-      sidebarMode = saved;
+    const savedMode = localStorage.getItem("eluxum-sidebar-mode");
+    if (savedMode === "static" || savedMode === "dynamic") {
+      sidebarMode = savedMode;
+    }
+
+    const savedWidth = localStorage.getItem("eluxum-sidebar-width");
+    if (savedWidth) {
+      sidebarWidth = parseInt(savedWidth);
     }
 
     window.addEventListener("keydown", handleKeydown);
@@ -49,7 +83,7 @@
   });
 </script>
 
-<main style={themeStyles}>
+<main style="{themeStyles} --sidebar-width: {sidebarWidth}px;">
   
   <!-- Sidebar Shell -->
   <!-- 
@@ -60,6 +94,7 @@
     class="sidebar-shell" 
     class:mode-static={sidebarMode === 'static'}
     class:mode-dynamic={sidebarMode === 'dynamic'}
+    class:resizing={isResizing}
   >
     <!-- Trigger Zone: Invisible strip to catch hover in dynamic mode -->
     <div class="sidebar-trigger"></div>
@@ -72,6 +107,16 @@
       <div class="sidebar-inner">
         <Sidebar />
       </div>
+
+      <!-- Resize Handle -->
+      <div 
+        class="sidebar-resizer" 
+        onmousedown={startResizing}
+        role="separator"
+        aria-orientation="vertical"
+        aria-valuenow={sidebarWidth}
+        tabindex="-1"
+      ></div>
     </div>
   </aside>
 
@@ -94,7 +139,6 @@
 
 <style>
   :root {
-    --sidebar-width: 140px;
     --trigger-width: 24px;
     --nav-height: 80px;
   }
@@ -155,6 +199,25 @@
     will-change: transform;
   }
 
+  .sidebar-shell.resizing .sidebar-panel {
+    transition: none; /* Disable transition during active drag */
+  }
+
+  .sidebar-resizer {
+    position: absolute;
+    top: 0;
+    right: -3px;
+    width: 6px;
+    height: 100%;
+    cursor: col-resize;
+    z-index: 110;
+    background: transparent;
+  }
+
+  .sidebar-resizer:hover {
+    background: rgba(255, 255, 255, 0.05);
+  }
+
   /* --- Dynamic Mode Behavior --- */
 
   .sidebar-shell.mode-dynamic .sidebar-panel {
@@ -207,6 +270,11 @@
     left: 0; /* Full width by default (dynamic) */
     overflow: hidden;
     transition: left 0.25s cubic-bezier(0.2, 0.0, 0.0, 1.0);
+    will-change: left;
+  }
+
+  .sidebar-shell.resizing ~ .content-pane {
+    transition: none; /* Disable transition during active drag */
   }
 
   .content-pane.offset-content {
