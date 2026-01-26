@@ -15,14 +15,14 @@
     width: 100%;
     background: none;
     border: none;
-    padding: 6px 16px 6px 32px; /* Indented */
+    padding: 6px 24px 6px 24px; /* Indented */
     cursor: pointer;
     color: var(--text-muted);
     font-family: var(--font-stack);
-    font-size: 13px;
+    font-size: 14px;
     text-align: left;
     transition: color 0.1s, background-color 0.1s;
-    outline: none; /* Removes focus border */
+    outline: none;
   }
 
   .sidebar-item:hover {
@@ -33,7 +33,6 @@
   .sidebar-item.active {
     color: var(--text-main);
     background-color: rgba(255, 255, 255, 0.05);
-    border-right: 3px solid var(--text-main);
   }
 
   .label {
@@ -46,6 +45,7 @@
 
   .count {
     opacity: 0.5;
-    font-size: 11px;
+    font-size: 12px;
+    font-family: monospace;
   }
 </style>
