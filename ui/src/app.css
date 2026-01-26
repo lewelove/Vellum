@@ -1,6 +1,12 @@
+@import url('https://rsms.me/inter/inter.css');
+
 :root {
-  --font-stack: 'Noto Sans', sans-serif;
+  --font-stack: 'Inter', -apple-system, sans-serif;
 }
+
+/* :root { */
+/*   --font-stack: 'Noto Sans', sans-serif; */
+/* } */
 
 /* The sizing chain must be unbroken for % heights to work */
 html, body, #app {
