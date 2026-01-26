@@ -3,18 +3,23 @@ export class ScrollEngine {
   targetSlot = $state(0); 
   wheelAccumulator = 0;
   
-  constructor(damping = 0.20, threshold = 40) {
+  constructor(damping = 0.10, threshold = 40) {
     this.damping = damping;
     this.threshold = threshold;
   }
 
-  update(rowHeight) {
+  update(rowHeight, dpr = 1) {
     const targetY = this.targetSlot * rowHeight;
     const diff = targetY - this.currentY;
 
+    // Settling logic:
+    // When the motion is effectively stopped (below threshold),
+    // snap the view to the nearest physical device pixel to ensure
+    // razor-sharp static rendering (text/borders).
     if (Math.abs(diff) < 0.1) {
-      this.currentY = targetY;
+      this.currentY = Math.round(targetY * dpr) / dpr;
     } else {
+      // Sub-pixel movement (Anti-Aliased)
       this.currentY += diff * this.damping;
     }
   }

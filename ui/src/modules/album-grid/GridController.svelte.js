@@ -64,8 +64,11 @@ export class GridController {
   });
 
   update(mainEl) {
+    // Inject DPR for hybrid pixel snapping (Sub-pixel motion -> Pixel-perfect rest)
+    const dpr = window.devicePixelRatio || 1;
+    
     // ScrollEngine updates currentY based on targetSlot * rowHeight
-    this.scroll.update(this.layout.rowHeight);
+    this.scroll.update(this.layout.rowHeight, dpr);
     
     if (mainEl) {
       mainEl.scrollTop = this.scroll.currentY;

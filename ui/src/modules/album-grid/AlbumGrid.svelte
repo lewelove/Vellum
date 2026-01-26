@@ -106,7 +106,7 @@
       {#each ctrl.virtualRows as row (row.index)}
         <div 
           class="row text-row" 
-          style="transform: translateY({Math.round(row.y)}px); width: {ctrl.layout.gridWidth}px; height: {ctrl.layout.rowHeight}px;"
+          style="transform: translateY({row.y}px); width: {ctrl.layout.gridWidth}px; height: {ctrl.layout.rowHeight}px;"
         >
           <div class="row-inner" style="gap: var(--gap-x);">
               {#each row.data as album (album.id)}
@@ -148,7 +148,7 @@
       {#each ctrl.virtualRows as row (row.index)}
         <div 
           class="row" 
-          style="transform: translateY({Math.round(row.y)}px); width: {ctrl.layout.gridWidth}px; height: {ctrl.layout.rowHeight}px; z-index: {row.isExpandedRow ? 10 : 'auto'};"
+          style="transform: translateY({row.y}px); width: {ctrl.layout.gridWidth}px; height: {ctrl.layout.rowHeight}px; z-index: {row.isExpandedRow ? 10 : 'auto'};"
         >
           <div class="row-inner" style="gap: var(--gap-x);">
               {#each row.data as album (album.id)}
