@@ -44,7 +44,7 @@
     flex-direction: column;
     padding-top: 12px;
     box-sizing: border-box;
-    background-color: #121212;
+    background-color: transparent;
   }
 
   .tracks-header {
@@ -58,7 +58,7 @@
     font-size: 14px;
     font-weight: 500;
     text-transform: uppercase;
-    /* letter-spacing: 0.05em; */
+    letter-spacing: 0.05em;
   }
 
   .count {
