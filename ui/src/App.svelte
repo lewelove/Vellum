@@ -1,5 +1,8 @@
 <script>
   import { onMount } from "svelte";
+  import { tweened } from "svelte/motion";
+  // We'll use a custom cubic-bezier for the 'heavy' feel
+  import { cubicOut } from "svelte/easing";
   import { library } from "./library.svelte.js";
   import { nav, setTab } from "./navigation.svelte.js";
   import { getThemeVariables } from "./theme.svelte.js";
@@ -8,14 +11,28 @@
   import QueueView from "$modules/queue/QueueView.svelte";
   import NavTabs from "$modules/navigation/NavTabs.svelte";
 
-  let themeStyles = $derived(getThemeVariables());
-  
-  // State for Sidebar Mode: 'dynamic' (auto-hide) or 'static' (pinned)
-  let sidebarMode = $state("dynamic");
+  // Custom "Premium Heavy" Easing
+  // This mimics a heavy object with high friction (fast snap, very long tail)
+  function premiumHeavy(t) {
+    return t === 1 ? 1 : 1 - Math.pow(2, -10 * t); // Similar to expoOut but smoother
+  }
 
-  // Resizing State
+  let themeStyles = $derived(getThemeVariables());
+  let sidebarMode = $state("dynamic");
   let sidebarWidth = $state(140);
   let isResizing = $state(false);
+
+  const activeIndex = $derived(nav.activeTab === "home" ? 0 : 1);
+  
+  // Increased duration to 600ms to let the "weight" of the transition be felt
+  const pos = tweened(0, { 
+    duration: 600, 
+    easing: premiumHeavy 
+  });
+
+  $effect(() => {
+    pos.set(activeIndex);
+  });
 
   function toggleSidebarMode() {
     sidebarMode = sidebarMode === "dynamic" ? "static" : "dynamic";
@@ -25,9 +42,7 @@
   function handleKeydown(e) {
     const tag = document.activeElement?.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA') return;
-
     const key = e.key.toLowerCase();
-
     if (key === 's') {
       toggleSidebarMode();
     } else if (key === '1') {
@@ -37,7 +52,6 @@
     }
   }
 
-  // Resizing Logic
   function startResizing(e) {
     e.preventDefault();
     isResizing = true;
@@ -49,7 +63,6 @@
 
   function handleMouseMove(e) {
     if (!isResizing) return;
-    // Clamp width between 140px and 400px
     sidebarWidth = Math.max(140, Math.min(e.clientX, 400));
   }
 
@@ -64,18 +77,14 @@
 
   onMount(() => {
     library.init();
-    
-    // Restore preference
     const savedMode = localStorage.getItem("eluxum-sidebar-mode");
     if (savedMode === "static" || savedMode === "dynamic") {
       sidebarMode = savedMode;
     }
-
     const savedWidth = localStorage.getItem("eluxum-sidebar-width");
     if (savedWidth) {
       sidebarWidth = parseInt(savedWidth);
     }
-
     window.addEventListener("keydown", handleKeydown);
     return () => {
       window.removeEventListener("keydown", handleKeydown);
@@ -85,21 +94,13 @@
 
 <main style="{themeStyles} --sidebar-width: {sidebarWidth}px;">
   
-  <!-- Sidebar Shell -->
-  <!-- 
-    Groups Nav and Sidebar content. 
-    Handles hover detection for "Zen" mode via pointer-events logic.
-  -->
   <aside 
     class="sidebar-shell" 
     class:mode-static={sidebarMode === 'static'}
     class:mode-dynamic={sidebarMode === 'dynamic'}
     class:resizing={isResizing}
   >
-    <!-- Trigger Zone: Invisible strip to catch hover in dynamic mode -->
     <div class="sidebar-trigger"></div>
-
-    <!-- The Sliding Panel -->
     <div class="sidebar-panel">
       <div class="nav-anchor">
         <NavTabs />
@@ -107,8 +108,6 @@
       <div class="sidebar-inner">
         <Sidebar />
       </div>
-
-      <!-- Resize Handle -->
       <div 
         class="sidebar-resizer" 
         onmousedown={startResizing}
@@ -120,21 +119,22 @@
     </div>
   </aside>
 
-  <!-- Content Areas -->
-  <!-- Adjusted layout based on sidebar mode -->
-  {#if nav.activeTab === 'home'}
-    <section 
-      class="content-pane"
-      class:offset-content={sidebarMode === 'static'}
-    >
-      <AlbumGrid />
-    </section>
-    
-  {:else if nav.activeTab === 'queue'}
-    <section class="fullscreen-pane">
-      <QueueView />
-    </section>
-  {/if}
+  <section 
+    class="content-viewport"
+    class:offset-content={sidebarMode === 'static'}
+    class:resizing={isResizing}
+  >
+    <!-- We use a 3D transform (translate3d) to ensure the GPU handles the "heavy" slide -->
+    <div class="view-stage" style="transform: translate3d(-{$pos * 50}%, 0, 0);">
+      <div class="view-page">
+        <AlbumGrid />
+      </div>
+      <div class="view-page">
+        <QueueView />
+      </div>
+    </div>
+  </section>
+
 </main>
 
 <style>
@@ -151,8 +151,6 @@
     background-color: var(--background-main);
   }
 
-  /* --- Sidebar Shell --- */
-  
   .sidebar-shell {
     position: fixed;
     top: 0;
@@ -160,14 +158,6 @@
     bottom: 0;
     width: var(--sidebar-width);
     z-index: 100;
-    
-    /* 
-       Magic Logic for Overlay:
-       The shell covers the sidebar area, but lets clicks pass through (none).
-       Children (trigger, panel) re-enable clicks (auto).
-       This allows the shell to maintain :hover state even when mouse moves
-       from trigger (24px) to panel (140px).
-    */
     pointer-events: none;
   }
 
@@ -178,7 +168,7 @@
     width: var(--trigger-width);
     height: 100%;
     z-index: 102;
-    pointer-events: auto; /* Catch mouse */
+    pointer-events: auto;
     background: transparent;
   }
 
@@ -192,15 +182,14 @@
     border-right: 1px solid var(--border-muted);
     display: flex;
     flex-direction: column;
-    pointer-events: auto; /* Interaction enabled */
+    pointer-events: auto;
     z-index: 101;
-    
     transition: transform 0.25s cubic-bezier(0.2, 0.0, 0.0, 1.0);
     will-change: transform;
   }
 
   .sidebar-shell.resizing .sidebar-panel {
-    transition: none; /* Disable transition during active drag */
+    transition: none;
   }
 
   .sidebar-resizer {
@@ -218,19 +207,14 @@
     background: rgba(255, 255, 255, 0.05);
   }
 
-  /* --- Dynamic Mode Behavior --- */
-
   .sidebar-shell.mode-dynamic .sidebar-panel {
     transform: translateX(-100%);
-    box-shadow: 0 0 15px rgba(0,0,0,0.5); /* Shadow when overlaying */
+    box-shadow: 0 0 15px rgba(0,0,0,0.5);
   }
 
-  /* Reveal on Hover (Shell detects hover on either trigger or panel) */
   .sidebar-shell.mode-dynamic:hover .sidebar-panel {
     transform: translateX(0);
   }
-
-  /* --- Static Mode Behavior --- */
 
   .sidebar-shell.mode-static .sidebar-panel {
     transform: translateX(0);
@@ -239,10 +223,8 @@
   }
 
   .sidebar-shell.mode-static .sidebar-trigger {
-    display: none; /* No trigger needed in static */
+    display: none;
   }
-
-  /* --- Internal Sidebar Layout --- */
 
   .nav-anchor {
     flex: 0 0 var(--nav-height);
@@ -256,37 +238,40 @@
     flex: 1;
     overflow: hidden;
     position: relative;
-    /* Reset Sidebar CSS assumptions */
     padding-top: 0 !important; 
   }
 
-  /* --- Content Pane Adaptation --- */
-
-  .content-pane {
+  .content-viewport {
     position: absolute;
     top: 0;
     right: 0;
     bottom: 0;
-    left: 0; /* Full width by default (dynamic) */
+    left: 0;
     overflow: hidden;
     transition: left 0.25s cubic-bezier(0.2, 0.0, 0.0, 1.0);
     will-change: left;
   }
 
-  .sidebar-shell.resizing ~ .content-pane {
-    transition: none; /* Disable transition during active drag */
-  }
-
-  .content-pane.offset-content {
+  .content-viewport.offset-content {
     left: var(--sidebar-width);
   }
 
-  .fullscreen-pane {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    z-index: 5;
+  .content-viewport.resizing {
+    transition: none;
+  }
+
+  .view-stage {
+    display: flex;
+    width: 200%;
+    height: 100%;
+    will-change: transform;
+  }
+
+  .view-page {
+    width: 50%;
+    height: 100%;
+    flex-shrink: 0;
+    position: relative;
+    overflow: hidden;
   }
 </style>
