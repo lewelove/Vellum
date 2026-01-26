@@ -15,7 +15,7 @@
   // Reactive Theme Variables
   let themeStyles = $derived(getThemeVariables());
   
-  // Safe State Initialization (Prevents crashes if localStorage is empty)
+  // Safe State Initialization
   let sidebarMode = $state("dynamic");
   let sidebarWidth = $state(160);
   let isResizingLeft = $state(false);
@@ -28,20 +28,19 @@
   let isNavSettled = $state(true);
   let viewportWidth = $state(0);
 
-  // Derive target page index
   const activeIndex = $derived(nav.activeTab === "home" ? 0 : 1);
   
-  // Derive Queue Sidebar state
+  // Queue Sidebar is only allowed to be active on the queue tab
   const isQueueSidebarActive = $derived(
-    isRightHovered ||
-    queueSidebarMode === 'static' ||
-    (nav.activeTab === 'queue' && isNavSettled)
+    nav.activeTab === 'queue' && (
+      isRightHovered ||
+      queueSidebarMode === 'static' ||
+      isNavSettled
+    )
   );
   
-  // Paging Physics
   const pos = spring(0, { stiffness: 0.08, damping: 0.6 });
 
-  // Paging Effect: Sync spring to viewport width and active tab
   $effect(() => {
     if (viewportWidth > 0) {
       const target = activeIndex * viewportWidth;
@@ -74,7 +73,6 @@
     if (key === '2' || key === 'l' || key === 'arrowright') setTab('queue');
   }
 
-  // Left Sidebar Resizing Logic
   function startResizingLeft() {
     isResizingLeft = true;
     const move = (e) => { sidebarWidth = Math.max(140, Math.min(e.clientX, 400)); };
@@ -88,7 +86,6 @@
     window.addEventListener("mouseup", up);
   }
 
-  // Right Sidebar Resizing Logic
   function startResizingRight() {
     isResizingRight = true;
     const move = (e) => { queueSidebarWidth = Math.max(200, Math.min(window.innerWidth - e.clientX, 600)); };
@@ -105,7 +102,6 @@
   onMount(() => {
     library.init();
     
-    // Load persisted settings
     const savedLMode = localStorage.getItem("eluxum-sidebar-mode");
     if (savedLMode) sidebarMode = savedLMode;
     const savedLWidth = localStorage.getItem("eluxum-sidebar-width");
@@ -129,7 +125,7 @@
     class="content-viewport"
     bind:clientWidth={viewportWidth}
     class:offset-left={sidebarMode === 'static'}
-    class:offset-right={nav.activeTab === 'home' && queueSidebarMode === 'static'}
+    class:offset-right={nav.activeTab === 'queue' && queueSidebarMode === 'static'}
     class:resizing={isResizingLeft || isResizingRight}
   >
     <div class="view-stage" style="transform: translate3d(-{$pos}px, 0, 0);">
@@ -151,11 +147,13 @@
     </div>
   </aside>
 
+  <!-- Added class:active-tab to prevent ghost hover interactions when on Home -->
   <aside class="sidebar-shell right" 
     class:static={queueSidebarMode === 'static'} 
     class:dynamic={queueSidebarMode === 'dynamic'}
     class:active={isQueueSidebarActive}
-    onmouseenter={() => isRightHovered = true}
+    class:active-tab={nav.activeTab === 'queue'}
+    onmouseenter={() => { if (nav.activeTab === 'queue') isRightHovered = true; }}
     onmouseleave={() => isRightHovered = false}
   >
     <div class="sidebar-trigger right-trigger"></div>
@@ -211,7 +209,15 @@
     bottom: 0;
     z-index: 100;
     pointer-events: none;
+    visibility: hidden; /* Default hidden unless tab matches */
   }
+  
+  /* Only make the sidebar shell visible and interactive on its respective tab */
+  .sidebar-shell.left, .sidebar-shell.active-tab {
+    visibility: visible;
+    pointer-events: auto;
+  }
+
   .sidebar-shell.left { left: 0; width: var(--sidebar-width); }
   .sidebar-shell.right { right: 0; width: var(--queue-sidebar-width); }
 
@@ -241,7 +247,9 @@
   .sidebar-shell.dynamic.left:hover .sidebar-panel { transform: translateX(0); }
   
   .sidebar-shell.dynamic.right .sidebar-panel { transform: translateX(100%); }
-  .sidebar-shell.dynamic.right:hover .sidebar-panel,
+  
+  /* CSS Hover only works if tab is active */
+  .sidebar-shell.dynamic.right.active-tab:hover .sidebar-panel,
   .sidebar-shell.dynamic.right.active .sidebar-panel { transform: translateX(0); }
 
   .sidebar-shell.static .sidebar-panel { transform: translateX(0); box-shadow: none; }
