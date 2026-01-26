@@ -11,6 +11,10 @@
   let mainEl;
   let rafId;
 
+  // Throttling configuration
+  let lastInputTime = 0;
+  const SCROLL_THROTTLE_MS = 200; // Adjust this: 50ms = fast, 150ms = slow
+
   function loop() {
     ctrl.update(mainEl);
     rafId = requestAnimationFrame(loop);
@@ -22,10 +26,20 @@
 
     if (e.key === 'j' || e.key === 'ArrowDown') {
       e.preventDefault();
-      ctrl.scrollRow(1);
+      
+      const now = Date.now();
+      if (now - lastInputTime > SCROLL_THROTTLE_MS) {
+        ctrl.scrollRow(1);
+        lastInputTime = now;
+      }
     } else if (e.key === 'k' || e.key === 'ArrowUp') {
       e.preventDefault();
-      ctrl.scrollRow(-1);
+      
+      const now = Date.now();
+      if (now - lastInputTime > SCROLL_THROTTLE_MS) {
+        ctrl.scrollRow(-1);
+        lastInputTime = now;
+      }
     }
   }
 
