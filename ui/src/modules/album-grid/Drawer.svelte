@@ -99,6 +99,7 @@
   .pointer-band {
     position: relative;
     width: 100%;
+    flex-shrink: 0;
   }
 
   .chevron-pointer {
@@ -176,6 +177,7 @@
     display: flex;
     flex-direction: column;
     justify-content: flex-end;
+    flex-shrink: 0;
   }
 
   .title-row {
@@ -218,6 +220,6 @@
 
   .tracks-wrapper {
     flex: 1;
-    overflow-y: hidden; 
+    overflow-y: auto; 
   }
 </style>

@@ -38,8 +38,7 @@ export class LayoutManager {
     return results;
   }
 
-  getNaturalDrawer(trackCount) {
-    const dSettings = theme.drawer;
+  getNaturalDrawer() {
     const chevronHeight = theme.albumGrid["drawer-chevron-height"];
     const gapMain = theme.albumGrid["drawer-gap-main"]; 
     
@@ -47,24 +46,8 @@ export class LayoutManager {
     const bandB = chevronHeight; 
     const overhead = bandA + bandB;
     
-    const paddingTotal = dSettings["drawer-padding-y"] * 2;
-    
-    const leftColHeight = dSettings["drawer-cover-size"];
-
-    const titleH = dSettings["drawer-font-size-album"] * 1.3;
-    const artistH = dSettings["drawer-font-size-artist"] * 1.3;
-    const headerGap = 24; 
-    const headerBlock = titleH + artistH + headerGap;
-
-    const tracksPerCol = Math.ceil(trackCount / this.trackCols);
-    const tracksBlock = tracksPerCol * dSettings["drawer-track-y"];
-    
-    const rightColHeight = headerBlock + tracksBlock;
-    
-    // +2px accounts for the 1px top/bottom borders on the drawer content box
-    const naturalContentHeight = paddingTotal + Math.max(leftColHeight, rightColHeight) + 2;
-    
-    const totalHeight = overhead + naturalContentHeight;
+    const totalHeight = this.rowHeight * 2;
+    const naturalContentHeight = totalHeight - overhead;
     
     return {
       height: totalHeight,
@@ -73,7 +56,7 @@ export class LayoutManager {
       trackCols: this.trackCols,
       chevronWidth: theme.albumGrid["drawer-chevron-width"],
       bandCHeight: naturalContentHeight,
-      drawerCoverSize: dSettings["drawer-cover-size"]
+      drawerCoverSize: theme.drawer["drawer-cover-size"]
     };
   }
 
@@ -89,14 +72,8 @@ export class LayoutManager {
     return y;
   }
 
-  /**
-   * Calculates which row indices are currently visible in the viewport.
-   * Includes a buffer to handle inertia/fast scrolling.
-   */
   getVisibleIndices(scrollY, viewportHeight, rowCount) {
     const buffer = 4;
-    // Basic projection based on fixed row height
-    // (Actual positions might vary due to drawer, but this covers the scan area)
     const start = Math.floor(scrollY / this.rowHeight) - buffer;
     const end = Math.ceil((scrollY + viewportHeight) / this.rowHeight) + buffer;
     
