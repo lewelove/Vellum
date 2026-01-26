@@ -22,14 +22,14 @@
   
   /**
    * Physics-based Spring Store
-   * stiffness: 0.03 - Lower values increase the feeling of "mass"
-   * damping: 0.9   - Higher values (closer to 1.0) prevent bounce and create a "premium oil-damped" feel
-   * precision: 0.1 - The Snap Threshold. Animation settles instantly when distance < 0.1px
+   * stiffness: - Lower values increase the feeling of "mass"
+   * damping: - Higher values (closer to 1.0) prevent bounce and create a "premium oil-damped" feel
+   * precision: - The Snap Threshold. Animation settles instantly when distance < 0.1px
    */
   const pos = spring(0, {
-    stiffness: 0.2,
-    damping: 1,
-    precision: 0.1 
+    stiffness: 0.05,
+    damping: 0.5,
+    precision: 0.01 
   });
 
   $effect(() => {
@@ -56,9 +56,9 @@
     const key = e.key.toLowerCase();
     if (key === 's') {
       toggleSidebarMode();
-    } else if (key === '1') {
+    } else if (key === '1' || key === 'h' || key === 'arrowleft') {
       setTab('home');
-    } else if (key === '2') {
+    } else if (key === '2' || key === 'l' || key === 'arrowright') {
       setTab('queue');
     }
   }
