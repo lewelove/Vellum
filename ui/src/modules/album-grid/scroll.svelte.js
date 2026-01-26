@@ -3,23 +3,28 @@ export class ScrollEngine {
   targetSlot = $state(0); 
   wheelAccumulator = 0;
   
-  constructor(damping = 0.08, threshold = 40) {
+  constructor(damping = 0.1, threshold = 40) {
     this.damping = damping;
     this.threshold = threshold;
   }
 
   update(rowHeight, dpr = 1) {
-    const targetY = this.targetSlot * rowHeight;
-    const diff = targetY - this.currentY;
+    // 1. Calculate the ideal target
+    const idealTargetY = this.targetSlot * rowHeight;
+    
+    // 2. SNAP the target itself to the physical pixel grid
+    // This ensures the "destination" is something the monitor can actually render
+    const snappedTargetY = Math.round(idealTargetY * dpr) / dpr;
+    
+    const diff = snappedTargetY - this.currentY;
 
-    // Settling logic:
-    // When the motion is effectively stopped (below threshold),
-    // snap the view to the nearest physical device pixel to ensure
-    // razor-sharp static rendering (text/borders).
+    // 3. Increased threshold. 
+    // If the difference is less than 0.1 of a CSS pixel, 
+    // it's visually indistinguishable from the target. arrive now.
     if (Math.abs(diff) < 0.1) {
-      this.currentY = Math.round(targetY * dpr) / dpr;
+      this.currentY = snappedTargetY;
     } else {
-      // Sub-pixel movement (Anti-Aliased)
+      // 4. Smooth glide towards the already-snapped target
       this.currentY += diff * this.damping;
     }
   }
@@ -29,10 +34,6 @@ export class ScrollEngine {
     
     if (Math.abs(this.wheelAccumulator) > this.threshold) {
       const direction = this.wheelAccumulator > 0 ? 1 : -1;
-      
-      // Snap to the nearest integer alignment before stepping.
-      // This ensures that if the keyboard left us at 14.3, 
-      // a wheel scroll snaps us back to the grid (e.g. 15.0 or 14.0).
       const base = Math.round(this.targetSlot);
       
       this.targetSlot = Math.max(0, Math.min(base + direction, maxSlots));
