@@ -5,7 +5,8 @@ export const player = $state({
   title: "",
   artist: "",
   elapsed: 0,
-  duration: 0
+  duration: 0,
+  queue: []
 });
 
 export function updatePlayerState(data) {
@@ -16,4 +17,8 @@ export function updatePlayerState(data) {
   player.artist = data.artist || "";
   player.elapsed = parseFloat(data.elapsed || 0);
   player.duration = parseFloat(data.duration || 0);
+  
+  if (data.queue) {
+    player.queue = data.queue;
+  }
 }

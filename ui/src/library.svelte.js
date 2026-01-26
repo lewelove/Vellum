@@ -23,6 +23,7 @@ class LibraryState {
   viewVersion = $state(0);
 
   albumCache = new Map();
+  trackPathMap = new Map();
 
   worker = null;
   
@@ -37,12 +38,29 @@ class LibraryState {
 
       if (type === "INIT_DATA") {
         console.log(`[Main] Caching ${count} objects...`);
-        data.forEach(a => this.albumCache.set(a.id, a));
+        this.trackPathMap.clear();
+        data.forEach(a => {
+          this.albumCache.set(a.id, a);
+          if (a.tracks) {
+            a.tracks.forEach(t => {
+              if (t.track_library_path) {
+                this.trackPathMap.set(t.track_library_path, t);
+              }
+            });
+          }
+        });
         this.refreshSidebar();
       }
       
       else if (type === "UPDATE_DATA") {
         this.albumCache.set(data.id, data);
+        if (data.tracks) {
+          data.tracks.forEach(t => {
+            if (t.track_library_path) {
+              this.trackPathMap.set(t.track_library_path, t);
+            }
+          });
+        }
       }
 
       else if (type === "VIEW_UPDATED") {
@@ -134,6 +152,10 @@ class LibraryState {
         return [];
     }
     return this.sidebarGroups.get(key) || [];
+  }
+
+  getTrackByPath(path) {
+    return this.trackPathMap.get(path);
   }
 
   setSidebarGrouper(key) {

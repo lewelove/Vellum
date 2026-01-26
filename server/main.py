@@ -117,6 +117,9 @@ async def mpd_monitor_loop():
     client = MPDClient()
     print("Starting MPD Monitor...")
     
+    last_playlist_version = None
+    cached_queue = []
+
     while True:
         try:
             try:
@@ -125,6 +128,12 @@ async def mpd_monitor_loop():
                 client.connect("localhost", 6600)
 
             status = client.status()
+            current_playlist_version = status.get("playlist")
+            
+            if current_playlist_version != last_playlist_version:
+                cached_queue = client.playlistinfo()
+                last_playlist_version = current_playlist_version
+            
             current = client.currentsong()
             file_path = current.get("file")
             
@@ -137,6 +146,7 @@ async def mpd_monitor_loop():
                 "duration": status.get("duration"),
                 "title": current.get("title"),
                 "artist": current.get("artist"),
+                "queue": cached_queue
             }
             await manager.broadcast_bytes(orjson.dumps(payload))
             await asyncio.sleep(1) # Non-blocking poll

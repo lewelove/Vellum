@@ -7,6 +7,7 @@
   import AlbumGrid from "$modules/album-grid/AlbumGrid.svelte";
   import Sidebar from "$modules/sidebar/Sidebar.svelte";
   import QueueView from "$modules/queue/QueueView.svelte";
+  import QueueTracks from "$modules/queue/QueueTracks.svelte";
   import NavTabs from "$modules/navigation/NavTabs.svelte";
 
   let themeStyles = $derived(getThemeVariables());
@@ -14,11 +15,19 @@
   let sidebarWidth = $state(140);
   let isResizing = $state(false);
 
+  // Queue Sidebar State
+  let queueSidebarMode = $state("dynamic");
+  let queueSidebarWidth = $state(280);
+  let isResizingQueue = $state(false);
+
   // Viewport Binding for Absolute Pixel Calculation
   let viewportWidth = $state(0);
 
   // index: 0 = Home, 1 = Queue
   const activeIndex = $derived(nav.activeTab === "home" ? 0 : 1);
+
+  // Derived state for Queue Sidebar visibility
+  let isQueueSidebarActive = $derived(nav.activeTab === 'queue');
   
   /**
    * Physics-based Spring Store
@@ -50,12 +59,20 @@
     localStorage.setItem("eluxum-sidebar-mode", sidebarMode);
   }
 
+  function toggleQueueSidebarMode() {
+    queueSidebarMode = queueSidebarMode === "dynamic" ? "static" : "dynamic";
+    localStorage.setItem("eluxum-queue-sidebar-mode", queueSidebarMode);
+  }
+
   function handleKeydown(e) {
     const tag = document.activeElement?.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA') return;
     const key = e.key.toLowerCase();
+    
     if (key === 's') {
       toggleSidebarMode();
+    } else if (key === 'q') {
+      toggleQueueSidebarMode();
     } else if (key === '1' || key === 'h' || key === 'arrowleft') {
       setTab('home');
     } else if (key === '2' || key === 'l' || key === 'arrowright') {
@@ -63,6 +80,7 @@
     }
   }
 
+  // Left Sidebar Resizing
   function startResizing(e) {
     e.preventDefault();
     isResizing = true;
@@ -86,8 +104,35 @@
     localStorage.setItem("eluxum-sidebar-width", sidebarWidth.toString());
   }
 
+  // Right Queue Sidebar Resizing
+  function startResizingQueue(e) {
+    e.preventDefault();
+    isResizingQueue = true;
+    window.addEventListener("mousemove", handleMouseMoveQueue);
+    window.addEventListener("mouseup", stopResizingQueue);
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  }
+
+  function handleMouseMoveQueue(e) {
+    if (!isResizingQueue) return;
+    // Calculate width from right edge
+    const newWidth = window.innerWidth - e.clientX;
+    queueSidebarWidth = Math.max(200, Math.min(newWidth, 600));
+  }
+
+  function stopResizingQueue() {
+    isResizingQueue = false;
+    window.removeEventListener("mousemove", handleMouseMoveQueue);
+    window.removeEventListener("mouseup", stopResizingQueue);
+    document.body.style.cursor = "";
+    document.body.style.userSelect = "";
+    localStorage.setItem("eluxum-queue-sidebar-width", queueSidebarWidth.toString());
+  }
+
   onMount(() => {
     library.init();
+    
     const savedMode = localStorage.getItem("eluxum-sidebar-mode");
     if (savedMode === "static" || savedMode === "dynamic") {
       sidebarMode = savedMode;
@@ -96,6 +141,16 @@
     if (savedWidth) {
       sidebarWidth = parseInt(savedWidth);
     }
+
+    const savedQMode = localStorage.getItem("eluxum-queue-sidebar-mode");
+    if (savedQMode === "static" || savedQMode === "dynamic") {
+      queueSidebarMode = savedQMode;
+    }
+    const savedQWidth = localStorage.getItem("eluxum-queue-sidebar-width");
+    if (savedQWidth) {
+      queueSidebarWidth = parseInt(savedQWidth);
+    }
+
     window.addEventListener("keydown", handleKeydown);
     return () => {
       window.removeEventListener("keydown", handleKeydown);
@@ -103,7 +158,7 @@
   });
 </script>
 
-<main style="{themeStyles} --sidebar-width: {sidebarWidth}px;">
+<main style="{themeStyles} --sidebar-width: {sidebarWidth}px; --queue-sidebar-width: {queueSidebarWidth}px;">
   
   <aside 
     class="sidebar-shell" 
@@ -130,11 +185,34 @@
     </div>
   </aside>
 
+  <aside 
+    class="sidebar-shell right-shell" 
+    class:mode-static={queueSidebarMode === 'static'}
+    class:mode-dynamic={queueSidebarMode === 'dynamic'}
+    class:active={isQueueSidebarActive}
+    class:resizing={isResizingQueue}
+  >
+    <div class="sidebar-panel right-panel">
+      <div class="sidebar-inner">
+        <QueueTracks isVisible={isQueueSidebarActive} />
+      </div>
+      <div 
+        class="sidebar-resizer left-resizer" 
+        onmousedown={startResizingQueue}
+        role="separator"
+        aria-orientation="vertical"
+        aria-valuenow={queueSidebarWidth}
+        tabindex="-1"
+      ></div>
+    </div>
+  </aside>
+
   <section 
     class="content-viewport"
     bind:clientWidth={viewportWidth}
-    class:offset-content={sidebarMode === 'static'}
-    class:resizing={isResizing}
+    class:offset-content-left={sidebarMode === 'static'}
+    class:offset-content-right={isQueueSidebarActive && queueSidebarMode === 'static'}
+    class:resizing={isResizing || isResizingQueue}
   >
     <div 
       class="view-stage" 
@@ -164,6 +242,8 @@
     overflow: hidden;
     background-color: var(--background-main);
   }
+
+  /* --- LEFT SIDEBAR --- */
 
   .sidebar-shell {
     position: fixed;
@@ -240,6 +320,52 @@
     display: none;
   }
 
+  /* --- RIGHT SIDEBAR (QUEUE) --- */
+
+  .right-shell {
+    left: auto;
+    right: 0;
+    width: var(--queue-sidebar-width);
+  }
+
+  .right-panel {
+    left: auto;
+    right: 0;
+    border-right: none;
+    border-left: 1px solid var(--border-muted);
+  }
+
+  .left-resizer {
+    right: auto;
+    left: -3px;
+  }
+
+  /* 
+     Fix for Directionality:
+     The generic .sidebar-shell.mode-dynamic pulls it to -100% (Left).
+     We must explicitly force the Right Shell to +100% (Right) when hidden.
+  */
+
+  .right-shell .sidebar-panel,
+  .right-shell.mode-dynamic .sidebar-panel {
+    transform: translateX(100%);
+  }
+
+  /* Active States */
+
+  .right-shell.active.mode-static .sidebar-panel {
+    transform: translateX(0);
+    box-shadow: none;
+  }
+
+  .right-shell.active.mode-dynamic .sidebar-panel {
+    transform: translateX(0);
+    box-shadow: 0 0 15px rgba(0,0,0,0.5);
+    border-left: 1px solid rgba(255, 255, 255, 0.1); 
+  }
+
+  /* --- COMMON INNER --- */
+
   .nav-anchor {
     flex: 0 0 var(--nav-height);
     width: 100%;
@@ -255,6 +381,8 @@
     padding-top: 0 !important; 
   }
 
+  /* --- VIEWPORT --- */
+
   .content-viewport {
     position: absolute;
     top: 0;
@@ -262,12 +390,16 @@
     bottom: 0;
     left: 0;
     overflow: hidden;
-    transition: left 0.25s cubic-bezier(0.2, 0.0, 0.0, 1.0);
-    will-change: left;
+    transition: left 0.25s cubic-bezier(0.2, 0.0, 0.0, 1.0), right 0.25s cubic-bezier(0.2, 0.0, 0.0, 1.0);
+    will-change: left, right;
   }
 
-  .content-viewport.offset-content {
+  .content-viewport.offset-content-left {
     left: var(--sidebar-width);
+  }
+
+  .content-viewport.offset-content-right {
+    right: var(--queue-sidebar-width);
   }
 
   .content-viewport.resizing {
