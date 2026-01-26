@@ -115,8 +115,10 @@
     height: 100%;
     display: flex;
     flex-direction: column;
-    background-color: var(--background-drawer);
-    padding-top: 80px; 
+    /* Background removed here, handled by parent panel in App.svelte */
+    background-color: transparent; 
+    /* Padding removed here, layout handled by parent */
+    padding-top: 0; 
     box-sizing: border-box;
   }
 
