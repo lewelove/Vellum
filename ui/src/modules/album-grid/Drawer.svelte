@@ -1,5 +1,6 @@
 <script>
   import { playAlbum } from "../../api.js";
+  import { library } from "../../library.svelte.js";
   import DrawerTracks from "./DrawerTracks.svelte";
   import SmartImage from "./SmartImage.svelte";
 
@@ -18,7 +19,7 @@
     mode = "ui" // "ui" or "text"
   } = $props();
 
-  let coverUrl =$derived(`/api/assets/${encodeURIComponent(activeAlbum.id)}/cover?h=${activeAlbum.cover_hash}`);
+  let coverUrl = $derived(library.getAlbumCoverUrl(activeAlbum.id));
 
   let chevronLeft = $derived((activeIndexInRow * (cardSize + gap)) + (cardSize / 2));
 

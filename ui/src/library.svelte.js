@@ -158,6 +158,14 @@ class LibraryState {
     return this.trackPathMap.get(path);
   }
 
+  getAlbumCoverUrl(albumId) {
+    const album = this.albumCache.get(albumId);
+    if (!album || !album.cover_path || album.cover_path === "default_cover.png") {
+      return "";
+    }
+    return `/api/assets/${encodeURIComponent(album.id)}/cover?v=${album.cover_hash}`;
+  }
+
   setSidebarGrouper(key) {
     this.activeSidebarGrouper = key;
     this.refreshSidebar();

@@ -1,10 +1,11 @@
 <script>
   import { player } from "../player.svelte.js";
+  import { library } from "../../library.svelte.js";
   import QueueTracks from "./QueueTracks.svelte";
 
   let activeId = $derived(player.currentAlbumId);
   let coverUrl = $derived(
-    activeId ? `/api/assets/${encodeURIComponent(activeId)}/cover` : ""
+    activeId ? library.getAlbumCoverUrl(activeId) : ""
   );
 
   let innerWidth = $state(0);
