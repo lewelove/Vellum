@@ -5,7 +5,7 @@
   
   import Album from "./Album.svelte";
   import Drawer from "./Drawer.svelte";
-  import Scrollbar from "./Scrollbar.svelte";
+  // Scrollbar import removed
 
   const ctrl = new GridController();
   let mainEl;
@@ -54,7 +54,6 @@
   }
 
   function handleBlur() {
-    // Safety: Clear keys if window loses focus (e.g. Alt-Tab)
     activeKeys.clear();
   }
 
@@ -185,12 +184,7 @@
         </div>
       {/each}
     </div>
-
-    <Scrollbar 
-      viewportHeight={ctrl.viewportHeight} 
-      contentHeight={ctrl.contentHeight} 
-      currentY={ctrl.scroll.currentY} 
-    />
+    <!-- Scrollbar component instance removed -->
   </div>
 </div>
 
