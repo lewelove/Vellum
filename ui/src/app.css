@@ -1,7 +1,17 @@
 @import url('https://rsms.me/inter/inter.css');
 
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Noto+Music&family=Noto+Sans+Arabic:wght@400;700&family=Noto+Sans+JP:wght@400;700&family=Noto+Sans+KR:wght@400;700&family=Noto+Sans+SC:wght@400;700&family=Noto+Sans+TC:wght@400;700&display=swap');
+
 :root {
-  --font-stack: 'Inter', -apple-system, sans-serif;
+  --font-stack: 
+    'Inter', 
+    'Noto Sans', 
+    'Noto Sans JP', 
+    'Noto Sans SC', 
+    'Noto Sans TC', 
+    'Noto Sans KR', 
+    'system-ui', 
+    sans-serif;
 }
 
 /* :root { */

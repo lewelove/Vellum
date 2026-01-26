@@ -15,6 +15,33 @@
 
 <svelte:window bind:innerWidth bind:innerHeight />
 
+<!-- Hidden SVG Filter Definition -->
+<svg style="position: absolute; width: 0; height: 0;" aria-hidden="true">
+  <filter id="dithered-shadow">
+    <!-- 1. Create the shadow shape from the image's alpha channel -->
+    <feGaussianBlur in="SourceAlpha" stdDeviation="12" result="blur" />
+    
+    <!-- 2. Generate the noise/dither grain -->
+    <feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="5" result="noise" />
+    
+    <!-- 3. Limit the noise only to the blurred shadow area -->
+    <feComposite in="noise" in2="blur" operator="in" result="dithered-blur" />
+    
+    <!-- 4. Adjust the density and color of the dithered shadow -->
+    <feColorMatrix in="dithered-blur" type="matrix" 
+      values="0 0 0 0 0
+              0 0 0 0 0
+              0 0 0 0 0
+              0 0 0 0.8 0" /> <!-- 0.4 controls shadow opacity -->
+    
+    <!-- 5. Merge the original image back on top of the dithered shadow -->
+    <feMerge>
+      <feMergeNode />
+      <feMergeNode in="SourceGraphic" />
+    </feMerge>
+  </filter>
+</svg>
+
 <div class="queue-view-container">
   <div class="cover-area">
     {#if coverUrl}
@@ -54,6 +81,8 @@
     align-items: center;
     justify-content: center;
     z-index: 1;
+    /* padding: 32px; */
+    box-sizing: border-box;
   }
 
   .fullscreen-cover {
@@ -62,11 +91,13 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    /* Apply the SVG filter here */
+    filter: url(#dithered-shadow);
   }
 
   .now-playing-cover {
-    height: 100%;
-    width: 100%;
+    max-height: 100%;
+    max-width: 100%;
     object-fit: contain;
     display: block;
   }

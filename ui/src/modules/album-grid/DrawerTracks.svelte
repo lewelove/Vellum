@@ -70,7 +70,8 @@
     flex: 0 0 45px;
     text-align: right;
     color: var(--text-muted);
-    font-size: 0.9em;
+    font-size: 13px;
+    font-family: monospace;
     padding-left: 8px;
   }
 </style>
