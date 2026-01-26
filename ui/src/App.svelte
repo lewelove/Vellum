@@ -23,6 +23,9 @@
   const activeIndex = $derived(nav.activeTab === "home" ? 0 : 1);
   const pos = spring(0, { stiffness: 0.08, damping: 0.6 });
 
+  // Define the offset variable for children (like QueueView) to compensate for the shift
+  let sidebarOffset = $derived(sidebarMode === 'static' ? sidebarWidth : 0);
+
   $effect(() => {
     if (viewportWidth > 0) {
       const target = activeIndex * viewportWidth;
@@ -71,7 +74,7 @@
   });
 </script>
 
-<main style="{themeStyles} --sidebar-width: {sidebarWidth}px;">
+<main style="{themeStyles} --sidebar-width: {sidebarWidth}px; --sidebar-offset: {sidebarOffset}px;">
   
   <section 
     class="content-viewport"
@@ -116,12 +119,21 @@
 
   .content-viewport {
     position: absolute;
-    inset: 0;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 100%;
     overflow: hidden;
     z-index: 10;
-    transition: left 0.25s cubic-bezier(0.2, 0, 0, 1);
+    transition: left 0.25s cubic-bezier(0.2, 0, 0, 1), width 0.25s cubic-bezier(0.2, 0, 0, 1);
   }
-  .content-viewport.offset-left { left: var(--sidebar-width); }
+
+  /* When static, push the start of the viewport but also reduce width to prevent overflow */
+  .content-viewport.offset-left { 
+    left: var(--sidebar-width); 
+    width: calc(100% - var(--sidebar-width));
+  }
+
   .content-viewport.resizing { transition: none; }
 
   .view-stage {

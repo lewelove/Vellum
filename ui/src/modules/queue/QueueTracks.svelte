@@ -44,7 +44,7 @@
     flex-direction: column;
     padding-top: 12px;
     box-sizing: border-box;
-    background-color: var(--background-drawer);
+    background-color: #121212;
   }
 
   .tracks-header {
@@ -78,7 +78,6 @@
     padding: 6px 16px 6px 12px;
     font-family: var(--font-stack);
     color: var(--text-muted);
-    /* border-left: 3px solid transparent; */
   }
 
   .queue-row:hover {
