@@ -1,8 +1,6 @@
 <script>
   import { onMount } from "svelte";
-  import { tweened } from "svelte/motion";
-  // We'll use a custom cubic-bezier for the 'heavy' feel
-  import { cubicOut } from "svelte/easing";
+  import { spring } from "svelte/motion";
   import { library } from "./library.svelte.js";
   import { nav, setTab } from "./navigation.svelte.js";
   import { getThemeVariables } from "./theme.svelte.js";
@@ -11,27 +9,40 @@
   import QueueView from "$modules/queue/QueueView.svelte";
   import NavTabs from "$modules/navigation/NavTabs.svelte";
 
-  // Custom "Premium Heavy" Easing
-  // This mimics a heavy object with high friction (fast snap, very long tail)
-  function premiumHeavy(t) {
-    return t === 1 ? 1 : 1 - Math.pow(2, -10 * t); // Similar to expoOut but smoother
-  }
-
   let themeStyles = $derived(getThemeVariables());
   let sidebarMode = $state("dynamic");
   let sidebarWidth = $state(140);
   let isResizing = $state(false);
 
+  // Viewport Binding for Absolute Pixel Calculation
+  let viewportWidth = $state(0);
+
+  // index: 0 = Home, 1 = Queue
   const activeIndex = $derived(nav.activeTab === "home" ? 0 : 1);
   
-  // Increased duration to 600ms to let the "weight" of the transition be felt
-  const pos = tweened(0, { 
-    duration: 600, 
-    easing: premiumHeavy 
+  /**
+   * Physics-based Spring Store
+   * stiffness: 0.03 - Lower values increase the feeling of "mass"
+   * damping: 0.9   - Higher values (closer to 1.0) prevent bounce and create a "premium oil-damped" feel
+   * precision: 0.1 - The Snap Threshold. Animation settles instantly when distance < 0.1px
+   */
+  const pos = spring(0, {
+    stiffness: 0.2,
+    damping: 1,
+    precision: 0.1 
   });
 
   $effect(() => {
-    pos.set(activeIndex);
+    // 1. Calculate Ideal Geometric Target
+    const rawTarget = activeIndex * viewportWidth;
+
+    // 2. Hardware-Grid Snapping (DPR)
+    // We pre-snap the target so the spring settles into a pixel-perfect slot
+    const dpr = window.devicePixelRatio || 1;
+    const snappedTarget = Math.round(rawTarget * dpr) / dpr;
+
+    // 3. Update the Spring
+    pos.set(snappedTarget);
   });
 
   function toggleSidebarMode() {
@@ -121,11 +132,14 @@
 
   <section 
     class="content-viewport"
+    bind:clientWidth={viewportWidth}
     class:offset-content={sidebarMode === 'static'}
     class:resizing={isResizing}
   >
-    <!-- We use a 3D transform (translate3d) to ensure the GPU handles the "heavy" slide -->
-    <div class="view-stage" style="transform: translate3d(-{$pos * 50}%, 0, 0);">
+    <div 
+      class="view-stage" 
+      style="transform: translate3d(-{$pos}px, 0, 0);"
+    >
       <div class="view-page">
         <AlbumGrid />
       </div>
@@ -265,6 +279,7 @@
     width: 200%;
     height: 100%;
     will-change: transform;
+    backface-visibility: hidden;
   }
 
   .view-page {
