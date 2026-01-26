@@ -19,6 +19,8 @@
   let queueSidebarMode = $state("dynamic");
   let queueSidebarWidth = $state(280);
   let isResizingQueue = $state(false);
+  let isRightHovered = $state(false);
+  let isNavSettled = $state(true);
 
   // Viewport Binding for Absolute Pixel Calculation
   let viewportWidth = $state(0);
@@ -26,8 +28,12 @@
   // index: 0 = Home, 1 = Queue
   const activeIndex = $derived(nav.activeTab === "home" ? 0 : 1);
 
-  // Derived state for Queue Sidebar visibility
-  let isQueueSidebarActive = $derived(nav.activeTab === 'queue');
+  // Logic for Queue Sidebar visibility state machine
+  let isQueueSidebarActive = $derived(
+    isRightHovered ||
+    queueSidebarMode === 'static' ||
+    (nav.activeTab === 'queue' && isNavSettled)
+  );
   
   /**
    * Physics-based Spring Store
@@ -52,6 +58,13 @@
 
     // 3. Update the Spring
     pos.set(snappedTarget);
+    
+    // 4. Handle transition settling for queue sidebar auto-expand
+    isNavSettled = false;
+    const timer = setTimeout(() => {
+      isNavSettled = true;
+    }, 500);
+    return () => clearTimeout(timer);
   });
 
   function toggleSidebarMode() {
@@ -191,7 +204,10 @@
     class:mode-dynamic={queueSidebarMode === 'dynamic'}
     class:active={isQueueSidebarActive}
     class:resizing={isResizingQueue}
+    onmouseenter={() => isRightHovered = true}
+    onmouseleave={() => isRightHovered = false}
   >
+    <div class="sidebar-trigger right-trigger"></div>
     <div class="sidebar-panel right-panel">
       <div class="sidebar-inner">
         <QueueTracks isVisible={isQueueSidebarActive} />
@@ -211,7 +227,7 @@
     class="content-viewport"
     bind:clientWidth={viewportWidth}
     class:offset-content-left={sidebarMode === 'static'}
-    class:offset-content-right={isQueueSidebarActive && queueSidebarMode === 'static'}
+    class:offset-content-right={nav.activeTab === 'home' && queueSidebarMode === 'static'}
     class:resizing={isResizing || isResizingQueue}
   >
     <div 
@@ -328,6 +344,11 @@
     width: var(--queue-sidebar-width);
   }
 
+  .right-trigger {
+    left: auto;
+    right: 0;
+  }
+
   .right-panel {
     left: auto;
     right: 0;
@@ -340,24 +361,19 @@
     left: -3px;
   }
 
-  /* 
-     Fix for Directionality:
-     The generic .sidebar-shell.mode-dynamic pulls it to -100% (Left).
-     We must explicitly force the Right Shell to +100% (Right) when hidden.
-  */
-
+  /* Handle directionality for right sidebar */
   .right-shell .sidebar-panel,
   .right-shell.mode-dynamic .sidebar-panel {
     transform: translateX(100%);
   }
 
   /* Active States */
-
   .right-shell.active.mode-static .sidebar-panel {
     transform: translateX(0);
     box-shadow: none;
   }
 
+  .right-shell.mode-dynamic:hover .sidebar-panel,
   .right-shell.active.mode-dynamic .sidebar-panel {
     transform: translateX(0);
     box-shadow: 0 0 15px rgba(0,0,0,0.5);
