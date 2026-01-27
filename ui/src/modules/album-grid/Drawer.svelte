@@ -17,18 +17,48 @@
     gap,
     drawerCoverSize,
     mode = "ui", // "ui" or "text"
-    setDrawerFocus = () => {},
   } = $props();
 
   let coverUrl = $derived(library.getAlbumCoverUrl(activeAlbum.id));
-
   let chevronLeft = $derived((activeIndexInRow * (cardSize + gap)) + (cardSize / 2));
+
+  let isHoveringScrollbar = $state(false);
 
   async function handlePlay() {
     try {
       await playAlbum(activeAlbum.id);
     } catch (err) {
       console.error("Failed to play album:", err);
+    }
+  }
+
+  function handleMouseMove(e) {
+    // We only track this on the interactive layer (text/background layer)
+    if (mode === "ui") return;
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const dist = rect.right - e.clientX;
+    isHoveringScrollbar = dist <= 24;
+  }
+
+  function handleMouseLeave() {
+    isHoveringScrollbar = false;
+  }
+
+  function handleWheel(e) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const dist = rect.right - e.clientX;
+
+    // Logic: 
+    // If in the 24px Hot Zone: Allow Native Scroll. Stop Propagation (Grid stays still).
+    // If over Content Zone: Stop Native Scroll. Allow Bubble (Grid moves).
+
+    if (dist <= 24) {
+      e.stopPropagation();
+      // Native behavior (scrolling the drawer) proceeds automatically
+    } else {
+      e.preventDefault(); 
+      // Native behavior stopped. Event bubbles to AlbumGrid -> Grid scrolls.
     }
   }
 </script>
@@ -78,11 +108,15 @@
           <div 
             class="tracks-wrapper" 
             class:ghost={mode === "ui"}
-            onmouseenter={() => setDrawerFocus(true)}
-            onmouseleave={() => setDrawerFocus(false)}
+            onwheel={handleWheel}
+            onmousemove={handleMouseMove}
+            onmouseleave={handleMouseLeave}
             role="region"
             aria-label="Track list"
           >
+            <!-- Visual Scrollbar Hot Zone Indicator -->
+            <div class="scrollbar-zone" class:active={isHoveringScrollbar}></div>
+            
             <DrawerTracks tracks={activeAlbum.tracks} cols={trackCols} />
           </div>
         </div>
@@ -234,6 +268,23 @@
     pointer-events: auto; /* Enable interaction in background layer */
     scrollbar-gutter: stable;
     padding-right: 6px;
+    position: relative; /* Required for absolute positioning of scrollbar-zone */
+  }
+
+  .scrollbar-zone {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 24px;
+    background-color: transparent;
+    pointer-events: none; /* Let clicks pass through to native scrollbar */
+    transition: background-color 0.2s;
+    z-index: 10;
+  }
+
+  .scrollbar-zone.active {
+    background-color: rgba(255, 255, 255, 0.05);
   }
 
   .tracks-wrapper::-webkit-scrollbar {

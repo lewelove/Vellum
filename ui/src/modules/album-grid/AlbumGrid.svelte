@@ -93,7 +93,6 @@
     bind:clientWidth={ctrl.layout.containerWidth} 
     bind:clientHeight={ctrl.viewportHeight}
     onwheel={(e) => { 
-      if (ctrl.isDrawerFocused) return;
       e.preventDefault(); 
       ctrl.handleWheel(e); 
     }}
@@ -137,7 +136,6 @@
                   chevronWidth={ctrl.drawerInfo.chevronWidth}
                   bandCHeight={ctrl.drawerInfo.bandCHeight}
                   drawerCoverSize={ctrl.drawerInfo.drawerCoverSize}
-                  setDrawerFocus={(val) => ctrl.isDrawerFocused = val}
                 />
               {/key}
             </div>
