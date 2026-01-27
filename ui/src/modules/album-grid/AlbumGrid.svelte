@@ -5,10 +5,8 @@
   
   import Album from "./Album.svelte";
   import Drawer from "./Drawer.svelte";
-  // Scrollbar import removed
 
   const ctrl = new GridController();
-  let mainEl;
   let rafId;
 
   // Input State for Continuous Velocity Scrolling
@@ -31,7 +29,9 @@
     }
 
     // 2. Process Physics & Rendering
-    ctrl.update(mainEl);
+    // Pass null to prevent setting scrollTop on the DOM element.
+    // We handle rendering via GPU transforms now.
+    ctrl.update(null);
     rafId = requestAnimationFrame(loop);
   }
 
@@ -90,7 +90,6 @@
 <div class="album-grid-viewport">
   <div 
     class="grid-container"
-    bind:this={mainEl}
     bind:clientWidth={ctrl.layout.containerWidth} 
     bind:clientHeight={ctrl.viewportHeight}
     onwheel={(e) => { 
@@ -98,9 +97,16 @@
       ctrl.handleWheel(e); 
     }}
   >
+    <!-- LAYER 0: Background Text (Scrolls) -->
     <div 
       class="scroll-content background-layer" 
-      style="height: {ctrl.contentHeight}px; z-index: 0; background-color: var(--background-main);"
+      style="
+        height: {ctrl.contentHeight}px; 
+        z-index: 0; 
+        background-color: var(--background-main);
+        transform: translate3d(0, -{ctrl.scroll.currentY}px, 0);
+        will-change: transform;
+      "
     >
       {#each ctrl.virtualRows as row (row.index)}
         <div 
@@ -138,12 +144,23 @@
       {/each}
     </div>
 
-    <div
+    <!-- LAYER 1: The Crease (Static Mask) -->
+    <!-- Positioned absolutely between background and foreground -->
+    <div 
       class="top-crease"
-      style="height: {ctrl.layout.creaseHeight}px; margin-bottom: -{ctrl.layout.creaseHeight}px;"
+      style="height: {ctrl.layout.creaseHeight}px;"
     ></div>
 
-    <div class="scroll-content foreground-layer" style="height: {ctrl.contentHeight}px; z-index: 2;">
+    <!-- LAYER 2: Foreground Covers (Scrolls) -->
+    <div 
+      class="scroll-content foreground-layer" 
+      style="
+        height: {ctrl.contentHeight}px; 
+        z-index: 2;
+        transform: translate3d(0, -{ctrl.scroll.currentY}px, 0);
+        will-change: transform;
+      "
+    >
       {#each ctrl.virtualRows as row (row.index)}
         <div 
           class="row" 
@@ -184,7 +201,6 @@
         </div>
       {/each}
     </div>
-    <!-- Scrollbar component instance removed -->
   </div>
 </div>
 
@@ -202,14 +218,15 @@
       position: relative;
       overflow: hidden;
       overscroll-behavior: none;
+      contain: content;
     }
 
     .top-crease {
-      position: sticky;
+      position: absolute; /* Static absolute position */
       top: 0;
       left: 0;
       width: 100%;
-      height: var(--crease-height);
+      /* height set via inline style */
       background-color: var(--background-main);
       z-index: 1; 
       pointer-events: none; 
