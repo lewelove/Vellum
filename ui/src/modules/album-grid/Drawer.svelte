@@ -16,13 +16,27 @@
     cardSize,
     gap,
     drawerCoverSize,
-    mode = "ui", // "ui" or "text"
+    mode = "ui",
   } = $props();
+
+  let tracksContainer = $state(null);
+  let hasOverflow = $state(false);
+  let isHoveringScrollbar = $state(false);
 
   let coverUrl = $derived(library.getAlbumCoverUrl(activeAlbum.id));
   let chevronLeft = $derived((activeIndexInRow * (cardSize + gap)) + (cardSize / 2));
 
-  let isHoveringScrollbar = $state(false);
+  function checkOverflow() {
+    if (tracksContainer) {
+      hasOverflow = tracksContainer.scrollHeight > tracksContainer.clientHeight;
+    }
+  }
+
+  $effect(() => {
+    if (activeAlbum) {
+      checkOverflow();
+    }
+  });
 
   async function handlePlay() {
     try {
@@ -33,8 +47,7 @@
   }
 
   function handleMouseMove(e) {
-    // We only track this on the interactive layer (text/background layer)
-    if (mode === "ui") return;
+    if (mode === "ui" || !hasOverflow) return;
 
     const rect = e.currentTarget.getBoundingClientRect();
     const dist = rect.right - e.clientX;
@@ -46,19 +59,15 @@
   }
 
   function handleWheel(e) {
+    if (!hasOverflow) return;
+
     const rect = e.currentTarget.getBoundingClientRect();
     const dist = rect.right - e.clientX;
 
-    // Logic: 
-    // If in the 24px Hot Zone: Allow Native Scroll. Stop Propagation (Grid stays still).
-    // If over Content Zone: Stop Native Scroll. Allow Bubble (Grid moves).
-
     if (dist <= 24) {
       e.stopPropagation();
-      // Native behavior (scrolling the drawer) proceeds automatically
     } else {
       e.preventDefault(); 
-      // Native behavior stopped. Event bubbles to AlbumGrid -> Grid scrolls.
     }
   }
 </script>
@@ -106,16 +115,19 @@
           </div>
           
           <div 
+            bind:this={tracksContainer}
             class="tracks-wrapper" 
             class:ghost={mode === "ui"}
+            class:has-overflow={hasOverflow}
             onwheel={handleWheel}
             onmousemove={handleMouseMove}
             onmouseleave={handleMouseLeave}
             role="region"
             aria-label="Track list"
           >
-            <!-- Visual Scrollbar Hot Zone Indicator -->
-            <div class="scrollbar-zone" class:active={isHoveringScrollbar}></div>
+            {#if hasOverflow}
+              <div class="scrollbar-zone" class:active={isHoveringScrollbar}></div>
+            {/if}
             
             <DrawerTracks tracks={activeAlbum.tracks} cols={trackCols} />
           </div>
@@ -245,7 +257,7 @@
     letter-spacing: 0.1em;
     cursor: pointer;
     transition: all 0.1s ease;
-    pointer-events: auto; /* Explicitly re-enable events */
+    pointer-events: auto;
   }
 
   .play-button:hover {
@@ -263,12 +275,15 @@
 
   .tracks-wrapper {
     flex: 1;
-    min-height: 0; /* Critical for nested flex scrolling */
+    min-height: 0;
     overflow-y: auto; 
-    pointer-events: auto; /* Enable interaction in background layer */
-    scrollbar-gutter: stable;
-    padding-right: 6px;
-    position: relative; /* Required for absolute positioning of scrollbar-zone */
+    pointer-events: auto;
+    padding-right: 0;
+    position: relative;
+  }
+
+  .tracks-wrapper.has-overflow {
+    padding-right: 24px;
   }
 
   .scrollbar-zone {
@@ -278,7 +293,7 @@
     bottom: 0;
     width: 24px;
     background-color: transparent;
-    pointer-events: none; /* Let clicks pass through to native scrollbar */
+    pointer-events: none;
     transition: background-color 0.2s;
     z-index: 10;
   }
