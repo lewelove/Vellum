@@ -57,6 +57,7 @@
     border-radius: 0px;
     box-shadow: var(--album-cover-shadow);
     transition: transform 0.2s ease, box-shadow 0.2s ease;
+    pointer-events: auto; /* Explicitly re-enable events */
   }
 
   .album-info {

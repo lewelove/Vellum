@@ -16,7 +16,8 @@
     cardSize,
     gap,
     drawerCoverSize,
-    mode = "ui" // "ui" or "text"
+    mode = "ui", // "ui" or "text"
+    setDrawerFocus = () => {},
   } = $props();
 
   let coverUrl = $derived(library.getAlbumCoverUrl(activeAlbum.id));
@@ -74,7 +75,14 @@
             <h3 class="d-artist" class:ghost={mode === "ui"}>{activeAlbum.artist}</h3>
           </div>
           
-          <div class="tracks-wrapper" class:ghost={mode === "ui"}>
+          <div 
+            class="tracks-wrapper" 
+            class:ghost={mode === "ui"}
+            onmouseenter={() => setDrawerFocus(true)}
+            onmouseleave={() => setDrawerFocus(false)}
+            role="region"
+            aria-label="Track list"
+          >
             <DrawerTracks tracks={activeAlbum.tracks} cols={trackCols} />
           </div>
         </div>
@@ -203,6 +211,7 @@
     letter-spacing: 0.1em;
     cursor: pointer;
     transition: all 0.1s ease;
+    pointer-events: auto; /* Explicitly re-enable events */
   }
 
   .play-button:hover {
@@ -220,6 +229,27 @@
 
   .tracks-wrapper {
     flex: 1;
+    min-height: 0; /* Critical for nested flex scrolling */
     overflow-y: auto; 
+    pointer-events: auto; /* Enable interaction in background layer */
+    scrollbar-gutter: stable;
+    padding-right: 6px;
+  }
+
+  .tracks-wrapper::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .tracks-wrapper::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .tracks-wrapper::-webkit-scrollbar-thumb {
+    background-color: var(--palette-300);
+    border-radius: 3px;
+  }
+
+  .tracks-wrapper::-webkit-scrollbar-thumb:hover {
+    background-color: var(--palette-400);
   }
 </style>

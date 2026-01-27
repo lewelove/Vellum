@@ -93,6 +93,7 @@
     bind:clientWidth={ctrl.layout.containerWidth} 
     bind:clientHeight={ctrl.viewportHeight}
     onwheel={(e) => { 
+      if (ctrl.isDrawerFocused) return;
       e.preventDefault(); 
       ctrl.handleWheel(e); 
     }}
@@ -136,6 +137,7 @@
                   chevronWidth={ctrl.drawerInfo.chevronWidth}
                   bandCHeight={ctrl.drawerInfo.bandCHeight}
                   drawerCoverSize={ctrl.drawerInfo.drawerCoverSize}
+                  setDrawerFocus={(val) => ctrl.isDrawerFocused = val}
                 />
               {/key}
             </div>
@@ -241,7 +243,7 @@
     }
 
     .foreground-layer {
-      pointer-events: auto;
+      pointer-events: none; /* Changed from auto to none to allow fall-through to background */
     }
     
     .row {

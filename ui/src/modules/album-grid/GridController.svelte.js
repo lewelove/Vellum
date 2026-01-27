@@ -6,6 +6,7 @@ export class GridController {
   layout = new LayoutManager();
   scroll = new ScrollEngine();
   viewportHeight = $state(0);
+  isDrawerFocused = $state(false);
 
   allRows = $derived(this.layout.chunk(library.albums));
 
