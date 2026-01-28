@@ -18,11 +18,8 @@
   let sidebarWidth = $state(160);
   let isResizingLeft = $state(false);
 
-  let viewportWidth = $state(0);
+  // Plane State
   let isQueueVisible = $derived(nav.activeTab === "queue");
-
-  // Define the offset variable for children to compensate for the shift
-  let sidebarOffset = $derived(sidebarMode === 'static' ? sidebarWidth : 0);
 
   function toggleSidebarMode() {
     sidebarMode = (sidebarMode === "dynamic") ? "static" : "dynamic";
@@ -32,7 +29,13 @@
   function handleKeydown(e) {
     if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
     const key = e.key.toLowerCase();
-    if (key === 's') toggleSidebarMode();
+    
+    // Gated Inputs
+    if (!isQueueVisible) {
+      if (key === 's') toggleSidebarMode();
+    }
+
+    // Global Navigation
     if (key === '1' || key === 'h' || key === 'arrowleft') setTab('home');
     if (key === '2' || key === 'l' || key === 'arrowright') setTab('queue');
   }
@@ -63,32 +66,25 @@
   });
 </script>
 
-<main style="{themeStyles} --sidebar-width: {sidebarWidth}px; --sidebar-offset: {sidebarOffset}px;">
+<main style="{themeStyles} --sidebar-width: {sidebarWidth}px;">
   
+  <!-- PLANE A: HOME (Sidebar-Aware) -->
   <section 
-    class="content-viewport"
-    bind:clientWidth={viewportWidth}
-    class:offset-left={sidebarMode === 'static'}
+    class="plane home-layer"
+    class:offset-layout={sidebarMode === 'static'}
     class:resizing={isResizingLeft}
+    aria-hidden={isQueueVisible}
   >
-    <!-- Multi-surface stack -->
-    <div class="view-stack">
-      <!-- Base Layer: Album Grid -->
-      <div class="view-page grid-layer">
-        <AlbumGrid />
-      </div>
-
-      <!-- Overlay Layer: Queue View -->
-      <div 
-        class="view-page queue-layer" 
-        class:visible={isQueueVisible}
-      >
-        <QueueView />
-      </div>
-    </div>
+    <AlbumGrid />
   </section>
 
-  <aside class="sidebar-shell left" class:static={sidebarMode === 'static'} class:dynamic={sidebarMode === 'dynamic'}>
+  <!-- SIDEBAR SYSTEM (Scoped to Plane A) -->
+  <aside 
+    class="sidebar-shell left" 
+    class:static={sidebarMode === 'static'} 
+    class:dynamic={sidebarMode === 'dynamic'}
+    class:dormant={isQueueVisible}
+  >
     <div class="sidebar-trigger"></div>
     <div class="sidebar-panel">
       <div class="nav-anchor"><NavTabs /></div>
@@ -96,6 +92,15 @@
       <div class="sidebar-resizer" onmousedown={startResizingLeft}></div>
     </div>
   </aside>
+
+  <!-- PLANE B: QUEUE (Clean Room / Full Bleed) -->
+  <section 
+    class="plane queue-layer"
+    class:visible={isQueueVisible}
+    aria-hidden={!isQueueVisible}
+  >
+    <QueueView />
+  </section>
 
 </main>
 
@@ -113,46 +118,40 @@
     background-color: var(--background-main);
   }
 
-  .content-viewport {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    overflow: hidden;
-    z-index: 10;
-    transition: left 0.25s cubic-bezier(0.2, 0, 0, 1), width 0.25s cubic-bezier(0.2, 0, 0, 1);
-  }
+  /* --- PLANES --- */
 
-  .content-viewport.offset-left { 
-    left: var(--sidebar-width); 
-    width: calc(100% - var(--sidebar-width));
-  }
-
-  .content-viewport.resizing { transition: none; }
-
-  .view-stack {
-    position: relative;
-    width: 100%;
-    height: 100%;
-  }
-
-  .view-page {
+  .plane {
     position: absolute;
     inset: 0;
     width: 100%;
     height: 100%;
+    overflow: hidden;
   }
 
-  .grid-layer {
+  /* Plane A: Home */
+  .home-layer {
     z-index: 1;
+    left: 0;
+    width: 100%;
+    transition: left 0.25s cubic-bezier(0.2, 0, 0, 1), width 0.25s cubic-bezier(0.2, 0, 0, 1);
   }
 
+  .home-layer.offset-layout {
+    left: var(--sidebar-width);
+    width: calc(100% - var(--sidebar-width));
+  }
+
+  .home-layer.resizing {
+    transition: none;
+  }
+
+  /* Plane B: Queue */
   .queue-layer {
-    z-index: 2;
+    z-index: 200; /* Stacks above Sidebar (100) */
+    background-color: var(--background-drawer);
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.1s ease-out;
+    transition: opacity 0.1s ease-out; /* 100ms Cross-fade */
   }
 
   .queue-layer.visible {
@@ -160,29 +159,35 @@
     pointer-events: auto;
   }
 
+  /* --- SIDEBAR SHELL --- */
+
   .sidebar-shell {
     position: fixed;
     top: 0;
     bottom: 0;
     z-index: 100;
-    pointer-events: none;
+    pointer-events: none; /* Shell is ghost, children trigger events */
+  }
+
+  .sidebar-shell.dormant {
+    pointer-events: none !important; /* Contextual Disabling */
   }
   
   .sidebar-shell.left { 
     left: 0; 
     width: var(--sidebar-width); 
     visibility: visible;
-    pointer-events: none;
   }
 
   .sidebar-panel {
     position: absolute;
     inset: 0;
     background-color: var(--background-drawer);
-    pointer-events: auto;
+    pointer-events: auto; /* Re-enable events for content */
     display: flex;
     flex-direction: column;
     transition: transform 0.25s cubic-bezier(0.2, 0, 0, 1);
+    box-shadow: 0 0 20px rgba(0,0,0,0.5); /* Shadow for dynamic mode depth */
   }
 
   .sidebar-trigger {
@@ -191,18 +196,18 @@
     bottom: 0;
     width: var(--trigger-size);
     z-index: 110;
-    pointer-events: auto;
+    pointer-events: auto; /* Re-enable events for trigger */
   }
   .left .sidebar-trigger { left: 0; }
 
+  /* Modes */
   .sidebar-shell.dynamic.left .sidebar-panel { transform: translateX(-100%); }
   .sidebar-shell.dynamic.left:hover .sidebar-panel { transform: translateX(0); }
   
-  .sidebar-shell.static .sidebar-panel { transform: translateX(0); box-shadow: none; }
+  .sidebar-shell.static .sidebar-panel { transform: translateX(0); box-shadow: none; border-right: 1px solid var(--border-muted); }
   .sidebar-shell.static .sidebar-trigger { display: none; }
 
-  .left .sidebar-panel { border-right: 1px solid var(--border-muted); }
-
+  /* Resizer */
   .sidebar-resizer {
     position: absolute;
     top: 0;
@@ -213,6 +218,7 @@
   }
   .left .sidebar-resizer { right: -3px; }
 
+  /* Internal Layout */
   .nav-anchor { height: var(--nav-height); display: flex; align-items: center; justify-content: center; }
   .sidebar-inner { flex: 1; overflow: hidden; }
 </style>

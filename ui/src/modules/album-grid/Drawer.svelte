@@ -269,7 +269,7 @@
   }
   
   .d-artist { 
-    margin: 8px 0 0 0; 
+    margin: 4px 0 0 0; 
     color: var(--text-muted); 
     font-size: var(--drawer-font-size-artist); 
     font-weight: 400;
