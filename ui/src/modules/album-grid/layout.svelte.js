@@ -21,12 +21,14 @@ export class LayoutManager {
   cols = $derived(Math.floor((Math.max(0, this.containerWidth - 40) + this.gapX) / (this.cardSize + this.gapX)) || 1);
   gridWidth = $derived(Math.floor((this.cols * this.cardSize) + ((this.cols - 1) * this.gapX)));
 
-  drawerTrackWidth = $derived(
-    this.containerWidth 
-    - (theme.drawer["drawer-padding-x"] * 2) 
-    - theme.drawer["drawer-cover-size"] 
-    - theme.drawer["drawer-split-gap"]
-  );
+  drawerTrackWidth = $derived.by(() => {
+    const availableTotalWidth = this.containerWidth - (theme.drawer["drawer-padding-x"] * 2);
+    const layoutWidth = Math.min(availableTotalWidth, theme.drawer["drawer-contents-x-max"]);
+    
+    return layoutWidth 
+      - theme.drawer["drawer-cover-size"] 
+      - theme.drawer["drawer-split-gap"];
+  });
 
   trackCols = $derived(this.drawerTrackWidth > 550 ? 2 : 1);
 

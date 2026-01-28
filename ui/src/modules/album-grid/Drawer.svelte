@@ -210,6 +210,8 @@
     flex-direction: row;
     height: 100%;
     gap: var(--drawer-split-gap);
+    max-width: var(--drawer-contents-x-max);
+    margin: 0 auto;
   }
 
   .cover-col {
