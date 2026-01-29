@@ -106,7 +106,7 @@
                 <Album 
                   {album} 
                   active={library.expandedAlbumId === album.id}
-                  onclick={() => library.toggleExpand(album.id)} 
+                  onclick={() => ctrl.toggleAlbum(album.id)} 
                   scrollY={ctrl.scroll.currentY}
                   rowY={row.y}
                 />

@@ -82,4 +82,21 @@ export class GridController {
     this.scroll.syncToSlot(0);
     this.scroll.currentY = 0;
   }
+
+  toggleAlbum(id) {
+    const flatIndex = library.albums.findIndex(a => a.id === id);
+    if (flatIndex === -1) return;
+
+    const targetRowIdx = Math.floor(flatIndex / this.layout.cols);
+    const oldY = this.layout.getRowY(targetRowIdx, this.expandedRowIndex, this.drawerHeight);
+
+    library.toggleExpand(id);
+
+    const newY = this.layout.getRowY(targetRowIdx, this.expandedRowIndex, this.drawerHeight);
+    const deltaY = newY - oldY;
+
+    if (deltaY !== 0) {
+      this.scroll.shiftPosition(deltaY, this.layout.rowHeight, this.maxSlots);
+    }
+  }
 }

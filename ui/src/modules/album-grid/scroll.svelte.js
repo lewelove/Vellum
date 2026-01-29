@@ -9,22 +9,13 @@ export class ScrollEngine {
   }
 
   update(rowHeight, dpr = 1) {
-    // 1. Calculate the ideal target
     const idealTargetY = this.targetSlot * rowHeight;
-    
-    // 2. SNAP the target itself to the physical pixel grid
-    // This ensures the "destination" is something the monitor can actually render
     const snappedTargetY = Math.round(idealTargetY * dpr) / dpr;
-    
     const diff = snappedTargetY - this.currentY;
 
-    // 3. Increased threshold. 
-    // If the difference is less than 0.1 of a CSS pixel, 
-    // it's visually indistinguishable from the target. arrive now.
     if (Math.abs(diff) < 0.1) {
       this.currentY = snappedTargetY;
     } else {
-      // 4. Smooth glide towards the already-snapped target
       this.currentY += diff * this.damping;
     }
   }
@@ -43,5 +34,11 @@ export class ScrollEngine {
 
   syncToSlot(slot) {
     this.targetSlot = slot;
+  }
+
+  shiftPosition(deltaY, rowHeight, maxSlots) {
+    this.currentY += deltaY;
+    const slotDelta = deltaY / rowHeight;
+    this.targetSlot = Math.max(0, Math.min(this.targetSlot + slotDelta, maxSlots));
   }
 }
