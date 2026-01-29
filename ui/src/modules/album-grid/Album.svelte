@@ -1,23 +1,52 @@
 <script>
-  let { album, active, onclick, mode = "full" } = $props();
+  import { theme } from "../../theme.svelte.js";
+
+  let { album, active, onclick, scrollY = 0, rowY = 0 } = $props();
 
   let coverUrl = $derived(album.cover_hash 
     ? `/api/covers/${album.cover_hash}.png` 
     : "");
+
+  const creaseHeight = $derived(theme.albumGrid["crease-height"]);
+  const coverSize = $derived(theme.albumGrid["cover-size"]);
+  const gapY = $derived(theme.albumGrid["gap-y"]);
+  const textGap = $derived(theme.albumGrid["text-gap-main"]);
+
+  let absoluteY = $derived(rowY - scrollY);
+  let metadataTop = $derived(absoluteY + gapY + coverSize + textGap);
+  
+  let opacity = $derived.by(() => {
+    const fadeDistance = 40;
+    const diff = metadataTop - creaseHeight;
+    return Math.max(0, Math.min(1, diff / fadeDistance));
+  });
+
+  let clipAmount = $derived.by(() => {
+    const diff = creaseHeight - metadataTop;
+    return Math.max(0, diff);
+  });
 </script>
 
 <div class="album-unit">
   <button 
     class="album-cover" 
     class:active
-    class:ghost={mode === "info"}
-    style="{coverUrl ? `background-image: url('${coverUrl}');` : ''}"
+    style="
+      {coverUrl ? `background-image: url('${coverUrl}');` : ''}
+      z-index: 10;
+    "
     {onclick}
-    tabindex={mode === "info" ? -1 : 0}
     aria-label="Select album {album.title}"
   ></button>
   
-  <div class="album-info" class:ghost={mode === "cover"}>
+  <div 
+    class="album-info" 
+    style="
+      opacity: {opacity};
+      clip-path: inset({clipAmount}px 0 0 0);
+      z-index: 1;
+    "
+  >
     <span class="album-title">{album.title}</span>
     <span class="album-artist">{album.artist}</span>
   </div>
@@ -31,12 +60,7 @@
     width: var(--cover-size);
     padding-top: var(--gap-y);
     position: relative;
-    /* 
-       HINTING RECOVERY: Force the text engine to prioritize subpixel 
-       anti-aliasing even inside a transformed row. 
-    */
     -webkit-font-smoothing: subpixel-antialiased;
-    -moz-osx-font-smoothing: auto;
     text-rendering: optimizeLegibility;
   }
 
@@ -50,14 +74,13 @@
     height: var(--cover-size);
     margin-bottom: var(--text-gap-main);
     position: relative;
-    z-index: 2;
     background-color: #323232;
     background-size: cover;
     background-position: center;
     border-radius: 0px;
     box-shadow: var(--album-cover-shadow);
     transition: transform 0.2s ease, box-shadow 0.2s ease;
-    pointer-events: auto; /* Explicitly re-enable events */
+    pointer-events: auto;
   }
 
   .album-info {
@@ -65,12 +88,7 @@
     flex-direction: column;
     text-align: left;
     position: relative;
-    z-index: 0;
-  }
-
-  .ghost {
-    visibility: hidden !important;
-    pointer-events: none !important;
+    will-change: opacity, clip-path;
   }
 
   .album-title {

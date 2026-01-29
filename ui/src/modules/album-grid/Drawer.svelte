@@ -15,8 +15,7 @@
     bandCHeight,
     cardSize,
     gap,
-    drawerCoverSize,
-    mode = "ui",
+    drawerCoverSize
   } = $props();
 
   let tracksContainer = $state(null);
@@ -33,9 +32,7 @@
   }
 
   $effect(() => {
-    if (activeAlbum) {
-      checkOverflow();
-    }
+    if (activeAlbum) checkOverflow();
   });
 
   async function handlePlay() {
@@ -47,8 +44,7 @@
   }
 
   function handleMouseMove(e) {
-    if (mode === "ui" || !hasOverflow) return;
-
+    if (!hasOverflow) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const dist = rect.right - e.clientX;
     isHoveringScrollbar = dist <= 24;
@@ -60,10 +56,8 @@
 
   function handleWheel(e) {
     if (!hasOverflow) return;
-
     const rect = e.currentTarget.getBoundingClientRect();
     const dist = rect.right - e.clientX;
-
     if (dist <= 24) {
       e.stopPropagation();
     } else {
@@ -73,22 +67,19 @@
 </script>
 
 <div class="drawer-container" style="width: {width}px; height: {height}px;">
-  <div class="pointer-band" class:ghost={mode === "text"} style="height: {bandA + bandB}px;">
+  <div class="pointer-band" style="height: {bandA + bandB}px;">
     <div 
       class="chevron-pointer" 
-      style="left: {chevronLeft}px; border-bottom-width: {bandB}px; border-left-width: {bandB}px; border-right-width: {bandB}px;"
+      style="left: {chevronLeft}px; border-bottom-width: {bandB}px; border-left-width: {bandB}px; border-right-width: {bandB}px; z-index: 10;"
     ></div>
   </div>
 
   <div 
     class="drawer-content" 
-    class:bg-fill={mode === "text"}
-    class:ui-frame={mode === "ui"}
     style="height: {bandCHeight}px;"
   >
-      
       <div class="split-layout">
-        <div class="cover-col" class:ghost={mode === "text"}>
+        <div class="cover-col">
           <SmartImage 
             src={coverUrl} 
             width={drawerCoverSize} 
@@ -99,25 +90,17 @@
         <div class="info-col">
           <div class="header-text">
             <div class="title-row">
-              <h2 class="d-title" class:ghost={mode === "ui"}>{activeAlbum.title}</h2>
-              
-              <button 
-                class="play-button" 
-                class:ghost={mode === "text"} 
-                onclick={handlePlay} 
-                title="Replace queue and play album"
-                tabindex={mode === "text" ? -1 : 0}
-              >
+              <h2 class="d-title">{activeAlbum.title}</h2>
+              <button class="play-button" onclick={handlePlay} title="Replace queue and play album">
                 PLAY ALBUM
               </button>
             </div>
-            <h3 class="d-artist" class:ghost={mode === "ui"}>{activeAlbum.artist}</h3>
+            <h3 class="d-artist">{activeAlbum.artist}</h3>
           </div>
           
           <div 
             bind:this={tracksContainer}
             class="tracks-wrapper" 
-            class:ghost={mode === "ui"}
             class:has-overflow={hasOverflow}
             onwheel={handleWheel}
             onmousemove={handleMouseMove}
@@ -128,12 +111,10 @@
             {#if hasOverflow}
               <div class="scrollbar-zone" class:active={isHoveringScrollbar}></div>
             {/if}
-            
             <DrawerTracks tracks={activeAlbum.tracks} cols={trackCols} />
           </div>
         </div>
       </div>
-
   </div>
 </div>
 
@@ -146,8 +127,6 @@
     overflow: hidden;
     position: relative;
     -webkit-font-smoothing: subpixel-antialiased;
-    -moz-osx-font-smoothing: auto;
-    text-rendering: optimizeLegibility;
   }
 
   .pointer-band {
@@ -167,7 +146,6 @@
     border-right-color: transparent;
     border-bottom-color: var(--border-muted);
     transform: translateX(-50%);
-    z-index: 2;
   }
 
   .chevron-pointer::after {
@@ -186,23 +164,9 @@
     box-sizing: border-box;
     padding: var(--drawer-padding-y) var(--drawer-padding-x);
     overflow: hidden;
-    background-color: transparent;
-    border: 1px solid transparent;
-  }
-
-  .bg-fill {
     background-color: var(--background-drawer);
     border: 1px solid var(--border-muted);
-  }
-
-  .ui-frame {
-    background-color: transparent;
-    border: 1px solid transparent;
-  }
-
-  .ghost {
-    visibility: hidden !important;
-    pointer-events: none !important;
+    z-index: 1;
   }
 
   .split-layout {
