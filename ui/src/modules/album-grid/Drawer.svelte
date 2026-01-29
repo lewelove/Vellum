@@ -43,6 +43,14 @@
     }
   }
 
+  async function handlePlayTrack(index) {
+    try {
+      await playAlbum(activeAlbum.id, index);
+    } catch (err) {
+      console.error("Failed to play track:", err);
+    }
+  }
+
   function handleMouseMove(e) {
     if (!hasOverflow) return;
     const rect = e.currentTarget.getBoundingClientRect();
@@ -111,7 +119,7 @@
             {#if hasOverflow}
               <div class="scrollbar-zone" class:active={isHoveringScrollbar}></div>
             {/if}
-            <DrawerTracks tracks={activeAlbum.tracks} cols={trackCols} />
+            <DrawerTracks tracks={activeAlbum.tracks} cols={trackCols} onplay={handlePlayTrack} />
           </div>
         </div>
       </div>

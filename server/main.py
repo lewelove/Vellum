@@ -225,7 +225,7 @@ def get_album_cover(album_id: str):
     return FileResponse(path)
 
 @app.post("/api/play/{album_id:path}")
-def play_album(album_id: str):
+def play_album(album_id: str, offset: int = 0):
     album = STATE.album_map.get(album_id)
     if not album: raise HTTPException(status_code=404)
     paths = [STATE.track_map[t["track_library_path"]] for t in album.get("tracks", []) if t.get("track_library_path") in STATE.track_map]
@@ -234,7 +234,7 @@ def play_album(album_id: str):
     try:
         client.connect("localhost", 6600); client.clear()
         for p in paths: client.add(str(Path(p).relative_to(LIBRARY_ROOT)))
-        client.play(); client.close()
+        client.play(offset); client.close()
     except Exception as e: raise HTTPException(status_code=500, detail=str(e))
     return {"status": "ok"}
 

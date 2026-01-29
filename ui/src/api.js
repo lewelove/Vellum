@@ -28,8 +28,8 @@ export function connectSocket(onOpen, onMessage) {
   return socket;
 }
 
-export async function playAlbum(id) {
+export async function playAlbum(id, offset = 0) {
   const encodedId = encodeURIComponent(id);
-  const response = await fetch(`/api/play/${encodedId}`, { method: "POST" });
+  const response = await fetch(`/api/play/${encodedId}?offset=${offset}`, { method: "POST" });
   return await response.json();
 }
