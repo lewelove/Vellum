@@ -10,7 +10,7 @@
   let rafId;
 
   const activeKeys = new Set();
-  const SCROLL_SPEED = 0.15;
+  const SCROLL_SPEED = 0.20;
 
   function loop() {
     let delta = 0;
