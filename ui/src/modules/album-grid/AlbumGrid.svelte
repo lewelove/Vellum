@@ -136,15 +136,6 @@
         </div>
       {/each}
     </div>
-
-    <div 
-      class="top-crease"
-      style="
-        height: {ctrl.layout.creaseHeight}px; 
-        z-index: 5;
-      "
-    ></div>
-
   </div>
 </div>
 
@@ -163,15 +154,6 @@
       overflow: hidden;
       overscroll-behavior: none;
       contain: content;
-    }
-
-    .top-crease {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      background-color: var(--background-main);
-      pointer-events: none; 
     }
 
     .scroll-content {

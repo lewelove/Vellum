@@ -7,22 +7,24 @@
     ? `/api/covers/${album.cover_hash}.png` 
     : "");
 
-  const creaseHeight = $derived(theme.albumGrid["crease-height"]);
   const coverSize = $derived(theme.albumGrid["cover-size"]);
   const gapY = $derived(theme.albumGrid["gap-y"]);
   const textGap = $derived(theme.albumGrid["text-gap-main"]);
+
+  // Use absolute top of viewport (0) as the occlusion boundary
+  const occlusionBoundary = 0;
 
   let absoluteY = $derived(rowY - scrollY);
   let metadataTop = $derived(absoluteY + gapY + coverSize + textGap);
   
   let opacity = $derived.by(() => {
     const fadeDistance = 40;
-    const diff = metadataTop - creaseHeight;
+    const diff = metadataTop - occlusionBoundary;
     return Math.max(0, Math.min(1, diff / fadeDistance));
   });
 
   let clipAmount = $derived.by(() => {
-    const diff = creaseHeight - metadataTop;
+    const diff = occlusionBoundary - metadataTop;
     return Math.max(0, diff);
   });
 </script>
