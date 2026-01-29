@@ -201,7 +201,7 @@
   }
 
   .header-text {
-    margin-bottom: 24px;
+    margin-bottom: 12px;
     display: flex;
     flex-direction: column;
     justify-content: flex-end;

@@ -60,7 +60,7 @@
 <style>
   .tracks-grid {
     display: grid;
-    gap: 40px;
+    gap: 12px;
     width: 100%;
     
     -webkit-font-smoothing: subpixel-antialiased;
@@ -79,7 +79,7 @@
     height: var(--drawer-track-y);
     font-size: var(--drawer-font-size-track);
     color: var(--text-main);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    /* border-bottom: 1px solid rgba(255, 255, 255, 0.05); */
     white-space: nowrap;
     overflow: hidden;
     cursor: default;
@@ -100,9 +100,9 @@
   }
 
   .track-index {
-    flex: 0 0 28px;
-    text-align: right;
-    margin-right: 12px;
+    flex: 0 0 48px;
+    text-align: center;
+    /* margin-right: px; */
     color: var(--text-muted);
     font-family: monospace;
   }
@@ -115,11 +115,11 @@
   }
 
   .track-meta {
-    flex: 0 0 45px;
+    flex: 0 0 0px;
     text-align: right;
     color: var(--text-muted);
     font-size: 13px;
     font-family: monospace;
-    padding-left: 8px;
+    padding-left: 12px;
   }
 </style>
