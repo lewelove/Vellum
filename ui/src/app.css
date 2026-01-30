@@ -37,21 +37,31 @@ select:focus {
     'system-ui', 
     sans-serif;
 
-    --font-mono: "Red Hat Mono", monospace;
+    --font-mono: 'IBM VGA', monospace;
     --font-mono-weight: 400;
 }
 
-.count, 
-.col-index, 
-.track-index, 
-.track-meta,
+.vga-line,
 code, 
 pre {
   font-family: var(--font-mono) !important;
   font-weight: var(--font-mono-weight) !important;
   font-style: normal !important;
-  font-size: 14px;
+  font-size: 16px !important;
+  text-shadow: 0 0 4px rgba(255, 255, 255, 0.2);
+}
 
+.count,
+.col-index, 
+.track-index, 
+.track-meta,
+code, 
+pre {
+  font-family: var(--font-stack) !important;
+  font-weight: var(--font-mono-weight) !important;
+  font-style: normal !important;
+  font-size: 14px !important;
+  opacity: 1 !important;
 }
 
 /* :root { */

@@ -101,9 +101,9 @@
   }
 
   .track-index {
-    flex: 0 0 48px;
+    flex: 0 0 40px;
     text-align: center;
-    /* margin-right: px; */
+    opacity: 0.5;
     color: var(--text-muted);
     font-family: monospace;
   }
@@ -120,7 +120,7 @@
     flex: 0 0 0px;
     text-align: right;
     color: var(--text-muted);
-    font-size: 13px;
+    opacity: 0.5;
     font-family: monospace;
     padding-left: 12px;
   }

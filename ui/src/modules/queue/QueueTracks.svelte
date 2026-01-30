@@ -13,7 +13,7 @@
 
   let currentIndex = $derived.by(() => {
     const idx = player.queue.findIndex(item => item.file === player.currentFile);
-    return idx !== -1 ? pad(idx + 1) : "";
+    return idx !== -1 ? pad(idx + 1) : "0";
   });
 
   let totalQueue = $derived(pad(player.queue.length));
@@ -44,25 +44,21 @@
 </script>
 
 <div class="queue-view-wrapper">
-  <div class="vfd-recessed-well">
-    <div class="vfd-screen">
-      
-      <!-- Active Layer (Lit Segments) -->
-      <div class="vfd-layer active">
-        <div class="vfd-line">
-          <span class="vfd-label">TRK</span>
-          <span class="vfd-data">{currentIndex}</span>
-          <span class="vfd-separator">/</span>
-          <span class="vfd-data">{totalQueue}</span>
+  <div class="vga-recessed-well">
+      <div class="vga-layer active">
+        <div class="vga-line">
+          <span class="vga-label">trk:</span>
+          <span class="vga-data">{currentIndex}</span>
+          <span class="vga-separator">/</span>
+          <span class="vga-data">{totalQueue}</span>
         </div>
-        <div class="vfd-line">
-          <span class="vfd-data">{timeElapsed}</span>
-          <span class="vfd-separator">/</span>
-          <span class="vfd-data">{timeTotal}</span>
+        <div class="vga-line">
+          <span class="vga-data">{timeElapsed}</span>
+          <span class="vga-separator">/</span>
+          <span class="vga-data">{timeTotal}</span>
         </div>
       </div>
 
-    </div>
   </div>
 
   <div class="tracks-list">
@@ -90,10 +86,9 @@
     background-color: transparent;
   }
 
-  .vfd-recessed-well {
-    padding: 12px 20px;
+  .vga-recessed-well {
+    padding: 8px 16px;
     background-color: transparent;
-    border-radius: 2px;
     border-bottom: 1px solid var(--border-muted);
     display: flex;
     justify-content: flex-end;
@@ -101,14 +96,14 @@
     overflow: hidden;
   }
 
-  .vfd-screen {
+  .vga-screen {
     display: grid;
     grid-template-columns: 1fr;
     grid-template-rows: 1fr;
     position: relative;
   }
 
-  .vfd-layer {
+  .vga-layer {
     grid-area: 1 / 1;
     display: flex;
     flex-direction: column;
@@ -116,44 +111,34 @@
     gap: 2px;
   }
 
-  .vfd-layer.ghost {
-    color: #000;
-    opacity: 0.2;
-    user-select: none;
-    pointer-events: none;
-    z-index: 0;
-  }
-
-  .vfd-layer.active {
+  .vga-layer.active {
     z-index: 1;
-    text-shadow: 0 0 8px rgba(255, 255, 255, 0.25);
+    text-shadow: 0 0 4px rgba(255, 255, 255, 0.4);
   }
 
-  .vfd-line {
+  .vga-line {
     display: flex;
     align-items: baseline;
     justify-content: flex-end;
-    font-family: 'IBM VGA', monospace;
+    font-family: monospace;
     color: #fff;
     line-height: 1;
     letter-spacing: 0.05em;
   }
 
-  .vfd-label {
+  .vga-label {
     font-size: 16px;
-    margin-right: 8px;
     opacity: 1;
     font-weight: 400;
   }
 
-  .vfd-data {
+  .vga-data {
     font-size: 16px;
     font-weight: 100;
   }
 
-  .vfd-separator {
+  .vga-separator {
     font-size: 16px;
-    margin: 0 6px;
     font-weight: 400;
   }
 
