@@ -4,13 +4,24 @@
 
   let mappedTracks = $derived(player.queue.map(item => {
     const meta = library.getTrackByPath(item.file);
+    
+    const title = meta ? meta.TITLE : (item.title || item.file);
+    const artist = meta ? meta.ARTIST : (item.artist || "");
+    const albumArtist = meta ? meta.ALBUMARTIST : (item.albumartist || "");
+
+    // Only show the sub-label if artist exists and is different from the album artist
+    const showArtist = artist && 
+                       albumArtist && 
+                       artist.toLowerCase() !== albumArtist.toLowerCase();
+
     return {
       id: item.id,
       file: item.file,
       isPlaying: player.currentFile === item.file,
       trackNo: meta ? meta.TRACKNUMBER : "#",
-      title: meta ? meta.TITLE : (item.title || item.file),
-      artist: meta ? meta.ARTIST : (item.artist || ""),
+      title,
+      artist,
+      showArtist
     };
   }));
 </script>
@@ -27,7 +38,7 @@
         <span class="col-index">{track.trackNo}</span>
         <div class="col-info">
             <span class="q-title" title={track.title}>{track.title}</span>
-            {#if track.artist}
+            {#if track.showArtist}
                 <span class="q-artist" title={track.artist}>{track.artist}</span>
             {/if}
         </div>
@@ -62,7 +73,7 @@
 
   .count {
     opacity: 0.5;
-    font-size: 18px;
+    font-size: 14px;
   }
 
   .tracks-list {
@@ -74,9 +85,10 @@
   .queue-row {
     display: flex;
     align-items: center;
-    padding: 6px 12px 6px 12px;
+    padding: 6px 12px 6px 6px;
     font-family: var(--font-stack);
     color: var(--text-muted);
+    min-height: 44px;
   }
 
   .queue-row:hover {
@@ -87,18 +99,16 @@
   .queue-row.active {
     background-color: rgba(255, 255, 255, 0.04);
     color: var(--text-main);
-    border-left-color: var(--text-main);
   }
 
   .col-index {
-    flex: 0 0 32px;
+    flex: 0 0 54px;
     text-align: center;
-    font-size: 18px;
+    font-size: 16px;
     font-family: monospace;
     opacity: 0.5;
-    margin-right: 12px;
-    margin-left: 12px;
-    /* margin-left: 8px; */
+    /* margin-right: 12px; */
+    /* margin-left: 12px; */
   }
 
   .col-info {
@@ -106,19 +116,21 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    justify-content: center;
   }
 
   .q-title {
-    font-size: 16px;
+    font-size: 15px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     margin-bottom: 2px;
+    color: inherit;
   }
 
   .q-artist {
     font-size: 14px;
-    opacity: 0.7;
+    opacity: 0.6;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;

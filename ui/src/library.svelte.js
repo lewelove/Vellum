@@ -43,6 +43,8 @@ class LibraryState {
           this.albumCache.set(a.id, a);
           if (a.tracks) {
             a.tracks.forEach(t => {
+              // Inject ALBUMARTIST into track metadata for easier UI comparisons
+              t.ALBUMARTIST = a.ALBUMARTIST;
               if (t.track_library_path) {
                 this.trackPathMap.set(t.track_library_path, t);
               }
@@ -56,6 +58,7 @@ class LibraryState {
         this.albumCache.set(data.id, data);
         if (data.tracks) {
           data.tracks.forEach(t => {
+            t.ALBUMARTIST = data.ALBUMARTIST;
             if (t.track_library_path) {
               this.trackPathMap.set(t.track_library_path, t);
             }
