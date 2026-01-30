@@ -188,13 +188,12 @@
     flex-direction: column;
     transition: transform 0.25s cubic-bezier(0.2, 0, 0, 1);
 
-    backface-visibility: hidden;
     -webkit-backface-visibility: hidden;
-    transform-style: preserve-3d;
     will-change: transform;
 
     box-sizing: border-box;
     border-right: 1px solid var(--border-muted);
+    transform: translateZ(0);
   }
 
   .sidebar-trigger {
