@@ -115,9 +115,7 @@
     height: 100%;
     display: flex;
     flex-direction: column;
-    /* Background removed here, handled by parent panel in App.svelte */
     background-color: transparent; 
-    /* Padding removed here, layout handled by parent */
     padding-top: 0; 
     box-sizing: border-box;
   }
@@ -167,14 +165,13 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 12px 16px 12px 24px;
+    padding: 8px 16px 8px 24px;
     background: none;
     border: none;
     color: var(--text-muted);
     font-family: var(--font-stack);
-    font-size: 12px;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+    font-size: 14px;
+    text-transform: lowercase;
     cursor: pointer;
     outline: none; 
   }
@@ -203,22 +200,22 @@
     top: 100%;
     left: 0;
     width: 100%;
-    background-color: #1a1a1a; 
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    background-color: #242424; 
     z-index: 20;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    box-shadow: 0 8px 8px rgba(0,0,0,0.3);
   }
 
   .menu-item {
     display: block;
     width: 100%;
     text-align: left;
-    padding: 10px 24px;
+    padding: 8px 24px;
     background: none;
     border: none;
     color: var(--text-muted);
     font-family: var(--font-stack);
-    font-size: 13px;
+    font-size: 14px;
+    text-transform: lowercase;
     cursor: pointer;
     outline: none; 
   }

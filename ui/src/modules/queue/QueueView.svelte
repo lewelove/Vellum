@@ -40,7 +40,6 @@
         features: ['js', 'wasm', 'ww']
       });
 
-      // ctx.imageSmoothingEnabled = false;
     } catch (err) {
       console.error("Pica Queue Render Failed:", err);
     }

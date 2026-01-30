@@ -3,6 +3,11 @@
 
   let selectedIndex = $state(-1);
 
+  function formatDuration(str) {
+    if (!str) return "";
+    return str.replace(/^(00:)+/, "").replace(/^0/, "");
+  }
+
   let columnData = $derived.by(() => {
     const rowsPerCol = Math.ceil(tracks.length / cols);
     const result = [];
@@ -50,7 +55,7 @@
         >
           <span class="track-index">{track.TRACKNUMBER}</span>
           <span class="track-title">{track.TITLE}</span>
-          <span class="track-meta">{track.track_duration_time}</span>
+          <span class="track-meta">{formatDuration(track.track_duration_time)}</span>
         </div>
       {/each}
     </div>
@@ -60,11 +65,9 @@
 <style>
   .tracks-grid {
     display: grid;
-    /* gap: 12px; */
     width: 100%;
-    
-    -webkit-font-smoothing: subpixel-antialiased;
-    text-rendering: optimizeLegibility;
+    /* -webkit-font-smoothing: subpixel-antialiased; */
+    /* text-rendering: optimizeLegibility; */
   }
 
   .track-column {
@@ -75,12 +78,10 @@
   .track-row {
     display: flex;
     align-items: center;
-    padding-right: 12px;
     margin-right: 12px;
-    height: var(--drawer-track-y);
-    font-size: var(--drawer-font-size-track);
+    padding: 8px 12px 8px 0;
+    font-size: 14px;
     color: var(--text-main);
-    /* border-bottom: 1px solid rgba(255, 255, 255, 0.05); */
     white-space: nowrap;
     overflow: hidden;
     cursor: default;
@@ -101,7 +102,7 @@
   }
 
   .track-index {
-    flex: 0 0 40px;
+    flex: 0 0 38px;
     text-align: center;
     opacity: 0.5;
     color: var(--text-muted);

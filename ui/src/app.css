@@ -58,9 +58,9 @@ pre {
 code, 
 pre {
   font-family: var(--font-stack) !important;
-  font-weight: var(--font-mono-weight) !important;
+  font-weight: 400;
   font-style: normal !important;
-  font-size: 14px !important;
+  font-size: 12px !important;
   opacity: 1 !important;
 }
 

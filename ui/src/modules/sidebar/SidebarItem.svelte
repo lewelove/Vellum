@@ -15,7 +15,7 @@
     width: 100%;
     background: none;
     border: none;
-    padding: 6px 24px 6px 24px; /* Indented */
+    padding: 8px 24px;
     cursor: pointer;
     color: var(--text-muted);
     font-family: var(--font-stack);

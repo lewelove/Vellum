@@ -190,10 +190,8 @@
     transition: transform 0.25s cubic-bezier(0.2, 0, 0, 1);
     box-sizing: border-box;
 
-    /* Use inset shadow instead of border to prevent subpixel layout misalignment */
-    box-shadow: inset -1px 0 0 0 var(--border-muted);
+    /* box-shadow: inset 1px 0 0 0 var(--border-muted); */
     
-    /* Ensure clean subpixel clipping */
     overflow: hidden;
   }
 
@@ -223,7 +221,7 @@
     transform: none; 
     -webkit-backface-visibility: visible;
     will-change: auto;
-    box-shadow: inset -1px 0 0 0 var(--border-muted);
+    /* box-shadow: inset -1px 0 0 0 var(--border-muted); */
   }
 
   /* Resizer */

@@ -13,10 +13,10 @@
 
   let currentIndex = $derived.by(() => {
     const idx = player.queue.findIndex(item => item.file === player.currentFile);
-    return idx !== -1 ? pad(idx + 1) : "0";
+    return idx !== -1 ? String(idx + 1) : "0";
   });
 
-  let totalQueue = $derived(pad(player.queue.length));
+  let totalQueue = $derived(String(player.queue.length));
   
   let timeElapsed = $derived(formatTime(player.elapsed));
   let timeTotal = $derived(formatTime(player.duration));
@@ -151,10 +151,8 @@
   .queue-row {
     display: flex;
     align-items: center;
-    padding: 6px 12px 6px 6px;
-    font-family: var(--font-stack);
+    padding: 8px 12px 8px 12px;
     color: var(--text-muted);
-    min-height: 24px;
   }
 
   .queue-row:hover {
@@ -168,7 +166,7 @@
   }
 
   .col-index {
-    flex: 0 0 42px;
+    flex: 0 0 38px;
     text-align: center;
     font-size: 14px;
     font-family: var(--font-mono);

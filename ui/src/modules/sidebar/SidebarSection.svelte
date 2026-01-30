@@ -61,10 +61,9 @@
     color: var(--text-muted);
     font-family: var(--font-stack);
     font-size: 14px;
-    font-weight: 500;
+    font-weight: 400;
     cursor: pointer;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
   }
 
   .section-header:hover {
