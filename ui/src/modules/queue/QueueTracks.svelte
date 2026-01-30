@@ -2,14 +2,31 @@
   import { player } from "../player.svelte.js";
   import { library } from "../../library.svelte.js";
 
+  const pad = (num) => String(num).padStart(2, '0');
+
+  const formatTime = (seconds) => {
+    const s = Math.floor(seconds || 0);
+    const m = Math.floor(s / 60);
+    const rs = s % 60;
+    return `${pad(m)}:${pad(rs)}`;
+  };
+
+  let currentIndex = $derived.by(() => {
+    const idx = player.queue.findIndex(item => item.file === player.currentFile);
+    return idx !== -1 ? pad(idx + 1) : "";
+  });
+
+  let totalQueue = $derived(pad(player.queue.length));
+  
+  let timeElapsed = $derived(formatTime(player.elapsed));
+  let timeTotal = $derived(formatTime(player.duration));
+
   let mappedTracks = $derived(player.queue.map(item => {
     const meta = library.getTrackByPath(item.file);
-    
     const title = meta ? meta.TITLE : (item.title || item.file);
     const artist = meta ? meta.ARTIST : (item.artist || "");
     const albumArtist = meta ? meta.ALBUMARTIST : (item.albumartist || "");
 
-    // Only show the sub-label if artist exists and is different from the album artist
     const showArtist = artist && 
                        albumArtist && 
                        artist.toLowerCase() !== albumArtist.toLowerCase();
@@ -26,10 +43,21 @@
   }));
 </script>
 
-<div class="queue-tracks-container">
-  <div class="tracks-header">
-    <span class="header-label">Play Queue</span>
-    <span class="count">{mappedTracks.length}</span>
+<div class="queue-view-wrapper">
+  <div class="vfd-recessed-well">
+    <div class="vfd-screen">
+      <div class="vfd-line">
+        <span class="vfd-label">TRK</span>
+        <span class="vfd-data">{currentIndex}</span>
+        <span class="vfd-separator">/</span>
+        <span class="vfd-data">{totalQueue}</span>
+      </div>
+      <div class="vfd-line">
+        <span class="vfd-data">{timeElapsed}</span>
+        <span class="vfd-separator">/</span>
+        <span class="vfd-data">{timeTotal}</span>
+      </div>
+    </div>
   </div>
 
   <div class="tracks-list">
@@ -48,7 +76,7 @@
 </div>
 
 <style>
-  .queue-tracks-container {
+  .queue-view-wrapper {
     width: 100%;
     height: 100%;
     display: flex;
@@ -57,24 +85,56 @@
     background-color: transparent;
   }
 
-  .tracks-header {
+  .vfd-recessed-well {
+    /* margin: 16px; */
+    padding: 12px 20px;
+    background-color: transparent;
+    border-radius: 2px;
+    /* box-shadow:  */
+    /*   inset 0 2px 8px rgba(0, 0, 0, 0.8), */
+    /*   inset 0 1px 2px rgba(0, 0, 0, 1), */
+    /*   0 1px 1px rgba(255, 255, 255, 0.05); */
+    border-bottom: 1px solid var(--border-muted);
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-end;
     align-items: center;
-    padding: 0 16px 0 24px;
-    height: 48px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    color: var(--text-muted);
-    font-family: var(--font-stack);
-    font-size: 14px;
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
+    overflow: hidden;
   }
 
-  .count {
-    opacity: 0.5;
+  .vfd-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+  }
+
+  .vfd-line {
+    display: flex;
+    align-items: baseline;
+    justify-content: flex-end;
+    font-family: 'DSEG14-Classic';
+    color: #fff;
+    text-shadow: 0 0 8px rgba(255, 255, 255, 0.25);
+    line-height: 1;
+    letter-spacing: 0.05em;
+  }
+
+  .vfd-label {
     font-size: 14px;
+    margin-right: 8px;
+    opacity: 1;
+    font-weight: 400;
+  }
+
+  .vfd-data {
+    font-size: 18px;
+    font-weight: 400;
+  }
+
+  .vfd-separator {
+    font-size: 20px;
+    margin: 0 6px;
+    font-weight: 400;
   }
 
   .tracks-list {
@@ -106,10 +166,8 @@
     flex: 0 0 42px;
     text-align: center;
     font-size: 14px;
-    font-family: monospace;
+    font-family: var(--font-mono);
     opacity: 0.5;
-    /* margin-right: 12px; */
-    /* margin-left: 12px; */
   }
 
   .col-info {

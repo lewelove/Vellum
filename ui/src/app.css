@@ -6,6 +6,10 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Red+Hat+Mono:ital,wght@0,300..700;1,300..700&display=swap');
 
+@import "dseg/css/dseg.css";
+
+@import url('https://fonts.googleapis.com/css2?family=Doto:wght@100..900&display=swap');
+
 button:focus,
 input:focus,
 textarea:focus,
