@@ -41,8 +41,8 @@ export const theme = $state({
   drawer: {
     "drawer-padding-y": 18,
     "drawer-padding-x": 18,
-    "drawer-font-size-album": 20,
-    "drawer-font-size-artist": 16,
+    "drawer-font-size-album": 21,
+    "drawer-font-size-artist": 18,
     "drawer-font-size-track": 14,
     "drawer-track-y": 32,
     "drawer-cover-size": 464,

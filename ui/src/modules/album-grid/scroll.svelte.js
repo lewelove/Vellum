@@ -17,11 +17,11 @@ export class ScrollEngine {
     
     const velocity = diff * this.damping;
 
-    if (Math.abs(velocity) < 0.001) {
-      this.currentY = snappedTargetY;
-    } else {
+    // if (Math.abs(velocity) < 0.001) {
+    //   this.currentY = snappedTargetY;
+    // } else {
       this.currentY += velocity;
-    }
+    // }
   }
 
   handleWheel(e, maxSlots) {

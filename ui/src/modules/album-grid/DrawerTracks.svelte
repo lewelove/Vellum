@@ -112,6 +112,7 @@
     flex: 1;
     text-overflow: ellipsis;
     overflow: hidden;
+    font-size: 14px;
     font-weight: 400;
   }
 

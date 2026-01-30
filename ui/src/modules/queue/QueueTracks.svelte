@@ -61,14 +61,15 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 16px 16px 16px 24px;
+    padding: 0 16px 0 24px;
+    height: 48px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
     color: var(--text-muted);
     font-family: var(--font-stack);
     font-size: 14px;
     font-weight: 500;
     text-transform: uppercase;
-    letter-spacing: 0.15em;
+    letter-spacing: 0.1em;
   }
 
   .count {
@@ -88,7 +89,7 @@
     padding: 6px 12px 6px 6px;
     font-family: var(--font-stack);
     color: var(--text-muted);
-    min-height: 44px;
+    min-height: 24px;
   }
 
   .queue-row:hover {
@@ -102,9 +103,9 @@
   }
 
   .col-index {
-    flex: 0 0 54px;
+    flex: 0 0 42px;
     text-align: center;
-    font-size: 16px;
+    font-size: 14px;
     font-family: monospace;
     opacity: 0.5;
     /* margin-right: 12px; */
@@ -120,7 +121,7 @@
   }
 
   .q-title {
-    font-size: 15px;
+    font-size: 14px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -129,7 +130,7 @@
   }
 
   .q-artist {
-    font-size: 14px;
+    font-size: 13px;
     opacity: 0.6;
     white-space: nowrap;
     overflow: hidden;
