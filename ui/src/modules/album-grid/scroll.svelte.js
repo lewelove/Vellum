@@ -9,14 +9,18 @@ export class ScrollEngine {
   }
 
   update(rowHeight, dpr = 1) {
+    const physicalPixel = 1 / dpr;
     const idealTargetY = this.targetSlot * rowHeight;
+    
     const snappedTargetY = Math.round(idealTargetY * dpr) / dpr;
     const diff = snappedTargetY - this.currentY;
+    
+    const velocity = diff * this.damping;
 
-    if (Math.abs(diff) < 0.1) {
+    if (Math.abs(velocity) < 0.001) {
       this.currentY = snappedTargetY;
     } else {
-      this.currentY += diff * this.damping;
+      this.currentY += velocity;
     }
   }
 

@@ -8,19 +8,21 @@
 
   const ctrl = new GridController();
   let rafId;
+  let dpr = $state(1);
 
   const activeKeys = new Set();
   const SCROLL_SPEED = 0.20;
 
+  let renderY = $derived(Math.round(ctrl.scroll.currentY * dpr) / dpr);
+
   function loop() {
     let delta = 0;
-    
     if (activeKeys.has('j') || activeKeys.has('arrowdown')) delta += SCROLL_SPEED;
     if (activeKeys.has('k') || activeKeys.has('arrowup')) delta -= SCROLL_SPEED;
 
     if (delta !== 0) ctrl.scrollRow(delta);
 
-    ctrl.update(null);
+    ctrl.update(null, dpr);
     rafId = requestAnimationFrame(loop);
   }
 
@@ -58,6 +60,7 @@
   });
 
   onMount(() => {
+    dpr = window.devicePixelRatio || 1;
     window.addEventListener("keydown", handleKeydown);
     window.addEventListener("keyup", handleKeyup);
     window.addEventListener("blur", handleBlur);
@@ -87,15 +90,16 @@
       style="
         height: {ctrl.contentHeight}px; 
         background-color: var(--background-main);
-        transform: translate3d(0, -{ctrl.scroll.currentY}px, 0);
+        transform: translate3d(0, -{renderY}px, 0);
         will-change: transform;
       "
     >
       {#each ctrl.virtualRows as row (row.index)}
+        {@const snappedRowY = Math.round(row.y * dpr) / dpr}
         <div 
           class="row" 
           style="
-            transform: translateY({row.y}px); 
+            transform: translateY({snappedRowY}px); 
             width: {ctrl.layout.gridWidth}px; 
             height: {ctrl.layout.rowHeight}px;
             z-index: {row.isExpandedRow ? 20 : 1};
@@ -107,8 +111,8 @@
                   {album} 
                   active={library.expandedAlbumId === album.id}
                   onclick={() => ctrl.toggleAlbum(album.id)} 
-                  scrollY={ctrl.scroll.currentY}
-                  rowY={row.y}
+                  scrollY={renderY}
+                  rowY={snappedRowY}
                 />
               {/each}
           </div>
@@ -162,6 +166,8 @@
       top: 0;
       left: 0;
       pointer-events: auto;
+      backface-visibility: hidden;
+      transform-style: preserve-3d;
     }
     
     .row {
@@ -173,6 +179,7 @@
         flex-direction: column;
         overflow: visible; 
         will-change: transform;
+        backface-visibility: hidden;
     }
     
     .row-inner {

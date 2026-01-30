@@ -60,8 +60,7 @@ export class GridController {
     }));
   });
 
-  update(mainEl) {
-    const dpr = window.devicePixelRatio || 1;
+  update(mainEl, dpr = 1) {
     this.scroll.update(this.layout.rowHeight, dpr);
     
     if (mainEl) {
