@@ -137,8 +137,9 @@
   }
 
   .home-layer.offset-layout {
-    left: var(--sidebar-width);
-    width: calc(100% - var(--sidebar-width));
+    /* Intentional 1px overlap with Sidebar Panel width to plug synchronization gaps */
+    left: calc(var(--sidebar-width) - 1px);
+    width: calc(100% - (var(--sidebar-width) - 1px));
   }
 
   .home-layer.resizing {
@@ -147,11 +148,11 @@
 
   /* Plane B: Queue */
   .queue-layer {
-    z-index: 200; /* Stacks above Sidebar (100) */
+    z-index: 200; 
     background-color: var(--background-drawer);
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.1s ease-out; /* 100ms Cross-fade */
+    transition: opacity 0.1s ease-out; 
   }
 
   .queue-layer.visible {
@@ -166,11 +167,11 @@
     top: 0;
     bottom: 0;
     z-index: 100;
-    pointer-events: none; /* Shell is ghost, children trigger events */
+    pointer-events: none; 
   }
 
   .sidebar-shell.dormant {
-    pointer-events: none !important; /* Contextual Disabling */
+    pointer-events: none !important; 
   }
   
   .sidebar-shell.left { 
@@ -183,17 +184,17 @@
     position: absolute;
     inset: 0;
     background-color: var(--background-drawer);
-    pointer-events: auto; /* Re-enable events for content */
+    pointer-events: auto; 
     display: flex;
     flex-direction: column;
     transition: transform 0.25s cubic-bezier(0.2, 0, 0, 1);
-
-    -webkit-backface-visibility: hidden;
-    will-change: transform;
-
     box-sizing: border-box;
-    border-right: 1px solid var(--border-muted);
-    transform: translateZ(0);
+
+    /* Use inset shadow instead of border to prevent subpixel layout misalignment */
+    box-shadow: inset -1px 0 0 0 var(--border-muted);
+    
+    /* Ensure clean subpixel clipping */
+    overflow: hidden;
   }
 
   .sidebar-trigger {
@@ -202,22 +203,27 @@
     bottom: 0;
     width: var(--trigger-size);
     z-index: 110;
-    pointer-events: auto; /* Re-enable events for trigger */
+    pointer-events: auto; 
   }
   .left .sidebar-trigger { left: 0; }
 
   /* Modes */
   .sidebar-shell.dynamic.left .sidebar-panel { 
-    transform: translateX(-100%); 
+    /* Force GPU context only during dynamic/moving state */
+    transform: translateX(-100%) translateZ(0); 
+    -webkit-backface-visibility: hidden;
+    will-change: transform;
   }
   
   .sidebar-shell.dynamic.left:hover .sidebar-panel { 
-    transform: translateX(0); 
+    transform: translateX(0) translateZ(0); 
   }
   
   .sidebar-shell.static .sidebar-panel { 
-    transform: translateX(0); 
-    box-shadow: none; 
+    transform: none; 
+    -webkit-backface-visibility: visible;
+    will-change: auto;
+    box-shadow: inset -1px 0 0 0 var(--border-muted);
   }
 
   /* Resizer */
