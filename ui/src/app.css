@@ -2,6 +2,9 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Noto+Music&family=Noto+Sans+Arabic:wght@400;700&family=Noto+Sans+JP:wght@400;700&family=Noto+Sans+KR:wght@400;700&family=Noto+Sans+SC:wght@400;700&family=Noto+Sans+TC:wght@400;700&display=swap');
 
+@import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Jersey+10&display=swap');
+
 button:focus,
 input:focus,
 textarea:focus,
@@ -19,6 +22,22 @@ select:focus {
     'Noto Sans KR', 
     'system-ui', 
     sans-serif;
+
+    --font-mono: monospace;
+    --font-mono-weight: 400;
+}
+
+.count, 
+.col-index, 
+.track-index, 
+.track-meta,
+code, 
+pre {
+  font-family: var(--font-mono) !important;
+  font-weight: var(--font-mono-weight) !important;
+  font-style: normal !important;
+  font-size: 14px;
+
 }
 
 /* :root { */

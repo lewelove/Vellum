@@ -45,7 +45,6 @@
 
   .count {
     opacity: 0.5;
-    font-size: 12px;
-    font-family: monospace;
+    font-size: 14px;
   }
 </style>

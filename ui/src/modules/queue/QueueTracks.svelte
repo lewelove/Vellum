@@ -42,7 +42,6 @@
     height: 100%;
     display: flex;
     flex-direction: column;
-    padding-top: 12px;
     box-sizing: border-box;
     background-color: transparent;
   }
@@ -51,19 +50,19 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0 16px 12px 24px;
+    padding: 16px 16px 16px 24px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
     color: var(--text-muted);
     font-family: var(--font-stack);
     font-size: 14px;
     font-weight: 500;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.15em;
   }
 
   .count {
     opacity: 0.5;
-    font-size: 12px;
+    font-size: 18px;
   }
 
   .tracks-list {
@@ -93,11 +92,12 @@
 
   .col-index {
     flex: 0 0 32px;
-    text-align: right;
-    font-size: 14px;
+    text-align: center;
+    font-size: 18px;
     font-family: monospace;
-    opacity: 0.6;
-    margin-right: 16px;
+    opacity: 0.5;
+    margin-right: 12px;
+    margin-left: 12px;
     /* margin-left: 8px; */
   }
 

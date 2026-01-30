@@ -60,7 +60,7 @@
 <style>
   .tracks-grid {
     display: grid;
-    gap: 12px;
+    /* gap: 12px; */
     width: 100%;
     
     -webkit-font-smoothing: subpixel-antialiased;
@@ -76,6 +76,7 @@
     display: flex;
     align-items: center;
     padding-right: 12px;
+    margin-right: 12px;
     height: var(--drawer-track-y);
     font-size: var(--drawer-font-size-track);
     color: var(--text-main);
