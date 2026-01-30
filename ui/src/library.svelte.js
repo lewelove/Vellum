@@ -1,5 +1,6 @@
 import { connectSocket } from "./api.js";
-import { player, updatePlayerState } from "./modules/player.svelte.js"; // Import Player Store
+import { player, updatePlayerState } from "./modules/player.svelte.js";
+import { nav } from "./navigation.svelte.js";
 import LogicWorker from "./workers/logic.worker.js?worker"; 
 
 class LibraryState {
@@ -43,7 +44,6 @@ class LibraryState {
           this.albumCache.set(a.id, a);
           if (a.tracks) {
             a.tracks.forEach(t => {
-              // Inject ALBUMARTIST into track metadata for easier UI comparisons
               t.ALBUMARTIST = a.ALBUMARTIST;
               if (t.track_library_path) {
                 this.trackPathMap.set(t.track_library_path, t);
@@ -121,10 +121,34 @@ class LibraryState {
     if (json.type === "UPDATE") {
       this.worker.postMessage({ type: "UPDATE", payload: json.payload });
     } else if (json.type === "INIT") {
+      if (json.ui_state) {
+          this.applyPersistedState(json.ui_state);
+      }
       this.worker.postMessage({ type: "INIT", payload: json.data || json });
     } else if (json.type === "MPD_STATUS") {
       updatePlayerState(json);
     }
+  }
+
+  applyPersistedState(state) {
+      nav.activeTab = state.activeTab || "home";
+      this.userSortPreference = state.sortKey || "default";
+      this.activeSort = { key: this.userSortPreference };
+      this.activeSidebarGrouper = state.groupKey || "genre";
+      this.activeFilter = state.filter || { key: null, val: null };
+  }
+
+  persistState() {
+      fetch("/api/state", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+              activeTab: nav.activeTab,
+              sortKey: this.userSortPreference,
+              groupKey: this.activeSidebarGrouper,
+              filter: $state.snapshot(this.activeFilter)
+          })
+      }).catch(err => console.error("Failed to persist state:", err));
   }
 
   refreshView(resetScroll = true) {
@@ -172,6 +196,7 @@ class LibraryState {
   setSidebarGrouper(key) {
     this.activeSidebarGrouper = key;
     this.refreshSidebar();
+    this.persistState();
   }
 
   applyFilter(key, val) {
@@ -181,10 +206,9 @@ class LibraryState {
       this.activeFilter = { key, val };
     }
     this.expandedAlbumId = null;
-    
     this.activeSort = { key: this.userSortPreference };
-    
     this.refreshView(true);
+    this.persistState();
   }
 
   showRecentlyAdded() {
@@ -192,6 +216,7 @@ class LibraryState {
     this.activeSort = { key: "date_added" };
     this.expandedAlbumId = null;
     this.refreshView(true);
+    this.persistState();
   }
 
   showMediaLibrary() {
@@ -199,6 +224,7 @@ class LibraryState {
     this.activeSort = { key: this.userSortPreference };
     this.expandedAlbumId = null;
     this.refreshView(true);
+    this.persistState();
   }
 
   applySort(key) {
@@ -210,6 +236,7 @@ class LibraryState {
     this.userSortPreference = key;
     this.activeSort = { key };
     this.refreshView(true);
+    this.persistState();
   }
 
   restoreUserSort() {

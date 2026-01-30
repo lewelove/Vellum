@@ -4,10 +4,11 @@ import json
 import tomllib
 import orjson
 import asyncio
+import os
 import concurrent.futures
 from contextlib import asynccontextmanager
 from pathlib import Path, PurePosixPath
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Request
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from mpd import MPDClient, ConnectionError
@@ -17,6 +18,15 @@ from mpd import MPDClient, ConnectionError
 CONFIG = {}
 LIBRARY_ROOT = None
 THUMBNAIL_ROOT = None
+STATE_DIR = Path("~/.eluxum").expanduser().resolve()
+STATE_FILE = STATE_DIR / "state.json"
+
+UI_STATE = {
+    "activeTab": "home",
+    "sortKey": "default",
+    "groupKey": "genre",
+    "filter": {"key": None, "val": None}
+}
 
 def load_config():
     config_path = Path("config.toml")
@@ -24,6 +34,26 @@ def load_config():
         return {}
     with open(config_path, "rb") as f:
         return tomllib.load(f)
+
+def load_ui_state():
+    global UI_STATE
+    if STATE_FILE.exists():
+        try:
+            with open(STATE_FILE, "rb") as f:
+                saved = json.loads(f.read())
+                UI_STATE.update(saved)
+        except Exception as e:
+            print(f"Warning: Could not load state.json: {e}")
+
+def save_ui_state():
+    try:
+        STATE_DIR.mkdir(parents=True, exist_ok=True)
+        tmp_file = STATE_FILE.with_suffix(".tmp")
+        with open(tmp_file, "w", encoding="utf-8") as f:
+            json.dump(UI_STATE, f, indent=2)
+        os.replace(tmp_file, STATE_FILE)
+    except Exception as e:
+        print(f"Error saving state: {e}")
 
 # --- The Live Lake (State Manager) ---
 
@@ -110,10 +140,6 @@ STATE = LibraryState()
 # --- MPD Monitor ---
 
 async def mpd_monitor_loop():
-    """
-    Non-blocking polling monitor.
-    Uses 1s sleep instead of blocking idle() to prevent shutdown hangs on Linux.
-    """
     client = MPDClient()
     print("Starting MPD Monitor...")
     
@@ -149,7 +175,7 @@ async def mpd_monitor_loop():
                 "queue": cached_queue
             }
             await manager.broadcast_bytes(orjson.dumps(payload))
-            await asyncio.sleep(1) # Non-blocking poll
+            await asyncio.sleep(1)
             
         except (ConnectionError, OSError):
             await asyncio.sleep(2)
@@ -166,6 +192,7 @@ async def mpd_monitor_loop():
 async def lifespan(app: FastAPI):
     global CONFIG, LIBRARY_ROOT, THUMBNAIL_ROOT
     CONFIG = load_config()
+    load_ui_state()
     root_str = CONFIG.get("storage", {}).get("library_root")
     thumb_str = CONFIG.get("storage", {}).get("thumbnail_cache_folder")
     if root_str: LIBRARY_ROOT = Path(root_str).expanduser().resolve()
@@ -197,9 +224,25 @@ manager = ConnectionManager()
 async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
     try:
-        await websocket.send_bytes(orjson.dumps({"type": "INIT", "data": STATE.albums}))
+        init_payload = {
+            "type": "INIT", 
+            "data": STATE.albums,
+            "ui_state": UI_STATE
+        }
+        await websocket.send_bytes(orjson.dumps(init_payload))
         while True: await websocket.receive_text()
     except WebSocketDisconnect: manager.disconnect(websocket)
+
+@app.post("/api/state")
+async def update_state(request: Request):
+    global UI_STATE
+    try:
+        data = await request.json()
+        UI_STATE.update(data)
+        save_ui_state()
+        return {"status": "saved"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 @app.post("/api/internal/reload")
 async def trigger_reload(path: str):
