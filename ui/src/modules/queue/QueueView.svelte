@@ -14,14 +14,12 @@
   let innerHeight = $state(0);
   let canvasEl = $state(null);
 
-  // INTEGER SNAP
   let boxSize = $derived(Math.floor(Math.min(innerWidth, innerHeight)));
   let boxX = $derived(Math.floor((innerWidth - boxSize) / 2));
   let boxY = $derived(Math.floor((innerHeight - boxSize) / 2));
 
   let sidebarWidth = $derived(Math.max(0, (innerWidth - innerHeight) / 2));
 
-  // High-precision render loop
   async function renderCover(url, size) {
     if (!url || !size || !canvasEl) return;
 
@@ -32,7 +30,6 @@
       
       await img.decode();
 
-      // Set canvas to physical integer pixels
       canvasEl.width = size;
       canvasEl.height = size;
 
@@ -43,9 +40,7 @@
         features: ['js', 'wasm', 'ww']
       });
 
-      // Strictly disable any remaining browser interpolation
-      const ctx = canvasEl.getContext('2d');
-      ctx.imageSmoothingEnabled = false;
+      // ctx.imageSmoothingEnabled = false;
     } catch (err) {
       console.error("Pica Queue Render Failed:", err);
     }
@@ -80,12 +75,10 @@
         left: {boxX}px;
       "
     >
-      <!-- Shadow Layer (Still using image for the blur shape) -->
       <div class="hard-shadow" aria-hidden="true">
         <img src={coverUrl} alt="" style="width: 100%; height: 100%;" />
       </div>
 
-      <!-- Canvas foreground: Bypass <img> tags entirely -->
       <canvas 
         bind:this={canvasEl}
         class="raw-canvas"
@@ -126,20 +119,12 @@
     inset: 0;
     z-index: 1;
     filter: url(#dithered-shadow);
-    /* Prevent shadow bleed-through at edges */
-    clip-path: inset(1px); 
   }
 
   .raw-canvas {
     position: relative;
     z-index: 2;
     display: block;
-    /* Eliminate all browser-level smoothing */
-    image-rendering: pixelated;
-    image-rendering: crisp-edges;
-    image-rendering: -moz-crisp-edges;
-    /* Force Hardware Clipping to 0px boundary */
-    clip-path: inset(0);
   }
 
   .empty-state {
