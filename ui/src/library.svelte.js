@@ -124,7 +124,13 @@ class LibraryState {
       if (json.ui_state) {
           this.applyPersistedState(json.ui_state);
       }
-      this.worker.postMessage({ type: "INIT", payload: json.data || json });
+      this.worker.postMessage({ 
+        type: "INIT", 
+        payload: {
+          data: json.data,
+          ui_state: json.ui_state
+        }
+      });
     } else if (json.type === "MPD_STATUS") {
       updatePlayerState(json);
     }

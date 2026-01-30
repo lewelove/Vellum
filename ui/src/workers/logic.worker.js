@@ -15,10 +15,12 @@ self.onmessage = (e) => {
 
       case "INIT": {
         let data = [];
-        if (Array.isArray(payload)) {
-          data = payload;
-        } else if (payload && Array.isArray(payload.data)) {
-          data = payload.data;
+        const sourceData = payload.data || payload;
+
+        if (Array.isArray(sourceData)) {
+          data = sourceData;
+        } else if (sourceData && Array.isArray(sourceData.data)) {
+          data = sourceData.data;
         }
         
         data.forEach(a => {
@@ -27,6 +29,15 @@ self.onmessage = (e) => {
         });
 
         rawAlbums = data;
+
+        if (payload.ui_state) {
+          if (payload.ui_state.filter) {
+            currentFilter = payload.ui_state.filter;
+          }
+          if (payload.ui_state.sortKey) {
+            currentSort = { key: payload.ui_state.sortKey };
+          }
+        }
 
         postMessage({ 
           type: "INIT_DATA", 
