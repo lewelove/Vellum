@@ -46,17 +46,22 @@
 <div class="queue-view-wrapper">
   <div class="vfd-recessed-well">
     <div class="vfd-screen">
-      <div class="vfd-line">
-        <span class="vfd-label">TRK</span>
-        <span class="vfd-data">{currentIndex}</span>
-        <span class="vfd-separator">/</span>
-        <span class="vfd-data">{totalQueue}</span>
+      
+      <!-- Active Layer (Lit Segments) -->
+      <div class="vfd-layer active">
+        <div class="vfd-line">
+          <span class="vfd-label">TRK</span>
+          <span class="vfd-data">{currentIndex}</span>
+          <span class="vfd-separator">/</span>
+          <span class="vfd-data">{totalQueue}</span>
+        </div>
+        <div class="vfd-line">
+          <span class="vfd-data">{timeElapsed}</span>
+          <span class="vfd-separator">/</span>
+          <span class="vfd-data">{timeTotal}</span>
+        </div>
       </div>
-      <div class="vfd-line">
-        <span class="vfd-data">{timeElapsed}</span>
-        <span class="vfd-separator">/</span>
-        <span class="vfd-data">{timeTotal}</span>
-      </div>
+
     </div>
   </div>
 
@@ -86,14 +91,9 @@
   }
 
   .vfd-recessed-well {
-    /* margin: 16px; */
     padding: 12px 20px;
     background-color: transparent;
     border-radius: 2px;
-    /* box-shadow:  */
-    /*   inset 0 2px 8px rgba(0, 0, 0, 0.8), */
-    /*   inset 0 1px 2px rgba(0, 0, 0, 1), */
-    /*   0 1px 1px rgba(255, 255, 255, 0.05); */
     border-bottom: 1px solid var(--border-muted);
     display: flex;
     justify-content: flex-end;
@@ -102,37 +102,57 @@
   }
 
   .vfd-screen {
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr;
+    position: relative;
+  }
+
+  .vfd-layer {
+    grid-area: 1 / 1;
     display: flex;
     flex-direction: column;
     align-items: flex-end;
     gap: 2px;
   }
 
+  .vfd-layer.ghost {
+    color: #000;
+    opacity: 0.2;
+    user-select: none;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .vfd-layer.active {
+    z-index: 1;
+    text-shadow: 0 0 8px rgba(255, 255, 255, 0.25);
+  }
+
   .vfd-line {
     display: flex;
     align-items: baseline;
     justify-content: flex-end;
-    font-family: 'DSEG14-Classic';
+    font-family: 'IBM VGA', monospace;
     color: #fff;
-    text-shadow: 0 0 8px rgba(255, 255, 255, 0.25);
     line-height: 1;
     letter-spacing: 0.05em;
   }
 
   .vfd-label {
-    font-size: 14px;
+    font-size: 16px;
     margin-right: 8px;
     opacity: 1;
     font-weight: 400;
   }
 
   .vfd-data {
-    font-size: 18px;
-    font-weight: 400;
+    font-size: 16px;
+    font-weight: 100;
   }
 
   .vfd-separator {
-    font-size: 20px;
+    font-size: 16px;
     margin: 0 6px;
     font-weight: 400;
   }
