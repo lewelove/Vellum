@@ -211,7 +211,7 @@
   .title-row {
     display: flex;
     justify-content: space-between;
-    align-items: baseline;
+    align-items: top;
   }
 
   .d-title { 
@@ -226,9 +226,7 @@
     border: 1px solid var(--border-muted);
     color: var(--text-muted);
     padding: 4px 12px;
-    font-family: var(--font-stack);
     font-size: 12px;
-    letter-spacing: 0.1em;
     cursor: pointer;
     transition: all 0.1s ease;
     pointer-events: auto;
