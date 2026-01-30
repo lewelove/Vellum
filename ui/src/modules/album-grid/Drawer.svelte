@@ -227,7 +227,7 @@
     color: var(--text-muted);
     padding: 4px 12px;
     font-family: var(--font-stack);
-    font-size: 11px;
+    font-size: 12px;
     letter-spacing: 0.1em;
     cursor: pointer;
     transition: all 0.1s ease;

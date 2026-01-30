@@ -2,8 +2,9 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Noto+Music&family=Noto+Sans+Arabic:wght@400;700&family=Noto+Sans+JP:wght@400;700&family=Noto+Sans+KR:wght@400;700&family=Noto+Sans+SC:wght@400;700&family=Noto+Sans+TC:wght@400;700&display=swap');
 
-@import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Jersey+10&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Geist+Mono:wght@100..900&display=swap');
+
+@import url('https://fonts.googleapis.com/css2?family=Red+Hat+Mono:ital,wght@0,300..700;1,300..700&display=swap');
 
 button:focus,
 input:focus,
@@ -23,7 +24,7 @@ select:focus {
     'system-ui', 
     sans-serif;
 
-    --font-mono: monospace;
+    --font-mono: "Red Hat Mono", monospace;
     --font-mono-weight: 400;
 }
 
