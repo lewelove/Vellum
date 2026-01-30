@@ -207,7 +207,6 @@
 
   /* Modes */
   .sidebar-shell.dynamic.left .sidebar-panel { 
-    /* Force GPU context only during dynamic/moving state */
     transform: translateX(-100%) translateZ(0); 
     -webkit-backface-visibility: hidden;
     will-change: transform;
