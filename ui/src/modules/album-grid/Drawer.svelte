@@ -132,7 +132,7 @@
     flex-direction: column;
     margin: 0 auto;
     box-sizing: border-box;
-    overflow: hidden;
+    overflow: visible;
     position: relative;
     -webkit-font-smoothing: subpixel-antialiased;
   }
@@ -141,6 +141,7 @@
     position: relative;
     width: 100%;
     flex-shrink: 0;
+    overflow: visible;
   }
 
   .chevron-pointer {
@@ -152,20 +153,15 @@
     border-top-color: transparent;
     border-left-color: transparent;
     border-right-color: transparent;
-    border-bottom-color: var(--border-muted);
+    border-bottom-color: var(--background-drawer);
     transform: translateX(-50%);
+    
+    /* drop-shadow is required for CSS triangles as box-shadow only sees the square bounding box */
+    filter: drop-shadow(0px -3px 2px rgba(0,0,0,0.1));
   }
 
   .chevron-pointer::after {
-    content: '';
-    position: absolute;
-    top: 2px;
-    left: -12px;
-    width: 0;
-    height: 0;
-    border-style: solid;
-    border-width: 0 12px 12px 12px;
-    border-color: transparent transparent var(--background-drawer) transparent;
+    display: none;
   }
 
   .drawer-content {
@@ -173,7 +169,8 @@
     padding: var(--drawer-padding-y) var(--drawer-padding-x);
     overflow: hidden;
     background-color: var(--background-drawer);
-    border: 1px solid var(--border-muted);
+    border: 1px solid var(--background-drawer);
+    box-shadow: var(--album-cover-shadow);
     z-index: 1;
   }
 
