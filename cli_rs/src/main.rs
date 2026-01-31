@@ -1,24 +1,43 @@
 mod config;
 mod generate;
+mod harvest;
 
-use clap::Parser;
+use clap::{Parser, Subcommand};
 use std::path::{Path, PathBuf};
 use std::fs;
 use anyhow::{Context, Result};
 use config::AppConfig;
 
-#[derive(Parser, Debug)]
+#[derive(Parser)]
 #[command(author, version, about, long_about = None)]
-struct Args {
+struct Cli {
+    #[command(subcommand)]
+    command: Commands,
+}
 
-    #[arg(value_name = "PATH")]
-    path: Option<String>,
+#[derive(Subcommand)]
+enum Commands {
+    /// Legacy generation logic (Rust Scanner -> Toml Writer)
+    Generate {
+        #[arg(value_name = "PATH")]
+        path: Option<String>,
 
-    #[arg(long, short)]
-    force: bool,
+        #[arg(long, short)]
+        force: bool,
 
-    #[arg(long, short = 'j')]
-    jobs: Option<usize>,
+        #[arg(long, short = 'j')]
+        jobs: Option<usize>,
+    },
+    
+    /// New Architecture: Scans a directory and outputs one JSON object per file to stdout
+    Harvest {
+        #[arg(value_name = "PATH")]
+        path: String,
+
+        /// Output human-readable indented JSON
+        #[arg(long)]
+        pretty: bool,
+    }
 }
 
 fn load_config() -> Result<AppConfig> {
@@ -28,7 +47,6 @@ fn load_config() -> Result<AppConfig> {
     ];
     for path in candidates {
         if path.exists() {
-            println!("Loading config from: {:?}", path.canonicalize()?);
             let content = fs::read_to_string(path)?;
             let config: AppConfig = toml::from_str(&content)?;
             return Ok(config);
@@ -37,44 +55,67 @@ fn load_config() -> Result<AppConfig> {
     anyhow::bail!("config.toml not found.")
 }
 
-fn resolve_library_root(config: &AppConfig, cli_path: Option<String>) -> Result<PathBuf> {
-    if let Some(p) = cli_path {
-        let path = PathBuf::from(p);
-        if !path.exists() {
-            anyhow::bail!("Provided path does not exist: {:?}", path);
-        }
-        return Ok(path.canonicalize()?);
-    }
-    let lib_root = &config.storage.library_root;
-    let path = if lib_root.starts_with("~") {
+/// Manually expands "~" to the user's home directory
+fn expand_path(path_str: &str) -> PathBuf {
+    if path_str.starts_with("~") {
         if let Some(home) = dirs::home_dir() {
-            home.join(lib_root.trim_start_matches("~/"))
-        } else {
-            PathBuf::from(lib_root)
+            if path_str == "~" {
+                return home;
+            }
+            if let Some(stripped) = path_str.strip_prefix("~/") {
+                return home.join(stripped);
+            }
         }
-    } else {
-        PathBuf::from(lib_root)
-    };
-    if !path.exists() {
-        anyhow::bail!("Configured library_root does not exist: {:?}", path);
     }
-    Ok(path.canonicalize()?)
+    PathBuf::from(path_str)
+}
+
+fn resolve_library_root(config_root: Option<&str>, cli_path: Option<String>) -> Result<PathBuf> {
+    if let Some(p) = cli_path {
+        let expanded = expand_path(&p);
+        if !expanded.exists() {
+            anyhow::bail!("Provided path does not exist: {:?}", expanded);
+        }
+        return Ok(expanded.canonicalize()?);
+    }
+    
+    if let Some(lib_root) = config_root {
+        let expanded = expand_path(lib_root);
+        
+        if !expanded.exists() {
+            anyhow::bail!("Configured library_root does not exist: {:?}", expanded);
+        }
+        return Ok(expanded.canonicalize()?);
+    }
+
+    anyhow::bail!("No path provided and no config found.")
 }
 
 fn main() -> Result<()> {
-    let args = Args::parse();
+    let cli = Cli::parse();
 
-    if let Some(jobs) = args.jobs {
-        rayon::ThreadPoolBuilder::new()
-            .num_threads(jobs)
-            .build_global()
-            .context("Failed to build thread pool")?;
+    match cli.command {
+        Commands::Generate { path, force, jobs } => {
+            if let Some(j) = jobs {
+                rayon::ThreadPoolBuilder::new()
+                    .num_threads(j)
+                    .build_global()
+                    .context("Failed to build thread pool")?;
+            }
+
+            let config = load_config()?;
+            let target_root = resolve_library_root(Some(&config.storage.library_root), path)?;
+            
+            eprintln!("Target Root: {:?}", target_root);
+            generate::run(target_root, &config, force)
+        },
+        
+        Commands::Harvest { path, pretty } => {
+            let expanded = expand_path(&path);
+            let target_root = expanded.canonicalize()
+                .with_context(|| format!("Invalid path: {:?}", expanded))?;
+                
+            harvest::run(target_root, pretty)
+        }
     }
-
-    let config = load_config()?;
-    let target_root = resolve_library_root(&config, args.path)?;
-    
-    println!("Target Root: {:?}", target_root);
-
-    generate::run(target_root, &config, args.force)
 }

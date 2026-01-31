@@ -50,7 +50,10 @@
                 cd "$ROOT" && python -m cli.generate "$@"
                 ;;
               generate_rs)
-                cd "$ROOT/cli_rs" && cargo run --release -- "$@"
+                cd "$ROOT/cli_rs" && cargo run --release -- generate "$@"
+                ;;
+              harvest)
+                cd "$ROOT/cli_rs" && cargo run --release -- harvest "$@"
                 ;;
               export)
                 cd "$ROOT" && python -m cli.export "$@"
@@ -61,7 +64,8 @@
                 echo "  server      : Start Backend (Live State Manager)"
                 echo "  update      : Compile metadata locks & Hot Reload Server"
                 echo "  generate    : Initialize metadata from files (Python)"
-                echo "  generate_rs : Initialize metadata from files (Rust)"
+                echo "  generate_rs : Initialize metadata from files (Rust Legacy)"
+                echo "  harvest     : Harvest raw metadata to JSON (Rust)"
                 echo "  export      : Export snapshot"
                 ;;
               *)
