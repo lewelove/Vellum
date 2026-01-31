@@ -3,71 +3,66 @@ import { theme } from "../../theme.svelte.js";
 export class LayoutManager {
   containerWidth = $state(0);
 
-  gapX = $derived(theme.albumGrid["gap-x"]);
-  gapY = $derived(theme.albumGrid["gap-y"]);
-  topOffset = $derived(Math.max(0, this.gapX - this.gapY));
-  creaseHeight = $derived(theme.albumGrid["crease-height"]);
-  cardSize = $derived(theme.albumGrid["cover-size"]);
+  // Core dimensions derived from theme
+  gapX = $derived(theme.albumGrid["gap-x"] ?? 24);
+  gapY = $derived(theme.albumGrid["gap-y"] ?? 12);
+  cardSize = $derived(theme.albumGrid["cover-size"] ?? 200);
   
+  // The height of a single row of albums
   rowHeight = $derived(
-    theme.albumGrid["gap-y"] +       
-    theme.albumGrid["cover-size"] +     
-    theme.albumGrid["text-gap-main"] +  
-    theme.albumGrid["font-line-height-title"] +     
-    theme.albumGrid["text-gap-lesser"] +
-    theme.albumGrid["font-line-height-artist"]
+    this.gapY +       
+    this.cardSize +     
+    (theme.albumGrid["text-gap-main"] ?? 8) +  
+    (theme.albumGrid["font-line-height-title"] ?? 18) +     
+    (theme.albumGrid["text-gap-lesser"] ?? 2) +
+    (theme.albumGrid["font-line-height-artist"] ?? 16)
   );
 
-  cols = $derived(Math.floor((Math.max(0, this.containerWidth - 40) + this.gapX) / (this.cardSize + this.gapX)) || 1);
-  gridWidth = $derived(Math.floor((this.cols * this.cardSize) + ((this.cols - 1) * this.gapX)));
+  // Grid logic
+  cols = $derived(Math.max(1, Math.floor((this.containerWidth - 40 + this.gapX) / (this.cardSize + this.gapX))));
+  gridWidth = $derived((this.cols * this.cardSize) + ((this.cols - 1) * this.gapX));
 
-  drawerTrackWidth = $derived.by(() => {
-    const availableTotalWidth = this.containerWidth - (theme.drawer["drawer-padding-x"] * 2);
-    const layoutWidth = Math.min(availableTotalWidth, theme.drawer["drawer-contents-x-max"]);
-    
-    return layoutWidth 
-      - theme.drawer["drawer-cover-size"] 
-      - theme.drawer["drawer-split-gap"];
-  });
-
-  trackCols = $derived(this.drawerTrackWidth > 550 ? 2 : 1);
-
-  chunk(arr) {
-    const results = [];
-    for (let i = 0; i < arr.length; i += this.cols) {
-      results.push(arr.slice(i, i + this.cols));
-    }
-    return results;
-  }
-
+  /**
+   * Calculates drawer dimensions. 
+   * To achieve perfect symmetry, the cover size must account for:
+   * (Total Height) - (Chevron Overhead) - (Top/Bottom Paddings) - (Top/Bottom Borders)
+   */
   getNaturalDrawer() {
-    const chevronHeight = theme.albumGrid["drawer-chevron-height"];
-    const gapMain = theme.albumGrid["drawer-gap-main"]; 
+    const totalDrawerHeight = this.rowHeight * 2;
+    const overhead = (theme.albumGrid["drawer-gap-main"] ?? 0) + (theme.albumGrid["drawer-chevron-height"] ?? 12);
+    const paddingY = theme.drawer["drawer-padding-y"] ?? 18;
+    const paddingX = theme.drawer["drawer-padding-x"] ?? 18;
+    const borderWeight = 2; // 1px top + 1px bottom border
     
-    const bandA = gapMain; 
-    const bandB = chevronHeight; 
-    const overhead = bandA + bandB;
+    const bandCHeight = totalDrawerHeight - overhead;
     
-    const totalHeight = this.rowHeight * 2;
-    const naturalContentHeight = totalHeight - overhead;
+    // Dynamic Cover Size: content height - borders - vertical paddings
+    const dynamicCoverSize = Math.max(100, bandCHeight - borderWeight - (paddingY * 2));
     
+    // Calculate track width based on the dynamic cover
+    const availableTotalWidth = Math.max(0, this.containerWidth - (paddingX * 2));
+    const layoutWidth = Math.min(availableTotalWidth, theme.drawer["drawer-contents-x-max"] ?? 1600);
+    const drawerTrackWidth = layoutWidth - dynamicCoverSize - (theme.drawer["drawer-split-gap"] ?? 24);
+
     return {
-      height: totalHeight,
-      bandA,
-      bandB,
-      trackCols: this.trackCols,
-      chevronWidth: theme.albumGrid["drawer-chevron-width"],
-      bandCHeight: naturalContentHeight,
-      drawerCoverSize: theme.drawer["drawer-cover-size"]
+      height: totalDrawerHeight,
+      bandA: theme.albumGrid["drawer-gap-main"] ?? 0,
+      bandB: theme.albumGrid["drawer-chevron-height"] ?? 12,
+      trackCols: drawerTrackWidth > 550 ? 2 : 1,
+      chevronWidth: theme.albumGrid["drawer-chevron-width"] ?? 24,
+      bandCHeight: bandCHeight,
+      drawerCoverSize: dynamicCoverSize
     };
   }
 
   getTotalHeight(rowCount, drawerInfo) {
-    return (rowCount * this.rowHeight) + (drawerInfo ? drawerInfo.height : 0) + this.topOffset;
+    const topOffset = Math.max(0, this.gapX - this.gapY);
+    return (rowCount * this.rowHeight) + (drawerInfo ? drawerInfo.height : 0) + topOffset;
   }
 
   getRowY(index, expandedRowIndex, drawerHeight) {
-    let y = (index * this.rowHeight) + this.topOffset;
+    const topOffset = Math.max(0, this.gapX - this.gapY);
+    let y = (index * this.rowHeight) + topOffset;
     if (expandedRowIndex !== -1 && index > expandedRowIndex) {
       y += drawerHeight;
     }
@@ -81,7 +76,16 @@ export class LayoutManager {
     
     return {
       start: Math.max(0, start),
-      end: Math.min(rowCount - 1, end)
+      end: Math.min(Math.max(0, rowCount - 1), end)
     };
+  }
+
+  chunk(arr) {
+    const results = [];
+    const columns = this.cols;
+    for (let i = 0; i < arr.length; i += columns) {
+      results.push(arr.slice(i, i + columns));
+    }
+    return results;
   }
 }

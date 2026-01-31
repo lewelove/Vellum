@@ -87,7 +87,7 @@
   >
     <div class="sidebar-trigger"></div>
     <div class="sidebar-panel">
-      <div class="nav-anchor"><NavTabs /></div>
+      <!-- <div class="nav-anchor"><NavTabs /></div> -->
       <div class="sidebar-inner"><Sidebar /></div>
       <div class="sidebar-resizer" onmousedown={startResizingLeft}></div>
     </div>

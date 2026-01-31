@@ -87,7 +87,7 @@
     style="height: {bandCHeight}px;"
   >
       <div class="split-layout">
-        <div class="cover-col">
+        <div class="cover-col" style="width: {drawerCoverSize}px;">
           <SmartImage 
             src={coverUrl} 
             width={drawerCoverSize} 
@@ -189,7 +189,6 @@
   .cover-col {
     display: flex;
     flex-direction: column;
-    width: var(--drawer-cover-size);
     flex-shrink: 0;
   }
 
@@ -212,6 +211,7 @@
     display: flex;
     justify-content: space-between;
     align-items: top;
+    margin-bottom: 4px;
   }
 
   .d-title { 

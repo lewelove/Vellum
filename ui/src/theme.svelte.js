@@ -45,7 +45,7 @@ export const theme = $state({
     "drawer-font-size-artist": 18,
     "drawer-font-size-track": 14,
     "drawer-track-y": 32,
-    "drawer-cover-size": 464,
+    // "drawer-cover-size": 400, // This is now a fallback, logic overrides it
     "drawer-split-gap": 24,
     "drawer-contents-x-max": 1600
   }
