@@ -1,285 +1,41 @@
-import sys
-import uvicorn
-import json
-import tomllib
-import orjson
 import asyncio
-import os
-import concurrent.futures
+import uvicorn
 from contextlib import asynccontextmanager
-from pathlib import Path, PurePosixPath
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Request
-from fastapi.responses import FileResponse
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from mpd import MPDClient, ConnectionError
-
-# --- Configuration & Globals ---
-
-CONFIG = {}
-LIBRARY_ROOT = None
-THUMBNAIL_ROOT = None
-STATE_DIR = Path("~/.eluxum").expanduser().resolve()
-STATE_FILE = STATE_DIR / "state.json"
-
-UI_STATE = {
-    "activeTab": "home",
-    "sortKey": "default",
-    "groupKey": "genre",
-    "filter": {"key": None, "val": None}
-}
-
-def load_config():
-    config_path = Path("config.toml")
-    if not config_path.exists():
-        return {}
-    with open(config_path, "rb") as f:
-        return tomllib.load(f)
-
-def load_ui_state():
-    global UI_STATE
-    if STATE_FILE.exists():
-        try:
-            with open(STATE_FILE, "rb") as f:
-                saved = json.loads(f.read())
-                UI_STATE.update(saved)
-        except Exception as e:
-            print(f"Warning: Could not load state.json: {e}")
-
-def save_ui_state():
-    try:
-        STATE_DIR.mkdir(parents=True, exist_ok=True)
-        tmp_file = STATE_FILE.with_suffix(".tmp")
-        with open(tmp_file, "w", encoding="utf-8") as f:
-            json.dump(UI_STATE, f, indent=2)
-        os.replace(tmp_file, STATE_FILE)
-    except Exception as e:
-        print(f"Error saving state: {e}")
-
-# --- The Live Lake (State Manager) ---
-
-class LibraryState:
-    def __init__(self):
-        self.albums = []  
-        self.album_map = {}  
-        self.track_map = {}  
-        self.path_lookup = {} 
-
-    def _normalize(self, path_str: str) -> str:
-        if not path_str: return ""
-        return path_str.lstrip('/')
-
-    def _parse_lock_file(self, lock_path: Path):
-        try:
-            with open(lock_path, "rb") as f:
-                data = orjson.loads(f.read())
-            
-            album_source = data.get("album", {})
-            tracks_source = data.get("tracks", [])
-            alb_id = album_source.get("album_root_path")
-            
-            if not alb_id: return None
-
-            excluded = {"metadata_toml_hash", "metadata_toml_mtime", "lock_hash"}
-            clean_album = {k: v for k, v in album_source.items() if k not in excluded}
-            clean_album["id"] = alb_id
-            clean_album["tracks"] = tracks_source
-            
-            t_map, p_map = {}, {}
-            for t in tracks_source:
-                t_id = t.get("track_library_path")
-                t_path_rel = t.get("track_path")
-                if t_id and t_path_rel:
-                    t_map[t_id] = t_path_rel 
-                    full_rel = self._normalize(str(PurePosixPath(alb_id) / t_path_rel))
-                    p_map[full_rel] = alb_id
-
-            return (clean_album, t_map, p_map)
-        except Exception:
-            return None
-
-    async def initialize(self):
-        print(f"Scanning library at {LIBRARY_ROOT}...")
-        loop = asyncio.get_running_loop()
-        lock_files = list(LIBRARY_ROOT.rglob("metadata.lock.json"))
-        
-        with concurrent.futures.ThreadPoolExecutor() as pool:
-            results = await loop.run_in_executor(None, lambda: list(pool.map(self._parse_lock_file, lock_files)))
-            
-        self.albums, self.album_map, self.track_map, self.path_lookup = [], {}, {}, {}
-        for res in results:
-            if not res: continue
-            album_data, t_map, p_map = res
-            self.albums.append(album_data)
-            self.album_map[album_data["id"]] = album_data
-            for t_id, t_rel in t_map.items():
-                self.track_map[t_id] = str(LIBRARY_ROOT / album_data["id"] / t_rel)
-            self.path_lookup.update(p_map)
-
-        self.albums.sort(key=lambda x: x["id"])
-        print(f"Live Lake Initialized: {len(self.albums)} albums. {len(self.path_lookup)} tracks.")
-
-    def update_album(self, folder_path_str: str):
-        res = self._parse_lock_file(Path(folder_path_str) / "metadata.lock.json")
-        if not res: return None
-        new_album, new_t_map, new_p_map = res
-        alb_id = new_album["id"]
-        existing = self.album_map.get(alb_id)
-        if existing:
-            existing.clear()
-            existing.update(new_album)
-        else:
-            self.albums.append(new_album)
-            self.album_map[alb_id] = new_album
-        for t_id, t_rel in new_t_map.items():
-            self.track_map[t_id] = str(LIBRARY_ROOT / alb_id / t_rel)
-        self.path_lookup.update(new_p_map)
-        return new_album
-
-STATE = LibraryState()
-
-# --- MPD Monitor ---
-
-async def mpd_monitor_loop():
-    client = MPDClient()
-    print("Starting MPD Monitor...")
-    
-    last_playlist_version = None
-    cached_queue = []
-
-    while True:
-        try:
-            try:
-                client.ping()
-            except (ConnectionError, OSError):
-                client.connect("localhost", 6600)
-
-            status = client.status()
-            current_playlist_version = status.get("playlist")
-            
-            if current_playlist_version != last_playlist_version:
-                cached_queue = client.playlistinfo()
-                last_playlist_version = current_playlist_version
-            
-            current = client.currentsong()
-            file_path = current.get("file")
-            
-            payload = {
-                "type": "MPD_STATUS",
-                "state": status.get("state"),
-                "file": file_path,
-                "album_id": STATE.path_lookup.get(STATE._normalize(file_path)),
-                "elapsed": status.get("elapsed"),
-                "duration": status.get("duration"),
-                "title": current.get("title"),
-                "artist": current.get("artist"),
-                "queue": cached_queue
-            }
-            await manager.broadcast_bytes(orjson.dumps(payload))
-            await asyncio.sleep(1)
-            
-        except (ConnectionError, OSError):
-            await asyncio.sleep(2)
-        except asyncio.CancelledError:
-            try: client.disconnect()
-            except: pass
-            break
-        except Exception:
-            await asyncio.sleep(1)
-
-# --- Lifecycle ---
+from . import config
+from .library import STATE
+from .mpd_engine import monitor_loop
+from .api import router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global CONFIG, LIBRARY_ROOT, THUMBNAIL_ROOT
-    CONFIG = load_config()
-    load_ui_state()
-    root_str = CONFIG.get("storage", {}).get("library_root")
-    thumb_str = CONFIG.get("storage", {}).get("thumbnail_cache_folder")
-    if root_str: LIBRARY_ROOT = Path(root_str).expanduser().resolve()
-    if thumb_str: THUMBNAIL_ROOT = Path(thumb_str).expanduser().resolve()
-    if LIBRARY_ROOT: await STATE.initialize()
+    config.load_config()
+    config.load_ui_state()
     
-    monitor_task = asyncio.create_task(mpd_monitor_loop())
+    if config.LIBRARY_ROOT:
+        await STATE.initialize()
+    
+    monitor_task = asyncio.create_task(monitor_loop())
+    
     yield
+    
     monitor_task.cancel()
-    try: await asyncio.wait_for(monitor_task, timeout=2)
-    except Exception: pass
+    try: 
+        await asyncio.wait_for(monitor_task, timeout=2)
+    except Exception: 
+        pass
 
 app = FastAPI(lifespan=lifespan)
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(
+    CORSMiddleware, 
+    allow_origins=["*"], 
+    allow_credentials=True, 
+    allow_methods=["*"], 
+    allow_headers=["*"]
+)
 
-class ConnectionManager:
-    def __init__(self): self.active_connections = []
-    async def connect(self, ws): await ws.accept(); self.active_connections.append(ws)
-    def disconnect(self, ws): 
-        if ws in self.active_connections: self.active_connections.remove(ws)
-    async def broadcast_bytes(self, data):
-        for c in self.active_connections:
-            try: await c.send_bytes(data)
-            except: pass
-
-manager = ConnectionManager()
-
-@app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
-    await manager.connect(websocket)
-    try:
-        init_payload = {
-            "type": "INIT", 
-            "data": STATE.albums,
-            "ui_state": UI_STATE
-        }
-        await websocket.send_bytes(orjson.dumps(init_payload))
-        while True: await websocket.receive_text()
-    except WebSocketDisconnect: manager.disconnect(websocket)
-
-@app.post("/api/state")
-async def update_state(request: Request):
-    global UI_STATE
-    try:
-        data = await request.json()
-        UI_STATE.update(data)
-        save_ui_state()
-        return {"status": "saved"}
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-@app.post("/api/internal/reload")
-async def trigger_reload(path: str):
-    updated = STATE.update_album(path)
-    if updated:
-        await manager.broadcast_bytes(orjson.dumps({"type": "UPDATE", "id": updated["id"], "payload": updated}))
-        return {"status": "reloaded"}
-    raise HTTPException(status_code=404)
-
-@app.get("/api/covers/{cover_hash}.png")
-def get_cover_thumbnail(cover_hash: str):
-    path = (THUMBNAIL_ROOT / f"{cover_hash}.png").resolve()
-    if not path.exists(): raise HTTPException(status_code=404)
-    return FileResponse(path, headers={"Cache-Control": "public, max-age=31536000"})
-
-@app.get("/api/assets/{album_id:path}/cover")
-def get_album_cover(album_id: str):
-    album = STATE.album_map.get(album_id)
-    if not album or not album.get("cover_path") or album.get("cover_path") == "default_cover.png":
-        raise HTTPException(status_code=404)
-    path = (LIBRARY_ROOT / album_id / album["cover_path"]).resolve()
-    if not path.exists(): raise HTTPException(status_code=404)
-    return FileResponse(path)
-
-@app.post("/api/play/{album_id:path}")
-def play_album(album_id: str, offset: int = 0):
-    album = STATE.album_map.get(album_id)
-    if not album: raise HTTPException(status_code=404)
-    paths = [STATE.track_map[t["track_library_path"]] for t in album.get("tracks", []) if t.get("track_library_path") in STATE.track_map]
-    if not paths: raise HTTPException(status_code=404)
-    client = MPDClient()
-    try:
-        client.connect("localhost", 6600); client.clear()
-        for p in paths: client.add(str(Path(p).relative_to(LIBRARY_ROOT)))
-        client.play(offset); client.close()
-    except Exception as e: raise HTTPException(status_code=500, detail=str(e))
-    return {"status": "ok"}
+app.include_router(router)
 
 if __name__ == "__main__":
     uvicorn.run("server.main:app", host="127.0.0.1", port=8000, log_level="info")

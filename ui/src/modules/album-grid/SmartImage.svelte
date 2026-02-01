@@ -79,7 +79,7 @@
   }
 
   .output-canvas.visible {
-    box-shadow: var(--album-cover-shadow);
+    box-shadow: 0px 0px 16px -1px rgba(0,0,0,0.2), 0px 0px 12px 0px rgba(0,0,0,0.2);
     opacity: 1;
   }
 </style>
