@@ -72,6 +72,7 @@ def compile_album(album_root: Path, supported_exts: list, library_root: Path = N
             sha256.update(chunk)
     meta_hash = sha256.hexdigest()
 
+    # 1. Acquire Physical Spine
     physical_spine = scan_physical_spine(album_root, supported_exts)
 
     album_defaults = raw_meta.get("album", {})
@@ -79,50 +80,52 @@ def compile_album(album_root: Path, supported_exts: list, library_root: Path = N
     
     inflated_tracks = []
     
-    if not raw_tracks_source and physical_spine:
-        for _ in physical_spine:
-            inflated_tracks.append(album_defaults.copy())
+    # 2. Acquire Logical Spine & Enforce Manifest Contract
+    if not raw_tracks_source:
+        # Auto-generation mode for new/empty albums
+        if physical_spine:
+            for _ in physical_spine:
+                inflated_tracks.append(album_defaults.copy())
     else:
+        # Strict Parity Check
+        if len(raw_tracks_source) != len(physical_spine):
+            raise ValueError(
+                f"Manifest Mismatch in {album_root}:\n"
+                f"  - Logical Tracks: {len(raw_tracks_source)}\n"
+                f"  - Physical Files: {len(physical_spine)}\n"
+                "The number of [[tracks]] entries must exactly match the number of audio files."
+            )
+            
         for t in raw_tracks_source:
             inflated_tracks.append({**album_defaults, **t})
 
-    disc_counts = {}
-    for track in inflated_tracks:
-        if "DISCNUMBER" not in track: track["DISCNUMBER"] = "1"
-        dn_str = str(track["DISCNUMBER"]).split('/')[0].strip()
-        track["DISCNUMBER"] = dn_str
-        
-        current_count = disc_counts.get(dn_str, 0) + 1
-        disc_counts[dn_str] = current_count
-        
-        if "TRACKNUMBER" in track:
-             track["TRACKNUMBER"] = str(track["TRACKNUMBER"]).split('/')[0].strip()
-        else:
-             track["TRACKNUMBER"] = str(current_count)
+    # 3. Deterministic Sort (User Intent)
+    # Sort by DISCNUMBER then TRACKNUMBER. 
+    # Python's stable sort preserves order for missing/equal keys.
+    inflated_tracks.sort(key=lambda t: (
+        parse_int(t.get("DISCNUMBER", "1")), 
+        parse_int(t.get("TRACKNUMBER", "0"))
+    ))
 
-    seen_pairs = set()
-    for track in inflated_tracks:
-        pair = (parse_int(track.get("DISCNUMBER")), parse_int(track.get("TRACKNUMBER")))
-        if pair in seen_pairs:
-            raise ValueError(f"Duplicate Disc/Track in {album_root}")
-        seen_pairs.add(pair)
-
-    inflated_tracks.sort(key=lambda t: (parse_int(t["DISCNUMBER"]), parse_int(t["TRACKNUMBER"])))
-
+    # 4. Bind Spines (Ordinal Zipper)
     zip_tracks(inflated_tracks, physical_spine)
     
+    # 5. Standardize Sequence
+    # Re-writes TRACKNUMBER to be strictly sequential (1..N) per Disc.
     curr_disc = None
     curr_idx = 0
     for track in inflated_tracks:
-        d = parse_int(track["DISCNUMBER"])
+        d = parse_int(track.get("DISCNUMBER", "1"))
         if d != curr_disc:
             curr_disc = d
             curr_idx = 0
         curr_idx += 1
+        
+        track["DISCNUMBER"] = str(d)
         track["TRACKNUMBER"] = str(curr_idx)
 
+    # 6. Resolve Tags
     final_tracks = []
-    
     for track_source in inflated_tracks:
         final_track = {}
         t_path_rel = track_source.get("track_path", "")

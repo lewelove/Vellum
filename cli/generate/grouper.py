@@ -82,7 +82,6 @@ def resolve_anchor(
     if not tracks:
         return None, False
 
-    # 1. Determine the Anchor (Geometric Center)
     paths = []
     group_paths_set = set()
     
@@ -97,9 +96,6 @@ def resolve_anchor(
         return None, False
 
     try:
-        # commonpath returns the longest common sub-path.
-        # If passed a single file, it returns the file path itself.
-        # If passed sibling files, it returns the parent directory.
         common = os.path.commonpath(paths)
         anchor = Path(common)
     except ValueError:
@@ -114,21 +110,18 @@ def resolve_anchor(
     if not abs_anchor.is_relative_to(abs_lib):
         return abs_anchor, False
 
-    # 2. Ecological Exclusivity Check
-    # We must scan the calculated anchor for any "Alien" files.
-    
-    # Normalize extensions for case-insensitive matching
     ext_lookup = set(e.lower() for e in supported_exts)
     
     for root, _, files in os.walk(abs_anchor):
         for file in files:
-            file_path = Path(root) / file
+            file_path = (Path(root) / file).resolve()
             
             if file_path.suffix.lower() in ext_lookup:
-                # We found a supported audio file.
-                # It MUST be in our group.
-                if file_path.resolve() not in group_paths_set:
-                    # Alien detected. This folder structure is contaminated.
+                if file_path not in group_paths_set:
+                    print(f"\nExclusivity Violation: {abs_anchor}")
+                    print("Group members triggering anchor collision:")
+                    for p in sorted(list(set(paths))):
+                        print(f"  - {p}")
                     return abs_anchor, False
 
     return abs_anchor, True

@@ -19,7 +19,6 @@ def parse_int(val) -> int:
     return 0
 
 def scan_physical_spine(album_root: Path, supported_exts: list) -> list:
-
     files = []
     for ext in supported_exts:
         files.extend(album_root.rglob(f"*{ext}"))
@@ -31,32 +30,13 @@ def scan_physical_spine(album_root: Path, supported_exts: list) -> list:
     return [str(p) for p in rel_files]
 
 def zip_tracks(sorted_tracks: list, physical_files: list) -> list:
-
-    file_cursor = 0
-    last_disc = -1
-    last_track_num = 0
-
-    for track in sorted_tracks:
-
-        d = parse_int(track.get("DISCNUMBER", "1"))
-        n = parse_int(track.get("TRACKNUMBER", "0"))
-
-        if d != last_disc:
-            last_disc = d
-            last_track_num = 0
+    """
+    Performs a deterministic 1:1 ordinal binding between the Logical Spine
+    (sorted_tracks) and the Physical Spine (physical_files).
+    
+    Pre-condition: len(sorted_tracks) must equal len(physical_files).
+    """
+    for track, file_path in zip(sorted_tracks, physical_files):
+        track["track_path"] = file_path
         
-        gap = max(1, n - last_track_num)
-        skip_count = gap - 1
-        
-        file_cursor += skip_count
-
-        if file_cursor < len(physical_files):
-            track["track_path"] = physical_files[file_cursor]
-        else:
-            track["track_path"] = ""
-
-        file_cursor += 1
-        
-        last_track_num = n
-
     return sorted_tracks

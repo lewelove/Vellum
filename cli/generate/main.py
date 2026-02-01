@@ -1,4 +1,5 @@
 import tomllib
+import json
 import sys
 from pathlib import Path
 from tqdm import tqdm
@@ -64,12 +65,14 @@ def run_generate():
         lock_files = list(lib_root.rglob("metadata.lock.json"))
         for lf in lock_files:
             try:
-                with open(lf, "rb") as f:
-                    lock_data = tomllib.load(f)
+                with open(lf, "r", encoding="utf-8") as f:
+                    lock_data = json.load(f)
+                    album_dir = lf.parent
                     for t in lock_data.get("tracks", []):
-                        tp = t.get("track_path_absolute")
-                        if tp:
-                            tracked_paths.add(Path(tp).resolve())
+                        rel_path = t.get("track_path")
+                        if rel_path:
+                            abs_path = (album_dir / rel_path).resolve()
+                            tracked_paths.add(abs_path)
             except Exception:
                 continue
         
