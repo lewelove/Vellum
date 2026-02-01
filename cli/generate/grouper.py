@@ -63,26 +63,50 @@ def sort_album_tracks(tracks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
 
     return sorted(tracks, key=sort_key)
 
-def resolve_anchor(tracks: List[Dict[str, Any]], library_root: str) -> Tuple[Optional[Path], bool]:
+def resolve_anchor(
+    tracks: List[Dict[str, Any]], 
+    library_root: str, 
+    supported_exts: List[str]
+) -> Tuple[Optional[Path], bool]:
     """
     Calculates the 'Anchor' (Common Folder) for a group of tracks and validates it.
     
     Returns:
         (Anchor Path object, is_valid Boolean)
     
-    Validity Rules:
+    Validity Rules (Ecological Exclusivity):
     1. Anchor must be within library_root.
-    2. No track can be deeper than 2 subdirectories from the Anchor.
+    2. The group must 'own' the Anchor: No supported audio files in the Anchor 
+       (or its subdirectories) can exist outside of this group.
     """
     if not tracks:
         return None, False
 
-    paths = [Path(t["track_path_absolute"]).parent for t in tracks]
+    # 1. Determine the Anchor (Geometric Center)
+    paths = []
+    group_paths_set = set()
     
+    for t in tracks:
+        p_str = t.get("track_path_absolute")
+        if p_str:
+            p = Path(p_str).resolve()
+            paths.append(str(p))
+            group_paths_set.add(p)
+    
+    if not paths:
+        return None, False
+
     try:
-        anchor = Path(os.path.commonpath(paths))
+        # commonpath returns the longest common sub-path.
+        # If passed a single file, it returns the file path itself.
+        # If passed sibling files, it returns the parent directory.
+        common = os.path.commonpath(paths)
+        anchor = Path(common)
     except ValueError:
         return None, False
+
+    if anchor.is_file():
+        anchor = anchor.parent
 
     abs_anchor = anchor.resolve()
     abs_lib = Path(library_root).expanduser().resolve()
@@ -90,19 +114,21 @@ def resolve_anchor(tracks: List[Dict[str, Any]], library_root: str) -> Tuple[Opt
     if not abs_anchor.is_relative_to(abs_lib):
         return abs_anchor, False
 
-    max_depth_allowed = 2
+    # 2. Ecological Exclusivity Check
+    # We must scan the calculated anchor for any "Alien" files.
     
-    for p in paths:
-        try:
-            rel = p.relative_to(anchor)
-            if rel == Path("."):
-                depth = 0
-            else:
-                depth = len(rel.parts)
-                
-            if depth > max_depth_allowed:
-                return anchor, False
-        except ValueError:
-            return anchor, False
+    # Normalize extensions for case-insensitive matching
+    ext_lookup = set(e.lower() for e in supported_exts)
+    
+    for root, _, files in os.walk(abs_anchor):
+        for file in files:
+            file_path = Path(root) / file
+            
+            if file_path.suffix.lower() in ext_lookup:
+                # We found a supported audio file.
+                # It MUST be in our group.
+                if file_path.resolve() not in group_paths_set:
+                    # Alien detected. This folder structure is contaminated.
+                    return abs_anchor, False
 
-    return anchor, True
+    return abs_anchor, True

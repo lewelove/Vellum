@@ -61,7 +61,7 @@ def run_generate():
 
     if not force_mode:
         tracked_paths = set()
-        lock_files = list(lib_root.rglob("metadata.lock"))
+        lock_files = list(lib_root.rglob("metadata.lock.json"))
         for lf in lock_files:
             try:
                 with open(lf, "rb") as f:
@@ -98,10 +98,10 @@ def run_generate():
     print(f"Found {len(album_buckets)} album groups to generate.")
 
     for group_id, tracks in tqdm(album_buckets.items(), desc="Generating Metadata", unit="album"):
-        anchor_path, is_valid = resolve_anchor(tracks, lib_root)
+        anchor_path, is_valid = resolve_anchor(tracks, lib_root, supported_exts)
         
         if not is_valid:
-            tqdm.write(f"Skipping group {group_id}: Invalid anchor or depth > 2.")
+            tqdm.write(f"Skipping group {group_id}: Ecological Exclusivity violation (Aliens detected in anchor).")
             continue
 
         sorted_tracks = sort_album_tracks(tracks)
