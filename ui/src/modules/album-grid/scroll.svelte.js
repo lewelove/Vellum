@@ -9,25 +9,19 @@ export class ScrollEngine {
   }
 
   update(rowHeight, dpr = 1) {
-    // 1. Calculate the Ideal Target based on logical slots
+    const physicalPixel = 1 / dpr;
     const idealTargetY = this.targetSlot * rowHeight;
     
-    // 2. Quantize the Target to the Physical Grid
-    // We snap the destination so the spring comes to rest on a hardware integer.
-    // This prevents the "soft blur" resting state.
-    const physicalTargetY = Math.round(idealTargetY * dpr) / dpr;
-
-    // 3. Calculate Physics on High-Precision Floats
-    // We do NOT quantize the delta or the velocity during transit.
-    // The "blur" during motion is acceptable/expected; 
-    // the "judder" from quantizing motion is not.
-    const diff = physicalTargetY - this.currentY;
+    const snappedTargetY = Math.round(idealTargetY * dpr) / dpr;
+    const diff = snappedTargetY - this.currentY;
     
-    if (Math.abs(diff) < 0.005) {
-      this.currentY = physicalTargetY;
-    } else {
-      this.currentY += diff * this.damping;
-    }
+    const velocity = diff * this.damping;
+
+    // if (Math.abs(velocity) < 0.001) {
+    //   this.currentY = snappedTargetY;
+    // } else {
+      this.currentY += velocity;
+    // }
   }
 
   handleWheel(e, maxSlots) {
