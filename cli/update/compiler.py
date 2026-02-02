@@ -72,7 +72,6 @@ def compile_album(album_root: Path, supported_exts: list, library_root: Path = N
             sha256.update(chunk)
     meta_hash = sha256.hexdigest()
 
-    # 1. Acquire Physical Spine
     physical_spine = scan_physical_spine(album_root, supported_exts)
 
     album_defaults = raw_meta.get("album", {})
@@ -80,14 +79,11 @@ def compile_album(album_root: Path, supported_exts: list, library_root: Path = N
     
     inflated_tracks = []
     
-    # 2. Acquire Logical Spine & Enforce Manifest Contract
     if not raw_tracks_source:
-        # Auto-generation mode for new/empty albums
         if physical_spine:
             for _ in physical_spine:
                 inflated_tracks.append(album_defaults.copy())
     else:
-        # Strict Parity Check
         if len(raw_tracks_source) != len(physical_spine):
             raise ValueError(
                 f"Manifest Mismatch in {album_root}:\n"
@@ -99,19 +95,13 @@ def compile_album(album_root: Path, supported_exts: list, library_root: Path = N
         for t in raw_tracks_source:
             inflated_tracks.append({**album_defaults, **t})
 
-    # 3. Deterministic Sort (User Intent)
-    # Sort by DISCNUMBER then TRACKNUMBER. 
-    # Python's stable sort preserves order for missing/equal keys.
     inflated_tracks.sort(key=lambda t: (
         parse_int(t.get("DISCNUMBER", "1")), 
         parse_int(t.get("TRACKNUMBER", "0"))
     ))
 
-    # 4. Bind Spines (Ordinal Zipper)
     zip_tracks(inflated_tracks, physical_spine)
     
-    # 5. Standardize Sequence
-    # Re-writes TRACKNUMBER to be strictly sequential (1..N) per Disc.
     curr_disc = None
     curr_idx = 0
     for track in inflated_tracks:
@@ -124,7 +114,6 @@ def compile_album(album_root: Path, supported_exts: list, library_root: Path = N
         track["DISCNUMBER"] = str(d)
         track["TRACKNUMBER"] = str(curr_idx)
 
-    # 6. Resolve Tags
     final_tracks = []
     for track_source in inflated_tracks:
         final_track = {}

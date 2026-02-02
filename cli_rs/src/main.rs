@@ -25,6 +25,7 @@ enum Commands {
         #[arg(long, short)]
         force: bool,
 
+        /// Number of threads to use [default: all cores]
         #[arg(long, short = 'j')]
         jobs: Option<usize>,
     },
@@ -37,6 +38,10 @@ enum Commands {
         /// Output human-readable indented JSON
         #[arg(long)]
         pretty: bool,
+
+        /// Number of threads to use [default: all cores]
+        #[arg(long, short = 'j')]
+        jobs: Option<usize>,
     }
 }
 
@@ -110,7 +115,15 @@ fn main() -> Result<()> {
             generate::run(target_root, &config, force)
         },
         
-        Commands::Harvest { path, pretty } => {
+        Commands::Harvest { path, pretty, jobs } => {
+            // Initialize the global thread pool with the specified number of jobs
+            if let Some(j) = jobs {
+                rayon::ThreadPoolBuilder::new()
+                    .num_threads(j)
+                    .build_global()
+                    .context("Failed to build thread pool")?;
+            }
+
             let expanded = expand_path(&path);
             let target_root = expanded.canonicalize()
                 .with_context(|| format!("Invalid path: {:?}", expanded))?;

@@ -13,6 +13,9 @@
   const activeKeys = new Set();
   const SCROLL_SPEED = 0.20;
 
+  // QUANTIZATION LAYER
+  // We apply the physical grid snap at the very last moment before rendering.
+  // This ensures the DOM element sits exactly on the hardware diode.
   let renderY = $derived(Math.round(ctrl.scroll.currentY * dpr) / dpr);
 
   function loop() {
@@ -60,11 +63,20 @@
   });
 
   onMount(() => {
+    // Acquire the Physical Backbone of the display
     dpr = window.devicePixelRatio || 1;
+    
+    // Listen for DPI changes (moving window between screens)
+    const matchMedia = window.matchMedia(`(resolution: ${dpr}dppx)`);
+    const updateDpr = () => { dpr = window.devicePixelRatio || 1; };
+    matchMedia.addEventListener("change", updateDpr);
+
     window.addEventListener("keydown", handleKeydown);
     window.addEventListener("keyup", handleKeyup);
     window.addEventListener("blur", handleBlur);
     loop();
+
+    return () => matchMedia.removeEventListener("change", updateDpr);
   });
 
   onDestroy(() => {
@@ -85,6 +97,12 @@
       ctrl.handleWheel(e); 
     }}
   >
+    <!-- 
+      HARDWARE PROMOTION
+      will-change: transform -> Promotes layer to GPU.
+      backface-visibility: hidden -> Helps browser ignore rear-face rendering.
+      image-rendering: crisp-edges -> Hint to rasterizer to preserve edges.
+    -->
     <div 
       class="scroll-content" 
       style="
@@ -92,14 +110,21 @@
         background-color: var(--background-main);
         transform: translate3d(0, -{renderY}px, 0);
         will-change: transform;
+        backface-visibility: hidden;
+        -webkit-font-smoothing: subpixel-antialiased;
       "
     >
       {#each ctrl.virtualRows as row (row.index)}
+        <!-- 
+           DOUBLE QUANTIZATION 
+           Both the container (scroll-content) and the rows (absolute)
+           must sit on the physical grid.
+        -->
         {@const snappedRowY = Math.round(row.y * dpr) / dpr}
         <div 
           class="row" 
           style="
-            transform: translateY({snappedRowY}px); 
+            transform: translate3d(0, {snappedRowY}px, 0);
             width: {ctrl.layout.gridWidth}px; 
             height: {ctrl.layout.rowHeight}px;
             z-index: {row.isExpandedRow ? 20 : 1};
@@ -149,6 +174,8 @@
       width: 100%;
       height: 100%;
       overflow: hidden;
+      /* Ensure viewport itself is isolated */
+      contain: strict;
     }
 
     .grid-container {
@@ -157,7 +184,8 @@
       position: relative;
       overflow: hidden;
       overscroll-behavior: none;
-      contain: content;
+      /* Establish 3D context for children */
+      perspective: 1000px;
     }
 
     .scroll-content {
@@ -166,18 +194,27 @@
       top: 0;
       left: 0;
       pointer-events: auto;
-      backface-visibility: hidden;
-      transform-style: preserve-3d;
+      
+      /* 
+         Aggressive Hardware Locking 
+         This treats the entire scroll sheet as a texture.
+      */
+      transform-style: flat;
+      image-rendering: -webkit-optimize-contrast;
     }
     
     .row {
         position: absolute;
-        margin: 0 auto;
-        right: 0;
+        top: 0; /* Position is handled via transform */
         left: 0;
+        right: 0;
+        margin: 0 auto;
+        
         display: flex;
         flex-direction: column;
         overflow: visible; 
+        
+        /* Ensure row is also promoted */
         will-change: transform;
         backface-visibility: hidden;
     }
