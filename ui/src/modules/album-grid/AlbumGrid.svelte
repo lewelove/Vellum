@@ -13,7 +13,7 @@
   const activeKeys = new Set();
   const SCROLL_SPEED = 0.20;
 
-  let renderY = $derived(Math.round(ctrl.scroll.currentY * dpr) / dpr);
+  let renderY = $derived(ctrl.scroll.currentY);
 
   function loop() {
     let delta = 0;
@@ -95,11 +95,10 @@
       "
     >
       {#each ctrl.virtualRows as row (row.index)}
-        {@const snappedRowY = Math.round(row.y * dpr) / dpr}
         <div 
           class="row" 
           style="
-            transform: translateY({snappedRowY}px); 
+            transform: translateY({row.y}px); 
             width: {ctrl.layout.gridWidth}px; 
             height: {ctrl.layout.rowHeight}px;
             z-index: {row.isExpandedRow ? 20 : 1};
@@ -112,7 +111,7 @@
                   active={library.expandedAlbumId === album.id}
                   onclick={() => ctrl.toggleAlbum(album.id)} 
                   scrollY={renderY}
-                  rowY={snappedRowY}
+                  rowY={row.y}
                 />
               {/each}
           </div>
