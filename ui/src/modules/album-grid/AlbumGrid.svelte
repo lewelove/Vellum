@@ -4,7 +4,6 @@
   import { GridController } from "./GridController.svelte.js";
   
   import Album from "./Album.svelte";
-  import Drawer from "./Drawer.svelte";
 
   const ctrl = new GridController();
   let rafId;
@@ -28,6 +27,8 @@
 
   function handleKeydown(e) {
     if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
+    if (library.focusedAlbum) return;
+
     const key = e.key.toLowerCase();
     if (['j', 'k', 'arrowdown', 'arrowup'].includes(key)) {
       e.preventDefault();
@@ -81,6 +82,7 @@
     bind:clientWidth={ctrl.layout.containerWidth} 
     bind:clientHeight={ctrl.viewportHeight}
     onwheel={(e) => { 
+      if (library.focusedAlbum) return;
       e.preventDefault(); 
       ctrl.handleWheel(e); 
     }}
@@ -101,41 +103,19 @@
             transform: translateY({row.y}px); 
             width: {ctrl.layout.gridWidth}px; 
             height: {ctrl.layout.rowHeight}px;
-            z-index: {row.isExpandedRow ? 20 : 1};
           "
         >
           <div class="row-inner" style="gap: var(--gap-x);">
               {#each row.data as album (album.id)}
                 <Album 
                   {album} 
-                  active={library.expandedAlbumId === album.id}
-                  onclick={() => ctrl.toggleAlbum(album.id)} 
+                  active={library.focusedAlbum?.id === album.id}
+                  onclick={() => library.setFocus(album)} 
                   scrollY={renderY}
                   rowY={row.y}
                 />
               {/each}
           </div>
-
-          {#if row.isExpandedRow && ctrl.drawerInfo && row.data.find(a => a.id === library.expandedAlbumId)}
-            <div class="drawer-plane" style="top: {ctrl.layout.rowHeight}px;">
-              {#key library.expandedAlbumId}
-                <Drawer 
-                  activeAlbum={row.data.find(a => a.id === library.expandedAlbumId)}
-                  activeIndexInRow={row.data.findIndex(a => a.id === library.expandedAlbumId)}
-                  width={ctrl.layout.gridWidth} 
-                  cardSize={ctrl.layout.cardSize}
-                  gap={ctrl.layout.gapX}
-                  height={ctrl.drawerInfo.height}
-                  bandA={ctrl.drawerInfo.bandA}
-                  bandB={ctrl.drawerInfo.bandB}
-                  trackCols={ctrl.drawerInfo.trackCols}
-                  chevronWidth={ctrl.drawerInfo.chevronWidth}
-                  bandCHeight={ctrl.drawerInfo.bandCHeight}
-                  drawerCoverSize={ctrl.drawerInfo.drawerCoverSize}
-                />
-              {/key}
-            </div>
-          {/if}
         </div>
       {/each}
     </div>
@@ -185,11 +165,5 @@
         display: flex;
         justify-content: flex-start;
         height: 100%;
-    }
-
-    .drawer-plane {
-      position: absolute;
-      left: 0;
-      width: 100%;
     }
 </style>

@@ -12,7 +12,7 @@ class LibraryState {
   isLoading = $state(true);
   isConnected = $state(false);
   
-  expandedAlbumId = $state(null);
+  focusedAlbum = $state(null);
   activeFilter = $state({ key: null, val: null });
   
   activeSort = $state({ key: "default" });
@@ -63,6 +63,9 @@ class LibraryState {
               this.trackPathMap.set(t.track_library_path, t);
             }
           });
+        }
+        if (this.focusedAlbum?.id === data.id) {
+          this.focusedAlbum = data;
         }
       }
 
@@ -211,7 +214,7 @@ class LibraryState {
     } else {
       this.activeFilter = { key, val };
     }
-    this.expandedAlbumId = null;
+    this.focusedAlbum = null;
     this.activeSort = { key: this.userSortPreference };
     this.refreshView(true);
     this.persistState();
@@ -220,7 +223,7 @@ class LibraryState {
   showRecentlyAdded() {
     this.activeFilter = { key: null, val: null };
     this.activeSort = { key: "date_added" };
-    this.expandedAlbumId = null;
+    this.focusedAlbum = null;
     this.refreshView(true);
     this.persistState();
   }
@@ -228,7 +231,7 @@ class LibraryState {
   showMediaLibrary() {
     this.activeFilter = { key: null, val: null };
     this.activeSort = { key: this.userSortPreference };
-    this.expandedAlbumId = null;
+    this.focusedAlbum = null;
     this.refreshView(true);
     this.persistState();
   }
@@ -250,8 +253,12 @@ class LibraryState {
     this.refreshView(true);
   }
 
-  toggleExpand(id) {
-    this.expandedAlbumId = (this.expandedAlbumId === id) ? null : id;
+  setFocus(album) {
+    this.focusedAlbum = album;
+  }
+
+  closeFocus() {
+    this.focusedAlbum = null;
   }
 }
 

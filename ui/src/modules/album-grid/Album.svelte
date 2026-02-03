@@ -49,11 +49,11 @@
   }
 
   function applyEffects(ctx) {
-    ctx.shadowColor = "rgba(0, 0, 0, 1)";
-    ctx.shadowBlur = 5;
+    ctx.shadowColor = "rgba(0, 0, 0, 0)";
+    ctx.shadowBlur = 0;
     ctx.shadowOffsetX = 0;
     ctx.shadowOffsetY = 0;
-    ctx.filter = "contrast(115%) brightness(105%)";
+    ctx.filter = "contrast(100%) brightness(100%)";
   }
 
   function renderText() {

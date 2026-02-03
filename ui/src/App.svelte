@@ -4,22 +4,19 @@
   import { nav, setTab } from "./navigation.svelte.js";
   import { getThemeVariables } from "./theme.svelte.js";
   
-  // Component Imports
   import AlbumGrid from "./modules/album-grid/AlbumGrid.svelte";
   import Sidebar from "./modules/sidebar/Sidebar.svelte";
   import QueueView from "./modules/queue/QueueView.svelte";
-  import NavTabs from "./modules/navigation/NavTabs.svelte";
+  import ModalDrawer from "./modules/album-grid/ModalDrawer.svelte";
 
-  // Reactive Theme Variables
   let themeStyles = $derived(getThemeVariables());
   
-  // Sidebar State
   let sidebarMode = $state("dynamic");
   let sidebarWidth = $state(160);
   let isResizingLeft = $state(false);
 
-  // Plane State
   let isQueueVisible = $derived(nav.activeTab === "queue");
+  let isModalVisible = $derived(!!library.focusedAlbum);
 
   function toggleSidebarMode() {
     sidebarMode = (sidebarMode === "dynamic") ? "static" : "dynamic";
@@ -30,12 +27,15 @@
     if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
     const key = e.key.toLowerCase();
     
-    // Gated Inputs
-    if (!isQueueVisible) {
+    if (key === 'escape' && isModalVisible) {
+      library.closeFocus();
+      return;
+    }
+
+    if (!isQueueVisible && !isModalVisible) {
       if (key === 's') toggleSidebarMode();
     }
 
-    // Global Navigation
     if (key === '1' || key === 'h' || key === 'arrowleft') setTab('home');
     if (key === '2' || key === 'l' || key === 'arrowright') setTab('queue');
   }
@@ -68,7 +68,6 @@
 
 <main style="{themeStyles} --sidebar-width: {sidebarWidth}px;">
   
-  <!-- PLANE A: HOME (Sidebar-Aware) -->
   <section 
     class="plane home-layer"
     class:offset-layout={sidebarMode === 'static'}
@@ -78,22 +77,19 @@
     <AlbumGrid />
   </section>
 
-  <!-- SIDEBAR SYSTEM (Scoped to Plane A) -->
   <aside 
     class="sidebar-shell left" 
     class:static={sidebarMode === 'static'} 
     class:dynamic={sidebarMode === 'dynamic'}
-    class:dormant={isQueueVisible}
+    class:dormant={isQueueVisible || isModalVisible}
   >
     <div class="sidebar-trigger"></div>
     <div class="sidebar-panel">
-      <!-- <div class="nav-anchor"><NavTabs /></div> -->
       <div class="sidebar-inner"><Sidebar /></div>
       <div class="sidebar-resizer" onmousedown={startResizingLeft}></div>
     </div>
   </aside>
 
-  <!-- PLANE B: QUEUE (Clean Room / Full Bleed) -->
   <section 
     class="plane queue-layer"
     class:visible={isQueueVisible}
@@ -101,6 +97,12 @@
   >
     <QueueView />
   </section>
+
+  {#if isModalVisible}
+    <div class="modal-layer">
+        <ModalDrawer album={library.focusedAlbum} onclose={() => library.closeFocus()} />
+    </div>
+  {/if}
 
 </main>
 
@@ -118,8 +120,6 @@
     background-color: var(--background-main);
   }
 
-  /* --- PLANES --- */
-
   .plane {
     position: absolute;
     inset: 0;
@@ -128,7 +128,6 @@
     overflow: hidden;
   }
 
-  /* Plane A: Home */
   .home-layer {
     z-index: 1;
     left: 0;
@@ -137,7 +136,6 @@
   }
 
   .home-layer.offset-layout {
-    /* Intentional 1px overlap with Sidebar Panel width to plug synchronization gaps */
     left: calc(var(--sidebar-width) - 1px);
     width: calc(100% - (var(--sidebar-width) - 1px));
   }
@@ -146,7 +144,6 @@
     transition: none;
   }
 
-  /* Plane B: Queue */
   .queue-layer {
     z-index: 200; 
     background-color: var(--background-drawer);
@@ -160,7 +157,11 @@
     pointer-events: auto;
   }
 
-  /* --- SIDEBAR SHELL --- */
+  .modal-layer {
+    position: absolute;
+    inset: 0;
+    z-index: 500;
+  }
 
   .sidebar-shell {
     position: fixed;
@@ -189,9 +190,7 @@
     flex-direction: column;
     transition: transform 0.25s cubic-bezier(0.2, 0, 0, 1);
     box-sizing: border-box;
-
     box-shadow: var(--album-cover-shadow);
-    
     overflow: hidden;
   }
 
@@ -205,7 +204,6 @@
   }
   .left .sidebar-trigger { left: 0; }
 
-  /* Modes */
   .sidebar-shell.dynamic.left .sidebar-panel { 
     transform: translateX(-100%) translateZ(0); 
     -webkit-backface-visibility: hidden;
@@ -222,7 +220,6 @@
     will-change: auto;
   }
 
-  /* Resizer */
   .sidebar-resizer {
     position: absolute;
     top: 0;
@@ -233,7 +230,5 @@
   }
   .left .sidebar-resizer { right: -3px; }
 
-  /* Internal Layout */
-  .nav-anchor { height: var(--nav-height); display: flex; align-items: center; justify-content: center; }
   .sidebar-inner { flex: 1; overflow: hidden; }
 </style>
