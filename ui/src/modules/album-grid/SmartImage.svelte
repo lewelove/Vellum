@@ -7,11 +7,17 @@
   let canvasEl;
   let isLoaded = $state(false);
   let currentSrc = $state("");
-  
-  async function processImage(url) {
-    if (!url || url === currentSrc) return;
+  let lastRenderedDim = "";
+
+  async function processImage(url, w, h) {
+    if (!url || !w || !h) return;
+    
+    // Check if we actually need to redraw
+    const dimKey = `${url}-${w}-${h}`;
+    if (dimKey === lastRenderedDim) return;
+    
+    lastRenderedDim = dimKey;
     currentSrc = url;
-    isLoaded = false;
 
     try {
       const response = await fetch(url);
@@ -23,8 +29,8 @@
       });
 
       const dpr = window.devicePixelRatio || 1;
-      const targetWidth = width * dpr;
-      const targetHeight = height * dpr;
+      const targetWidth = w * dpr;
+      const targetHeight = h * dpr;
 
       if (canvasEl) {
         canvasEl.width = targetWidth;
@@ -45,12 +51,14 @@
     }
   }
 
+  // React to URL, width, or height changes
   $effect(() => {
-    processImage(src);
+    processImage(src, width, height);
   });
 
   onDestroy(() => {
     currentSrc = "";
+    lastRenderedDim = "";
   });
 </script>
 
@@ -66,7 +74,7 @@
 <style>
   .smart-image-wrapper {
     position: relative;
-    overflow: visible;
+    overflow: hidden; /* Ensure no bleed during resize */
   }
 
   .output-canvas {
@@ -75,11 +83,10 @@
     left: 0;
     opacity: 0;
     background-color: var(--background-drawer);
-    transition: opacity 0.1s ease-in;
+    transition: opacity 0.4s;
   }
 
   .output-canvas.visible {
-    box-shadow: 0px 0px 16px -1px rgba(0,0,0,0.2), 0px 0px 12px 0px rgba(0,0,0,0.2);
     opacity: 1;
   }
 </style>

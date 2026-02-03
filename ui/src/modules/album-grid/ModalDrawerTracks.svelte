@@ -56,12 +56,11 @@
     display: flex;
     align-items: center;
     padding: 10px 12px;
-    font-size: 14px;
+    font-size: 16px;
     color: var(--text-main);
     cursor: default;
     outline: none;
     user-select: none;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
   }
 
   .track-row:last-child {
@@ -80,7 +79,7 @@
     flex: 0 0 40px;
     opacity: 0.4;
     font-family: var(--font-mono);
-    font-size: 13px;
+    font-size: 14px;
   }
 
   .track-body {
@@ -98,7 +97,7 @@
   }
 
   .track-artist {
-    font-size: 12px;
+    font-size: 14px;
     opacity: 0.5;
     white-space: nowrap;
     overflow: hidden;
@@ -110,6 +109,6 @@
     flex-shrink: 0;
     opacity: 0.4;
     font-family: var(--font-mono);
-    font-size: 13px;
+    font-size: 14px;
   }
 </style>

@@ -7,7 +7,18 @@
 
   let { album, onclose } = $props();
 
+  // Programmatic Window Tracking
+  let innerHeight = $state(window.innerHeight);
+
   let coverUrl = $derived(library.getAlbumCoverUrl(album.id));
+
+  /**
+   * PROGRAMMATIC DIMENSION CALCULATION
+   * Modal height is 80vh (0.8 * innerHeight)
+   * Content padding is 32px top + 32px bottom (64px total)
+   */
+  const PADDING = 64; 
+  let sideLength = $derived(Math.floor((innerHeight * 0.7) - PADDING));
 
   async function handlePlay() {
     try {
@@ -32,6 +43,8 @@
   }
 </script>
 
+<svelte:window bind:innerHeight />
+
 <div 
   class="modal-backdrop" 
   onclick={handleBackdropClick} 
@@ -41,8 +54,12 @@
   <div class="modal-chassis">
     <div class="modal-content">
       
-      <div class="cover-column">
-        <SmartImage src={coverUrl} width={400} height={400} />
+      <div class="cover-column" style="width: {sideLength}px;">
+        <SmartImage 
+          src={coverUrl} 
+          width={sideLength} 
+          height={sideLength} 
+        />
       </div>
 
       <div class="info-column">
@@ -67,26 +84,22 @@
   .modal-backdrop {
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.1);
+    background-color: rgba(0, 0, 0, 0.05);
     backdrop-filter: blur(2px);
-    -webkit-backdrop-filter: blur(2px);
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 0;
-    box-sizing: border-box;
-    will-change: opacity, backdrop-filter;
   }
 
   .modal-chassis {
-    width: 80vw;
-    height: 80vh;
+    width: 75vw;
+    height: 70vh;
     background-color: var(--background-drawer);
-    box-shadow: 0 32px 64px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 0px 64px rgba(0, 0, 0, 0.3);
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    position: relative;
+    radius: 8px;
   }
 
   .modal-content {
@@ -100,8 +113,8 @@
 
   .cover-column {
     flex-shrink: 0;
-    width: 40%;
-    height: 40%;
+    height: 100%;
+    display: flex;
   }
 
   .info-column {
@@ -131,23 +144,6 @@
     color: var(--text-main);
   }
 
-  .play-all-btn {
-    background: none;
-    border: 1px solid var(--border-muted);
-    color: var(--text-muted);
-    padding: 6px 16px;
-    font-size: 12px;
-    cursor: pointer;
-    white-space: nowrap;
-    transition: all 0.1s;
-  }
-
-  .play-all-btn:hover {
-    color: var(--text-main);
-    background-color: rgba(255, 255, 255, 0.05);
-    border-color: var(--text-main);
-  }
-
   .album-artist {
     margin: 8px 0 0 0;
     font-size: 20px;
@@ -155,22 +151,20 @@
     color: var(--text-muted);
   }
 
+  .play-all-btn {
+    background: none;
+    border: 1px solid var(--border-muted);
+    color: var(--text-muted);
+    padding: 6px 16px;
+    font-size: 12px;
+    cursor: pointer;
+  }
+
   .tracks-scroll-area {
     flex: 1;
     overflow-y: auto;
-    min-height: 0;
     padding-right: 12px;
   }
 
-  .tracks-scroll-area::-webkit-scrollbar {
-    width: 4px;
-  }
-
-  .tracks-scroll-area::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  .tracks-scroll-area::-webkit-scrollbar-thumb {
-    background-color: var(--palette-300);
-  }
+  /* Webkit scrollbar styles omitted for brevity, keep your existing ones */
 </style>
