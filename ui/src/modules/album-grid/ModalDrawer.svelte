@@ -99,7 +99,7 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    radius: 8px;
+    border-radius: 12px;
   }
 
   .modal-content {

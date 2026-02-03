@@ -55,7 +55,7 @@
   .track-row {
     display: flex;
     align-items: center;
-    padding: 10px 12px;
+    padding: 8px 0px;
     font-size: 16px;
     color: var(--text-main);
     cursor: default;
@@ -76,9 +76,9 @@
   }
 
   .track-index {
-    flex: 0 0 40px;
-    opacity: 0.4;
-    font-family: var(--font-mono);
+    flex: 0 0 44px;
+    text-align: center;
+    opacity: 0.5;
     font-size: 14px;
   }
 
@@ -106,9 +106,9 @@
   }
 
   .track-meta {
-    flex-shrink: 0;
-    opacity: 0.4;
-    font-family: var(--font-mono);
+    opacity: 0.5;
+    padding-right: 18px;
+    text-align: right;
     font-size: 14px;
   }
 </style>
