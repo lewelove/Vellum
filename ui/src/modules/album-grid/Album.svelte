@@ -11,7 +11,6 @@
   const gapY = $derived(theme.albumGrid["gap-y"]);
   const textGap = $derived(theme.albumGrid["text-gap-main"]);
 
-  // Use absolute top of viewport (0) as the occlusion boundary
   const occlusionBoundary = 0;
 
   let absoluteY = $derived(rowY - scrollY);
@@ -28,15 +27,11 @@
     return Math.max(0, diff);
   });
 
-  // --- BITMAP TEXT RASTERIZER ---
-  
   let canvas;
   
-  // Dimensions
   const lhTitle = $derived(theme.albumGrid["font-line-height-title"]);
   const gapLesser = $derived(theme.albumGrid["text-gap-lesser"]);
   const lhArtist = $derived(theme.albumGrid["font-line-height-artist"]);
-  
   const textBlockHeight = $derived(lhTitle + gapLesser + lhArtist);
   
   function fitText(ctx, text, maxWidth) {
@@ -53,6 +48,14 @@
     return text.substring(0, len) + ellipsis;
   }
 
+  function applyEffects(ctx) {
+    ctx.shadowColor = "rgba(0, 0, 0, 1)";
+    ctx.shadowBlur = 5;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
+    ctx.filter = "contrast(115%) brightness(105%)";
+  }
+
   function renderText() {
     if (!canvas) return;
     
@@ -67,14 +70,12 @@
     
     const ctx = canvas.getContext('2d', { alpha: true });
     ctx.scale(dpr, dpr);
-    
-    // Clear
     ctx.clearRect(0, 0, w, h);
     
-    // Font Configuration
     const fontStack = "Inter, 'Noto Sans', system-ui, sans-serif";
     
-    // 1. Title Layer
+    applyEffects(ctx);
+
     const cTitle = theme.palette[theme.colors["text-main"]] || "#ffffff";
     const sTitle = theme.typography["font-size-title"];
     const wTitle = theme.typography["font-weight-title"];
@@ -83,12 +84,10 @@
     ctx.font = `${wTitle} ${sTitle}px ${fontStack}`;
     ctx.textBaseline = "middle"; 
     
-    // Position vertically centered within the first line height
     const titleY = lhTitle / 2;
     const titleText = fitText(ctx, album.title, w);
     ctx.fillText(titleText, 0, titleY);
     
-    // 2. Artist Layer
     const cArtist = theme.palette[theme.colors["text-muted"]] || "#cccccc";
     const sArtist = theme.typography["font-size-artist"];
     const wArtist = theme.typography["font-weight-artist"];
@@ -96,21 +95,20 @@
     ctx.fillStyle = cArtist;
     ctx.font = `${wArtist} ${sArtist}px ${fontStack}`;
     
-    // Position vertically centered within the second line height, offset by first line + gap
     const artistY = lhTitle + gapLesser + (lhArtist / 2);
     const artistText = fitText(ctx, album.artist, w);
     ctx.fillText(artistText, 0, artistY);
   }
 
   $effect(() => {
-    // Reactive Trigger
     const _ = {
       t: album.title, 
       a: album.artist, 
       w: coverSize, 
       h: textBlockHeight,
       c1: theme.colors["text-main"],
-      c2: theme.colors["text-muted"]
+      c2: theme.colors["text-muted"],
+      dpr: window.devicePixelRatio 
     };
     renderText();
   });
@@ -143,6 +141,7 @@
         width: {coverSize}px;
         height: {textBlockHeight}px;
         display: block;
+        image-rendering: -webkit-optimize-contrast;
       "
     ></canvas>
   </div>
