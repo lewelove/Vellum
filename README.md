@@ -1,14 +1,14 @@
-## Eluxum
+## Vellum
 
-`...postum avion, wizard kiss and all be gone...`
-
-Plaintext driven, local-first album centric library gallery and web-based `mpd` client.
+Plain-text driven, album centric library gallery and web-based `mpd` client.
 
 ---
 
-Centers primarily on collection of albums, uses palintext user-mutable `metadata.toml` files in each album folder root as SSOT for album metadata.
+Uses plain-text user-mutable `metadata.toml` sidecar files in each album folder root to describe metadata state of any given album. Compiles `metadata.toml` and audio file physics into `metadata.json.lock`, which allows to programmatically derive and set any information from album / tracks related data at compile time.
 
-Uses compiler logic to merge user intent (`metadata.toml`) with filesystem state (audio file physics) and produce both machine-readable `metadata.lock.json` and human-readable `metadata.lock.toml` files (located in album root) to fully describe desired state for any given album.
+Separation of any user-mutable metadata from audio binary itself to plain-text files allows to:
+- version control them easily with git
+- free yourself from having to edit binary headers
 
 Compiler logic divides all `key = value` pairs into 4 distinct classes:
 * Album scope `TAGS`

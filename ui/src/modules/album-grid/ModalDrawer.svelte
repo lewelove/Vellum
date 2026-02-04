@@ -18,7 +18,7 @@
    * Content padding is 32px top + 32px bottom (64px total)
    */
   const PADDING = 64; 
-  let sideLength = $derived(Math.floor((innerHeight * 0.7) - PADDING));
+  let sideLength = $derived(Math.floor((innerHeight * 0.70) - PADDING));
 
   async function handlePlay() {
     try {
@@ -107,7 +107,7 @@
     flex-direction: row;
     height: 100%;
     padding: 32px;
-    gap: 32px;
+    gap: 24px;
     box-sizing: border-box;
   }
 
@@ -115,6 +115,7 @@
     flex-shrink: 0;
     height: 100%;
     display: flex;
+    box-shadow: 0 0px 16px rgba(0, 0, 0, 0.4), 0 0 8px rgba(0,0,0,0.1);
   }
 
   .info-column {
@@ -127,14 +128,14 @@
 
   .header-section {
     flex-shrink: 0;
-    margin-bottom: 24px;
+    margin-bottom: 8px;
   }
 
   .title-line {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    gap: 16px;
+    gap: 8px;
   }
 
   .album-title {
@@ -145,7 +146,7 @@
   }
 
   .album-artist {
-    margin: 8px 0 0 0;
+    margin: 8px 0 8px 0;
     font-size: 20px;
     font-weight: 400;
     color: var(--text-muted);
