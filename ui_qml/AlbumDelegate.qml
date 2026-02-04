@@ -27,6 +27,9 @@ Item {
                 source: album.cover_hash ? "http://127.0.0.1:8000/api/covers/" + album.cover_hash + ".png" : ""
                 fillMode: Image.PreserveAspectCrop
                 asynchronous: true
+                smooth: true
+                mipmap: true
+                antialiasing: true
             }
         }
 
