@@ -6,7 +6,7 @@ from pathlib import Path
 CONFIG = {}
 LIBRARY_ROOT = None
 THUMBNAIL_ROOT = None
-STATE_DIR = Path("~/.eluxum").expanduser().resolve()
+STATE_DIR = Path("~/.vellum").expanduser().resolve()
 STATE_FILE = STATE_DIR / "state.json"
 
 UI_STATE = {

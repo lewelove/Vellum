@@ -1,5 +1,5 @@
 {
-  description = "Eluxum Development Environment";
+  description = "Vellum Development Environment";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -28,8 +28,8 @@
           uvloop
         ]);
 
-        eluxum-cli = pkgs.writeShellApplication {
-          name = "eluxum";
+        vellum-cli = pkgs.writeShellApplication {
+          name = "vellum";
           runtimeInputs = [ pythonEnv pkgs.nodejs_22 pkgs.git pkgs.cargo pkgs.rustc pkgs.pkg-config pkgs.openssl ];
           text = ''
             ROOT=$(git rev-parse --show-toplevel)
@@ -59,7 +59,7 @@
                 cd "$ROOT" && python -m cli.export "$@"
                 ;;
               help|--help|-h)
-                echo "Eluxum CLI Commands:"
+                echo "Vellum CLI Commands:"
                 echo "  ui          : Start UI Dev Server"
                 echo "  server      : Start Backend (Live State Manager)"
                 echo "  update      : Compile metadata locks & Hot Reload Server"
@@ -81,7 +81,7 @@
           nodejs_22
           pkg-config
           openssl
-          eluxum-cli
+          vellum-cli
           cargo
           rustc
           rust-analyzer

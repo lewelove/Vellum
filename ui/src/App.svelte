@@ -20,7 +20,7 @@
 
   function toggleSidebarMode() {
     sidebarMode = (sidebarMode === "dynamic") ? "static" : "dynamic";
-    localStorage.setItem("eluxum-sidebar-mode", sidebarMode);
+    localStorage.setItem("vellum-sidebar-mode", sidebarMode);
   }
 
   function handleKeydown(e) {
@@ -45,7 +45,7 @@
     const move = (e) => { sidebarWidth = Math.max(140, Math.min(e.clientX, 400)); };
     const up = () => {
       isResizingLeft = false;
-      localStorage.setItem("eluxum-sidebar-width", sidebarWidth);
+      localStorage.setItem("vellum-sidebar-width", sidebarWidth);
       window.removeEventListener("mousemove", move);
       window.removeEventListener("mouseup", up);
     };
@@ -56,9 +56,9 @@
   onMount(() => {
     library.init();
     
-    const savedLMode = localStorage.getItem("eluxum-sidebar-mode");
+    const savedLMode = localStorage.getItem("vellum-sidebar-mode");
     if (savedLMode) sidebarMode = savedLMode;
-    const savedLWidth = localStorage.getItem("eluxum-sidebar-width");
+    const savedLWidth = localStorage.getItem("vellum-sidebar-width");
     if (savedLWidth) sidebarWidth = parseInt(savedLWidth);
 
     window.addEventListener("keydown", handleKeydown);
