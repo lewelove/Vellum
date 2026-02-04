@@ -76,42 +76,72 @@ export component MainWindow inherits Window {
 
     in property <[AlbumData]> albums: [];
 
+    // Layout Constants matching Svelte
     property <length> card_size: 200px;
     property <length> gap_x: 24px;
     property <length> gap_y: 32px;
     property <length> side_padding: 40px;
     
-    property <length> text_area_height: 8px + 18px + 2px + 16px;
-    property <length> unit_height: card_size + text_area_height;
+    property <length> text_block_height: 8px + 18px + 2px + 16px;
+    property <length> unit_height: card_size + text_block_height + gap_y;
 
+    // Grid Calculation (Reactive to Window Size)
     property <int> cols: Math.max(1, Math.floor((root.width - (side_padding * 2) + gap_x) / (card_size + gap_x)));
     property <int> row_count: Math.ceil(albums.length / cols);
 
-    ScrollView {
+    // Custom Scrolling Logic (Damping/Translation)
+    property <int> target_slot: 0;
+    property <length> current_scroll_y: -target_slot * unit_height;
+    
+    // GPU-accelerated damping via animated property
+    animate current_scroll_y {
+        duration: 250ms;
+        easing: ease-out;
+    }
+
+    // Capture input for fixed-amount scrolling
+    TouchArea {
         width: 100%;
         height: 100%;
 
-        VerticalLayout {
-            padding-left: side_padding;
-            padding-right: side_padding;
-            padding-top: side_padding;
-            padding-bottom: side_padding;
-            spacing: gap_y;
-            alignment: start;
+        scroll-event(event) => {
+            if (event.delta-y < 0) {
+                // Scroll Down
+                root.target_slot = Math.min(root.row_count - 1, root.target_slot + 1);
+            } else {
+                // Scroll Up
+                root.target_slot = Math.max(0, root.target_slot - 1);
+            }
+            accept
+        }
 
-            for row_idx in row_count : HorizontalLayout {
-                spacing: gap_x;
-                alignment: center;
-                height: unit_height;
-                
-                for col_idx in cols : Rectangle {
-                    property <int> album_idx: row_idx * cols + col_idx;
-                    width: card_size;
-                    height: unit_height;
+        // Viewport Container (Clipping plane)
+        Rectangle {
+            width: 100%;
+            height: 100%;
+            clip: true;
+
+            // Translated Content Area
+            VerticalLayout {
+                y: root.current_scroll_y;
+                padding: root.side_padding;
+                spacing: root.gap_y;
+                alignment: start;
+
+                for row_idx in root.row_count : HorizontalLayout {
+                    spacing: root.gap_x;
+                    alignment: center;
+                    height: root.unit_height;
                     
-                    if (album_idx < albums.length) : AlbumCard {
-                        album: albums[album_idx];
-                        cover_size: root.card_size;
+                    for col_idx in root.cols : Rectangle {
+                        property <int> album_idx: row_idx * root.cols + col_idx;
+                        width: root.card_size;
+                        height: root.unit_height;
+                        
+                        if (album_idx < root.albums.length) : AlbumCard {
+                            album: root.albums[album_idx];
+                            cover_size: root.card_size;
+                        }
                     }
                 }
             }
