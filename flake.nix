@@ -26,6 +26,7 @@
           httpx
           websockets
           uvloop
+          pyside6
         ]);
 
         vellum-cli = pkgs.writeShellApplication {
@@ -39,6 +40,9 @@
             case "$COMMAND" in
               ui)
                 cd "$ROOT/ui" && npm run dev
+                ;;
+              ui_qml)
+                cd "$ROOT" && python ui_qml/main.py "$@"
                 ;;
               server)
                 cd "$ROOT" && python -m server.main "$@"
@@ -60,7 +64,8 @@
                 ;;
               help|--help|-h)
                 echo "Vellum CLI Commands:"
-                echo "  ui          : Start UI Dev Server"
+                echo "  ui          : Start Svelte UI Dev Server"
+                echo "  ui_qml      : Start Native QML UI"
                 echo "  server      : Start Backend (Live State Manager)"
                 echo "  update      : Compile metadata locks & Hot Reload Server"
                 echo "  generate    : Initialize metadata from files (Python)"
@@ -76,6 +81,14 @@
           '';
         };
 
+        # Group Qt6 dependencies for easier path management
+        qt6Deps = with pkgs.qt6; [
+          qtbase
+          qtdeclarative
+          qtsvg
+          qtwayland
+        ];
+
         devPackages = with pkgs; [
           pythonEnv
           nodejs_22
@@ -85,18 +98,13 @@
           cargo
           rustc
           rust-analyzer
-          clippy
-          rustfmt
           fontconfig
+          libglvnd
           libxkbcommon
           wayland
           libGL
-          xorg.libX11
-          xorg.libXcursor
-          xorg.libXrandr
-          xorg.libXi
           vulkan-loader
-        ];
+        ] ++ qt6Deps;
       in
       {
         devShells.default = pkgs.mkShell {
@@ -104,17 +112,18 @@
           shellHook = ''
             export PYTHONDONTWRITEBYTECODE=1
             export PATH="$PWD/ui/node_modules/.bin:$PATH"
-            export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath [
-              pkgs.wayland
-              pkgs.libxkbcommon
-              pkgs.libGL
-              pkgs.fontconfig
-              pkgs.xorg.libX11
-              pkgs.xorg.libXcursor
-              pkgs.xorg.libXi
-              pkgs.xorg.libXrandr
-              pkgs.vulkan-loader
-            ]}:$LD_LIBRARY_PATH"
+            
+            # 1. Setup Library Path for Graphics/Wayland
+            export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath devPackages}:$LD_LIBRARY_PATH"
+            
+            # 2. Setup QML Import Paths (Crucial for QML Modules)
+            export QML2_IMPORT_PATH="${pkgs.qt6.qtdeclarative}/lib/qt-6/qml"
+            
+            # 3. Setup Qt Plugin Paths (Crucial for Platform integration)
+            export QT_PLUGIN_PATH="${pkgs.qt6.qtbase}/lib/qt-6/plugins"
+            
+            # 4. Wayland/X11 Strategy
+            export QT_QPA_PLATFORM="wayland;xcb"
           '';
         };
       }
