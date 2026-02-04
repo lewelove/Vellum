@@ -1,0 +1,49 @@
+import { ScrollView } from "std-widgets.slint";
+
+// 'export' makes this visible to Rust
+export struct AlbumData {
+    title: string,
+    artist: string,
+    cover_hash: string,
+}
+
+export component MainWindow inherits Window {
+    title: "Vellum Native";
+    width: 1200px;
+    height: 800px;
+    background: #111;
+
+    in property <[AlbumData]> albums: [];
+
+    ScrollView {
+        VerticalLayout {
+            padding: 20px;
+            spacing: 20px;
+            alignment: start;
+
+            // Simple responsive wrap logic
+            for row-index in Math.ceil(albums.length / 5) : HorizontalLayout {
+                spacing: 20px;
+                alignment: start;
+                
+                for col-index in 5 : Rectangle {
+                    property <int> idx: row-index * 5 + col-index;
+                    visible: idx < albums.length;
+                    
+                    width: 200px;
+                    height: 260px;
+                    background: #222;
+                    border-radius: 4px;
+
+                    VerticalLayout {
+                        padding: 10px;
+                        spacing: 8px;
+                        Rectangle { background: #000; height: 180px; width: 180px; }
+                        Text { text: albums[idx].title; color: white; font-size: 14px; overflow: elide; }
+                        Text { text: albums[idx].artist; color: #888; font-size: 12px; overflow: elide; }
+                    }
+                }
+            }
+        }
+    }
+}

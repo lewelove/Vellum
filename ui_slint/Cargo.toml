@@ -1,0 +1,11 @@
+[package]
+name = "ui_slint"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+serde = "1.0.228"
+serde_json = "1.0.149"
+slint = "1.15.0"
+slint-build = "1.15.0"
+toml = "0.9.11"
