@@ -87,6 +87,15 @@
           rust-analyzer
           clippy
           rustfmt
+          fontconfig
+          libxkbcommon
+          wayland
+          libGL
+          xorg.libX11
+          xorg.libXcursor
+          xorg.libXrandr
+          xorg.libXi
+          vulkan-loader
         ];
       in
       {
@@ -95,6 +104,17 @@
           shellHook = ''
             export PYTHONDONTWRITEBYTECODE=1
             export PATH="$PWD/ui/node_modules/.bin:$PATH"
+            export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath [
+              pkgs.wayland
+              pkgs.libxkbcommon
+              pkgs.libGL
+              pkgs.fontconfig
+              pkgs.xorg.libX11
+              pkgs.xorg.libXcursor
+              pkgs.xorg.libXi
+              pkgs.xorg.libXrandr
+              pkgs.vulkan-loader
+            ]}:$LD_LIBRARY_PATH"
           '';
         };
       }
