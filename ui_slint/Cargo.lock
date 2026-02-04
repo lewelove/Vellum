@@ -4684,6 +4684,7 @@ dependencies = [
  "slint",
  "slint-build",
  "toml",
+ "walkdir",
 ]
 
 [[package]]

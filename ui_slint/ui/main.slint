@@ -1,46 +1,117 @@
 import { ScrollView } from "std-widgets.slint";
 
-// 'export' makes this visible to Rust
 export struct AlbumData {
     title: string,
     artist: string,
     cover_hash: string,
 }
 
+component AlbumCard inherits Rectangle {
+    in property <AlbumData> album;
+    in property <length> cover_size;
+    
+    property <length> text_gap: 8px;
+    property <length> lh_title: 18px;
+    property <length> lh_artist: 16px;
+    property <length> gap_lesser: 2px;
+
+    width: cover_size;
+    height: cover_size + text_gap + lh_title + gap_lesser + lh_artist;
+    background: transparent;
+
+    VerticalLayout {
+        spacing: 0;
+        padding: 0;
+
+        Rectangle {
+            width: cover_size;
+            height: cover_size;
+            background: #242424;
+            clip: true;
+
+            Rectangle {
+                width: 100%;
+                height: 100%;
+                background: album.cover_hash == "" ? #2a2a2a : #1a1a1a;
+            }
+
+            drop-shadow-blur: 12px;
+            drop-shadow-color: rgba(0, 0, 0, 0.4);
+            drop-shadow-offset-y: 4px;
+        }
+
+        Rectangle { height: text_gap; }
+
+        VerticalLayout {
+            spacing: gap_lesser;
+            Text {
+                text: album.title;
+                color: #FFFFFF;
+                font-size: 14px;
+                font-weight: 400;
+                height: lh_title;
+                vertical-alignment: center;
+                overflow: elide;
+            }
+            Text {
+                text: album.artist;
+                color: #CCCCCC;
+                font-size: 12px;
+                font-weight: 400;
+                height: lh_artist;
+                vertical-alignment: center;
+                overflow: elide;
+            }
+        }
+    }
+}
+
 export component MainWindow inherits Window {
     title: "Vellum Native";
-    width: 1200px;
-    height: 800px;
-    background: #111;
+    preferred-width: 1200px;
+    preferred-height: 800px;
+    min-width: 400px;
+    min-height: 300px;
+    background: #202020;
 
     in property <[AlbumData]> albums: [];
 
+    property <length> card_size: 200px;
+    property <length> gap_x: 24px;
+    property <length> gap_y: 32px;
+    property <length> side_padding: 40px;
+    
+    property <length> text_area_height: 8px + 18px + 2px + 16px;
+    property <length> unit_height: card_size + text_area_height;
+
+    property <int> cols: Math.max(1, Math.floor((root.width - (side_padding * 2) + gap_x) / (card_size + gap_x)));
+    property <int> row_count: Math.ceil(albums.length / cols);
+
     ScrollView {
+        width: 100%;
+        height: 100%;
+
         VerticalLayout {
-            padding: 20px;
-            spacing: 20px;
+            padding-left: side_padding;
+            padding-right: side_padding;
+            padding-top: side_padding;
+            padding-bottom: side_padding;
+            spacing: gap_y;
             alignment: start;
 
-            // Simple responsive wrap logic
-            for row-index in Math.ceil(albums.length / 5) : HorizontalLayout {
-                spacing: 20px;
-                alignment: start;
+            for row_idx in row_count : HorizontalLayout {
+                spacing: gap_x;
+                alignment: center;
+                height: unit_height;
                 
-                for col-index in 5 : Rectangle {
-                    property <int> idx: row-index * 5 + col-index;
-                    visible: idx < albums.length;
+                for col_idx in cols : Rectangle {
+                    property <int> album_idx: row_idx * cols + col_idx;
+                    width: card_size;
+                    height: unit_height;
                     
-                    width: 200px;
-                    height: 260px;
-                    background: #222;
-                    border-radius: 4px;
-
-                    VerticalLayout {
-                        padding: 10px;
-                        spacing: 8px;
-                        Rectangle { background: #000; height: 180px; width: 180px; }
-                        Text { text: albums[idx].title; color: white; font-size: 14px; overflow: elide; }
-                        Text { text: albums[idx].artist; color: #888; font-size: 12px; overflow: elide; }
+                    if (album_idx < albums.length) : AlbumCard {
+                        album: albums[album_idx];
+                        cover_size: root.card_size;
                     }
                 }
             }
