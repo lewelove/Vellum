@@ -8,17 +8,19 @@ Item {
     // -------------------------------------------------------------------------
     property int rowCount: 0
     property int columns: 1
-    property real rowHeight: 1 // Default to 1 to prevent division by zero
+    property real rowHeight: 1 
     property real viewportHeight: 0
     
-    // Output for GridView
+    // OUTPUT
     property real currentY: 0
 
     // -------------------------------------------------------------------------
     // Configuration
     // -------------------------------------------------------------------------
-    readonly property real damping: 0.12
-    readonly property real keySpeed: 0.10
+    // 0.15 = 15% closure per frame at 60fps.
+    // Higher = Snappier. Lower = Heavier.
+    readonly property real dampingFactor: 0.15 
+    readonly property real keySpeed: 0.15
     readonly property int wheelThreshold: 40
     
     // -------------------------------------------------------------------------
@@ -28,14 +30,13 @@ Item {
     property real maxSlots: 0
     property real wheelAccumulator: 0
     
-    // Input Flags
     property bool k_up: false
     property bool k_down: false
     property bool k_j: false
     property bool k_k: false
 
     // -------------------------------------------------------------------------
-    // bounds Safety
+    // Bounds Safety
     // -------------------------------------------------------------------------
     function recalcBounds() {
         if (rowHeight <= 1) {
@@ -46,7 +47,6 @@ Item {
         let visibleRows = Math.floor(viewportHeight / rowHeight);
         let calculatedMax = Math.max(0, totalRows - visibleRows);
         
-        // Safety clamp if window resized or data changed
         if (targetSlot > calculatedMax) targetSlot = calculatedMax;
         
         maxSlots = calculatedMax;
@@ -60,7 +60,7 @@ Item {
     // -------------------------------------------------------------------------
     // Input Handling
     // -------------------------------------------------------------------------
-    focus: true // Critical for Keys
+    focus: true
     Keys.enabled: true
     
     Keys.onPressed: (event) => {
@@ -86,17 +86,16 @@ Item {
     WheelHandler {
         acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
         onWheel: (event) => {
-            // angleDelta.y > 0 = Scroll UP (Wheel pushed away) -> We want to go to LOWER indices
-            // angleDelta.y < 0 = Scroll DOWN (Wheel pulled close) -> We want to go to HIGHER indices
-            
-            // Invert logic: Scroll Down (negative y) should ADD to accumulator to go down
+            // Negative angleDelta.y is usually "Scroll Down" (pull towards user)
+            // We subtract it to make the Accumulator Positive when scrolling Down
             root.wheelAccumulator -= event.angleDelta.y
             
             if (Math.abs(root.wheelAccumulator) >= root.wheelThreshold) {
                 let direction = root.wheelAccumulator > 0 ? 1 : -1
-                let base = Math.round(root.targetSlot)
                 
-                // Clamp immediately to prevent "space" launch
+                // Snap to nearest integer slot before adding direction
+                // This prevents getting stuck between slots
+                let base = Math.round(root.targetSlot)
                 let next = Math.max(0, Math.min(base + direction, root.maxSlots))
                 
                 root.targetSlot = next
@@ -107,29 +106,37 @@ Item {
     }
 
     // -------------------------------------------------------------------------
-    // Physics Loop (Svelte Replica)
+    // Physics Engine (Exponential Decay)
     // -------------------------------------------------------------------------
     FrameAnimation {
         running: true
         onTriggered: {
             // 1. Process Continuous Key Input
-            let delta = 0;
-            if (root.k_down || root.k_j) delta += root.keySpeed;
-            if (root.k_up || root.k_k)   delta -= root.keySpeed;
+            let keyDelta = 0;
+            if (root.k_down || root.k_j) keyDelta += root.keySpeed;
+            if (root.k_up || root.k_k)   keyDelta -= root.keySpeed;
             
-            if (delta !== 0) {
-                root.targetSlot = Math.max(0, Math.min(root.targetSlot + delta, root.maxSlots));
+            if (keyDelta !== 0) {
+                root.targetSlot = Math.max(0, Math.min(root.targetSlot + keyDelta, root.maxSlots));
             }
 
-            // 2. Damping Physics (Asymptotic approach)
+            // 2. Calculate Target Pixels
             let targetPixelY = root.targetSlot * root.rowHeight;
             let diff = targetPixelY - root.currentY;
             
-            // Deadzone to prevent micro-jitter at rest
-            if (Math.abs(diff) < 0.1) {
+            // 3. Apply Asymptotic Decay
+            // Formula: velocity = distance * damping
+            // Independent of frameTime to prevent lag-spikes from slowing scroll
+            // dt is in seconds (e.g., 0.016)
+            
+            // If we are close enough, snap to prevent micro-jitter
+            if (Math.abs(diff) < 0.5) {
                 root.currentY = targetPixelY;
             } else {
-                root.currentY += diff * root.damping;
+                // Adjust damping for Delta Time so 60fps and 144fps feel the same
+                // 60fps reference = 16.6ms
+                let timeScale = (frameTime * 60); 
+                root.currentY += diff * (root.dampingFactor * timeScale);
             }
         }
     }
