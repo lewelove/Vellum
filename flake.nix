@@ -27,6 +27,7 @@
           websockets
           uvloop
           pyside6
+          websocket-client
         ]);
 
         vellum-cli = pkgs.writeShellApplication {

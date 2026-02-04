@@ -9,6 +9,8 @@ ApplicationWindow {
     visible: true
     title: "Vellum Native"
 
+    Theme { id: theme }
+
     background: Rectangle {
         color: "#111111"
     }
@@ -17,7 +19,6 @@ ApplicationWindow {
         anchors.fill: parent
         spacing: 0
 
-        // Sidebar Area
         Rectangle {
             Layout.fillHeight: true
             Layout.preferredWidth: 220
@@ -34,33 +35,14 @@ ApplicationWindow {
                     font.pixelSize: 22
                     font.letterSpacing: 4
                 }
-
+                
                 Rectangle { width: parent.width; height: 1; color: "#333" }
-
-                Button {
-                    text: "Media Library"
-                    flat: true
-                    onClicked: bridge.log("Library Clicked")
-                }
             }
         }
 
-        // Content Area
-        Rectangle {
+        AlbumGrid {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            color: "transparent"
-
-            Text {
-                anchors.centerIn: parent
-                text: "QML Grid Implementation Pending..."
-                color: "#444"
-                font.pixelSize: 24
-            }
         }
-    }
-
-    Component.onCompleted: {
-        bridge.log("Window Initialized");
     }
 }
