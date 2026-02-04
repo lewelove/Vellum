@@ -2,83 +2,134 @@ import QtQuick
 
 Item {
     id: root
-    anchors.fill: parent
-
-    readonly property real damping: 0.06
-    readonly property int wheelThreshold: 40
-    readonly property real keyScrollSpeed: 0.20
-
+    
+    // -------------------------------------------------------------------------
+    // External API
+    // -------------------------------------------------------------------------
     property int rowCount: 0
     property int columns: 1
-    property real rowHeight: 0
+    property real rowHeight: 1 // Default to 1 to prevent division by zero
     property real viewportHeight: 0
     
+    // Output for GridView
     property real currentY: 0
+
+    // -------------------------------------------------------------------------
+    // Configuration
+    // -------------------------------------------------------------------------
+    readonly property real damping: 0.16
+    readonly property real keySpeed: 0.20
+    readonly property int wheelThreshold: 40
+    
+    // -------------------------------------------------------------------------
+    // Internal State
+    // -------------------------------------------------------------------------
     property real targetSlot: 0
+    property real maxSlots: 0
     property real wheelAccumulator: 0
     
-    readonly property real maxSlots: Math.max(0, Math.ceil(rowCount / columns) - Math.floor(viewportHeight / rowHeight))
+    // Input Flags
+    property bool k_up: false
+    property bool k_down: false
+    property bool k_j: false
+    property bool k_k: false
 
-    property var activeKeys: {
-        "j": false,
-        "k": false,
-        "up": false,
-        "down": false
-    }
-
-    FrameAnimation {
-        running: true
-        onTriggered: {
-            let delta = 0
-            if (root.activeKeys["j"] || root.activeKeys["down"]) delta += root.keyScrollSpeed
-            if (root.activeKeys["k"] || root.activeKeys["up"]) delta -= root.keyScrollSpeed
-            
-            if (delta !== 0) {
-                root.targetSlot = Math.max(0, Math.min(root.targetSlot + delta, root.maxSlots))
-            }
-
-            let targetY = root.targetSlot * root.rowHeight
-            let diff = targetY - root.currentY
-            
-            if (Math.abs(diff) < 0.01) {
-                root.currentY = targetY
-            } else {
-                root.currentY += (diff * root.damping)
-            }
+    // -------------------------------------------------------------------------
+    // bounds Safety
+    // -------------------------------------------------------------------------
+    function recalcBounds() {
+        if (rowHeight <= 1) {
+            maxSlots = 0;
+            return;
         }
+        let totalRows = Math.ceil(rowCount / columns);
+        let visibleRows = Math.floor(viewportHeight / rowHeight);
+        let calculatedMax = Math.max(0, totalRows - visibleRows);
+        
+        // Safety clamp if window resized or data changed
+        if (targetSlot > calculatedMax) targetSlot = calculatedMax;
+        
+        maxSlots = calculatedMax;
     }
 
-    focus: true
+    onRowCountChanged: recalcBounds()
+    onColumnsChanged: recalcBounds()
+    onRowHeightChanged: recalcBounds()
+    onViewportHeightChanged: recalcBounds()
+
+    // -------------------------------------------------------------------------
+    // Input Handling
+    // -------------------------------------------------------------------------
+    focus: true // Critical for Keys
     Keys.enabled: true
     
     Keys.onPressed: (event) => {
         if (event.isAutoRepeat) return;
-        if (event.key === Qt.Key_J) activeKeys["j"] = true;
-        if (event.key === Qt.Key_K) activeKeys["k"] = true;
-        if (event.key === Qt.Key_Down) activeKeys["down"] = true;
-        if (event.key === Qt.Key_Up) activeKeys["up"] = true;
+        switch (event.key) {
+            case Qt.Key_J:    k_j = true; event.accepted = true; break;
+            case Qt.Key_K:    k_k = true; event.accepted = true; break;
+            case Qt.Key_Down: k_down = true; event.accepted = true; break;
+            case Qt.Key_Up:   k_up = true; event.accepted = true; break;
+        }
     }
 
     Keys.onReleased: (event) => {
         if (event.isAutoRepeat) return;
-        if (event.key === Qt.Key_J) activeKeys["j"] = false;
-        if (event.key === Qt.Key_K) activeKeys["k"] = false;
-        if (event.key === Qt.Key_Down) activeKeys["down"] = false;
-        if (event.key === Qt.Key_Up) activeKeys["up"] = false;
+        switch (event.key) {
+            case Qt.Key_J:    k_j = false; event.accepted = true; break;
+            case Qt.Key_K:    k_k = false; event.accepted = true; break;
+            case Qt.Key_Down: k_down = false; event.accepted = true; break;
+            case Qt.Key_Up:   k_up = false; event.accepted = true; break;
+        }
     }
 
     WheelHandler {
         acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
         onWheel: (event) => {
-            // angleDelta.y is usually 120 per notch. Svelte logic expects pixel-like delta.
-            // Inverting to match web wheel behavior (down is positive deltaY).
-            root.wheelAccumulator += -event.angleDelta.y
+            // angleDelta.y > 0 = Scroll UP (Wheel pushed away) -> We want to go to LOWER indices
+            // angleDelta.y < 0 = Scroll DOWN (Wheel pulled close) -> We want to go to HIGHER indices
+            
+            // Invert logic: Scroll Down (negative y) should ADD to accumulator to go down
+            root.wheelAccumulator -= event.angleDelta.y
             
             if (Math.abs(root.wheelAccumulator) >= root.wheelThreshold) {
                 let direction = root.wheelAccumulator > 0 ? 1 : -1
                 let base = Math.round(root.targetSlot)
-                root.targetSlot = Math.max(0, Math.min(base + direction, root.maxSlots))
+                
+                // Clamp immediately to prevent "space" launch
+                let next = Math.max(0, Math.min(base + direction, root.maxSlots))
+                
+                root.targetSlot = next
                 root.wheelAccumulator = 0
+            }
+            event.accepted = true
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Physics Loop (Svelte Replica)
+    // -------------------------------------------------------------------------
+    FrameAnimation {
+        running: true
+        onTriggered: {
+            // 1. Process Continuous Key Input
+            let delta = 0;
+            if (root.k_down || root.k_j) delta += root.keySpeed;
+            if (root.k_up || root.k_k)   delta -= root.keySpeed;
+            
+            if (delta !== 0) {
+                root.targetSlot = Math.max(0, Math.min(root.targetSlot + delta, root.maxSlots));
+            }
+
+            // 2. Damping Physics (Asymptotic approach)
+            let targetPixelY = root.targetSlot * root.rowHeight;
+            let diff = targetPixelY - root.currentY;
+            
+            // Deadzone to prevent micro-jitter at rest
+            if (Math.abs(diff) < 0.1) {
+                root.currentY = targetPixelY;
+            } else {
+                root.currentY += diff * root.damping;
             }
         }
     }
