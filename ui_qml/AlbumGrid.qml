@@ -16,13 +16,15 @@ Item {
         columns: calculatedCols
         rowHeight: theme.rowHeight
         viewportHeight: control.height
+        
         Component.onCompleted: forceActiveFocus()
     }
 
     GridView {
         id: grid
-        height: parent.height
         width: gridContentWidth
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
         anchors.horizontalCenter: parent.horizontalCenter
         
         cellWidth: theme.cellWidth
@@ -33,19 +35,21 @@ Item {
 
         interactive: false
         contentY: scrollEngine.currentY
-
-        add: Transition {
-            NumberAnimation { property: "opacity"; from: 0; to: 1.0; duration: 200 }
-        }
+        
+        cacheBuffer: theme.rowHeight * 2
     }
 
     Rectangle {
         id: scrollbar
         anchors.right: parent.right
         anchors.rightMargin: 4
-        y: scrollEngine.maxSlots > 0 ? (scrollEngine.targetSlot / scrollEngine.maxSlots) * (control.height - height) : 0
+        
+        y: scrollEngine.maxSlots > 0 
+           ? (scrollEngine.targetSlot / scrollEngine.maxSlots) * (control.height - height) 
+           : 0
+
         width: 3
-        height: Math.max(40, (control.height / Math.max(control.height, (scrollEngine.rowCount / calculatedCols) * theme.rowHeight)) * control.height)
+        height: Math.max(40, (control.height / Math.max(control.height, grid.contentHeight)) * control.height)
         color: theme.scrollbarColor
         opacity: 0.15
         radius: 1.5
