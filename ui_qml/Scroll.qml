@@ -17,7 +17,7 @@ Item {
     // -------------------------------------------------------------------------
     // Configuration
     // -------------------------------------------------------------------------
-    readonly property real damping: 0.16
+    readonly property real damping: 0.12
     readonly property real keySpeed: 0.10
     readonly property int wheelThreshold: 40
     

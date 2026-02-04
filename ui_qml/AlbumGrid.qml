@@ -16,6 +16,7 @@ Item {
         columns: calculatedCols
         rowHeight: theme.rowHeight
         viewportHeight: control.height
+        anchors.fill: parent
         
         Component.onCompleted: forceActiveFocus()
     }
