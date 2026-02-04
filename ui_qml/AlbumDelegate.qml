@@ -3,15 +3,20 @@ import QtQuick.Layouts
 
 Item {
     id: root
-    width: theme.coverSize
-    height: theme.rowHeight - theme.gapY // The delegate handles its own internal spacing
+    // Make the delegate fill the entire allocated cell width
+    width: theme.cellWidth 
+    height: theme.rowHeight - theme.gapY
 
     property var album: albumData
     Theme { id: theme }
 
     Column {
-        anchors.fill: parent
-        anchors.topMargin: theme.gapY // Consistent with Svelte's row padding
+        // Center the 200px content within the 224px cell
+        width: theme.coverSize
+        anchors.horizontalCenter: parent.horizontalCenter
+        
+        anchors.top: parent.top
+        anchors.topMargin: theme.gapY
         spacing: theme.textGapMain
 
         // Cover Art

@@ -8,7 +8,8 @@ Item {
     Theme { id: theme }
 
     readonly property int calculatedCols: Math.max(1, Math.floor(control.width / theme.cellWidth))
-    readonly property real gridContentWidth: (calculatedCols * theme.cellWidth) - theme.gapX
+    // Total width is now exactly the sum of all cell widths
+    readonly property real gridContentWidth: calculatedCols * theme.cellWidth
 
     Scroll {
         id: scrollEngine
