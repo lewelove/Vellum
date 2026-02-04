@@ -8,7 +8,6 @@ Item {
     Theme { id: theme }
 
     readonly property int calculatedCols: Math.max(1, Math.floor(control.width / theme.cellWidth))
-    // Total width is now exactly the sum of all cell widths
     readonly property real gridContentWidth: calculatedCols * theme.cellWidth
 
     Scroll {
@@ -47,7 +46,7 @@ Item {
         y: scrollEngine.maxSlots > 0 ? (scrollEngine.targetSlot / scrollEngine.maxSlots) * (control.height - height) : 0
         width: 3
         height: Math.max(40, (control.height / Math.max(control.height, (scrollEngine.rowCount / calculatedCols) * theme.rowHeight)) * control.height)
-        color: "white"
+        color: theme.scrollbarColor
         opacity: 0.15
         radius: 1.5
         visible: scrollEngine.maxSlots > 0

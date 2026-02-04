@@ -7,6 +7,10 @@ QtObject {
     readonly property color textMain: "#FFFFFF"
     readonly property color textMuted: "#CCCCCC"
     
+    // UI Elements
+    readonly property color scrollbarColor: textMain
+    readonly property color placeholderColor: "#2A2A2A"
+
     // Grid Constants
     readonly property int coverSize: 200
     readonly property int gapX: 24
@@ -14,16 +18,13 @@ QtObject {
     readonly property int textGapMain: 8
     readonly property int textGapLesser: 2
 
-    // Typography (Match Svelte line-heights)
+    // Typography
     readonly property int fontSizeTitle: 14
     readonly property int lineHeightTitle: 18
     readonly property int fontSizeArtist: 12
     readonly property int lineHeightArtist: 16
 
-    // SSOT: Calculated Row Height 
-    // Mirrors: gapY + coverSize + textGapMain + lhTitle + gapLesser + lhArtist
+    // Calculated Constants
     readonly property int rowHeight: gapY + coverSize + textGapMain + lineHeightTitle + textGapLesser + lineHeightArtist
-    
-    // SSOT: Cell Width
     readonly property int cellWidth: coverSize + gapX
 }

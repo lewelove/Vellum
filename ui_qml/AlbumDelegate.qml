@@ -3,18 +3,15 @@ import QtQuick.Layouts
 
 Item {
     id: root
-    // Make the delegate fill the entire allocated cell width
-    width: theme.cellWidth 
+    width: theme.cellWidth
     height: theme.rowHeight - theme.gapY
 
     property var album: albumData
     Theme { id: theme }
 
     Column {
-        // Center the 200px content within the 224px cell
         width: theme.coverSize
         anchors.horizontalCenter: parent.horizontalCenter
-        
         anchors.top: parent.top
         anchors.topMargin: theme.gapY
         spacing: theme.textGapMain
@@ -23,7 +20,7 @@ Item {
         Rectangle {
             width: theme.coverSize
             height: theme.coverSize
-            color: "#323232"
+            color: theme.placeholderColor
             
             Image {
                 anchors.fill: parent

@@ -12,7 +12,7 @@ ApplicationWindow {
     Theme { id: theme }
 
     background: Rectangle {
-        color: "#111111"
+        color: theme.backgroundMain
     }
 
     AlbumGrid {
