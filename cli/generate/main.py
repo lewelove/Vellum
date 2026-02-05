@@ -1,12 +1,12 @@
 import tomllib
 import json
 import sys
-import subprocess
 from pathlib import Path
 from tqdm import tqdm
 
 from .engine import render_toml_block
-from cli.update.compiler import harvest_metadata
+# Updated import to break circular dependency
+from cli.update.harvester import harvest_metadata
 from .compressor import compress
 from .grouper import group_tracks, resolve_anchor, sort_album_tracks
 
