@@ -1,21 +1,19 @@
 import tomllib
 import json
 import sys
+import subprocess
 from pathlib import Path
 from tqdm import tqdm
 
-from .extractor import PhysicalExtractor
 from .engine import render_toml_block
+from cli.update.compiler import harvest_metadata
 from .compressor import compress
 from .grouper import group_tracks, resolve_anchor, sort_album_tracks
 
 def extract_cover_from_track(track_path: Path, destination_base: Path):
-    """
-    Lazy extraction: Opens the file strictly to extract the embedded picture.
-    """
     try:
-        audio, _ = PhysicalExtractor.get_audio_payload(track_path)
-        
+        from mutagen.flac import FLAC
+        audio = FLAC(track_path)
         if not audio or not audio.pictures:
             return
 
@@ -25,7 +23,6 @@ def extract_cover_from_track(track_path: Path, destination_base: Path):
         
         with open(final_dest, "wb") as f:
             f.write(pic.data)
-            
     except Exception:
         pass
 
@@ -52,16 +49,14 @@ def run_generate():
     album_layout = compress_cfg.get("album", {}).get("layout", [])
     tracks_layout = compress_cfg.get("tracks", {}).get("layout", [])
 
-    print("Refreshing existing locks...")
-    run_update()
+    if not force_mode:
+        print("Refreshing existing locks...")
+        run_update()
 
     print(f"Scanning library at: {lib_root}")
-    files_found = []
-    for ext in supported_exts:
-        files_found.extend(lib_root.rglob(f"*{ext}"))
-
+    
+    tracked_paths = set()
     if not force_mode:
-        tracked_paths = set()
         lock_files = list(lib_root.rglob("metadata.lock.json"))
         for lf in lock_files:
             try:
@@ -72,28 +67,24 @@ def run_generate():
                         rel_path = t.get("track_path")
                         if rel_path:
                             abs_path = (album_dir / rel_path).resolve()
-                            tracked_paths.add(abs_path)
+                            tracked_paths.add(str(abs_path))
             except Exception:
                 continue
-        
-        files_to_process = [f for f in files_found if f.resolve() not in tracked_paths]
-    else:
-        files_to_process = files_found
 
-    if not files_to_process:
-        print("No new files to process.")
-        return
-
+    print("Harvesting tags via Rust...")
+    harvested_inventory = harvest_metadata(lib_root)
+    
     raw_inventory = []
-    for file_path in tqdm(files_to_process, desc="Harvesting Tags", unit="file"):
-        audio_obj, tags = PhysicalExtractor.get_audio_payload(file_path)
-        if tags:
-            tags["track_path_absolute"] = str(file_path)
-            raw_inventory.append(tags)
-        del audio_obj
+    for path_str, data in tqdm(harvested_inventory.items(), desc="Processing Harvest", unit="file"):
+        if not force_mode and path_str in tracked_paths:
+            continue
+            
+        tags = data["tags"]
+        tags["track_path_absolute"] = path_str
+        raw_inventory.append(tags)
 
     if not raw_inventory:
-        print("No tags detected in new files.")
+        print("No new files to process.")
         return
 
     print("Grouping tracks...")
@@ -101,10 +92,10 @@ def run_generate():
     print(f"Found {len(album_buckets)} album groups to generate.")
 
     for group_id, tracks in tqdm(album_buckets.items(), desc="Generating Metadata", unit="album"):
-        anchor_path, is_valid = resolve_anchor(tracks, lib_root, supported_exts)
+        anchor_path, is_valid = resolve_anchor(tracks, str(lib_root), supported_exts)
         
         if not is_valid:
-            tqdm.write(f"Skipping group {group_id}: Ecological Exclusivity violation (Aliens detected in anchor).")
+            tqdm.write(f"Skipping group {group_id}: Ecological Exclusivity violation.")
             continue
 
         sorted_tracks = sort_album_tracks(tracks)
@@ -137,5 +128,4 @@ def run_generate():
 
     print("\nFinalizing locks for new metadata...")
     run_update()
-
     print("\nGeneration Complete.")

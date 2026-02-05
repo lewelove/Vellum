@@ -1,12 +1,10 @@
 [storage]
-library_root = "/run/media/lewelove/1000xhome/backup-everything/FB2K/Library Historyfied!"
-library_export = "~/dev/mpf2k-test-library/metadata_output"
-thumbnail_cache_folder = "~/.mpf2k/covers/thumbnails"
+library_root = "/run/media/lewelove/1000xhome/backup-everything/FB2K/Library Historyfied!/"
+library_export = "~/dev/vellum-test-library/metadata_output"
+thumbnail_cache_folder = "~/.vellum/covers/thumbnails"
 
 [theme]
 thumbnail_size = 200
-# thumbnail_quality = 100
-# thumbnail_lossless = true
 thumbnail_resampling = "LANCZOS"
 
 [generate]

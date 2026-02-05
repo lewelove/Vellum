@@ -7,10 +7,10 @@ from pathlib import Path
 # --- UTILS ---
 
 def _get_audio_info(ctx, attr, default=0):
-    audio = ctx.get("audio_obj")
-    if not audio or not hasattr(audio, "info"):
+    physics = ctx.get("physics")
+    if not physics:
         return default
-    return getattr(audio.info, attr, default)
+    return physics.get(attr, default)
 
 def _format_ms_to_time(ms):
     if not ms:
@@ -97,10 +97,6 @@ def resolve_album_helper_cover_path(ctx):
     return "default_cover.png"
 
 def resolve_album_helper_cover_hash(ctx):
-    """
-    Calculates xxHash64 of the cover image content.
-    Returns URL-safe Base64 string.
-    """
     rel_path = resolve_album_helper_cover_path(ctx)
     if not rel_path or rel_path == "default_cover.png":
         return ""
@@ -112,7 +108,6 @@ def resolve_album_helper_cover_hash(ctx):
     try:
         with open(abs_path, "rb") as f:
             digest = xxhash.xxh64(f.read()).digest()
-            # Base64 encode and strip padding '=' for cleaner URLs
             return base64.urlsafe_b64encode(digest).decode('ascii').rstrip('=')
     except Exception:
         return ""
@@ -152,20 +147,10 @@ def resolve_track_helper_track_library_path(ctx):
         return str(full)
 
 def resolve_track_helper_track_mtime(ctx):
-    path = ctx.get("track_path_resolved")
-    if not path: return 0
-    try:
-        return int(os.path.getmtime(path))
-    except OSError:
-        return 0
+    return _get_audio_info(ctx, "mtime", 0)
 
 def resolve_track_helper_track_size(ctx):
-    path = ctx.get("track_path_resolved")
-    if not path: return 0
-    try:
-        return os.path.getsize(path)
-    except OSError:
-        return 0
+    return _get_audio_info(ctx, "file_size", 0)
 
 def resolve_track_helper_lyrics_path(ctx):
     if "lyrics_path" in ctx["source"]:
@@ -200,14 +185,14 @@ def resolve_track_helper_lyrics_path(ctx):
     return ""
 
 def resolve_track_helper_encoding(ctx):
-    audio = ctx.get("audio_obj")
-    if not audio: return "UNKNOWN"
-    cls_name = audio.__class__.__name__
-    if "FLAC" in cls_name: return "FLAC"
-    return "UNKNOWN"
+    fmt = _get_audio_info(ctx, "format", "UNKNOWN")
+    if fmt == "Flac": return "FLAC"
+    if fmt == "Mp3": return "MP3"
+    if fmt == "Opus": return "OPUS"
+    return fmt.upper()
 
 def resolve_track_helper_bits_per_sample(ctx):
-    return _get_audio_info(ctx, "bits_per_sample", 0)
+    return _get_audio_info(ctx, "bit_depth", 0)
 
 def resolve_track_helper_channels(ctx):
     return _get_audio_info(ctx, "channels", 0)
@@ -216,14 +201,13 @@ def resolve_track_helper_sample_rate(ctx):
     return _get_audio_info(ctx, "sample_rate", 0)
 
 def resolve_track_helper_track_duration_in_samples(ctx):
-    return _get_audio_info(ctx, "total_samples", 0)
+    sr = resolve_track_helper_sample_rate(ctx)
+    ms = resolve_track_helper_track_duration_in_ms(ctx)
+    if not sr or not ms: return 0
+    return int((ms / 1000) * sr)
 
 def resolve_track_helper_track_duration_in_ms(ctx):
-    audio = ctx.get("audio_obj")
-    if not audio or not hasattr(audio, "info"):
-        return 0
-    length = getattr(audio.info, 'length', 0)
-    return int(length * 1000)
+    return _get_audio_info(ctx, "duration_ms", 0)
 
 def resolve_track_helper_track_duration_time(ctx):
     ms = resolve_track_helper_track_duration_in_ms(ctx)

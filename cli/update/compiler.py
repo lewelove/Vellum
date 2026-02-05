@@ -2,8 +2,9 @@ import tomllib
 import hashlib
 import os
 import sys
+import json
+import subprocess
 from pathlib import Path
-from mutagen.flac import FLAC
 
 from cli.update.resolver import setup_registry, find_resolver, get_registered_keys
 from cli.update.zipper import scan_physical_spine, zip_tracks, parse_int
@@ -11,11 +12,36 @@ from cli.update.writer import write_lock
 from cli.generate.compressor import get_layout_keys
 from cli.update.image_processor import generate_thumbnail
 
+def harvest_metadata(target_path: Path):
+    """
+    Invokes the Rust vellum binary to harvest metadata for a path.
+    Returns a dictionary mapping absolute file paths to harvested data.
+    """
+    try:
+        result = subprocess.run(
+            ["vellum", "harvest", str(target_path)],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        
+        harvested_map = {}
+        for line in result.stdout.strip().split("\n"):
+            if not line:
+                continue
+            item = json.loads(line)
+            abs_path = str(Path(item["path"]).resolve())
+            harvested_map[abs_path] = item
+            
+        return harvested_map
+    except subprocess.CalledProcessError as e:
+        print(f"Compiler Error: Failed to harvest metadata via Rust binary: {e.stderr}")
+        return {}
+    except Exception as e:
+        print(f"Compiler Error: Unexpected error during harvesting: {e}")
+        return {}
+
 def validate_layout(config):
-    """
-    Validates that [lock.layout] only uses keys registered in the system.
-    Returns the master lists of keys to calculate.
-    """
     A_TAGS, A_HELPERS, T_TAGS, T_HELPERS = get_registered_keys()
 
     allowed_album = set(A_TAGS) | set(A_HELPERS)
@@ -30,12 +56,10 @@ def validate_layout(config):
     
     if unknown_album:
         print(f"Compiler Error: [lock.layout.album] contains unknown keys: {unknown_album}")
-        print("Ensure these keys are defined in Standard Library or registered Extensions.")
         sys.exit(1)
         
     if unknown_tracks:
         print(f"Compiler Error: [lock.layout.tracks] contains unknown keys: {unknown_tracks}")
-        print("Ensure these keys are defined in Standard Library or registered Extensions.")
         sys.exit(1)
 
     return A_TAGS, A_HELPERS, T_TAGS, T_HELPERS
@@ -73,6 +97,7 @@ def compile_album(album_root: Path, supported_exts: list, library_root: Path = N
     meta_hash = sha256.hexdigest()
 
     physical_spine = scan_physical_spine(album_root, supported_exts)
+    harvested_data = harvest_metadata(album_root)
 
     album_defaults = raw_meta.get("album", {})
     raw_tracks_source = raw_meta.get("tracks", [])
@@ -88,8 +113,7 @@ def compile_album(album_root: Path, supported_exts: list, library_root: Path = N
             raise ValueError(
                 f"Manifest Mismatch in {album_root}:\n"
                 f"  - Logical Tracks: {len(raw_tracks_source)}\n"
-                f"  - Physical Files: {len(physical_spine)}\n"
-                "The number of [[tracks]] entries must exactly match the number of audio files."
+                f"  - Physical Files: {len(physical_spine)}"
             )
             
         for t in raw_tracks_source:
@@ -120,17 +144,15 @@ def compile_album(album_root: Path, supported_exts: list, library_root: Path = N
         t_path_rel = track_source.get("track_path", "")
         t_path_abs = (album_root / t_path_rel) if t_path_rel else None
         
-        audio_obj = None
-        if t_path_abs and t_path_abs.exists():
-            try: audio_obj = FLAC(t_path_abs)
-            except: pass
+        harvest_payload = harvested_data.get(str(t_path_abs.resolve())) if t_path_abs else None
 
         track_ctx = {
             "source": track_source,
             "album_root": album_root,
             "library_root": library_root,
             "track_path_resolved": t_path_abs,
-            "audio_obj": audio_obj
+            "physics": harvest_payload.get("physics") if harvest_payload else {},
+            "raw_tags": harvest_payload.get("tags") if harvest_payload else {}
         }
 
         for key in T_TAGS:
@@ -147,7 +169,6 @@ def compile_album(album_root: Path, supported_exts: list, library_root: Path = N
             else:
                 final_track[key] = ""
 
-        if audio_obj: del audio_obj
         final_tracks.append(final_track)
 
     final_album = {}

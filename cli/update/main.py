@@ -2,7 +2,7 @@ import tomllib
 import sys
 import json
 import os
-import time
+import hashlib
 import httpx
 from pathlib import Path
 from tqdm import tqdm
@@ -10,26 +10,26 @@ from tqdm import tqdm
 from .sentry import verify_trust, TrustState
 from .compiler import compile_album
 
-CACHE_FILE = Path("~/.mpf2k/cache.json").expanduser().resolve()
+def get_cache_path(library_root: Path) -> Path:
+    base_dir = Path("~/.vellum/libraries_cache").expanduser().resolve()
+    root_hash = hashlib.sha256(str(library_root).encode()).hexdigest()
+    return base_dir / f"{root_hash}.json"
 
-def load_cache():
-    if CACHE_FILE.exists():
+def load_cache(cache_path: Path):
+    if cache_path.exists():
         try:
-            with open(CACHE_FILE, "r") as f:
+            with open(cache_path, "r", encoding="utf-8") as f:
                 return json.load(f)
-        except:
+        except Exception:
             pass
     return {}
 
-def save_cache(cache):
-    CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
-    with open(CACHE_FILE, "w") as f:
-        json.dump(cache, f)
+def save_cache(cache: dict, cache_path: Path):
+    cache_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(cache_path, "w", encoding="utf-8") as f:
+        json.dump(cache, f, indent=2)
 
 def notify_server(album_root: Path):
-    """
-    Sends a fire-and-forget notification to the running server.
-    """
     url = "http://127.0.0.1:8000/api/internal/reload"
     try:
         httpx.post(url, params={"path": str(album_root)}, timeout=0.5)
@@ -51,7 +51,8 @@ def run_update():
     gen_cfg = config.get("generate", {})
     supported_exts = gen_cfg.get("supported_extensions", [".flac"])
     
-    sentry_cache = load_cache()
+    cache_path = get_cache_path(lib_root)
+    sentry_cache = load_cache(cache_path)
     new_cache = {}
     
     anchors = list(lib_root.rglob("metadata.toml"))
@@ -89,13 +90,11 @@ def run_update():
         
         if trust != TrustState.VALID:
             compile_album(album_root, supported_exts, library_root=lib_root)
-            
             notify_server(album_root)
-            
             updates_count += 1
             
         new_cache[album_path_str] = {"mtime_sum": current_mtime_sum}
 
-    save_cache(new_cache)
+    save_cache(new_cache, cache_path)
 
     print(f"\nUpdate Complete. {updates_count} albums refreshed. {skips_count} albums skipped (cached).")
