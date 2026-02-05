@@ -63,6 +63,9 @@
               export)
                 cd "$ROOT" && python -m cli.export "$@"
                 ;;
+              report)
+                cd "$ROOT" && python -m cli.report "$@"
+                ;;
               help|--help|-h)
                 echo "Vellum CLI Commands:"
                 echo "  ui          : Start Svelte UI Dev Server"
@@ -73,6 +76,7 @@
                 echo "  generate_rs : Initialize metadata from files (Rust Legacy)"
                 echo "  harvest     : Harvest raw metadata to JSON (Rust)"
                 echo "  export      : Export snapshot"
+                echo "  report      : Generate listening report"
                 ;;
               *)
                 echo "Error: Unknown command '$COMMAND'"
@@ -82,7 +86,6 @@
           '';
         };
 
-        # Group Qt6 dependencies for easier path management
         qt6Deps = with pkgs.qt6; [
           qtbase
           qtdeclarative
@@ -113,17 +116,9 @@
           shellHook = ''
             export PYTHONDONTWRITEBYTECODE=1
             export PATH="$PWD/ui/node_modules/.bin:$PATH"
-            
-            # 1. Setup Library Path for Graphics/Wayland
             export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath devPackages}:$LD_LIBRARY_PATH"
-            
-            # 2. Setup QML Import Paths (Crucial for QML Modules)
             export QML2_IMPORT_PATH="${pkgs.qt6.qtdeclarative}/lib/qt-6/qml"
-            
-            # 3. Setup Qt Plugin Paths (Crucial for Platform integration)
             export QT_PLUGIN_PATH="${pkgs.qt6.qtbase}/lib/qt-6/plugins"
-            
-            # 4. Wayland/X11 Strategy
             export QT_QPA_PLATFORM="wayland;xcb"
           '';
         };
