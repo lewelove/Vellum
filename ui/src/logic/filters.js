@@ -2,7 +2,12 @@
 // The input 'item' is now an ALBUM object containing a 'tracks' array.
 
 export const filters = {
-  genre: (album, val) => album.GENRE === val,
+  genre: (album, val) => {
+    if (Array.isArray(album.GENRE)) {
+      return album.GENRE.includes(val);
+    }
+    return album.GENRE === val;
+  },
   
   totaltracks: (album, val) => album.TOTALTRACKS === String(val),
 

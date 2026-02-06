@@ -6,8 +6,12 @@ export const groupers = {
   genre: (albums) => {
     const map = new Map();
     albums.forEach(a => {
-      const g = a.GENRE || "Unknown";
-      map.set(g, (map.get(g) || 0) + 1);
+      const val = a.GENRE;
+      const genres = Array.isArray(val) ? val : [val || "Unknown"];
+      
+      genres.forEach(g => {
+        map.set(g, (map.get(g) || 0) + 1);
+      });
     });
     return map;
   },

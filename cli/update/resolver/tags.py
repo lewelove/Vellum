@@ -23,7 +23,10 @@ def resolve_album_tag_album(ctx):
     return str(ctx["source"].get("ALBUM", "Unknown"))
 
 def resolve_album_tag_genre(ctx):
-    return str(ctx["source"].get("GENRE", "Unknown"))
+    val = ctx["source"].get("GENRE", "Unknown")
+    if isinstance(val, list):
+        return [str(v) for v in val]
+    return str(val)
 
 def resolve_album_tag_date(ctx):
 # Compatability compliant tag (used to display original release year in other players)
@@ -90,4 +93,3 @@ def resolve_track_tag_discnumber(ctx):
 
 def resolve_track_tag_lyrics(ctx):
     return str(ctx["source"].get("LYRICS", ""))
-

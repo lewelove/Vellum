@@ -13,8 +13,6 @@
   let coverUrl = $derived(library.getAlbumCoverUrl(album.id));
 
   /**
-   * PROGRAMMATIC DIMENSION CALCULATION
-   * Modal height is 80vh (0.8 * innerHeight)
    * Content padding is 32px top + 32px bottom (64px total)
    */
   const PADDING = 64; 
@@ -84,7 +82,7 @@
   .modal-backdrop {
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.05);
+    background-color: rgba(0, 0, 0, 0.15);
     backdrop-filter: blur(2px);
     display: flex;
     align-items: center;
@@ -94,7 +92,7 @@
   .modal-chassis {
     width: 75vw;
     height: 70vh;
-    background-color: var(--background-drawer);
+    background-color: var(--background-main);
     box-shadow: 0 0px 64px rgba(0, 0, 0, 0.3);
     display: flex;
     flex-direction: column;
