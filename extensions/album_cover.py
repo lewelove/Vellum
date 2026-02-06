@@ -41,11 +41,10 @@ def resolve_album_helper_cover_chroma(ctx):
 
         with Image.open(thumb_file) as img:
             lab = img.convert("LAB")
-            arr = np.array(lab).astype(np.float32)
+            arr = np.array(lab)
             
-            # a and b channels are offset by 128 in Pillow's 8-bit LAB implementation
-            a = arr[:, :, 1] - 128
-            b = arr[:, :, 2] - 128
+            a = arr[:, :, 1].view(np.int8).astype(np.float32)
+            b = arr[:, :, 2].view(np.int8).astype(np.float32)
             
             chroma = np.sqrt(a**2 + b**2)
             return float(np.mean(chroma))
