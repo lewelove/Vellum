@@ -38,7 +38,9 @@ export const sorters = {
     return dateB.localeCompare(dateA); // DESC
   },
 
-  entropy: (a, b) => (b.cover_entropy || 0) - (a.cover_entropy || 0)
+  entropy: (a, b) => (b.cover_entropy || 0) - (a.cover_entropy || 0),
+
+  duration: (a, b) => (b.album_duration_in_ms || 0) - (a.album_duration_in_ms || 0)
 };
 
 export const SORTER_LABELS = {
@@ -46,5 +48,6 @@ export const SORTER_LABELS = {
   az: "Alphabetical",
   year: "Year",
   date_added: "Date Added",
-  entropy: "Cover Entropy"
+  duration: "Duration",
+  entropy: "Cover Entropy",
 };

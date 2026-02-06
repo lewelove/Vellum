@@ -29,7 +29,9 @@ extensions_folder = "~/dev/vellum/extensions/"
   "DISCID"
 ]
 
-"album_cover" = ["cover_entropy"]
+"album_cover" = [
+  "cover_entropy"
+]
 
 "replay_gain" = [
   "REPLAYGAIN_ALBUM_GAIN", 
