@@ -2,13 +2,18 @@
   import { player } from "../player.svelte.js";
   import { library } from "../../library.svelte.js";
 
-  const pad = (num) => String(num).padStart(2, '0');
-
-  const formatTime = (seconds) => {
-    const s = Math.floor(seconds || 0);
-    const m = Math.floor(s / 60);
+  const formatTime = (totalSeconds) => {
+    const s = Math.floor(totalSeconds || 0);
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
     const rs = s % 60;
-    return `${pad(m)}:${pad(rs)}`;
+    
+    const pad = (num) => String(num).padStart(2, '0');
+
+    if (h > 0) {
+      return `${h}:${pad(m)}:${pad(rs)}`;
+    }
+    return `${m}:${pad(rs)}`;
   };
 
   let currentIndex = $derived.by(() => {

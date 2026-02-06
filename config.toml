@@ -1,5 +1,6 @@
 [storage]
 library_root = "/run/media/lewelove/1000xhome/backup-everything/FB2K/Library Historyfied!/"
+# library_root = "/home/lewelove/dev/vellum-test-library/albums/"
 library_export = "~/dev/vellum-test-library/metadata_output"
 thumbnail_cache_folder = "~/.vellum/covers/thumbnails"
 
@@ -28,6 +29,7 @@ extensions_folder = "~/dev/vellum/extensions/"
   "DISCID"
 ]
 
+"album_cover" = ["cover_entropy"]
 
 "replay_gain" = [
   "REPLAYGAIN_ALBUM_GAIN", 

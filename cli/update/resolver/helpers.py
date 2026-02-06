@@ -14,13 +14,13 @@ def _get_audio_info(ctx, attr, default=0):
 
 def _format_ms_to_time(ms):
     if not ms:
-        return "00:00"
+        return "0:00"
     seconds = ms // 1000
     m, s = divmod(seconds, 60)
     h, m = divmod(m, 60)
     if h > 0:
-        return f"{h:02d}:{m:02d}:{s:02d}"
-    return f"{m:02d}:{s:02d}"
+        return f"{h}:{m:02d}:{s:02d}"
+    return f"{m}:{s:02d}"
 
 # --- ALBUM HELPERS ---
 

@@ -4,8 +4,19 @@
   let selectedIndex = $state(-1);
 
   function formatDuration(str) {
-    if (!str) return "";
-    return str.replace(/^(00:)+/, "").replace(/^0/, "");
+    if (!str) return "0:00";
+    
+    let parts = str.split(':');
+    
+    while (parts.length > 2 && parseInt(parts[0]) === 0) {
+      parts.shift();
+    }
+    
+    if (parts[0].length > 1 && parts[0].startsWith('0')) {
+      parts[0] = parts[0].substring(1);
+    }
+    
+    return parts.join(':');
   }
 
   function handleSelect(index) {

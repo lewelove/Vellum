@@ -9,7 +9,6 @@ from cli.update.zipper import scan_physical_spine, zip_tracks, parse_int
 from cli.update.writer import write_lock
 from cli.generate.compressor import get_layout_keys
 from cli.update.image_processor import generate_thumbnail
-# Import from the new standalone harvester to break the cycle
 from cli.update.harvester import harvest_metadata
 
 def validate_layout(config):
@@ -35,7 +34,12 @@ def validate_layout(config):
 
     return A_TAGS, A_HELPERS, T_TAGS, T_HELPERS
 
-def compile_album(album_root: Path, supported_exts: list, library_root: Path = None):
+def compile_album(
+    album_root: Path, 
+    supported_exts: list, 
+    library_root: Path = None, 
+    pre_harvested_data: dict = None
+):
     config_path = Path("config.toml")
     if not config_path.exists():
         return 
@@ -68,7 +72,15 @@ def compile_album(album_root: Path, supported_exts: list, library_root: Path = N
     meta_hash = sha256.hexdigest()
 
     physical_spine = scan_physical_spine(album_root, supported_exts)
-    harvested_data = harvest_metadata(album_root)
+    
+    # --- OPTIMIZATION START ---
+    # Use pre-harvested data if provided (Bulk Harvest mode), 
+    # otherwise trigger a local harvest for this specific folder (Atomic mode).
+    if pre_harvested_data is not None:
+        harvested_data = pre_harvested_data
+    else:
+        harvested_data = harvest_metadata(album_root)
+    # --- OPTIMIZATION END ---
 
     album_defaults = raw_meta.get("album", {})
     raw_tracks_source = raw_meta.get("tracks", [])
@@ -115,7 +127,11 @@ def compile_album(album_root: Path, supported_exts: list, library_root: Path = N
         t_path_rel = track_source.get("track_path", "")
         t_path_abs = (album_root / t_path_rel) if t_path_rel else None
         
-        harvest_payload = harvested_data.get(str(t_path_abs.resolve())) if t_path_abs else None
+        # Resolve data from the harvest map (key is stringified absolute path)
+        harvest_payload = None
+        if t_path_abs:
+            abs_key = str(t_path_abs.resolve())
+            harvest_payload = harvested_data.get(abs_key)
 
         track_ctx = {
             "source": track_source,
