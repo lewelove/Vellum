@@ -23,6 +23,7 @@ def resolve_album_tag_album(ctx):
     return str(ctx["source"].get("ALBUM", "Unknown"))
 
 def resolve_album_tag_genre(ctx):
+# Multi-Tag Support
     raw_val = ctx["source"].get("GENRE", "Unknown")
     if isinstance(raw_val, list):
         parts = [str(v).strip() for v in raw_val if str(v).strip()]

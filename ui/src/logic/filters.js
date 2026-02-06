@@ -1,6 +1,3 @@
-// Pure JS Filtering Logic for ALBUMS
-// The input 'item' is now an ALBUM object containing a 'tracks' array.
-
 export const filters = {
   genre: (album, val) => {
     if (Array.isArray(album.GENRE)) {
@@ -40,6 +37,17 @@ export const filters = {
     const now = Math.floor(Date.now() / 1000);
     const added = parseInt(album.unix_added || 0);
     return (now - added) < (86400 * 30);
+  },
+
+  chroma: (album, val) => {
+    const score = parseFloat(album.cover_chroma || 0);
+    switch (val) {
+      case "Monochrome": return score < 4;
+      case "Muted":      return score >= 4 && score < 12;
+      case "Standard":   return score >= 12 && score < 30;
+      case "Vibrant":    return score >= 30;
+      default:           return true;
+    }
   }
 };
 

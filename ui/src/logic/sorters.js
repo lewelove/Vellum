@@ -1,5 +1,3 @@
-// Pure JS Sorting Logic for ALBUMS
-
 const getSortableArtist = (name) => {
   if (!name) return "";
   const n = name.trim();
@@ -26,7 +24,7 @@ export const sorters = {
     return titleA.localeCompare(titleB);
   },
 
-  date_added: (a, b) => (b.unix_added || 0) - (a.unix_added || 0), // DESC
+  date_added: (a, b) => (b.unix_added || 0) - (a.unix_added || 0),
   
   az: (a, b) => (a.ALBUM || "").localeCompare(b.ALBUM || ""),
   
@@ -35,10 +33,12 @@ export const sorters = {
   year: (a, b) => {
     const dateA = a.DATE || "0000";
     const dateB = b.DATE || "0000";
-    return dateB.localeCompare(dateA); // DESC
+    return dateB.localeCompare(dateA);
   },
 
   entropy: (a, b) => (b.cover_entropy || 0) - (a.cover_entropy || 0),
+
+  vibrancy: (a, b) => (b.cover_chroma || 0) - (a.cover_chroma || 0),
 
   duration: (a, b) => (b.album_duration_in_ms || 0) - (a.album_duration_in_ms || 0)
 };
@@ -49,5 +49,6 @@ export const SORTER_LABELS = {
   year: "Year",
   date_added: "Date Added",
   duration: "Duration",
+  vibrancy: "Vibrancy",
   entropy: "Cover Entropy",
 };

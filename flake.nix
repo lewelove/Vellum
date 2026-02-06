@@ -21,6 +21,7 @@
           mutagen
           tqdm
           pillow
+          numpy
           xxhash
           orjson
           httpx

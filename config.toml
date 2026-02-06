@@ -30,7 +30,8 @@ extensions_folder = "~/dev/vellum/extensions/"
 ]
 
 "album_cover" = [
-  "cover_entropy"
+  "cover_entropy",
+  "cover_chroma",
 ]
 
 "replay_gain" = [
