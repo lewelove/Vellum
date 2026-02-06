@@ -1,6 +1,8 @@
 import asyncio
 import concurrent.futures
 import orjson
+import hashlib
+import json
 from pathlib import Path, PurePosixPath
 from . import config
 
@@ -14,6 +16,17 @@ class LibraryState:
     def _normalize(self, path_str: str) -> str:
         if not path_str: return ""
         return path_str.lstrip('/')
+
+    def _update_current_hash(self):
+        if not config.LIBRARY_ROOT:
+            return
+        try:
+            hash_val = hashlib.sha256(str(config.LIBRARY_ROOT).encode()).hexdigest()
+            config.CURRENT_LIB_FILE.parent.mkdir(parents=True, exist_ok=True)
+            with open(config.CURRENT_LIB_FILE, "w", encoding="utf-8") as f:
+                json.dump({"hash": hash_val}, f)
+        except Exception as e:
+            print(f"Warning: Could not update current.json: {e}")
 
     def _parse_lock_file(self, lock_path: Path):
         try:
@@ -50,6 +63,8 @@ class LibraryState:
             return
 
         print(f"Scanning library at {config.LIBRARY_ROOT}...")
+        self._update_current_hash()
+        
         loop = asyncio.get_running_loop()
         lock_files = list(config.LIBRARY_ROOT.rglob("metadata.lock.json"))
         

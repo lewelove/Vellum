@@ -52,6 +52,22 @@ async def update_state(request: Request):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+@router.post("/api/internal/reset")
+async def trigger_full_reset():
+    try:
+        config.load_config()
+        await STATE.initialize()
+        
+        payload = {
+            "type": "INIT", 
+            "data": STATE.albums,
+            "ui_state": config.UI_STATE
+        }
+        await manager.broadcast_bytes(orjson.dumps(payload))
+        return {"status": "reset_complete"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.post("/api/internal/reload")
 async def trigger_reload(path: str):
     updated = STATE.update_album(path)

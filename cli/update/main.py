@@ -10,8 +10,11 @@ from tqdm import tqdm
 from .sentry import verify_trust, TrustState
 from .compiler import compile_album
 
+def get_base_cache_dir() -> Path:
+    return Path("~/.vellum/libraries_cache").expanduser().resolve()
+
 def get_cache_path(library_root: Path) -> Path:
-    base_dir = Path("~/.vellum/libraries_cache").expanduser().resolve()
+    base_dir = get_base_cache_dir()
     root_hash = hashlib.sha256(str(library_root).encode()).hexdigest()
     return base_dir / f"{root_hash}.json"
 
@@ -36,6 +39,13 @@ def notify_server(album_root: Path):
     except httpx.RequestError:
         pass
 
+def trigger_server_reset():
+    url = "http://127.0.0.1:8000/api/internal/reset"
+    try:
+        httpx.post(url, timeout=2.0)
+    except httpx.RequestError:
+        pass
+
 def run_update():
     config_path = Path("config.toml")
     if not config_path.exists():
@@ -45,10 +55,33 @@ def run_update():
     force_mode = "--force" in sys.argv
     
     with open(config_path, "rb") as f:
-        config = tomllib.load(f)
+        config_data = tomllib.load(f)
 
-    lib_root = Path(config["storage"]["library_root"]).expanduser().resolve()
-    gen_cfg = config.get("generate", {})
+    lib_root = Path(config_data["storage"]["library_root"]).expanduser().resolve()
+    current_lib_hash = hashlib.sha256(str(lib_root).encode()).hexdigest()
+    
+    base_cache = get_base_cache_dir()
+    current_json_path = base_cache / "current.json"
+    
+    needs_reset = False
+    if current_json_path.exists():
+        try:
+            with open(current_json_path, "r", encoding="utf-8") as f:
+                saved = json.load(f)
+                if saved.get("hash") != current_lib_hash:
+                    needs_reset = True
+        except Exception:
+            needs_reset = True
+    else:
+        needs_reset = True
+
+    if needs_reset:
+        base_cache.mkdir(parents=True, exist_ok=True)
+        with open(current_json_path, "w", encoding="utf-8") as f:
+            json.dump({"hash": current_lib_hash}, f)
+        trigger_server_reset()
+
+    gen_cfg = config_data.get("generate", {})
     supported_exts = gen_cfg.get("supported_extensions", [".flac"])
     
     cache_path = get_cache_path(lib_root)

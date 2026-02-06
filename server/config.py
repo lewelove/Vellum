@@ -8,6 +8,7 @@ LIBRARY_ROOT = None
 THUMBNAIL_ROOT = None
 STATE_DIR = Path("~/.vellum").expanduser().resolve()
 STATE_FILE = STATE_DIR / "state.json"
+CURRENT_LIB_FILE = STATE_DIR / "libraries_cache" / "current.json"
 
 UI_STATE = {
     "activeTab": "home",
