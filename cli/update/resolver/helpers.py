@@ -69,7 +69,7 @@ def resolve_album_helper_date_added(ctx):
     except:
         return ""
 
-def resolve_album_helper_album_duration_time(ctx):
+def resolve_album_helper_album_duration_in_ms(ctx):
     total_ms = 0
     tracks = ctx.get("all_tracks_final", [])
     for t in tracks:
@@ -78,6 +78,10 @@ def resolve_album_helper_album_duration_time(ctx):
             total_ms += int(val)
         except (ValueError, TypeError):
             continue
+    return total_ms
+
+def resolve_album_helper_album_duration_time(ctx):
+    total_ms = resolve_album_helper_album_duration_in_ms(ctx)
     return _format_ms_to_time(total_ms)
 
 def resolve_album_helper_cover_path(ctx):

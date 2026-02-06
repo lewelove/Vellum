@@ -114,6 +114,7 @@ album = [
   "OLD_COMMENT",
   "\n",
   "album_duration_time",
+  "album_duration_in_ms",
   "TOTALDISCS",
   "TOTALTRACKS",
   "\n",

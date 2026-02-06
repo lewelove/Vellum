@@ -36,13 +36,15 @@ export const sorters = {
     const dateA = a.DATE || "0000";
     const dateB = b.DATE || "0000";
     return dateB.localeCompare(dateA); // DESC
-  }
+  },
+
+  entropy: (a, b) => (b.cover_entropy || 0) - (a.cover_entropy || 0)
 };
 
 export const SORTER_LABELS = {
   default: "Default",
+  az: "Alphabetical",
+  year: "Year",
   date_added: "Date Added",
-  az: "A-Z",
-  artist: "Artist",
-  year: "Year"
+  entropy: "Cover Entropy"
 };
