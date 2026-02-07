@@ -138,7 +138,7 @@
     display: flex;
     flex-direction: column;
     padding: 32px;
-    background-color: #1c1c1c;
+    background-color: #1f1f1f;
     border-right: 1px solid rgba(255, 255, 255, 0.05);
     min-width: 0;
     min-height: 0;
