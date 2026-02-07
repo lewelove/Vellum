@@ -49,7 +49,6 @@
   .queue-row-bottom {
     height: 36px;
     width: 100%;
-    border-top: 1px solid var(--border-muted);
     box-sizing: border-box;
     background-color: transparent;
     display: flex;
@@ -57,6 +56,8 @@
     justify-content: flex-end;
     padding: 0 16px;
     flex-shrink: 0;
+    box-shadow: var(--panel-shadow);
+    border: 1px solid rgba(255, 255, 255, 0.05);
   }
 
   .vga-readout {
@@ -87,7 +88,7 @@
 
   .vga-divider {
     width: 1px;
-    height: 14px;
+    height: 16px;
     background-color: var(--border-muted);
     opacity: 0.5;
   }

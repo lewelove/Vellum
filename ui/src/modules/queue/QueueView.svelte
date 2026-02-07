@@ -7,6 +7,9 @@
   import QueueRowTop from "./QueueRowTop.svelte";
   import QueueRowBottom from "./QueueRowBottom.svelte";
 
+  const PADDING = 0;
+  const ROW_HEIGHT = 36;
+
   let activeId = $derived(player.currentAlbumId);
   let coverUrl = $derived(
     activeId ? library.getAlbumCoverUrl(activeId) : ""
@@ -16,13 +19,9 @@
   let innerHeight = $state(0);
   let canvasEl = $state(null);
 
-  // Layout calculations adjusted for fixed header/footer rows
-  const rowHeight = 36;
-  let availableHeight = $derived(innerHeight - (rowHeight * 2));
-
-  let boxSize = $derived(Math.floor(Math.min(innerWidth, availableHeight)));
+  let boxSize = $derived(Math.max(0, Math.min(innerWidth - (PADDING * 2), innerHeight - (PADDING * 2))));
   let boxX = $derived(Math.floor((innerWidth - boxSize) / 2));
-  let boxY = $derived(Math.floor((availableHeight - boxSize) / 2));
+  let boxY = $derived(Math.floor((innerHeight - boxSize) / 2));
 
   let sidebarWidth = $derived(Math.max(0, (innerWidth - boxSize) / 2));
 
@@ -69,70 +68,108 @@
 </svg>
 
 <div class="queue-layout">
-  <QueueRowTop />
-
-  <div class="queue-viewport">
-    {#if coverUrl && boxSize > 0}
-      <div 
-        class="pixel-stage" 
-        style="
-          width: {boxSize}px; 
-          height: {boxSize}px; 
-          top: {boxY}px;
-          left: {boxX}px;
-        "
-      >
-        <div class="hard-shadow" aria-hidden="true">
-          <img src={coverUrl} alt="" style="width: 100%; height: 100%;" />
-        </div>
-
-        <canvas 
-          bind:this={canvasEl}
-          class="raw-canvas"
-          style="width: {boxSize}px; height: {boxSize}px;"
-        ></canvas>
-      </div>
-    {:else if !coverUrl}
-      <div class="empty-state">
-        <span>Not Playing</span>
-      </div>
-    {/if}
-
-    {#if sidebarWidth > 0}
-      <div class="tracks-overlay" style="width: {sidebarWidth}px">
-        <QueueTracks />
-      </div>
-    {/if}
+  
+  <div class="ui-layer">
+    <QueueRowTop />
+    <div class="spacer"></div>
+    <QueueRowBottom />
   </div>
 
-  <QueueRowBottom />
+  {#if sidebarWidth > 0}
+    <div 
+      class="tracks-layer" 
+      style="
+        width: {sidebarWidth}px; 
+        top: {ROW_HEIGHT}px; 
+        bottom: {ROW_HEIGHT}px;
+      "
+    >
+      <QueueTracks />
+    </div>
+  {/if}
+
+  {#if coverUrl && boxSize > 0}
+    <div 
+      class="cover-layer" 
+      style="
+        width: {boxSize}px; 
+        height: {boxSize}px; 
+        top: {boxY}px;
+        left: {boxX}px;
+      "
+    >
+      <div class="hard-shadow" aria-hidden="true">
+        <img src={coverUrl} alt="" style="width: 100%; height: 100%;" />
+      </div>
+
+      <canvas 
+        bind:this={canvasEl}
+        class="raw-canvas"
+        style="width: {boxSize}px; height: {boxSize}px;"
+      ></canvas>
+    </div>
+  {:else if !coverUrl}
+    <div class="empty-layer">
+      <span>Not Playing</span>
+    </div>
+  {/if}
+
 </div>
 
 <style>
   .queue-layout {
     width: 100%;
     height: 100%;
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr;
     background-color: var(--background-drawer);
     overflow: hidden;
   }
 
-  .queue-viewport {
-    flex: 1;
-    position: relative;
-    width: 100%;
-    min-height: 0;
+  .ui-layer {
+    grid-area: 1 / 1;
+    display: flex;
+    flex-direction: column;
+    z-index: 1;
   }
 
-  .pixel-stage {
+  .spacer {
+    flex: 1;
+  }
+
+  .tracks-layer {
+    grid-area: 1 / 1;
+    justify-self: end;
     position: absolute;
+    right: 0;
+    z-index: 2;
+    overflow: hidden;
+    pointer-events: auto;
+  }
+
+  .cover-layer {
+    grid-area: 1 / 1;
+    position: absolute;
+    z-index: 3;
+    pointer-events: none;
+  }
+
+  .empty-layer {
+    grid-area: 1 / 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    font-size: 18px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
     z-index: 1;
-    overflow: visible;
   }
 
   .hard-shadow {
     position: absolute;
+    opacity: 0.5;
     inset: 0;
     z-index: 1;
     filter: url(#dithered-shadow);
@@ -142,26 +179,5 @@
     position: relative;
     z-index: 2;
     display: block;
-  }
-
-  .empty-state {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--text-muted);
-    font-size: 18px;
-    letter-spacing: 0.3em;
-    text-transform: uppercase;
-  }
-
-  .tracks-overlay {
-    position: absolute;
-    right: 0;
-    top: 0;
-    bottom: 0;
-    z-index: 10;
-    background-color: transparent;
   }
 </style>

@@ -35,7 +35,8 @@ export const theme = $state({
     "drawer-gap-main": 0,
     "drawer-chevron-height": 12,
     "drawer-chevron-width": 24,
-    "album-cover-shadow": "0px 0px 8px -1px rgba(0,0,0,0.2), 0px 0px 6px 0px rgba(0,0,0,0.2)"
+    "album-cover-shadow": "0px 0px 8px -1px rgba(0,0,0,0.2), 0px 0px 6px 0px rgba(0,0,0,0.2)",
+    "panel-shadow": "0px 0px 8px 0px rgba(0,0,0,0.2), 0px 0px 6px 0px rgba(0,0,0,0.2)"
   },
 
   drawer: {

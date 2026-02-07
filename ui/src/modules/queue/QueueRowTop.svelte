@@ -4,9 +4,10 @@
   .queue-row-top {
     height: 36px;
     width: 100%;
-    border-bottom: 1px solid var(--border-muted);
     box-sizing: border-box;
     background-color: transparent;
     flex-shrink: 0;
+    box-shadow: var(--panel-shadow);
+    border: 1px solid rgba(255, 255, 255, 0.05);
   }
 </style>
