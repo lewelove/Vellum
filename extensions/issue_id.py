@@ -14,15 +14,22 @@ def resolve_album_tag_media(ctx):
 
 def resolve_album_tag_comment(ctx):
     val = ctx["source"].get("COMMENT")
-    if val: return str(val)
+    if val: 
+        return str(val)
     
-    yyyy_mm = resolve_album_tag_release_yyyy_mm(ctx)
+    country = resolve_album_tag_country(ctx)
+    label = resolve_album_tag_label(ctx)
+    cat_no = resolve_album_tag_catalognumber(ctx)
 
+    if not any([country, label, cat_no]):
+        return ""
+
+    yyyy_mm = resolve_album_tag_release_yyyy_mm(ctx)
     parts = [
         yyyy_mm[:4],
-        resolve_album_tag_country(ctx),
-        resolve_album_tag_label(ctx),
-        resolve_album_tag_catalognumber(ctx)
+        country,
+        label,
+        cat_no
     ]
     return " ".join([p for p in parts if p]).strip()
 
@@ -34,4 +41,3 @@ def resolve_album_tag_accuripid(ctx):
 
 def resolve_album_tag_discid(ctx):
     return str(ctx["source"].get("DISCID", ""))
-

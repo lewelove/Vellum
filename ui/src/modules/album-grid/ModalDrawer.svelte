@@ -169,8 +169,8 @@
     margin: 10px 0 0 0;
     font-size: 23px;
     font-weight: 400;
-    color: var(--text-muted);
-    line-height: 1.2;
+    color: var(--text-main);
+    opacity: 0.8;
     word-wrap: break-word;
   }
 
@@ -178,26 +178,26 @@
     display: flex;
     align-items: center;
     min-height: 24px;
-    margin-top: 8px;
+    margin-top: 20px;
     gap: 12px;
   }
 
   .original-date {
     font-size: 16px;
     color: var(--text-muted);
-    opacity: 0.8;
+    opacity: 0.6;
   }
 
   .meta-sep {
-    font-size: 14px;
+    font-size: 16px;
     color: var(--text-muted);
-    opacity: 0.4;
+    opacity: 0.2;
   }
 
   .album-duration {
     font-size: 16px;
     color: var(--text-muted);
-    opacity: 0.7;
+    opacity: 0.6;
     white-space: nowrap;
   }
 
