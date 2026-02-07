@@ -46,6 +46,7 @@ class LibraryState {
           if (a.tracks) {
             a.tracks.forEach(t => {
               t.ALBUMARTIST = a.ALBUMARTIST;
+              t.album_id = a.id; // Added: Link track to album for metadata lookups
               if (t.track_library_path) {
                 this.trackPathMap.set(t.track_library_path, t);
               }
@@ -62,6 +63,7 @@ class LibraryState {
         if (data.tracks) {
           data.tracks.forEach(t => {
             t.ALBUMARTIST = data.ALBUMARTIST;
+            t.album_id = data.id; // Added: Link track to album
             if (t.track_library_path) {
               this.trackPathMap.set(t.track_library_path, t);
             }

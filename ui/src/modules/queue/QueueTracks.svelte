@@ -26,8 +26,11 @@
   let timeElapsed = $derived(formatTime(player.elapsed));
   let timeTotal = $derived(formatTime(player.duration));
 
+  // 1. Map individual tracks with metadata
   let mappedTracks = $derived(player.queue.map(item => {
     const meta = library.getTrackByPath(item.file);
+    const albumId = meta?.album_id || null;
+    
     const title = meta ? meta.TITLE : (item.title || item.file);
     const artist = meta ? meta.ARTIST : (item.artist || "");
     const albumArtist = meta ? meta.ALBUMARTIST : (item.albumartist || "");
@@ -43,40 +46,90 @@
       trackNo: meta ? meta.TRACKNUMBER : "#",
       title,
       artist,
-      showArtist
+      showArtist,
+      albumId
     };
   }));
+
+  // 2. Group tracks by consecutive album
+  let groupedQueue = $derived.by(() => {
+    const groups = [];
+    mappedTracks.forEach(track => {
+      if (groups.length === 0 || groups[groups.length - 1].albumId !== track.albumId) {
+        const albumMeta = library.albumCache.get(track.albumId);
+        groups.push({
+          albumId: track.albumId,
+          albumMeta,
+          tracks: [track]
+        });
+      } else {
+        groups[groups.length - 1].tracks.push(track);
+      }
+    });
+    return groups;
+  });
+
+  // 3. Playback percentage calculation
+  let playbackPercent = $derived(
+    player.duration > 0 ? (player.elapsed / player.duration) * 100 : 0
+  );
 </script>
 
 <div class="queue-view-wrapper">
   <div class="vga-recessed-well">
-      <div class="vga-layer active">
-        <div class="vga-line">
-          <span class="vga-label">trk:</span>
-          <span class="vga-data">{currentIndex}</span>
-          <span class="vga-separator">/</span>
-          <span class="vga-data">{totalQueue}</span>
-        </div>
-        <div class="vga-line">
-          <span class="vga-data">{timeElapsed}</span>
-          <span class="vga-separator">/</span>
-          <span class="vga-data">{timeTotal}</span>
-        </div>
+    <div class="vga-layer active">
+      <div class="vga-line">
+        <span class="vga-label">trk:</span>
+        <span class="vga-data">{currentIndex}</span>
+        <span class="vga-separator">/</span>
+        <span class="vga-data">{totalQueue}</span>
       </div>
-
+      <div class="vga-line">
+        <span class="vga-data">{timeElapsed}</span>
+        <span class="vga-separator">/</span>
+        <span class="vga-data">{timeTotal}</span>
+      </div>
+    </div>
   </div>
 
   <div class="tracks-list">
-    {#each mappedTracks as track (track.id)}
-      <div class="queue-row" class:active={track.isPlaying}>
-        <span class="col-index">{track.trackNo}</span>
-        <div class="col-info">
-            <span class="q-title" title={track.title}>{track.title}</span>
-            {#if track.showArtist}
-                <span class="q-artist" title={track.artist}>{track.artist}</span>
-            {/if}
+    {#each groupedQueue as group}
+      {#if group.albumMeta}
+        <div class="album-group-header">
+          <img 
+            class="header-thumb" 
+            src={library.getThumbnailUrl(group.albumMeta)} 
+            alt="cover"
+          />
+          <div class="header-content">
+            <div class="header-row">
+              <span class="header-artist">{group.albumMeta.ALBUMARTIST}</span>
+              <span class="header-meta">{group.albumMeta.ORIGINAL_YEAR || group.albumMeta.DATE?.substring(0,4)}</span>
+            </div>
+            <div class="header-row">
+              <span class="header-album">{group.albumMeta.ALBUM}</span>
+              <span class="header-meta">{group.albumMeta.album_duration_time}</span>
+            </div>
+          </div>
         </div>
-      </div>
+      {/if}
+
+      {#each group.tracks as track (track.id)}
+        <div class="queue-row" class:active={track.isPlaying}>
+          <span class="col-index">{track.trackNo}</span>
+          <div class="col-info">
+            <div class="q-title-wrapper">
+              {#if track.isPlaying}
+                <div class="q-title-progress" style="width: {playbackPercent}%"></div>
+              {/if}
+              <span class="q-title" title={track.title}>{track.title}</span>
+            </div>
+            {#if track.showArtist}
+              <span class="q-artist" title={track.artist}>{track.artist}</span>
+            {/if}
+          </div>
+        </div>
+      {/each}
     {/each}
   </div>
 </div>
@@ -101,15 +154,7 @@
     overflow: hidden;
   }
 
-  .vga-screen {
-    display: grid;
-    grid-template-columns: 1fr;
-    grid-template-rows: 1fr;
-    position: relative;
-  }
-
   .vga-layer {
-    grid-area: 1 / 1;
     display: flex;
     flex-direction: column;
     align-items: flex-end;
@@ -125,7 +170,7 @@
     display: flex;
     align-items: baseline;
     justify-content: flex-end;
-    font-family: monospace;
+    font-family: var(--font-mono);
     color: #fff;
     line-height: 1;
     letter-spacing: 0.05em;
@@ -133,8 +178,6 @@
 
   .vga-label {
     font-size: 16px;
-    opacity: 1;
-    font-weight: 400;
   }
 
   .vga-data {
@@ -144,19 +187,68 @@
 
   .vga-separator {
     font-size: 16px;
-    font-weight: 400;
+  }
+
+  /* --- New Album Group Header --- */
+  .album-group-header {
+    /* height: 48px; */
+    padding: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-sizing: border-box;
+  }
+
+  .header-thumb {
+    width: 32px;
+    height: 32px;
+    object-fit: cover;
+    background-color: #000;
+  }
+
+  .header-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-width: 0;
+  }
+
+  .header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    line-height: 1.2;
+  }
+
+  .header-artist, .header-album {
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--text-main);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+  }
+
+  .header-meta {
+    font-size: 14px;
+    color: var(--text-muted);
+    opacity: 0.8;
+    white-space: nowrap;
+    margin-left: 8px;
   }
 
   .tracks-list {
     flex: 1;
     overflow-y: auto;
-    padding: 8px 0;
+    padding: 0;
   }
 
   .queue-row {
     display: flex;
     align-items: center;
-    padding: 8px 12px 8px 12px;
+    padding: 6px 12px;
     color: var(--text-muted);
   }
 
@@ -186,12 +278,32 @@
     justify-content: center;
   }
 
+  /* --- Progress Bar Title --- */
+  .q-title-wrapper {
+    position: relative;
+    display: inline-block;
+    width: 100%;
+    overflow: hidden;
+  }
+
+  .q-title-progress {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    background-color: rgba(255, 255, 255, 0.1);
+    z-index: 0;
+    pointer-events: none;
+  }
+
   .q-title {
+    position: relative;
+    z-index: 1;
     font-size: 14px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    margin-bottom: 2px;
+    display: block;
     color: inherit;
   }
 
