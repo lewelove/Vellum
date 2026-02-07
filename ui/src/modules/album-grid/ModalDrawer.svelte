@@ -68,13 +68,16 @@
             {#if album.ORIGINAL_DATE}
               <span class="original-date">{album.ORIGINAL_DATE}</span>
             {/if}
+            {#if album.ORIGINAL_DATE && album.album_duration_time}
+              <span class="meta-sep">•</span>
+            {/if}
+            <span class="album-duration">{album.album_duration_time || ""}</span>
           </div>
         </div>
 
         <div class="footer-container">
           <div class="footer-line">
             <p class="album-comment">{album.COMMENT || ""}</p>
-            <span class="album-duration">{album.album_duration_time || ""}</span>
           </div>
         </div>
       </div>
@@ -176,12 +179,26 @@
     align-items: center;
     min-height: 24px;
     margin-top: 8px;
+    gap: 12px;
   }
 
   .original-date {
     font-size: 16px;
     color: var(--text-muted);
     opacity: 0.8;
+  }
+
+  .meta-sep {
+    font-size: 14px;
+    color: var(--text-muted);
+    opacity: 0.4;
+  }
+
+  .album-duration {
+    font-size: 16px;
+    color: var(--text-muted);
+    opacity: 0.7;
+    white-space: nowrap;
   }
 
   .footer-container {
@@ -193,8 +210,6 @@
   .footer-line {
     display: flex;
     justify-content: space-between;
-    align-items: bottom;
-    min-height: 24px;
     gap: 16px;
   }
 
@@ -207,13 +222,6 @@
     word-wrap: break-word;
     opacity: 0.7;
     flex: 1;
-  }
-
-  .album-duration {
-    font-size: 16px;
-    color: var(--text-muted);
-    opacity: 0.7;
-    white-space: nowrap;
   }
 
   .column-right {
