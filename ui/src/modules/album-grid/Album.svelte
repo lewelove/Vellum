@@ -48,8 +48,8 @@
   }
 
   function applyEffects(ctx) {
-    ctx.shadowColor = "rgba(0, 0, 0, 1.5)";
-    ctx.shadowBlur = 6;
+    ctx.shadowColor = "rgba(0, 0, 0, 0.3)";
+    ctx.shadowBlur = 4;
     ctx.shadowOffsetX = 0;
     ctx.shadowOffsetY = 0;
   }
@@ -66,9 +66,15 @@
     canvas.width = w * dpr;
     canvas.height = h * dpr;
     
-    const ctx = canvas.getContext('2d', { alpha: true });
+    // CHANGE: alpha: false allows the browser to use subpixel antialiasing (ClearType)
+    // This is the standard, "non-hacky" way to get sharp, hinted text on Canvas.
+    const ctx = canvas.getContext('2d', { alpha: false });
     ctx.scale(dpr, dpr);
-    ctx.clearRect(0, 0, w, h);
+    
+    // CHANGE: Since alpha is false, we must manually fill the background color
+    const bgHex = theme.palette[theme.colors["background-main"]] || "#323232";
+    ctx.fillStyle = bgHex;
+    ctx.fillRect(0, 0, w, h);
     
     const fontStack = "Inter, 'Noto Sans', system-ui, sans-serif";
     
@@ -106,6 +112,7 @@
       h: textBlockHeight,
       c1: theme.colors["text-main"],
       c2: theme.colors["text-muted"],
+      bg: theme.colors["background-main"],
       dpr: window.devicePixelRatio 
     };
     renderText();
