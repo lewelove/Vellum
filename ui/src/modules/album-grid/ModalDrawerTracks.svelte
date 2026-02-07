@@ -62,6 +62,8 @@
     flex-direction: column;
     width: 100%;
     background-color: #242424;
+    box-sizing: border-box;
+    gap: 4px;
   }
 
   .track-row {
@@ -73,8 +75,10 @@
     cursor: default;
     outline: none;
     user-select: none;
-    background-color: #242424;
+    background-color: transparent;
     contain: layout;
+    border-radius: 10px;
+    transition: background-color 0.1s ease;
   }
 
   .track-row:hover {
