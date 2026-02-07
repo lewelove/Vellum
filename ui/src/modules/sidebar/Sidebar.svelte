@@ -118,9 +118,8 @@
     background-color: #242424; 
     padding-top: 0; 
     box-sizing: border-box;
-    -webkit-font-smoothing: subpixel-antialiased;
-    -moz-osx-font-smoothing: auto;
   }
+
   .sidebar-nav {
     display: flex;
     flex-direction: column;

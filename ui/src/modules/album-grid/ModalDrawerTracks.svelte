@@ -61,8 +61,6 @@
     display: flex;
     flex-direction: column;
     width: 100%;
-    -webkit-font-smoothing: subpixel-antialiased;
-    -moz-osx-font-smoothing: auto;
     background-color: #242424;
   }
 
@@ -76,7 +74,6 @@
     outline: none;
     user-select: none;
     background-color: #242424;
-    /* Isolate layout for scroll performance and AA stability */
     contain: layout;
   }
 
