@@ -63,11 +63,11 @@
           />
           <div class="header-content">
             <div class="header-row">
-              <span class="header-artist">{group.albumMeta.ALBUMARTIST}</span>
+              <span class="header-album">{group.albumMeta.ALBUM}</span>
               <span class="header-meta">{group.albumMeta.ORIGINAL_YEAR || group.albumMeta.DATE?.substring(0,4)}</span>
             </div>
             <div class="header-row">
-              <span class="header-album">{group.albumMeta.ALBUM}</span>
+              <span class="header-artist">{group.albumMeta.ALBUMARTIST}</span>
               <span class="header-meta">{group.albumMeta.album_duration_time}</span>
             </div>
           </div>
@@ -137,12 +137,19 @@
 
   .header-artist, .header-album {
     font-size: 16px;
-    font-weight: 500;
-    color: var(--text-main);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    text-transform: uppercase;
+  }
+
+  .header-album {
+    font-size: 15px;
+    color: var(--text-main);
+  }
+
+  .header-artist {
+    font-size: 14px;
+    color: var(--text-muted);
   }
 
   .header-meta {
