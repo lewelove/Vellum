@@ -48,7 +48,7 @@
   }
 
   function applyEffects(ctx) {
-    ctx.shadowColor = "rgba(0, 0, 0, 0.3)";
+    ctx.shadowColor = "rgba(0, 0, 0, 0.1)";
     ctx.shadowBlur = 4;
     ctx.shadowOffsetX = 0;
     ctx.shadowOffsetY = 0;

@@ -8,25 +8,6 @@
   font-style: normal;
 }
 
-html,
-body,
-#app,
-main,
-section,
-aside,
-div,
-span,
-button,
-h2,
-h3,
-p,
-a,
-.vga-line,
-.col-index {
-  /* opacity: 0.99999 !important; */
-}
-
-
 button:focus,
 input:focus,
 textarea:focus,
