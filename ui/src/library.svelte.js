@@ -25,6 +25,7 @@ class LibraryState {
 
   albumCache = new Map();
   trackPathMap = new Map();
+  pinnedTextures = new Map();
 
   worker = null;
   
@@ -52,6 +53,8 @@ class LibraryState {
           }
         });
         this.refreshSidebar();
+        
+        setTimeout(() => this.orchestratePrewarming(data), 1000);
       }
       
       else if (type === "UPDATE_DATA") {
@@ -139,6 +142,34 @@ class LibraryState {
     }
   }
 
+  async orchestratePrewarming(albumData) {
+    const concurrencyLimit = 6;
+    const queue = [...albumData];
+    
+    const processor = async () => {
+      while (queue.length > 0) {
+        const album = queue.shift();
+        const url = this.getThumbnailUrl(album);
+        
+        if (!url || this.pinnedTextures.has(url)) continue;
+
+        const img = new Image();
+        img.src = url;
+        
+        try {
+          await img.decode();
+          this.pinnedTextures.set(url, img);
+        } catch (err) {
+          // Failure ignored to maintain queue
+        }
+      }
+    };
+
+    const workers = Array.from({ length: concurrencyLimit }, () => processor());
+    await Promise.all(workers);
+    console.log(`[Prewarmer] Pinned ${this.pinnedTextures.size} textures.`);
+  }
+
   applyPersistedState(state) {
       nav.activeTab = state.activeTab || "home";
       this.userSortPreference = state.sortKey || "default";
@@ -192,6 +223,11 @@ class LibraryState {
 
   getTrackByPath(path) {
     return this.trackPathMap.get(path);
+  }
+
+  getThumbnailUrl(album) {
+    if (!album || !album.cover_hash) return "";
+    return `/api/covers/${album.cover_hash}.png`;
   }
 
   getAlbumCoverUrl(albumId) {

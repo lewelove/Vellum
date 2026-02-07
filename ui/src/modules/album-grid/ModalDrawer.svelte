@@ -82,7 +82,7 @@
   .modal-backdrop {
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.15);
+    background-color: rgba(0, 0, 0, 0.35);
     backdrop-filter: blur(2px);
     display: flex;
     align-items: center;
@@ -92,7 +92,7 @@
   .modal-chassis {
     width: 75vw;
     height: 70vh;
-    background-color: var(--background-main);
+    background-color: var(--background-drawer);
     box-shadow: 0 0px 64px rgba(0, 0, 0, 0.3);
     display: flex;
     flex-direction: column;
@@ -164,6 +164,4 @@
     overflow-y: auto;
     padding-right: 12px;
   }
-
-  /* Webkit scrollbar styles omitted for brevity, keep your existing ones */
 </style>

@@ -1,11 +1,10 @@
 <script>
   import { theme } from "../../theme.svelte.js";
+  import { library } from "../../library.svelte.js";
 
   let { album, active, onclick, scrollY = 0, rowY = 0 } = $props();
 
-  let coverUrl = $derived(album.cover_hash 
-    ? `/api/covers/${album.cover_hash}.png` 
-    : "");
+  let coverUrl = $derived(library.getThumbnailUrl(album));
 
   const coverSize = $derived(theme.albumGrid["cover-size"]);
   const gapY = $derived(theme.albumGrid["gap-y"]);

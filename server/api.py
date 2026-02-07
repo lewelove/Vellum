@@ -85,7 +85,12 @@ def get_cover_thumbnail(cover_hash: str):
     path = (config.THUMBNAIL_ROOT / f"{cover_hash}.png").resolve()
     if not path.exists(): 
         raise HTTPException(status_code=404)
-    return FileResponse(path, headers={"Cache-Control": "public, max-age=31536000"})
+    return FileResponse(
+        path, 
+        headers={
+            "Cache-Control": "public, max-age=31536000, immutable"
+        }
+    )
 
 @router.get("/api/assets/{album_id:path}/cover")
 def get_album_cover(album_id: str):
@@ -99,7 +104,12 @@ def get_album_cover(album_id: str):
     path = (config.LIBRARY_ROOT / album_id / album["cover_path"]).resolve()
     if not path.exists(): 
         raise HTTPException(status_code=404)
-    return FileResponse(path)
+    return FileResponse(
+        path,
+        headers={
+            "Cache-Control": "public, max-age=31536000, immutable"
+        }
+    )
 
 @router.post("/api/play/{album_id:path}")
 def play_album(album_id: str, offset: int = 0):
