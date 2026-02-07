@@ -7,16 +7,8 @@
 
   let { album, onclose } = $props();
 
-  // Programmatic Window Tracking
-  let innerHeight = $state(window.innerHeight);
-
+  let leftColumnWidth = $state(0);
   let coverUrl = $derived(library.getAlbumCoverUrl(album.id));
-
-  /**
-   * Content padding is 32px top + 32px bottom (64px total)
-   */
-  const PADDING = 64; 
-  let sideLength = $derived(Math.floor((innerHeight * 0.70) - PADDING));
 
   async function handlePlay() {
     try {
@@ -41,8 +33,6 @@
   }
 </script>
 
-<svelte:window bind:innerHeight />
-
 <div 
   class="modal-backdrop" 
   onclick={handleBackdropClick} 
@@ -52,23 +42,28 @@
   <div class="modal-chassis">
     <div class="modal-content">
       
-      <div class="cover-column" style="width: {sideLength}px;">
-        <SmartImage 
-          src={coverUrl} 
-          width={sideLength} 
-          height={sideLength} 
-        />
-      </div>
-
-      <div class="info-column">
-        <div class="header-section">
-          <div class="title-line">
-            <h2 class="album-title">{album.title}</h2>
-            <button class="play-all-btn" onclick={handlePlay}>PLAY ALBUM</button>
-          </div>
-          <h3 class="album-artist">{album.artist}</h3>
+      <div class="column-left" bind:clientWidth={leftColumnWidth}>
+        <div class="cover-container" style="height: {leftColumnWidth - 64}px;">
+          {#if leftColumnWidth > 0}
+            <SmartImage 
+              src={coverUrl} 
+              width={leftColumnWidth - 64} 
+              height={leftColumnWidth - 64} 
+            />
+          {/if}
         </div>
 
+        <div class="meta-container">
+          <h2 class="album-title">{album.title}</h2>
+          <h3 class="album-artist">{album.artist}</h3>
+          
+          <div class="actions-row">
+            <button class="play-all-btn" onclick={handlePlay}>PLAY ALBUM</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="column-right">
         <div class="tracks-scroll-area">
           <ModalDrawerTracks tracks={album.tracks} onplay={handlePlayTrack} />
         </div>
@@ -80,83 +75,107 @@
 
 <style>
   .modal-backdrop {
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.35);
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.2);
     backdrop-filter: blur(2px);
     display: flex;
     align-items: center;
     justify-content: center;
+    z-index: 1000;
   }
 
   .modal-chassis {
-    width: 75vw;
-    height: 70vh;
+    width: 80vw;
+    height: 85vh;
+    /* max-width: 1400px; */
     background-color: var(--background-drawer);
-    box-shadow: 0 0px 64px rgba(0, 0, 0, 0.3);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
     border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.05);
   }
 
   .modal-content {
-    display: flex;
-    flex-direction: row;
+    display: grid;
+    grid-template-columns: 45% 55%;
     height: 100%;
+    width: 100%;
+  }
+
+  .column-left {
+    display: flex;
+    flex-direction: column;
     padding: 32px;
-    gap: 24px;
+    background-color: rgba(0, 0, 0, 0.15);
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
+    min-width: 0;
     box-sizing: border-box;
   }
 
-  .cover-column {
+  .cover-container {
+    width: 100%;
     flex-shrink: 0;
-    height: 100%;
-    display: flex;
-    box-shadow: 0 0px 16px rgba(0, 0, 0, 0.4), 0 0 8px rgba(0,0,0,0.1);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+    background-color: #222;
+    overflow: hidden;
   }
 
-  .info-column {
-    flex: 1;
+  .meta-container {
+    margin-top: 28px;
     display: flex;
     flex-direction: column;
     min-width: 0;
-    height: 100%;
-  }
-
-  .header-section {
-    flex-shrink: 0;
-    margin-bottom: 8px;
-  }
-
-  .title-line {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 8px;
   }
 
   .album-title {
     margin: 0;
-    font-size: 28px;
-    font-weight: 400;
+    font-size: 26px;
+    font-weight: 500;
     color: var(--text-main);
+    line-height: 1.2;
+    word-wrap: break-word;
   }
 
   .album-artist {
-    margin: 8px 0 8px 0;
-    font-size: 20px;
+    margin: 6px 0 0 0;
+    font-size: 18px;
     font-weight: 400;
     color: var(--text-muted);
+    line-height: 1.2;
+    word-wrap: break-word;
+  }
+
+  .actions-row {
+    margin-top: 24px;
   }
 
   .play-all-btn {
     background: none;
     border: 1px solid var(--border-muted);
     color: var(--text-muted);
-    padding: 6px 16px;
+    padding: 8px 20px;
     font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.05em;
     cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .play-all-btn:hover {
+    color: var(--text-main);
+    border-color: var(--text-main);
+    background-color: rgba(255, 255, 255, 0.05);
+  }
+
+  .column-right {
+    display: flex;
+    flex-direction: column;
+    padding: 32px;
+    min-width: 0;
+    height: 100%;
+    box-sizing: border-box;
+    background-color: var(--background-drawer);
   }
 
   .tracks-scroll-area {
