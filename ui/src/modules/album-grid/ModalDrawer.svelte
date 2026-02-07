@@ -64,7 +64,18 @@
         <div class="meta-container">
           <h2 class="album-title">{album.title}</h2>
           <h3 class="album-artist">{album.artist}</h3>
-          
+          <div class="meta-row">
+            {#if album.ORIGINAL_DATE}
+              <span class="original-date">{album.ORIGINAL_DATE}</span>
+            {/if}
+          </div>
+        </div>
+
+        <div class="footer-container">
+          <div class="footer-line">
+            <p class="album-comment">{album.COMMENT || ""}</p>
+            <span class="album-duration">{album.album_duration_time || ""}</span>
+          </div>
         </div>
       </div>
 
@@ -111,8 +122,6 @@
   .modal-content {
     display: grid;
     grid-template-columns: 42% 58%;
-    /* grid-template-columns: 33% 67%; */
-    /* grid-template-columns: 50% 50%; */
     grid-template-rows: 100%;
     height: 100%;
     width: 100%;
@@ -162,26 +171,49 @@
     word-wrap: break-word;
   }
 
-  .actions-row {
-    margin-top: 24px;
+  .meta-row {
+    display: flex;
+    align-items: center;
+    min-height: 24px;
+    margin-top: 8px;
   }
 
-  .play-all-btn {
-    background: none;
-    border: 1px solid var(--border-muted);
+  .original-date {
+    font-size: 16px;
     color: var(--text-muted);
-    padding: 8px 20px;
-    font-size: 12px;
-    font-weight: 500;
-    letter-spacing: 0.05em;
-    cursor: pointer;
-    transition: all 0.2s ease;
+    opacity: 0.8;
   }
 
-  .play-all-btn:hover {
-    color: var(--text-main);
-    border-color: var(--text-main);
-    background-color: rgba(255, 255, 255, 0.05);
+  .footer-container {
+    margin-top: auto;
+    padding-top: 24px;
+    min-width: 0;
+  }
+
+  .footer-line {
+    display: flex;
+    justify-content: space-between;
+    align-items: bottom;
+    min-height: 24px;
+    gap: 16px;
+  }
+
+  .album-comment {
+    margin: 0;
+    font-size: 16px;
+    color: var(--text-muted);
+    font-style: italic;
+    line-height: 1.2;
+    word-wrap: break-word;
+    opacity: 0.7;
+    flex: 1;
+  }
+
+  .album-duration {
+    font-size: 16px;
+    color: var(--text-muted);
+    opacity: 0.7;
+    white-space: nowrap;
   }
 
   .column-right {
