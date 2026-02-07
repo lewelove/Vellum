@@ -75,12 +75,6 @@
     aria-hidden={isQueueVisible}
   >
     <AlbumGrid />
-
-    {#if isModalVisible}
-      <div class="modal-layer">
-          <ModalDrawer album={library.focusedAlbum} onclose={() => library.closeFocus()} />
-      </div>
-    {/if}
   </section>
 
   <aside 
@@ -95,6 +89,12 @@
       <div class="sidebar-resizer" onmousedown={startResizingLeft}></div>
     </div>
   </aside>
+
+  {#if isModalVisible}
+    <div class="modal-layer">
+        <ModalDrawer album={library.focusedAlbum} onclose={() => library.closeFocus()} />
+    </div>
+  {/if}
 
   <section 
     class="plane queue-layer"
@@ -162,7 +162,7 @@
   .modal-layer {
     position: absolute;
     inset: 0;
-    z-index: 500;
+    z-index: 150;
   }
 
   .sidebar-shell {
