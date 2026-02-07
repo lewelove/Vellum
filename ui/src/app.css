@@ -8,21 +8,24 @@
   font-style: normal;
 }
 
-html, 
-body, 
+html,
+body,
 #app,
+main,
+section,
+aside,
+div,
+span,
 button,
-input,
-canvas,
-.sidebar-container,
-.modal-chassis,
-.tracks-list,
-.album-info {
-  -webkit-font-smoothing: antialiased !important;
-  -moz-osx-font-smoothing: grayscale !important;
-  text-rendering: optimizeSpeed !important;
-  font-smooth: never !important;
+h2,
+h3,
+p,
+a,
+.vga-line,
+.col-index {
+  /* opacity: 0.99999 !important; */
 }
+
 
 button:focus,
 input:focus,

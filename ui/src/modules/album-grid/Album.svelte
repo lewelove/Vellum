@@ -48,10 +48,10 @@
   }
 
   function applyEffects(ctx) {
-    ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
-    ctx.shadowBlur = 2;
+    ctx.shadowColor = "rgba(0, 0, 0, 1.5)";
+    ctx.shadowBlur = 6;
     ctx.shadowOffsetX = 0;
-    ctx.shadowOffsetY = 1;
+    ctx.shadowOffsetY = 0;
   }
 
   function renderText() {
