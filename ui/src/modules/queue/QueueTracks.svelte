@@ -2,30 +2,6 @@
   import { player } from "../player.svelte.js";
   import { library } from "../../library.svelte.js";
 
-  const formatTime = (totalSeconds) => {
-    const s = Math.floor(totalSeconds || 0);
-    const h = Math.floor(s / 3600);
-    const m = Math.floor((s % 3600) / 60);
-    const rs = s % 60;
-    
-    const pad = (num) => String(num).padStart(2, '0');
-
-    if (h > 0) {
-      return `${h}:${pad(m)}:${pad(rs)}`;
-    }
-    return `${m}:${pad(rs)}`;
-  };
-
-  let currentIndex = $derived.by(() => {
-    const idx = player.queue.findIndex(item => item.file === player.currentFile);
-    return idx !== -1 ? String(idx + 1) : "0";
-  });
-
-  let totalQueue = $derived(String(player.queue.length));
-  
-  let timeElapsed = $derived(formatTime(player.elapsed));
-  let timeTotal = $derived(formatTime(player.duration));
-
   // 1. Map individual tracks with metadata
   let mappedTracks = $derived(player.queue.map(item => {
     const meta = library.getTrackByPath(item.file);
@@ -75,23 +51,7 @@
   );
 </script>
 
-<div class="queue-view-wrapper">
-  <div class="vga-recessed-well">
-    <div class="vga-layer active">
-      <div class="vga-line">
-        <span class="vga-label">trk:</span>
-        <span class="vga-data">{currentIndex}</span>
-        <span class="vga-separator">/</span>
-        <span class="vga-data">{totalQueue}</span>
-      </div>
-      <div class="vga-line">
-        <span class="vga-data">{timeElapsed}</span>
-        <span class="vga-separator">/</span>
-        <span class="vga-data">{timeTotal}</span>
-      </div>
-    </div>
-  </div>
-
+<div class="tracks-list-container">
   <div class="tracks-list">
     {#each groupedQueue as group}
       {#if group.albumMeta}
@@ -135,7 +95,7 @@
 </div>
 
 <style>
-  .queue-view-wrapper {
+  .tracks-list-container {
     width: 100%;
     height: 100%;
     display: flex;
@@ -144,54 +104,8 @@
     background-color: transparent;
   }
 
-  .vga-recessed-well {
-    padding: 8px 16px;
-    background-color: transparent;
-    border-bottom: 1px solid var(--border-muted);
-    display: flex;
-    justify-content: flex-end;
-    align-items: center;
-    overflow: hidden;
-  }
-
-  .vga-layer {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 2px;
-  }
-
-  .vga-layer.active {
-    z-index: 1;
-    text-shadow: 0 0 4px rgba(255, 255, 255, 0.4);
-  }
-
-  .vga-line {
-    display: flex;
-    align-items: baseline;
-    justify-content: flex-end;
-    font-family: var(--font-mono);
-    color: #fff;
-    line-height: 1;
-    letter-spacing: 0.05em;
-  }
-
-  .vga-label {
-    font-size: 16px;
-  }
-
-  .vga-data {
-    font-size: 16px;
-    font-weight: 100;
-  }
-
-  .vga-separator {
-    font-size: 16px;
-  }
-
   /* --- New Album Group Header --- */
   .album-group-header {
-    /* height: 48px; */
     padding: 12px;
     display: flex;
     align-items: center;

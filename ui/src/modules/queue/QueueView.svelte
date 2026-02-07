@@ -4,6 +4,8 @@
   import { library } from "../../library.svelte.js";
   import { pica } from "../../pica.js";
   import QueueTracks from "./QueueTracks.svelte";
+  import QueueRowTop from "./QueueRowTop.svelte";
+  import QueueRowBottom from "./QueueRowBottom.svelte";
 
   let activeId = $derived(player.currentAlbumId);
   let coverUrl = $derived(
@@ -14,11 +16,15 @@
   let innerHeight = $state(0);
   let canvasEl = $state(null);
 
-  let boxSize = $derived(Math.floor(Math.min(innerWidth, innerHeight)));
-  let boxX = $derived(Math.floor((innerWidth - boxSize) / 2));
-  let boxY = $derived(Math.floor((innerHeight - boxSize) / 2));
+  // Layout calculations adjusted for fixed header/footer rows
+  const rowHeight = 36;
+  let availableHeight = $derived(innerHeight - (rowHeight * 2));
 
-  let sidebarWidth = $derived(Math.max(0, (innerWidth - innerHeight) / 2));
+  let boxSize = $derived(Math.floor(Math.min(innerWidth, availableHeight)));
+  let boxX = $derived(Math.floor((innerWidth - boxSize) / 2));
+  let boxY = $derived(Math.floor((availableHeight - boxSize) / 2));
+
+  let sidebarWidth = $derived(Math.max(0, (innerWidth - boxSize) / 2));
 
   async function renderCover(url, size) {
     if (!url || !size || !canvasEl) return;
@@ -62,49 +68,61 @@
   </filter>
 </svg>
 
-<div class="queue-view-container">
-  
-  {#if coverUrl && boxSize > 0}
-    <div 
-      class="pixel-stage" 
-      style="
-        width: {boxSize}px; 
-        height: {boxSize}px; 
-        top: {boxY}px;
-        left: {boxX}px;
-      "
-    >
-      <div class="hard-shadow" aria-hidden="true">
-        <img src={coverUrl} alt="" style="width: 100%; height: 100%;" />
+<div class="queue-layout">
+  <QueueRowTop />
+
+  <div class="queue-viewport">
+    {#if coverUrl && boxSize > 0}
+      <div 
+        class="pixel-stage" 
+        style="
+          width: {boxSize}px; 
+          height: {boxSize}px; 
+          top: {boxY}px;
+          left: {boxX}px;
+        "
+      >
+        <div class="hard-shadow" aria-hidden="true">
+          <img src={coverUrl} alt="" style="width: 100%; height: 100%;" />
+        </div>
+
+        <canvas 
+          bind:this={canvasEl}
+          class="raw-canvas"
+          style="width: {boxSize}px; height: {boxSize}px;"
+        ></canvas>
       </div>
+    {:else if !coverUrl}
+      <div class="empty-state">
+        <span>Not Playing</span>
+      </div>
+    {/if}
 
-      <canvas 
-        bind:this={canvasEl}
-        class="raw-canvas"
-        style="width: {boxSize}px; height: {boxSize}px;"
-      ></canvas>
-    </div>
+    {#if sidebarWidth > 0}
+      <div class="tracks-overlay" style="width: {sidebarWidth}px">
+        <QueueTracks />
+      </div>
+    {/if}
+  </div>
 
-  {:else if !coverUrl}
-    <div class="empty-state">
-      <span>Not Playing</span>
-    </div>
-  {/if}
-
-  {#if sidebarWidth > 0}
-    <div class="tracks-overlay" style="width: {sidebarWidth}px">
-      <QueueTracks />
-    </div>
-  {/if}
+  <QueueRowBottom />
 </div>
 
 <style>
-  .queue-view-container {
+  .queue-layout {
     width: 100%;
     height: 100%;
-    position: relative;
+    display: flex;
+    flex-direction: column;
     background-color: var(--background-drawer);
     overflow: hidden;
+  }
+
+  .queue-viewport {
+    flex: 1;
+    position: relative;
+    width: 100%;
+    min-height: 0;
   }
 
   .pixel-stage {
