@@ -173,7 +173,7 @@
   .col-index {
     flex: 0 0 38px;
     text-align: center;
-    font-size: 14px;
+    font-size: 12px;
     font-family: var(--font-mono);
     opacity: 0.5;
   }

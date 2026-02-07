@@ -58,7 +58,7 @@
     padding: 12px 16px;
     background: none;
     border: none;
-    color: var(--text-muted);
+    /* color: var(--text-muted); */
     font-family: var(--font-stack);
     font-size: 14px;
     font-weight: 400;

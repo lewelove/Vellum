@@ -86,8 +86,8 @@
   }
 
   .modal-chassis {
-    width: 80vw;
-    height: 85vh;
+    width: 75vw;
+    height: 80vh;
     background-color: var(--background-drawer);
     box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
     border-radius: 12px;
@@ -97,7 +97,9 @@
 
   .modal-content {
     display: grid;
-    grid-template-columns: 45% 55%;
+    grid-template-columns: 42% 58%;
+    /* grid-template-columns: 33% 67%; */
+    /* grid-template-columns: 50% 50%; */
     grid-template-rows: 100%;
     height: 100%;
     width: 100%;
@@ -118,13 +120,13 @@
   .cover-container {
     width: 100%;
     flex-shrink: 0;
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 0 32px rgba(0, 0, 0, 0.4);
     background-color: #222;
     overflow: hidden;
   }
 
   .meta-container {
-    margin-top: 28px;
+    margin-top: 20px;
     display: flex;
     flex-direction: column;
     min-width: 0;
@@ -132,16 +134,15 @@
 
   .album-title {
     margin: 0;
-    font-size: 26px;
-    font-weight: 500;
+    font-size: 28px;
+    font-weight: 400;
     color: var(--text-main);
-    line-height: 1.2;
     word-wrap: break-word;
   }
 
   .album-artist {
-    margin: 6px 0 0 0;
-    font-size: 18px;
+    margin: 10px 0 0 0;
+    font-size: 24px;
     font-weight: 400;
     color: var(--text-muted);
     line-height: 1.2;

@@ -51,16 +51,14 @@ pre {
   text-shadow: 0 0 4px rgba(255, 255, 255, 0.2);
 }
 
-.count,
+/* .count, */
 .col-index, 
-.track-index, 
-.track-meta,
 code, 
 pre {
   font-family: var(--font-stack) !important;
   font-weight: 400;
   font-style: normal !important;
-  font-size: 12px !important;
+  font-size: 13px !important;
   opacity: 1 !important;
 }
 
@@ -78,9 +76,9 @@ html, body, #app {
   overflow: hidden; 
   height: 100%; 
   width: 100%;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-rendering: auto;
+  /* -webkit-font-smoothing: antialiased; */
+  /* -moz-osx-font-smoothing: grayscale; */
+  /* text-rendering: auto; */
 
   user-select: none;
   -webkit-user-select: none;

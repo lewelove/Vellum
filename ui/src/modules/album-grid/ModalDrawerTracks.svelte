@@ -67,7 +67,7 @@
     display: flex;
     align-items: center;
     padding: 8px 0px;
-    font-size: 14px;
+    font-size: 15px;
     color: var(--text-main);
     cursor: default;
     outline: none;
@@ -89,8 +89,8 @@
   .track-index {
     flex: 0 0 44px;
     text-align: center;
-    opacity: 0.5;
-    font-size: 12px;
+    opacity: 0.75;
+    font-size: 13px;
   }
 
   .track-body {
@@ -108,8 +108,8 @@
   }
 
   .track-artist {
-    font-size: 12px;
-    opacity: 0.5;
+    font-size: 13px;
+    opacity: 0.75;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -117,9 +117,9 @@
   }
 
   .track-meta {
-    opacity: 0.5;
+    opacity: 0.75;
     padding-right: 18px;
     text-align: right;
-    font-size: 12px;
+    font-size: 13px;
   }
 </style>
