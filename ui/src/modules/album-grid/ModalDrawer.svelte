@@ -147,7 +147,7 @@
 
   .album-title {
     margin: 0;
-    font-size: 28px;
+    font-size: 26px;
     font-weight: 400;
     color: var(--text-main);
     word-wrap: break-word;
@@ -155,7 +155,7 @@
 
   .album-artist {
     margin: 10px 0 0 0;
-    font-size: 24px;
+    font-size: 23px;
     font-weight: 400;
     color: var(--text-muted);
     line-height: 1.2;

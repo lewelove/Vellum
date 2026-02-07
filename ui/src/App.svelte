@@ -75,6 +75,12 @@
     aria-hidden={isQueueVisible}
   >
     <AlbumGrid />
+
+    {#if isModalVisible}
+      <div class="modal-layer">
+          <ModalDrawer album={library.focusedAlbum} onclose={() => library.closeFocus()} />
+      </div>
+    {/if}
   </section>
 
   <aside 
@@ -97,12 +103,6 @@
   >
     <QueueView />
   </section>
-
-  {#if isModalVisible}
-    <div class="modal-layer">
-        <ModalDrawer album={library.focusedAlbum} onclose={() => library.closeFocus()} />
-    </div>
-  {/if}
 
 </main>
 
