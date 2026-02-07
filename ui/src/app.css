@@ -115,6 +115,6 @@ main {
   color: var(--text-main);
 }
 
-::-webkit-scrollbar {
-  display: none;
-}
+/* ::-webkit-scrollbar { */
+/*   display: none; */
+/* } */

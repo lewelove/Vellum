@@ -88,7 +88,6 @@
   .modal-chassis {
     width: 80vw;
     height: 85vh;
-    /* max-width: 1400px; */
     background-color: var(--background-drawer);
     box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
     border-radius: 12px;
@@ -99,8 +98,10 @@
   .modal-content {
     display: grid;
     grid-template-columns: 45% 55%;
+    grid-template-rows: 100%;
     height: 100%;
     width: 100%;
+    min-height: 0;
   }
 
   .column-left {
@@ -110,6 +111,7 @@
     background-color: rgba(0, 0, 0, 0.15);
     border-right: 1px solid rgba(255, 255, 255, 0.05);
     min-width: 0;
+    min-height: 0;
     box-sizing: border-box;
   }
 
@@ -173,6 +175,7 @@
     flex-direction: column;
     padding: 32px;
     min-width: 0;
+    min-height: 0;
     height: 100%;
     box-sizing: border-box;
     background-color: var(--background-drawer);
@@ -181,6 +184,6 @@
   .tracks-scroll-area {
     flex: 1;
     overflow-y: auto;
-    padding-right: 12px;
+    min-height: 0;
   }
 </style>
