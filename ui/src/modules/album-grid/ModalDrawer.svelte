@@ -1,6 +1,6 @@
 <script>
   import { fade } from "svelte/transition";
-  import { playAlbum } from "../../api.js";
+  import { playAlbum, queueAlbum } from "../../api.js";
   import { library } from "../../library.svelte.js";
   import SmartImage from "./SmartImage.svelte";
   import ModalDrawerTracks from "./ModalDrawerTracks.svelte";
@@ -15,6 +15,14 @@
       await playAlbum(album.id);
     } catch (err) {
       console.error("Failed to play album:", err);
+    }
+  }
+
+  async function handleQueue() {
+    try {
+      await queueAlbum(album.id);
+    } catch (err) {
+      console.error("Failed to queue album:", err);
     }
   }
 
@@ -57,13 +65,18 @@
           <h2 class="album-title">{album.title}</h2>
           <h3 class="album-artist">{album.artist}</h3>
           
-          <div class="actions-row">
-            <button class="play-all-btn" onclick={handlePlay}>PLAY ALBUM</button>
-          </div>
         </div>
       </div>
 
       <div class="column-right">
+        <div class="button-bar">
+          <button class="icon-btn" onclick={handleQueue} title="Add Album to Queue">
+            <img src="/material/playlist_add_FFFFFF.svg" alt="" />
+          </button>
+          <button class="icon-btn" onclick={handlePlay} title="Play Album">
+            <img src="/material/playlist_play_FFFFFF.svg" alt="" />
+          </button>
+        </div>
         <div class="tracks-scroll-area">
           <ModalDrawerTracks tracks={album.tracks} onplay={handlePlayTrack} />
         </div>
@@ -180,6 +193,39 @@
     height: 100%;
     box-sizing: border-box;
     background-color: var(--background-drawer);
+  }
+
+  .button-bar {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+    height: 32px;
+  }
+
+  .icon-btn {
+    width: 40px;
+    height: 40px;
+    background-color: rgba(255, 255, 255, 0.05);
+    border: none;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: background-color 0.1s;
+  }
+
+  .icon-btn:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .icon-btn img {
+    width: 24px;
+    height: 24px;
+    pointer-events: none;
   }
 
   .tracks-scroll-area {

@@ -55,17 +55,18 @@ async def monitor_loop():
         except Exception:
             await asyncio.sleep(1)
 
-def play_album_logic(album_id: str, offset: int = 0):
+def _get_album_paths(album_id: str):
     album = STATE.album_map.get(album_id)
     if not album: 
-        return False
-        
-    paths = [
+        return []
+    return [
         STATE.track_map[t["track_library_path"]] 
         for t in album.get("tracks", []) 
         if t.get("track_library_path") in STATE.track_map
     ]
-    
+
+def play_album_logic(album_id: str, offset: int = 0):
+    paths = _get_album_paths(album_id)
     if not paths: 
         return False
         
@@ -80,6 +81,24 @@ def play_album_logic(album_id: str, offset: int = 0):
                 client.add(str(rel_p))
                 
         client.play(offset)
+        client.close()
+        return True
+    except Exception as e:
+        print(f"MPD Error: {e}")
+        return False
+
+def enqueue_album_logic(album_id: str):
+    paths = _get_album_paths(album_id)
+    if not paths:
+        return False
+
+    client = MPDClient()
+    try:
+        client.connect("localhost", 6600)
+        for p in paths:
+            if config.LIBRARY_ROOT:
+                rel_p = Path(p).relative_to(config.LIBRARY_ROOT)
+                client.add(str(rel_p))
         client.close()
         return True
     except Exception as e:

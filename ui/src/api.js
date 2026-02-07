@@ -33,3 +33,9 @@ export async function playAlbum(id, offset = 0) {
   const response = await fetch(`/api/play/${encodedId}?offset=${offset}`, { method: "POST" });
   return await response.json();
 }
+
+export async function queueAlbum(id) {
+  const encodedId = encodeURIComponent(id);
+  const response = await fetch(`/api/queue/${encodedId}`, { method: "POST" });
+  return await response.json();
+}

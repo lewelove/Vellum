@@ -3,7 +3,7 @@ from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect, Re
 from fastapi.responses import FileResponse
 from . import config
 from .library import STATE
-from .mpd_engine import play_album_logic
+from .mpd_engine import play_album_logic, enqueue_album_logic
 
 class ConnectionManager:
     def __init__(self): 
@@ -116,4 +116,11 @@ def play_album(album_id: str, offset: int = 0):
     success = play_album_logic(album_id, offset)
     if not success:
         raise HTTPException(status_code=404, detail="Could not play album")
+    return {"status": "ok"}
+
+@router.post("/api/queue/{album_id:path}")
+def queue_album(album_id: str):
+    success = enqueue_album_logic(album_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Could not queue album")
     return {"status": "ok"}
