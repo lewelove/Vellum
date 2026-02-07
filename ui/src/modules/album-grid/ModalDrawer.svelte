@@ -242,19 +242,20 @@
   .icon-btn {
     width: 40px;
     height: 40px;
-    background-color: #2f2f2f;
-    border: none;
+    background-color: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
     padding: 0;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     border-radius: 8px;
-    transition: background-color 0.1s;
+    box-shadow: var(--button-shadow);
+    transition: background-color 0.1s, transform 0.1s;
   }
 
   .icon-btn:hover {
-    background-color: #3a3a3a;
+    background-color: rgba(255, 255, 255, 0.07);
   }
 
   .icon-btn img {
