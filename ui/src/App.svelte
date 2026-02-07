@@ -148,12 +148,14 @@
     z-index: 200; 
     background-color: var(--background-drawer);
     opacity: 0;
+    visibility: hidden;
     pointer-events: none;
-    transition: opacity 0.1s ease-out; 
+    transition: opacity 0.1s ease-out, visibility 0.1s; 
   }
 
   .queue-layer.visible {
     opacity: 1;
+    visibility: visible;
     pointer-events: auto;
   }
 
