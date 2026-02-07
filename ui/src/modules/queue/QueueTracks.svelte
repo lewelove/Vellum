@@ -76,14 +76,13 @@
 
       {#each group.tracks as track (track.id)}
         <div class="queue-row" class:active={track.isPlaying}>
+          {#if track.isPlaying}
+            <div class="row-progress" style="width: {playbackPercent}%"></div>
+          {/if}
+          
           <span class="col-index">{track.trackNo}</span>
           <div class="col-info">
-            <div class="q-title-wrapper">
-              {#if track.isPlaying}
-                <div class="q-title-progress" style="width: {playbackPercent}%"></div>
-              {/if}
-              <span class="q-title" title={track.title}>{track.title}</span>
-            </div>
+            <span class="q-title" title={track.title}>{track.title}</span>
             {#if track.showArtist}
               <span class="q-artist" title={track.artist}>{track.artist}</span>
             {/if}
@@ -104,9 +103,8 @@
     background-color: transparent;
   }
 
-  /* --- New Album Group Header --- */
   .album-group-header {
-    padding: 12px;
+    padding: 12px 20px;
     display: flex;
     align-items: center;
     gap: 12px;
@@ -132,7 +130,6 @@
     display: flex;
     justify-content: space-between;
     align-items: baseline;
-    line-height: 1.2;
   }
 
   .header-artist, .header-album {
@@ -167,10 +164,12 @@
   }
 
   .queue-row {
+    position: relative;
     display: flex;
     align-items: center;
-    padding: 6px 12px;
+    padding: 8px 20px;
     color: var(--text-muted);
+    overflow: hidden;
   }
 
   .queue-row:hover {
@@ -183,8 +182,21 @@
     color: var(--text-main);
   }
 
+  .row-progress {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    background-color: rgba(255, 255, 255, 0.08);
+    z-index: 0;
+    pointer-events: none;
+  }
+
   .col-index {
-    flex: 0 0 38px;
+    position: relative;
+    z-index: 1;
+    flex: 0 0 24px;
+    padding-right: 12px;
     text-align: center;
     font-size: 12px;
     font-family: var(--font-mono);
@@ -192,6 +204,8 @@
   }
 
   .col-info {
+    position: relative;
+    z-index: 1;
     flex: 1;
     display: flex;
     flex-direction: column;
@@ -199,27 +213,7 @@
     justify-content: center;
   }
 
-  /* --- Progress Bar Title --- */
-  .q-title-wrapper {
-    position: relative;
-    display: inline-block;
-    width: 100%;
-    overflow: hidden;
-  }
-
-  .q-title-progress {
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    background-color: rgba(255, 255, 255, 0.1);
-    z-index: 0;
-    pointer-events: none;
-  }
-
   .q-title {
-    position: relative;
-    z-index: 1;
     font-size: 14px;
     white-space: nowrap;
     overflow: hidden;
