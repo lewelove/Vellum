@@ -61,6 +61,9 @@
     display: flex;
     flex-direction: column;
     width: 100%;
+    -webkit-font-smoothing: subpixel-antialiased;
+    -moz-osx-font-smoothing: auto;
+    background-color: #242424;
   }
 
   .track-row {
@@ -68,28 +71,27 @@
     align-items: center;
     padding: 8px 0px;
     font-size: 15px;
-    color: var(--text-main);
+    color: #ffffff;
     cursor: default;
     outline: none;
     user-select: none;
-  }
-
-  .track-row:last-child {
-    border-bottom: none;
+    background-color: #242424;
+    /* Isolate layout for scroll performance and AA stability */
+    contain: layout;
   }
 
   .track-row:hover {
-    background-color: rgba(255, 255, 255, 0.03);
+    background-color: #2b2b2b;
   }
 
   .track-row.selected {
-    background-color: rgba(255, 255, 255, 0.06);
+    background-color: #333333;
   }
 
   .track-index {
     flex: 0 0 44px;
     text-align: center;
-    opacity: 0.75;
+    color: #888888;
     font-size: 13px;
   }
 
@@ -109,7 +111,7 @@
 
   .track-artist {
     font-size: 13px;
-    opacity: 0.75;
+    color: #999999;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -117,7 +119,7 @@
   }
 
   .track-meta {
-    opacity: 0.75;
+    color: #888888;
     padding-right: 18px;
     text-align: right;
     font-size: 13px;

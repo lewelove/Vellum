@@ -115,11 +115,14 @@
   .modal-chassis {
     width: 75vw;
     height: 80vh;
-    background-color: var(--background-drawer);
+    background-color: #242424;
     box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
     border-radius: 12px;
     overflow: hidden;
     border: 1px solid rgba(255, 255, 255, 0.05);
+    -webkit-font-smoothing: subpixel-antialiased;
+    -moz-osx-font-smoothing: auto;
+    text-rendering: optimizeLegibility;
   }
 
   .modal-content {
@@ -135,7 +138,7 @@
     display: flex;
     flex-direction: column;
     padding: 32px;
-    background-color: rgba(0, 0, 0, 0.15);
+    background-color: #1c1c1c;
     border-right: 1px solid rgba(255, 255, 255, 0.05);
     min-width: 0;
     min-height: 0;
@@ -146,7 +149,7 @@
     width: 100%;
     flex-shrink: 0;
     box-shadow: 0 0 32px rgba(0, 0, 0, 0.4);
-    background-color: #222;
+    background-color: #000000;
     overflow: hidden;
   }
 
@@ -161,7 +164,7 @@
     margin: 0;
     font-size: 26px;
     font-weight: 400;
-    color: var(--text-main);
+    color: #ffffff;
     word-wrap: break-word;
   }
 
@@ -169,8 +172,7 @@
     margin: 12px 0 0 0;
     font-size: 23px;
     font-weight: 400;
-    color: var(--text-main);
-    opacity: 0.8;
+    color: #d3d3d3;
     word-wrap: break-word;
   }
 
@@ -184,20 +186,17 @@
 
   .original-date {
     font-size: 16px;
-    color: var(--text-muted);
-    opacity: 0.6;
+    color: #888888;
   }
 
   .meta-sep {
     font-size: 16px;
-    color: var(--text-muted);
-    opacity: 0.2;
+    color: #444444;
   }
 
   .album-duration {
     font-size: 16px;
-    color: var(--text-muted);
-    opacity: 0.6;
+    color: #888888;
     white-space: nowrap;
   }
 
@@ -216,11 +215,10 @@
   .album-comment {
     margin: 0;
     font-size: 16px;
-    color: var(--text-muted);
+    color: #999999;
     font-style: italic;
     line-height: 1.2;
     word-wrap: break-word;
-    opacity: 0.7;
     flex: 1;
   }
 
@@ -232,7 +230,7 @@
     min-height: 0;
     height: 100%;
     box-sizing: border-box;
-    background-color: var(--background-drawer);
+    background-color: #242424;
   }
 
   .button-bar {
@@ -247,7 +245,7 @@
   .icon-btn {
     width: 40px;
     height: 40px;
-    background-color: rgba(255, 255, 255, 0.05);
+    background-color: #2f2f2f;
     border: none;
     padding: 0;
     display: flex;
@@ -259,7 +257,7 @@
   }
 
   .icon-btn:hover {
-    background-color: rgba(255, 255, 255, 0.1);
+    background-color: #3a3a3a;
   }
 
   .icon-btn img {
@@ -270,7 +268,9 @@
 
   .tracks-scroll-area {
     flex: 1;
-    overflow-y: auto;
+    overflow-y: scroll;
     min-height: 0;
+    background-color: #242424;
+    transform: translateZ(0);
   }
 </style>

@@ -76,6 +76,9 @@ html, body, #app {
   overflow: hidden; 
   height: 100%; 
   width: 100%;
+  -webkit-font-smoothing: subpixel-antialiased;
+  -moz-osx-font-smoothing: auto;
+  text-rendering: optimizeLegibility;
   /* -webkit-font-smoothing: antialiased; */
   /* -moz-osx-font-smoothing: grayscale; */
   /* text-rendering: auto; */

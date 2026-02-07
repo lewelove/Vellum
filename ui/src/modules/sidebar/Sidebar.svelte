@@ -110,16 +110,17 @@
 </div>
 
 <style>
-  .sidebar-container {
+.sidebar-container {
     width: 100%;
     height: 100%;
     display: flex;
     flex-direction: column;
-    background-color: transparent; 
+    background-color: #242424; 
     padding-top: 0; 
     box-sizing: border-box;
+    -webkit-font-smoothing: subpixel-antialiased;
+    -moz-osx-font-smoothing: auto;
   }
-
   .sidebar-nav {
     display: flex;
     flex-direction: column;
