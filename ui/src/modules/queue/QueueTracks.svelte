@@ -104,7 +104,7 @@
   }
 
   .album-group-header {
-    padding: 12px 20px;
+    padding: 12px 16px 12px 20px;
     display: flex;
     align-items: center;
     gap: 12px;
@@ -112,8 +112,8 @@
   }
 
   .header-thumb {
-    width: 32px;
-    height: 32px;
+    width: 40px;
+    height: 40px;
     object-fit: cover;
     background-color: #000;
   }
@@ -167,7 +167,7 @@
     position: relative;
     display: flex;
     align-items: center;
-    padding: 8px 20px;
+    padding: 8px 16px 8px 20px;
     color: var(--text-muted);
     overflow: hidden;
   }

@@ -38,7 +38,7 @@ export const sorters = {
 
   entropy: (a, b) => (b.cover_entropy || 0) - (a.cover_entropy || 0),
 
-  vibrancy: (a, b) => (b.cover_chroma || 0) - (a.cover_chroma || 0),
+  chroma: (a, b) => (b.cover_chroma || 0) - (a.cover_chroma || 0),
 
   duration: (a, b) => (b.album_duration_in_ms || 0) - (a.album_duration_in_ms || 0)
 };
@@ -49,6 +49,6 @@ export const SORTER_LABELS = {
   year: "Year",
   date_added: "Date Added",
   duration: "Duration",
-  vibrancy: "Vibrancy",
+  chroma: "Chroma",
   entropy: "Cover Entropy",
 };
