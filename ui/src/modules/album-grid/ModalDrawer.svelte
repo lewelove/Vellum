@@ -94,15 +94,22 @@
 
       <div class="column-right">
         <div class="button-bar">
-          <button class="icon-btn" onclick={handleOpenFolder} title="Open Local Folder">
-            <img src="/material/folder_FFFFFF.svg" alt="Open" style="width: 22px; height: 22px; opacity: 0.9;" />
-          </button>
-          <button class="icon-btn" onclick={handleQueue} title="Add Album to Queue">
-            <img src="/material/playlist_add_FFFFFF.svg" alt="" />
-          </button>
-          <button class="icon-btn" onclick={handlePlay} title="Play Album">
-            <img src="/material/playlist_play_FFFFFF.svg" alt="" />
-          </button>
+          <!-- Left-aligned buttons -->
+          <div class="bar-group">
+            <button class="icon-btn" onclick={handleOpenFolder} title="Open Local Folder">
+              <img src="/material/folder_FFFFFF.svg" alt="Open" style="width: 22px; height: 22px; opacity: 0.9;" />
+            </button>
+          </div>
+
+          <!-- Right-aligned buttons -->
+          <div class="bar-group right">
+            <button class="icon-btn" onclick={handleQueue} title="Add Album to Queue">
+              <img src="/material/playlist_add_FFFFFF.svg" alt="" />
+            </button>
+            <button class="icon-btn" onclick={handlePlay} title="Play Album">
+              <img src="/material/playlist_play_FFFFFF.svg" alt="" />
+            </button>
+          </div>
         </div>
         <div class="tracks-scroll-area">
           <ModalDrawerTracks tracks={album.tracks} onplay={handlePlayTrack} />
@@ -114,6 +121,27 @@
 </div>
 
 <style>
+
+  .button-bar {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+    height: 32px;
+  }
+
+  .bar-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .bar-group.right {
+    margin-left: auto;
+  }
+
+  
   .modal-backdrop {
     position: fixed;
     inset: 0;
@@ -211,6 +239,7 @@
     display: flex;
     justify-content: space-between;
     gap: 16px;
+    min-width: 0;
   }
 
   .album-comment {
@@ -218,7 +247,6 @@
     font-size: 16px;
     color: #999999;
     font-style: italic;
-    line-height: 1.2;
     word-wrap: break-word;
     flex: 1;
   }
