@@ -28,6 +28,13 @@
     if (onplay) onplay(index);
   }
 
+  function handlePlayDisc(discNumber) {
+    const firstIndex = tracks.findIndex(t => t.DISCNUMBER === discNumber);
+    if (firstIndex !== -1 && onplay) {
+      onplay(firstIndex);
+    }
+  }
+
   function handleKeydown(e, index) {
     if (e.key === 'Enter') {
       handlePlay(index);
@@ -38,7 +45,16 @@
 <div class="tracks-list">
   {#each tracks as track, i}
     {#if multiDisc && (i === 0 || track.DISCNUMBER !== tracks[i-1].DISCNUMBER)}
-      <div class="disc-header">Disc {track.DISCNUMBER}</div>
+      <div class="disc-header-row">
+        <span class="disc-label">Disc {track.DISCNUMBER}</span>
+        <button 
+          class="disc-play-btn" 
+          onclick={() => handlePlayDisc(track.DISCNUMBER)}
+          title="Play Disc {track.DISCNUMBER}"
+        >
+          <img src="/material/play_circle_24dp_666666.svg" alt="Play Disc" />
+        </button>
+      </div>
     {/if}
 
     <div 
@@ -71,19 +87,56 @@
     gap: 4px;
   }
 
-  .disc-header {
-    padding: 4px 4px 4px 4px;
-    font-size: 16px;
-    font-weight: 600;
-    color: #666;
-    /* text-transform: uppercase; */
-    user-select: none;
+  .disc-header-row {
+    display: flex;
+    /* justify-content: space-between; */
+    align-items: center;
+    /* padding: 4px 4px 4px 4px; */
+    /* border: 1px solid rgba(255, 255, 255, 0.05); */
+    /* background-color: rgba(255, 255, 255, 0.03); */
     margin-top: 8px;
+    user-select: none;
   }
 
-  .disc-header:first-child {
-    padding-top: 0;
+  .disc-header-row:first-child {
     margin-top: 0;
+  }
+
+  .disc-label {
+    display: flex;
+    align-items: center;
+    font-size: 14px;
+    font-weight: 600;
+    color: #666;
+    min-height: 32px;
+    background-color: rgba(255, 255, 255, 0.01);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    height: 32px;
+  }
+
+  .disc-play-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    cursor: pointer;
+    background-color: rgba(255, 255, 255, 0.01);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    /* box-shadow: var(--button-shadow); */
+    transition: background-color 0.1s;
+    height: 32px;
+  }
+
+  .disc-play-btn:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+  }
+
+  .disc-play-btn img {
+    /* padding: 4px 4px; */
+    width: 24px;
+    height: 24px;
   }
 
   .track-row {

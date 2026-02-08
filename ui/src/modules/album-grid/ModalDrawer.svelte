@@ -269,7 +269,7 @@
   .icon-btn {
     width: 40px;
     height: 40px;
-    background-color: rgba(255, 255, 255, 0.03);
+    background-color: rgba(255, 255, 255, 0.02);
     border: 1px solid rgba(255, 255, 255, 0.05);
     padding: 0;
     display: flex;
