@@ -73,13 +73,15 @@
           <h2 class="album-title">{album.title}</h2>
           <h3 class="album-artist">{album.artist}</h3>
           <div class="meta-row">
-            {#if album.ORIGINAL_DATE}
-              <span class="original-date">{album.ORIGINAL_DATE}</span>
-            {/if}
-            {#if album.ORIGINAL_DATE && album.album_duration_time}
+            {#if album.DATE}
+              <span class="original-date">{album.DATE}</span>
               <span class="meta-sep">•</span>
             {/if}
             <span class="album-duration">{album.album_duration_time || ""}</span>
+            {#if album.MEDIA}
+              <span class="meta-sep">•</span>
+              <span class="media">{album.MEDIA}</span>
+            {/if}
           </div>
         </div>
 
@@ -189,23 +191,14 @@
     align-items: center;
     min-height: 24px;
     margin-top: 24px;
-    gap: 12px;
-  }
-
-  .original-date {
     font-size: 16px;
     color: #888888;
+    gap: 12px;
+    white-space: nowrap;
   }
 
   .meta-sep {
-    font-size: 16px;
     color: #444444;
-  }
-
-  .album-duration {
-    font-size: 16px;
-    color: #888888;
-    white-space: nowrap;
   }
 
   .footer-container {
