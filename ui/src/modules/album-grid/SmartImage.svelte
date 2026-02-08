@@ -74,7 +74,7 @@
 <style>
   .smart-image-wrapper {
     position: relative;
-    overflow: hidden; /* Ensure no bleed during resize */
+    overflow: visible;
   }
 
   .output-canvas {
@@ -82,11 +82,13 @@
     top: 0;
     left: 0;
     opacity: 0;
-    background-color: var(--background-drawer);
+    background-color: transparent;
     transition: opacity 0.4s;
+    will-change: opacity;
   }
 
   .output-canvas.visible {
     opacity: 1;
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5);
   }
 </style>

@@ -189,9 +189,8 @@
   .cover-container {
     width: 100%;
     flex-shrink: 0;
-    box-shadow: 0 0 32px rgba(0, 0, 0, 0.4);
-    background-color: #000000;
-    overflow: hidden;
+    background-color: transparent;
+    overflow: visible;
   }
 
   .meta-container {
