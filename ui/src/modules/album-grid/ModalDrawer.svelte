@@ -131,7 +131,7 @@
     align-items: center;
     gap: 10px;
     padding-bottom: 16px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.10);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
     width: 100%;
   }
 
