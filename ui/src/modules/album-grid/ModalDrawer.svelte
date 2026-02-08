@@ -112,7 +112,11 @@
           </div>
         </div>
         <div class="tracks-scroll-area">
-          <ModalDrawerTracks tracks={album.tracks} onplay={handlePlayTrack} />
+          <ModalDrawerTracks 
+            tracks={album.tracks} 
+            totalDiscs={album.TOTALDISCS} 
+            onplay={handlePlayTrack} 
+          />
         </div>
       </div>
 
@@ -260,15 +264,6 @@
     height: 100%;
     box-sizing: border-box;
     background-color: #242424;
-  }
-
-  .button-bar {
-    display: flex;
-    justify-content: flex-end;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 16px;
-    height: 32px;
   }
 
   .icon-btn {

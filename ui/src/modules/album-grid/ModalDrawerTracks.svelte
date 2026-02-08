@@ -1,7 +1,8 @@
 <script>
-  let { tracks = [], onplay } = $props();
+  let { tracks = [], totalDiscs = "1", onplay } = $props();
 
   let selectedIndex = $state(-1);
+  let multiDisc = $derived(parseInt(totalDiscs) > 1);
 
   function formatDuration(str) {
     if (!str) return "0:00";
@@ -36,6 +37,10 @@
 
 <div class="tracks-list">
   {#each tracks as track, i}
+    {#if multiDisc && (i === 0 || track.DISCNUMBER !== tracks[i-1].DISCNUMBER)}
+      <div class="disc-header">Disc {track.DISCNUMBER}</div>
+    {/if}
+
     <div 
       class="track-row" 
       class:selected={selectedIndex === i}
@@ -64,6 +69,21 @@
     background-color: #242424;
     box-sizing: border-box;
     gap: 4px;
+  }
+
+  .disc-header {
+    padding: 4px 4px 4px 4px;
+    font-size: 16px;
+    font-weight: 600;
+    color: #666;
+    /* text-transform: uppercase; */
+    user-select: none;
+    margin-top: 8px;
+  }
+
+  .disc-header:first-child {
+    padding-top: 0;
+    margin-top: 0;
   }
 
   .track-row {
