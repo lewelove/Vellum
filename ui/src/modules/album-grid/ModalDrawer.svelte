@@ -96,7 +96,7 @@
         <div class="button-bar">
           <div class="bar-group">
             <button class="icon-btn" onclick={handleOpenFolder} title="Open Local Folder">
-              <img src="/material/folder_FFFFFF.svg" alt="Open" style="width: 22px; height: 22px; opacity: 0.9;" />
+              <img src="/material/folder_FFFFFF.svg" alt="Open"/>
             </button>
           </div>
 
@@ -141,6 +141,10 @@
     gap: 10px;
   }
 
+  .bar-group img {
+    opacity: 0.8;
+  }
+
   .bar-group.right {
     margin-left: auto;
   }
@@ -158,7 +162,7 @@
 
   .modal-chassis {
     width: 75vw;
-    height: 80vh;
+    height: 85vh;
     background-color: #242424;
     box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
     border-radius: 12px;
