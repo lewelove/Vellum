@@ -12,7 +12,6 @@
   async function processImage(url, w, h) {
     if (!url || !w || !h) return;
     
-    // Check if we actually need to redraw
     const dimKey = `${url}-${w}-${h}`;
     if (dimKey === lastRenderedDim) return;
     
@@ -51,7 +50,6 @@
     }
   }
 
-  // React to URL, width, or height changes
   $effect(() => {
     processImage(src, width, height);
   });
@@ -62,7 +60,7 @@
   });
 </script>
 
-<div class="smart-image-wrapper" style="width: {width}px; height: {height}px;">
+<div class="modal-drawer-cover-wrapper" style="width: {width}px; height: {height}px;">
   <canvas 
     bind:this={canvasEl} 
     class="output-canvas" 
@@ -72,7 +70,7 @@
 </div>
 
 <style>
-  .smart-image-wrapper {
+  .modal-drawer-cover-wrapper {
     position: relative;
     overflow: visible;
   }
@@ -89,6 +87,6 @@
 
   .output-canvas.visible {
     opacity: 1;
-    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 0 16px rgba(0, 0, 0, 0.1), 0 0 16px rgba(0, 0, 0, 0.2), 0 0 10px rgba(0, 0, 0, 0.4);
   }
 </style>

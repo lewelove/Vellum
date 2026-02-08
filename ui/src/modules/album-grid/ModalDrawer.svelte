@@ -2,7 +2,7 @@
   import { fade } from "svelte/transition";
   import { playAlbum, queueAlbum, openAlbumFolder } from "../../api.js";
   import { library } from "../../library.svelte.js";
-  import SmartImage from "./SmartImage.svelte";
+  import ModalDrawerCover from "./ModalDrawerCover.svelte";
   import ModalDrawerTracks from "./ModalDrawerTracks.svelte";
 
   let { album, onclose } = $props();
@@ -61,7 +61,7 @@
       <div class="column-left" bind:clientWidth={leftColumnWidth}>
         <div class="cover-container" style="height: {leftColumnWidth - 64}px;">
           {#if leftColumnWidth > 0}
-            <SmartImage 
+            <ModalDrawerCover 
               src={coverUrl} 
               width={leftColumnWidth - 64} 
               height={leftColumnWidth - 64} 
