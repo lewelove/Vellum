@@ -1,6 +1,6 @@
 <script>
   import { fade } from "svelte/transition";
-  import { playAlbum, queueAlbum } from "../../api.js";
+  import { playAlbum, queueAlbum, openAlbumFolder } from "../../api.js";
   import { library } from "../../library.svelte.js";
   import SmartImage from "./SmartImage.svelte";
   import ModalDrawerTracks from "./ModalDrawerTracks.svelte";
@@ -23,6 +23,14 @@
       await queueAlbum(album.id);
     } catch (err) {
       console.error("Failed to queue album:", err);
+    }
+  }
+
+  async function handleOpenFolder() {
+    try {
+      await openAlbumFolder(album.id);
+    } catch (err) {
+      console.error("Failed to open folder:", err);
     }
   }
 
@@ -84,6 +92,9 @@
 
       <div class="column-right">
         <div class="button-bar">
+          <button class="icon-btn" onclick={handleOpenFolder} title="Open Local Folder">
+            <img src="/material/folder_FFFFFF.svg" alt="Open" style="width: 22px; height: 22px; opacity: 0.9;" />
+          </button>
           <button class="icon-btn" onclick={handleQueue} title="Add Album to Queue">
             <img src="/material/playlist_add_FFFFFF.svg" alt="" />
           </button>

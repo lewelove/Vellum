@@ -39,3 +39,9 @@ export async function queueAlbum(id) {
   const response = await fetch(`/api/queue/${encodedId}`, { method: "POST" });
   return await response.json();
 }
+
+export async function openAlbumFolder(id) {
+  const encodedId = encodeURIComponent(id);
+  const response = await fetch(`/api/open/${encodedId}`, { method: "POST" });
+  return await response.json();
+}

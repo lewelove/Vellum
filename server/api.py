@@ -1,4 +1,5 @@
 import orjson
+import subprocess
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect, Request
 from fastapi.responses import FileResponse
 from . import config
@@ -124,3 +125,18 @@ def queue_album(album_id: str):
     if not success:
         raise HTTPException(status_code=404, detail="Could not queue album")
     return {"status": "ok"}
+
+@router.post("/api/open/{album_id:path}")
+def open_album_folder(album_id: str):
+    if not config.LIBRARY_ROOT:
+        raise HTTPException(status_code=500, detail="Library root not configured")
+    
+    path = (config.LIBRARY_ROOT / album_id).resolve()
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Folder not found")
+
+    try:
+        subprocess.Popen(["xdg-open", str(path)])
+        return {"status": "ok"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
