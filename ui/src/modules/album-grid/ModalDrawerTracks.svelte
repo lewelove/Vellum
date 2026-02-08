@@ -161,15 +161,15 @@
     transition: background-color 0.1s ease, border-color 0.1s ease;
   }
 
-  .track-row:hover {
-    background-color: #2b2b2b;
-    border-color: rgba(255, 255, 255, 0.05);
-  }
-
-  .track-row.selected {
-    background-color: #333333;
-    border-color: rgba(255, 255, 255, 0.1);
-  }
+  /* .track-row:hover { */
+  /*   background-color: #2b2b2b; */
+  /*   border-color: rgba(255, 255, 255, 0.05); */
+  /* } */
+  /**/
+  /* .track-row.selected { */
+  /*   background-color: #333333; */
+  /*   border-color: rgba(255, 255, 255, 0.1); */
+  /* } */
 
   .track-index {
     flex: 0 0 44px;

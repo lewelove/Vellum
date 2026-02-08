@@ -297,6 +297,7 @@
     min-height: 0;
     background-color: #242424;
     transform: translateZ(0);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   }
 
   .scroll-fade-overlay-top {
