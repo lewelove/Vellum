@@ -94,14 +94,12 @@
 
       <div class="column-right">
         <div class="button-bar">
-          <!-- Left-aligned buttons -->
           <div class="bar-group">
             <button class="icon-btn" onclick={handleOpenFolder} title="Open Local Folder">
               <img src="/material/folder_FFFFFF.svg" alt="Open" style="width: 22px; height: 22px; opacity: 0.9;" />
             </button>
           </div>
 
-          <!-- Right-aligned buttons -->
           <div class="bar-group right">
             <button class="icon-btn" onclick={handleQueue} title="Add Album to Queue">
               <img src="/material/playlist_add_FFFFFF.svg" alt="" />
@@ -112,11 +110,13 @@
           </div>
         </div>
         <div class="tracks-scroll-area">
+          <div class="scroll-fade-overlay-top"></div>
           <ModalDrawerTracks 
             tracks={album.tracks} 
             totalDiscs={album.TOTALDISCS} 
             onplay={handlePlayTrack} 
           />
+          <div class="scroll-fade-overlay-bottom"></div>
         </div>
       </div>
 
@@ -125,20 +125,15 @@
 </div>
 
 <style>
-
   .button-bar {
     display: flex;
     justify-content: flex-end;
     align-items: center;
     gap: 10px;
-    
     padding-bottom: 16px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.10);
-    /* margin-bottom: 16px; */
-    
     width: 100%;
   }
-
 
   .bar-group {
     display: flex;
@@ -150,7 +145,6 @@
     margin-left: auto;
   }
 
-  
   .modal-backdrop {
     position: fixed;
     inset: 0;
@@ -287,7 +281,7 @@
   }
 
   .icon-btn:hover {
-    background-color: rgba(255, 255, 255, 0.07);
+    background-color: rgba(255, 255, 255, 0.05);
   }
 
   .icon-btn img {
@@ -297,11 +291,37 @@
   }
 
   .tracks-scroll-area {
+    position: relative;
     flex: 1;
     overflow-y: scroll;
     min-height: 0;
     background-color: #242424;
-    padding-top: 16px;
     transform: translateZ(0);
+  }
+
+  .scroll-fade-overlay-top {
+    position: sticky;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 16px;
+    background: linear-gradient(to bottom, #242424 0%, transparent 100%);
+    z-index: 10;
+    pointer-events: none;
+  }
+
+  .scroll-fade-overlay-bottom {
+    position: sticky;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 16px;
+    background: linear-gradient(to top, #242424 0%, transparent 100%);
+    z-index: 10;
+    pointer-events: none;
+  }
+
+  .tracks-scroll-area::-webkit-scrollbar {
+    width: 0px;
   }
 </style>

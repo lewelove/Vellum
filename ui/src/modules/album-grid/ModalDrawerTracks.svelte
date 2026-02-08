@@ -45,6 +45,9 @@
 <div class="tracks-list">
   {#each tracks as track, i}
     {#if multiDisc && (i === 0 || track.DISCNUMBER !== tracks[i-1].DISCNUMBER)}
+      {#if i > 0}
+        <div class="disc-separator"></div>
+      {/if}
       <div class="disc-header-row">
         <span class="disc-label">Disc {track.DISCNUMBER}</span>
         <button 
@@ -84,7 +87,13 @@
     width: 100%;
     background-color: #242424;
     box-sizing: border-box;
-    /* gap: 4px; */
+  }
+
+  .disc-separator {
+    height: 1px;
+    background-color: rgba(255, 255, 255, 0.05);
+    margin: 16px 0;
+    width: 100%;
   }
 
   .disc-header-row {
@@ -92,7 +101,6 @@
     justify-content: space-between;
     align-items: center;
     user-select: none;
-    margin-top: 16px;
     margin-bottom: 8px;
   }
 
@@ -124,6 +132,10 @@
     box-sizing: border-box;
   }
 
+  .disc-play-btn:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+  }
+
   .disc-play-btn img {
     width: 24px;
     height: 24px;
@@ -140,7 +152,6 @@
     user-select: none;
     background-color: transparent;
     contain: layout;
-    /* border-bottom: 1px solid rgba(255, 255, 255, 0.05); */
     box-sizing: border-box;
     border-radius: 8px;
     transition: background-color 0.1s ease, border-color 0.1s ease;
@@ -148,12 +159,12 @@
 
   .track-row:hover {
     background-color: #2b2b2b;
-    border-color: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.05);
   }
 
   .track-row.selected {
     background-color: #333333;
-    border-color: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.1);
   }
 
   .track-index {
