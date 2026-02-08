@@ -131,9 +131,14 @@
     justify-content: flex-end;
     align-items: center;
     gap: 10px;
-    margin-bottom: 16px;
-    height: 32px;
+    
+    padding-bottom: 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.10);
+    /* margin-bottom: 16px; */
+    
+    width: 100%;
   }
+
 
   .bar-group {
     display: flex;
@@ -269,7 +274,7 @@
   .icon-btn {
     width: 40px;
     height: 40px;
-    background-color: rgba(255, 255, 255, 0.02);
+    background-color: rgba(255, 255, 255, 0.01);
     border: 1px solid rgba(255, 255, 255, 0.05);
     padding: 0;
     display: flex;
@@ -296,6 +301,7 @@
     overflow-y: scroll;
     min-height: 0;
     background-color: #242424;
+    padding-top: 16px;
     transform: translateZ(0);
   }
 </style>

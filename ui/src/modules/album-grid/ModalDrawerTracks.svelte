@@ -84,35 +84,30 @@
     width: 100%;
     background-color: #242424;
     box-sizing: border-box;
-    gap: 4px;
+    /* gap: 4px; */
   }
 
   .disc-header-row {
     display: flex;
-    /* justify-content: space-between; */
+    justify-content: space-between;
     align-items: center;
-    /* padding: 4px 4px 4px 4px; */
-    /* border: 1px solid rgba(255, 255, 255, 0.05); */
-    /* background-color: rgba(255, 255, 255, 0.03); */
-    margin-top: 8px;
     user-select: none;
-  }
-
-  .disc-header-row:first-child {
-    margin-top: 0;
+    margin-top: 16px;
+    margin-bottom: 8px;
   }
 
   .disc-label {
     display: flex;
     align-items: center;
+    padding: 0 12px;
     font-size: 14px;
     font-weight: 600;
     color: #666;
-    min-height: 32px;
-    background-color: rgba(255, 255, 255, 0.01);
+    background-color: rgba(255, 255, 255, 0.00);
     border: 1px solid rgba(255, 255, 255, 0.05);
     border-radius: 8px;
     height: 32px;
+    box-sizing: border-box;
   }
 
   .disc-play-btn {
@@ -120,21 +115,16 @@
     align-items: center;
     justify-content: center;
     width: 40px;
+    height: 32px;
     cursor: pointer;
     background-color: rgba(255, 255, 255, 0.01);
     border: 1px solid rgba(255, 255, 255, 0.05);
     border-radius: 8px;
-    /* box-shadow: var(--button-shadow); */
     transition: background-color 0.1s;
-    height: 32px;
-  }
-
-  .disc-play-btn:hover {
-    background-color: rgba(255, 255, 255, 0.05);
+    box-sizing: border-box;
   }
 
   .disc-play-btn img {
-    /* padding: 4px 4px; */
     width: 24px;
     height: 24px;
   }
@@ -143,23 +133,27 @@
     display: flex;
     align-items: center;
     padding: 8px 0px;
-    font-size: 15px;
+    font-size: 16px;
     color: #ffffff;
     cursor: default;
     outline: none;
     user-select: none;
     background-color: transparent;
     contain: layout;
-    border-radius: 10px;
-    transition: background-color 0.1s ease;
+    /* border-bottom: 1px solid rgba(255, 255, 255, 0.05); */
+    box-sizing: border-box;
+    border-radius: 8px;
+    transition: background-color 0.1s ease, border-color 0.1s ease;
   }
 
   .track-row:hover {
     background-color: #2b2b2b;
+    border-color: rgba(255, 255, 255, 0.1);
   }
 
   .track-row.selected {
     background-color: #333333;
+    border-color: rgba(255, 255, 255, 0.2);
   }
 
   .track-index {
