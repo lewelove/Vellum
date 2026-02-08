@@ -152,7 +152,7 @@
   .modal-backdrop {
     position: fixed;
     inset: 0;
-    background-color: rgba(0, 0, 0, 0.2);
+    background-color: rgba(0, 0, 0, 0.5);
     backdrop-filter: blur(2px);
     display: flex;
     align-items: center;
@@ -162,9 +162,9 @@
 
   .modal-chassis {
     width: 75vw;
-    height: 85vh;
+    height: 90vh;
     background-color: #242424;
-    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 0 64px rgba(0, 0, 0, 0.1), 0 0 48px rgba(0, 0, 0, 0.3), 0 0 32px rgba(0, 0, 0, 0.5);
     border-radius: 12px;
     overflow: hidden;
     border: 1px solid rgba(255, 255, 255, 0.05);
@@ -214,7 +214,7 @@
 
   .album-artist {
     margin: 12px 0 0 0;
-    font-size: 23px;
+    font-size: 21px;
     font-weight: 400;
     color: #d3d3d3;
     word-wrap: break-word;

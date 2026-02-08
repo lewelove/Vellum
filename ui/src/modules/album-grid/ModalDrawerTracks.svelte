@@ -148,8 +148,8 @@
   .track-row {
     display: flex;
     align-items: center;
-    padding: 8px 0px;
-    font-size: 16px;
+    padding: 6px 0px;
+    font-size: 15px;
     color: #ffffff;
     cursor: default;
     outline: none;
@@ -161,10 +161,9 @@
     transition: background-color 0.1s ease, border-color 0.1s ease;
   }
 
-  /* .track-row:hover { */
-  /*   background-color: #2b2b2b; */
-  /*   border-color: rgba(255, 255, 255, 0.05); */
-  /* } */
+  .track-row:hover {
+    background-color: rgba(255, 255, 255, 0.03);
+  }
   /**/
   /* .track-row.selected { */
   /*   background-color: #333333; */

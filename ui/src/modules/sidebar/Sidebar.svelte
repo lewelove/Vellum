@@ -55,7 +55,10 @@
     
     <div class="control-wrapper">
       <button class="control-toggle" onclick={toggleSortMenu} class:active={isSortMenuOpen}>
-        <span class="control-label">Sort: {sortLabel}</span>
+        <div class="control-label-group">
+          <img src="/material/sort_24dp_FFFFFF.svg" alt="" class="control-icon" />
+          <span class="control-label">{sortLabel}</span>
+        </div>
         <span class="chevron" class:open={isSortMenuOpen}>›</span>
       </button>
   
@@ -76,7 +79,10 @@
 
     <div class="control-wrapper">
       <button class="control-toggle" onclick={toggleGroupMenu} class:active={isGroupMenuOpen}>
-        <span class="control-label">Group: {groupLabel}</span>
+        <div class="control-label-group">
+          <img src="/material/layers_24dp_FFFFFF.svg" alt="" class="control-icon" />
+          <span class="control-label">{groupLabel}</span>
+        </div>
         <span class="chevron" class:open={isGroupMenuOpen}>›</span>
       </button>
   
@@ -165,15 +171,41 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 8px 16px 8px 24px;
+    padding: 8px 16px 8px 20px;
     background: none;
     border: none;
     color: var(--text-muted);
     font-family: var(--font-stack);
     font-size: 14px;
-    text-transform: lowercase;
     cursor: pointer;
     outline: none; 
+  }
+
+  .control-label-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
+
+  .control-icon {
+    width: 18px;
+    height: 18px;
+    opacity: 0.6;
+    flex-shrink: 0;
+  }
+
+  .control-toggle:hover .control-icon,
+  .control-toggle.active .control-icon {
+    opacity: 1;
+  }
+
+  .control-label {
+    text-transform: lowercase;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    transform: translateY(-1px);
   }
 
   .control-toggle:hover {
@@ -189,6 +221,7 @@
     transform: rotate(90deg);
     transition: transform 0.2s;
     font-size: 14px;
+    flex-shrink: 0;
   }
 
   .chevron.open {
@@ -227,7 +260,7 @@
 
   .menu-item.selected {
     color: var(--text-main);
-    font-weight: 500;
+    font-weight: 400;
     background-color: rgba(255, 255, 255, 0.1);
   }
 

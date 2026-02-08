@@ -36,7 +36,7 @@ export const groupers = {
   chroma: (albums) => {
     const map = new Map();
     const buckets = [
-      { label: "Monochrome", threshold: 4 },
+      { label: "Bleak", threshold: 1 },
       { label: "Muted", threshold: 12 },
       { label: "Standard", threshold: 30 },
       { label: "Vibrant", threshold: Infinity }
@@ -77,7 +77,7 @@ export function generateSidebarGroup(albums, groupKey) {
   }
   
   if (groupKey === "chroma") {
-    const order = ["Monochrome", "Muted", "Standard", "Vibrant"];
+    const order = ["Vibrant", "Standard", "Muted", "Bleak"];
     result.sort((a, b) => order.indexOf(a.label) - order.indexOf(b.label));
   } else {
     result.sort((a, b) => a.value.localeCompare(b.value, undefined, { numeric: true }));

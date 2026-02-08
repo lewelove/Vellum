@@ -50,5 +50,5 @@ export const SORTER_LABELS = {
   date_added: "Date Added",
   duration: "Duration",
   chroma: "Chroma",
-  entropy: "Cover Entropy",
+  entropy: "Entropy",
 };
