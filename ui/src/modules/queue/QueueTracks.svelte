@@ -69,13 +69,6 @@
   let playbackPercent = $derived(
     player.duration > 0 ? (player.elapsed / player.duration) * 100 : 0
   );
-
-  // Helper to determine if we should show disc headers in a group
-  function hasMultipleDiscs(tracks) {
-    if (!tracks || tracks.length === 0) return false;
-    const firstDisc = tracks[0].discNo;
-    return tracks.some(t => t.discNo !== firstDisc);
-  }
 </script>
 
 <div class="tracks-list-container">
@@ -102,8 +95,10 @@
         </div>
       {/if}
 
+      {@const isMultiDiscAlbum = group.albumMeta && parseInt(group.albumMeta.TOTALDISCS || "1") > 1}
+
       {#each group.tracks as track, i (track.id)}
-        {@const showDiscHeader = (i === 0 || track.discNo !== group.tracks[i-1].discNo) && hasMultipleDiscs(group.tracks)}
+        {@const showDiscHeader = isMultiDiscAlbum && (i === 0 || track.discNo !== group.tracks[i-1].discNo)}
         
         {#if showDiscHeader}
           {#if i > 0}
@@ -156,7 +151,6 @@
     align-items: center;
     gap: 12px;
     box-sizing: border-box;
-    margin-top: 4px;
   }
 
   .header-thumb {
