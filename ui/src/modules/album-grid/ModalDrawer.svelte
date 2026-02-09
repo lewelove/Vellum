@@ -161,8 +161,8 @@
   }
 
   .modal-chassis {
-    width: 75vw;
-    height: 90vh;
+    width: 80vw;
+    height: 85vh;
     background-color: #242424;
     box-shadow: 0 0 64px rgba(0, 0, 0, 0.1), 0 0 48px rgba(0, 0, 0, 0.3), 0 0 32px rgba(0, 0, 0, 0.5);
     border-radius: 12px;
