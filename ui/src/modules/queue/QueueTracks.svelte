@@ -81,7 +81,7 @@
 <div class="tracks-list-container">
   <div class="tracks-list">
     {#each groupedQueue as group}
-      <!-- Album Header (Preserved for context) -->
+      <!-- Album Header -->
       {#if group.albumMeta}
         <div class="album-group-header">
           <img 
@@ -102,7 +102,6 @@
         </div>
       {/if}
 
-      <!-- Tracks List styled like ModalDrawerTracks -->
       {#each group.tracks as track, i (track.id)}
         {@const showDiscHeader = (i === 0 || track.discNo !== group.tracks[i-1].discNo) && hasMultipleDiscs(group.tracks)}
         
@@ -219,8 +218,8 @@
     display: flex;
     align-items: center;
     padding: 0 20px;
-    margin-bottom: 6px;
-    margin-top: 6px;
+    margin-bottom: 8px;
+    margin-top: 8px;
   }
 
   .disc-label {
@@ -233,6 +232,7 @@
     border: 1px solid rgba(255, 255, 255, 0.05);
     border-radius: 8px;
     height: 24px;
+    box-sizing: border-box;
   }
 
   /* --- Track Row (Matches ModalDrawerTracks) --- */
@@ -240,16 +240,20 @@
     position: relative;
     display: flex;
     align-items: center;
-    padding: 6px 16px 6px 6px; /* Adjusted left padding to handle index width visually */
-    font-size: 15px;
+    padding: 6px 0px;
+    font-size: 14px;
     color: #ffffff;
     cursor: default;
     user-select: none;
     background-color: transparent;
-    border-radius: 6px;
+    border-radius: 8px;
     margin: 0 8px;
     transition: background-color 0.1s ease;
-    overflow: hidden; /* For progress bar containment */
+    overflow: hidden;
+  }
+
+  .track-row + .track-row {
+    margin-top: 4px;
   }
 
   .track-row:hover {
@@ -276,7 +280,7 @@
     flex: 0 0 44px;
     text-align: center;
     color: #888888;
-    font-size: 13px;
+    font-size: 12px;
   }
 
   .track-body {
@@ -293,7 +297,7 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    font-size: 15px;
+    font-size: 14px;
     color: #ffffff;
   }
 
@@ -313,6 +317,7 @@
     text-align: right;
     font-size: 13px;
     font-feature-settings: "tnum";
-    min-width: 32px;
+    padding-right: 18px;
+    min-width: 44px;
   }
 </style>
