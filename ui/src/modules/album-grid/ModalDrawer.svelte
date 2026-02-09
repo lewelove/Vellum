@@ -130,7 +130,7 @@
     justify-content: flex-end;
     align-items: center;
     gap: 10px;
-    padding-bottom: 16px;
+    padding-bottom: 12px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
     width: 100%;
   }
@@ -206,7 +206,7 @@
 
   .album-title {
     margin: 0;
-    font-size: 26px;
+    font-size: 25px;
     font-weight: 400;
     color: #ffffff;
     word-wrap: break-word;
@@ -214,7 +214,7 @@
 
   .album-artist {
     margin: 12px 0 0 0;
-    font-size: 21px;
+    font-size: 20px;
     font-weight: 400;
     color: #d3d3d3;
     word-wrap: break-word;
@@ -269,8 +269,8 @@
   }
 
   .icon-btn {
-    width: 40px;
-    height: 40px;
+    width: 36px;
+    height: 36px;
     background-color: rgba(255, 255, 255, 0.01);
     border: 1px solid rgba(255, 255, 255, 0.05);
     padding: 0;
@@ -308,7 +308,7 @@
     top: 0;
     left: 0;
     right: 0;
-    height: 16px;
+    height: 12px;
     background: linear-gradient(to bottom, #242424 0%, transparent 100%);
     z-index: 10;
     pointer-events: none;
@@ -319,7 +319,7 @@
     bottom: 0;
     left: 0;
     right: 0;
-    height: 16px;
+    height: 12px;
     background: linear-gradient(to top, #242424 0%, transparent 100%);
     z-index: 10;
     pointer-events: none;

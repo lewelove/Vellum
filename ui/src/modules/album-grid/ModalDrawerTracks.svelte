@@ -96,7 +96,7 @@
   .disc-separator {
     height: 1px;
     background-color: rgba(255, 255, 255, 0.05);
-    margin: 16px 0;
+    margin: 12px 0;
     width: 100%;
   }
 
@@ -112,13 +112,13 @@
     display: flex;
     align-items: center;
     padding: 0 12px;
-    font-size: 14px;
+    font-size: 12px;
     font-weight: 600;
     color: #666;
     background-color: rgba(255, 255, 255, 0.00);
     border: 1px solid rgba(255, 255, 255, 0.05);
     border-radius: 8px;
-    height: 28px;
+    height: 24px;
     box-sizing: border-box;
   }
 
@@ -126,8 +126,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 40px;
-    height: 28px;
+    width: 36px;
+    height: 24px;
     cursor: pointer;
     background-color: rgba(255, 255, 255, 0.01);
     border: 1px solid rgba(255, 255, 255, 0.05);
@@ -149,7 +149,7 @@
     display: flex;
     align-items: center;
     padding: 6px 0px;
-    font-size: 15px;
+    font-size: 14px;
     color: #ffffff;
     cursor: default;
     outline: none;
@@ -174,7 +174,7 @@
     flex: 0 0 44px;
     text-align: center;
     color: #888888;
-    font-size: 13px;
+    font-size: 12px;
   }
 
   .track-body {
