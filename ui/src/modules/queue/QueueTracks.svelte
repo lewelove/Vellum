@@ -2,7 +2,6 @@
   import { player } from "../player.svelte.js";
   import { library } from "../../library.svelte.js";
 
-  // Helper for time formatting matching ModalDrawerTracks
   function formatDuration(str) {
     if (!str) return "0:00";
     
@@ -19,7 +18,31 @@
     return parts.join(':');
   }
 
-  // 1. Map individual tracks with metadata
+  function formatMs(ms) {
+    if (!ms) return "0:00";
+    const totalSeconds = Math.floor(ms / 1000);
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = totalSeconds % 60;
+    
+    const pad = (num) => String(num).padStart(2, '0');
+
+    if (h > 0) {
+      return `${h}:${pad(m)}:${pad(s)}`;
+    }
+    return `${m}:${pad(s)}`;
+  }
+
+  function getDiscDuration(tracks, discNumber) {
+    const totalMs = tracks
+      .filter(t => t.discNo === discNumber)
+      .reduce((acc, t) => {
+        const meta = library.getTrackByPath(t.file);
+        return acc + (parseInt(meta?.track_duration_in_ms) || 0);
+      }, 0);
+    return formatMs(totalMs);
+  }
+
   let mappedTracks = $derived(player.queue.map(item => {
     const meta = library.getTrackByPath(item.file);
     const albumId = meta?.album_id || null;
@@ -47,7 +70,6 @@
     };
   }));
 
-  // 2. Group tracks by consecutive album
   let groupedQueue = $derived.by(() => {
     const groups = [];
     mappedTracks.forEach(track => {
@@ -65,7 +87,6 @@
     return groups;
   });
 
-  // 3. Playback percentage calculation
   let playbackPercent = $derived(
     player.duration > 0 ? (player.elapsed / player.duration) * 100 : 0
   );
@@ -74,7 +95,6 @@
 <div class="tracks-list-container">
   <div class="tracks-list">
     {#each groupedQueue as group}
-      <!-- Album Header -->
       {#if group.albumMeta}
         <div class="album-group-header">
           <img 
@@ -106,6 +126,9 @@
           {/if}
           <div class="disc-header-row" class:first-disc={i === 0}>
             <span class="disc-label">Disc {track.discNo}</span>
+            <div class="disc-header-right">
+              <span class="disc-duration-label">{getDiscDuration(group.tracks, track.discNo)}</span>
+            </div>
           </div>
         {/if}
 
@@ -144,7 +167,6 @@
     padding: 0 0 16px 0;
   }
 
-  /* --- Album Header --- */
   .album-group-header {
     padding: 12px 20px 12px 20px;
     display: flex;
@@ -201,7 +223,6 @@
     font-feature-settings: "tnum";
   }
 
-  /* --- Disc Headers --- */
   .disc-separator {
     height: 1px;
     background-color: rgba(255, 255, 255, 0.05);
@@ -210,6 +231,7 @@
 
   .disc-header-row {
     display: flex;
+    justify-content: space-between;
     align-items: center;
     padding: 0 16px;
     margin-bottom: 8px;
@@ -218,6 +240,11 @@
 
   .disc-header-row.first-disc {
     margin-top: 0px;
+  }
+
+  .disc-header-right {
+    display: flex;
+    align-items: center;
   }
 
   .disc-label {
@@ -233,7 +260,20 @@
     box-sizing: border-box;
   }
 
-  /* --- Track Row (Matches ModalDrawerTracks) --- */
+  .disc-duration-label {
+    font-feature-settings: "tnum";
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    font-size: 12px;
+    font-weight: 400;
+    color: #666;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    height: 24px;
+    box-sizing: border-box;
+  }
+
   .track-row {
     position: relative;
     display: flex;
