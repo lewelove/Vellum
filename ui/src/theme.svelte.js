@@ -25,7 +25,7 @@ export const theme = $state({
 
   albumGrid: {
     "crease-height": 18,
-    "gap-x": 30,
+    "gap-x": 28,
     "gap-y": 18,
     "cover-size": 200,
     "text-gap-main": 12,
