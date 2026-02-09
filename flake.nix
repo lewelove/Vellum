@@ -55,9 +55,6 @@
               generate)
                 cd "$ROOT" && python -m cli.generate "$@"
                 ;;
-              generate_rs)
-                cd "$ROOT/cli_rs" && cargo run --release -- generate "$@"
-                ;;
               harvest)
                 cd "$ROOT/cli_rs" && cargo run --release -- harvest "$@"
                 ;;
@@ -70,11 +67,9 @@
               help|--help|-h)
                 echo "Vellum CLI Commands:"
                 echo "  ui          : Start Svelte UI Dev Server"
-                echo "  ui_qml      : Start Native QML UI"
                 echo "  server      : Start Backend (Live State Manager)"
                 echo "  update      : Compile metadata locks & Hot Reload Server"
                 echo "  generate    : Initialize metadata from files (Python)"
-                echo "  generate_rs : Initialize metadata from files (Rust Legacy)"
                 echo "  harvest     : Harvest raw metadata to JSON (Rust)"
                 echo "  export      : Export snapshot"
                 echo "  report      : Generate listening report"

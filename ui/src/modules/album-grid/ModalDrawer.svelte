@@ -105,7 +105,7 @@
               <img src="/material/playlist_add_FFFFFF.svg" alt="" />
             </button>
             <button class="icon-btn" onclick={handlePlay} title="Play Album">
-              <img src="/material/playlist_play_FFFFFF.svg" alt="" />
+              <img src="/material/play_circle_24dp_FFFFFF.svg" alt="" />
             </button>
           </div>
         </div>

@@ -55,7 +55,7 @@
           onclick={() => handlePlayDisc(track.DISCNUMBER)}
           title="Play Disc {track.DISCNUMBER}"
         >
-          <img src="/material/play_circle_24dp_666666.svg" alt="Play Disc" />
+          <img src="/material/play_circle_20dp_666666.svg" alt="Play Disc" />
         </button>
       </div>
     {/if}
@@ -118,7 +118,7 @@
     background-color: rgba(255, 255, 255, 0.00);
     border: 1px solid rgba(255, 255, 255, 0.05);
     border-radius: 8px;
-    height: 32px;
+    height: 28px;
     box-sizing: border-box;
   }
 
@@ -127,7 +127,7 @@
     align-items: center;
     justify-content: center;
     width: 40px;
-    height: 32px;
+    height: 28px;
     cursor: pointer;
     background-color: rgba(255, 255, 255, 0.01);
     border: 1px solid rgba(255, 255, 255, 0.05);
@@ -141,8 +141,8 @@
   }
 
   .disc-play-btn img {
-    width: 24px;
-    height: 24px;
+    width: 20px;
+    height: 20px;
   }
 
   .track-row {
