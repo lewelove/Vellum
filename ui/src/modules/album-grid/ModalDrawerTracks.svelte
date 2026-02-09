@@ -20,6 +20,28 @@
     return parts.join(':');
   }
 
+  function formatMs(ms) {
+    if (!ms) return "0:00";
+    const totalSeconds = Math.floor(ms / 1000);
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = totalSeconds % 60;
+    
+    const pad = (num) => String(num).padStart(2, '0');
+
+    if (h > 0) {
+      return `${h}:${pad(m)}:${pad(s)}`;
+    }
+    return `${m}:${pad(s)}`;
+  }
+
+  function getDiscDuration(discNumber) {
+    const totalMs = tracks
+      .filter(t => t.DISCNUMBER === discNumber)
+      .reduce((acc, t) => acc + (parseInt(t.track_duration_in_ms) || 0), 0);
+    return formatMs(totalMs);
+  }
+
   function handleSelect(index) {
     selectedIndex = index;
   }
@@ -50,13 +72,17 @@
       {/if}
       <div class="disc-header-row">
         <span class="disc-label">Disc {track.DISCNUMBER}</span>
-        <button 
-          class="disc-play-btn" 
-          onclick={() => handlePlayDisc(track.DISCNUMBER)}
-          title="Play Disc {track.DISCNUMBER}"
-        >
-          <img src="/material/play_circle_20dp_666666.svg" alt="Play Disc" />
-        </button>
+        
+        <div class="disc-header-right">
+          <span class="disc-duration-label">{getDiscDuration(track.DISCNUMBER)}</span>
+          <button 
+            class="disc-play-btn" 
+            onclick={() => handlePlayDisc(track.DISCNUMBER)}
+            title="Play Disc {track.DISCNUMBER}"
+          >
+            <img src="/material/play_circle_20dp_666666.svg" alt="Play Disc" />
+          </button>
+        </div>
       </div>
     {/if}
 
@@ -108,7 +134,13 @@
     margin-bottom: 8px;
   }
 
-  .disc-label {
+  .disc-header-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .disc-label, .disc-duration-label {
     display: flex;
     align-items: center;
     padding: 0 12px;
@@ -120,6 +152,15 @@
     border-radius: 8px;
     height: 24px;
     box-sizing: border-box;
+  }
+
+  .disc-duration-label {
+    font-feature-settings: "tnum";
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    font-size: 12px;
+    font-weight: 400;
   }
 
   .disc-play-btn {
@@ -164,13 +205,9 @@
   .track-row:hover {
     background-color: rgba(255, 255, 255, 0.03);
   }
-  /**/
-  /* .track-row.selected { */
-  /*   background-color: #333333; */
-  /*   border-color: rgba(255, 255, 255, 0.1); */
-  /* } */
 
   .track-index {
+    font-feature-settings: "tnum";
     flex: 0 0 44px;
     text-align: center;
     color: #888888;
@@ -201,6 +238,7 @@
   }
 
   .track-meta {
+    font-feature-settings: "tnum";
     color: #888888;
     padding-right: 18px;
     text-align: right;

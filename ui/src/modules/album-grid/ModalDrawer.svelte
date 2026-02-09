@@ -221,6 +221,7 @@
   }
 
   .meta-row {
+    font-feature-settings: "tnum";
     display: flex;
     align-items: center;
     min-height: 24px;

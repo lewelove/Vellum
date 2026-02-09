@@ -275,6 +275,7 @@
   }
 
   .track-index {
+    font-feature-settings: "tnum";
     position: relative;
     z-index: 1;
     flex: 0 0 44px;
