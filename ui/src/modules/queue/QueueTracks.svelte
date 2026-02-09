@@ -104,7 +104,7 @@
           {#if i > 0}
             <div class="disc-separator"></div>
           {/if}
-          <div class="disc-header-row">
+          <div class="disc-header-row" class:first-disc={i === 0}>
             <span class="disc-label">Disc {track.discNo}</span>
           </div>
         {/if}
@@ -146,7 +146,7 @@
 
   /* --- Album Header --- */
   .album-group-header {
-    padding: 16px 16px 12px 20px;
+    padding: 12px 20px 12px 20px;
     display: flex;
     align-items: center;
     gap: 12px;
@@ -211,9 +211,13 @@
   .disc-header-row {
     display: flex;
     align-items: center;
-    padding: 0 20px;
+    padding: 0 16px;
     margin-bottom: 8px;
     margin-top: 8px;
+  }
+
+  .disc-header-row.first-disc {
+    margin-top: 0px;
   }
 
   .disc-label {
