@@ -1,6 +1,6 @@
 <script>
   import { fade } from "svelte/transition";
-  import { playAlbum, queueAlbum, openAlbumFolder } from "../../api.js";
+  import { playAlbum, queueAlbum, openAlbumFolder, playDisc } from "../../api.js";
   import { library } from "../../library.svelte.js";
   import ModalDrawerCover from "./ModalDrawerCover.svelte";
   import ModalDrawerTracks from "./ModalDrawerTracks.svelte";
@@ -39,6 +39,14 @@
       await playAlbum(album.id, index);
     } catch (err) {
       console.error("Failed to play track:", err);
+    }
+  }
+
+  async function handlePlayDisc(discNumber) {
+    try {
+      await playDisc(album.id, discNumber);
+    } catch (err) {
+      console.error("Failed to play disc:", err);
     }
   }
 
@@ -115,6 +123,7 @@
             tracks={album.tracks} 
             totalDiscs={album.TOTALDISCS} 
             onplay={handlePlayTrack} 
+            onplaydisc={handlePlayDisc}
           />
           <div class="scroll-fade-overlay-bottom"></div>
         </div>

@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect, Re
 from fastapi.responses import FileResponse
 from . import config
 from .library import STATE
-from .mpd_engine import play_album_logic, enqueue_album_logic
+from .mpd_engine import play_album_logic, enqueue_album_logic, play_disc_logic
 
 class ConnectionManager:
     def __init__(self): 
@@ -117,6 +117,13 @@ def play_album(album_id: str, offset: int = 0):
     success = play_album_logic(album_id, offset)
     if not success:
         raise HTTPException(status_code=404, detail="Could not play album")
+    return {"status": "ok"}
+
+@router.post("/api/play-disc/{album_id:path}")
+def play_disc(album_id: str, disc: str):
+    success = play_disc_logic(album_id, disc)
+    if not success:
+        raise HTTPException(status_code=404, detail="Could not play disc")
     return {"status": "ok"}
 
 @router.post("/api/queue/{album_id:path}")

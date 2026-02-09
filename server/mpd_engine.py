@@ -87,6 +87,42 @@ def play_album_logic(album_id: str, offset: int = 0):
         print(f"MPD Error: {e}")
         return False
 
+def play_disc_logic(album_id: str, disc_number: str):
+    """
+    Clears queue and plays only the tracks belonging to the specified disc number.
+    """
+    album = STATE.album_map.get(album_id)
+    if not album: 
+        return False
+    
+    paths = []
+    # Filter tracks by DISCNUMBER
+    for t in album.get("tracks", []):
+        if str(t.get("DISCNUMBER", "")) == str(disc_number):
+            lib_path = t.get("track_library_path")
+            if lib_path in STATE.track_map:
+                paths.append(STATE.track_map[lib_path])
+
+    if not paths:
+        return False
+
+    client = MPDClient()
+    try:
+        client.connect("localhost", 6600)
+        client.clear()
+        
+        for p in paths:
+            if config.LIBRARY_ROOT:
+                rel_p = Path(p).relative_to(config.LIBRARY_ROOT)
+                client.add(str(rel_p))
+        
+        client.play(0)
+        client.close()
+        return True
+    except Exception as e:
+        print(f"MPD Error: {e}")
+        return False
+
 def enqueue_album_logic(album_id: str):
     paths = _get_album_paths(album_id)
     if not paths:

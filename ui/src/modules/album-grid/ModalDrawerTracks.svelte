@@ -1,5 +1,5 @@
 <script>
-  let { tracks = [], totalDiscs = "1", onplay } = $props();
+  let { tracks = [], totalDiscs = "1", onplay, onplaydisc } = $props();
 
   let selectedIndex = $state(-1);
   let multiDisc = $derived(parseInt(totalDiscs) > 1);
@@ -51,9 +51,13 @@
   }
 
   function handlePlayDisc(discNumber) {
-    const firstIndex = tracks.findIndex(t => t.DISCNUMBER === discNumber);
-    if (firstIndex !== -1 && onplay) {
-      onplay(firstIndex);
+    if (onplaydisc) {
+      onplaydisc(discNumber);
+    } else {
+      const firstIndex = tracks.findIndex(t => t.DISCNUMBER === discNumber);
+      if (firstIndex !== -1 && onplay) {
+        onplay(firstIndex);
+      }
     }
   }
 
