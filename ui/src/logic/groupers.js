@@ -24,6 +24,39 @@ export const groupers = {
     return map;
   },
 
+  year_added: (albums) => {
+    const map = new Map();
+    albums.forEach(a => {
+      const unix = parseInt(a.unix_added || 0);
+      if (unix > 0) {
+        const year = new Date(unix * 1000).getFullYear().toString();
+        map.set(year, (map.get(year) || 0) + 1);
+      }
+    });
+    return map;
+  },
+
+  month_added: (albums) => {
+    const map = new Map();
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    albums.forEach(a => {
+      const unix = parseInt(a.unix_added || 0);
+      if (unix > 0) {
+        const date = new Date(unix * 1000);
+        const year = date.getFullYear();
+        const monthNum = date.getMonth() + 1;
+        const key = `${year}-${String(monthNum).padStart(2, '0')}`;
+        const label = `${monthNames[date.getMonth()]} ${year}`;
+        
+        if (!map.has(key)) {
+          map.set(key, { label, count: 0 });
+        }
+        map.get(key).count++;
+      }
+    });
+    return map;
+  },
+
   totaltracks: (albums) => {
     const map = new Map();
     albums.forEach(a => {
@@ -57,6 +90,8 @@ export const groupers = {
 export const GROUPER_LABELS = {
   genre: "Genre",
   decade: "Decade",
+  year_added: "Year Added",
+  month_added: "Month Added",
   totaltracks: "Total Tracks",
   chroma: "Chromaticity"
 };
@@ -67,18 +102,30 @@ export function generateSidebarGroup(albums, groupKey) {
   const map = groupers[groupKey](albums);
   const result = [];
   
-  for (const [val, count] of map.entries()) {
-    result.push({
-      label: val,
-      value: val,
-      count: count,
-      filterTarget: groupKey
-    });
+  for (const [val, data] of map.entries()) {
+    if (groupKey === "month_added") {
+      result.push({
+        label: data.label,
+        value: val,
+        count: data.count,
+        filterTarget: groupKey
+      });
+    } else {
+      result.push({
+        label: val,
+        value: val,
+        count: data,
+        filterTarget: groupKey
+      });
+    }
   }
   
   if (groupKey === "chroma") {
     const order = ["Vibrant", "Standard", "Muted", "Bleak"];
     result.sort((a, b) => order.indexOf(a.label) - order.indexOf(b.label));
+  } else if (groupKey === "year_added" || groupKey === "month_added") {
+    // Sort Added dates descending (newest at top)
+    result.sort((a, b) => b.value.localeCompare(a.value));
   } else {
     result.sort((a, b) => a.value.localeCompare(b.value, undefined, { numeric: true }));
   }

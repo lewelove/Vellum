@@ -39,6 +39,21 @@ export const filters = {
     return (now - added) < (86400 * 30);
   },
 
+  year_added: (album, val) => {
+    const unix = parseInt(album.unix_added || 0);
+    if (unix <= 0) return false;
+    const year = new Date(unix * 1000).getFullYear().toString();
+    return year === val;
+  },
+
+  month_added: (album, val) => {
+    const unix = parseInt(album.unix_added || 0);
+    if (unix <= 0) return false;
+    const date = new Date(unix * 1000);
+    const mVal = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    return mVal === val;
+  },
+
   chroma: (album, val) => {
     const score = parseFloat(album.cover_chroma || 0);
     switch (val) {
