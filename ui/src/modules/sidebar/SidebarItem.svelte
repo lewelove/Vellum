@@ -13,26 +13,31 @@
     justify-content: space-between;
     align-items: center;
     width: 100%;
-    background: none;
+    background-color: transparent;
     border: none;
-    padding: 8px 24px;
-    cursor: pointer;
+    padding: 6px 12px;
+    margin-bottom: 2px;
+    cursor: default;
     color: var(--text-muted);
     font-family: var(--font-stack);
     font-size: 14px;
     text-align: left;
-    transition: color 0.1s, background-color 0.1s;
+    transition: background-color 0.1s ease;
     outline: none;
+    border-radius: 8px;
+    box-sizing: border-box;
+    user-select: none;
   }
 
   .sidebar-item:hover {
-    color: var(--text-main);
     background-color: rgba(255, 255, 255, 0.03);
+    color: var(--text-main);
+    cursor: pointer;
   }
 
   .sidebar-item.active {
-    color: var(--text-main);
     background-color: rgba(255, 255, 255, 0.05);
+    color: var(--text-main);
   }
 
   .label {
@@ -45,6 +50,7 @@
 
   .count {
     opacity: 0.5;
-    font-size: 12px;
+    font-size: 13px;
+    font-feature-settings: "tnum";
   }
 </style>
