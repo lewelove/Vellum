@@ -13,6 +13,7 @@ CURRENT_LIB_FILE = STATE_DIR / "libraries_cache" / "current.json"
 UI_STATE = {
     "activeTab": "home",
     "sortKey": "default",
+    "sortOrder": "default",
     "groupKey": "genre",
     "filter": {"key": None, "val": None}
 }
