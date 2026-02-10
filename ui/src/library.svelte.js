@@ -15,9 +15,10 @@ class LibraryState {
   focusedAlbum = $state(null);
   activeFilter = $state({ key: null, val: null });
   
-  activeSort = $state({ key: "default" });
+  activeSort = $state({ key: "default", order: "default" });
   
   userSortPreference = $state("default");
+  userSortOrder = $state("default");
   
   activeSidebarGrouper = $state("genre");
 
@@ -175,7 +176,8 @@ class LibraryState {
   applyPersistedState(state) {
       nav.activeTab = state.activeTab || "home";
       this.userSortPreference = state.sortKey || "default";
-      this.activeSort = { key: this.userSortPreference };
+      this.userSortOrder = state.sortOrder || "default";
+      this.activeSort = { key: this.userSortPreference, order: this.userSortOrder };
       this.activeSidebarGrouper = state.groupKey || "genre";
       this.activeFilter = state.filter || { key: null, val: null };
   }
@@ -187,6 +189,7 @@ class LibraryState {
           body: JSON.stringify({
               activeTab: nav.activeTab,
               sortKey: this.userSortPreference,
+              sortOrder: this.userSortOrder,
               groupKey: this.activeSidebarGrouper,
               filter: $state.snapshot(this.activeFilter)
           })
@@ -253,14 +256,14 @@ class LibraryState {
       this.activeFilter = { key, val };
     }
     this.focusedAlbum = null;
-    this.activeSort = { key: this.userSortPreference };
+    this.activeSort = { key: this.userSortPreference, order: this.userSortOrder };
     this.refreshView(true);
     this.persistState();
   }
 
   showRecentlyAdded() {
     this.activeFilter = { key: null, val: null };
-    this.activeSort = { key: "date_added" };
+    this.activeSort = { key: "date_added", order: "default" }; // Hardcoded default for this view?
     this.focusedAlbum = null;
     this.refreshView(true);
     this.persistState();
@@ -268,26 +271,36 @@ class LibraryState {
 
   showMediaLibrary() {
     this.activeFilter = { key: null, val: null };
-    this.activeSort = { key: this.userSortPreference };
+    this.activeSort = { key: this.userSortPreference, order: this.userSortOrder };
     this.focusedAlbum = null;
     this.refreshView(true);
     this.persistState();
   }
 
   applySort(key) {
-    this.activeSort = { key };
+    // Temporary sort application (e.g. from hypothetical headers)
+    this.activeSort = { key, order: "default" };
     this.refreshView(true);
   }
 
   setUserSort(key) {
     this.userSortPreference = key;
-    this.activeSort = { key };
+    // When changing sort key, preserve current order or reset? 
+    // Usually user might want to keep "Reverse" if set. We keep it.
+    this.activeSort = { key, order: this.userSortOrder };
+    this.refreshView(true);
+    this.persistState();
+  }
+
+  toggleSortOrder() {
+    this.userSortOrder = (this.userSortOrder === "default") ? "reverse" : "default";
+    this.activeSort = { key: this.userSortPreference, order: this.userSortOrder };
     this.refreshView(true);
     this.persistState();
   }
 
   restoreUserSort() {
-    this.activeSort = { key: this.userSortPreference };
+    this.activeSort = { key: this.userSortPreference, order: this.userSortOrder };
     this.refreshView(true);
   }
 

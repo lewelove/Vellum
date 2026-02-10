@@ -12,6 +12,8 @@
 
   let items = $derived(library.getSidebarGroup(library.activeSidebarGrouper));
 
+  let isReverse = $derived(library.userSortOrder === "reverse");
+
   function handleMediaLibrary() {
     library.showMediaLibrary();
   }
@@ -39,6 +41,10 @@
     library.setSidebarGrouper(key);
     isGroupMenuOpen = false;
   }
+
+  function toggleDirection() {
+    library.toggleSortOrder();
+  }
 </script>
 
 <div class="sidebar-container">
@@ -53,14 +59,23 @@
 
   <div class="sidebar-controls">
     
-    <div class="control-wrapper">
-      <button class="control-toggle" onclick={toggleSortMenu} class:active={isSortMenuOpen}>
-        <div class="control-label-group">
-          <img src="/material/sort_24dp_FFFFFF.svg" alt="" class="control-icon" />
-          <span class="control-label">{sortLabel}</span>
-        </div>
-        <span class="chevron" class:open={isSortMenuOpen}>›</span>
-      </button>
+    <div class="control-wrapper sort-wrapper">
+      <div class="sort-main">
+        <button class="control-toggle" onclick={toggleSortMenu} class:active={isSortMenuOpen}>
+          <div class="control-label-group">
+            <img src="/material/sort_24dp_FFFFFF.svg" alt="" class="control-icon" />
+            <span class="control-label">{sortLabel}</span>
+          </div>
+          <span class="chevron" class:open={isSortMenuOpen}>›</span>
+        </button>
+        
+        <button class="direction-toggle" onclick={toggleDirection} title={isReverse ? "Reverse Order" : "Default Order"}>
+          <img 
+            src={isReverse ? "/material/arrow_upward_20dp_FFFFFF.svg" : "/material/arrow_downward_20dp_FFFFFF.svg"} 
+            alt="Sort Direction" 
+          />
+        </button>
+      </div>
   
       {#if isSortMenuOpen}
         <div class="control-menu">
@@ -166,12 +181,23 @@
     border-bottom: none;
   }
 
-  .control-toggle {
+  .sort-wrapper {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .sort-main {
+    display: flex;
     width: 100%;
+    align-items: stretch;
+  }
+
+  .control-toggle {
+    flex: 1;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 8px 16px 8px 20px;
+    padding: 8px 8px 8px 20px;
     background: none;
     border: none;
     color: var(--text-muted);
@@ -179,6 +205,33 @@
     font-size: 14px;
     cursor: pointer;
     outline: none; 
+    min-width: 0;
+  }
+
+  .direction-toggle {
+    width: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    border-left: 1px solid rgba(255, 255, 255, 0.05);
+    cursor: pointer;
+    outline: none;
+  }
+
+  .direction-toggle:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+  }
+
+  .direction-toggle img {
+    width: 18px;
+    height: 18px;
+    opacity: 0.6;
+  }
+
+  .direction-toggle:hover img {
+    opacity: 1;
   }
 
   .control-label-group {
@@ -186,6 +239,7 @@
     align-items: center;
     gap: 10px;
     min-width: 0;
+    overflow: hidden;
   }
 
   .control-icon {
@@ -222,6 +276,7 @@
     transition: transform 0.2s;
     font-size: 14px;
     flex-shrink: 0;
+    padding-left: 8px;
   }
 
   .chevron.open {

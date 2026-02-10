@@ -5,7 +5,7 @@ import { generateSidebarGroup } from "../logic/groupers.js";
 let rawAlbums = [];
 
 let currentFilter = { key: null, val: null };
-let currentSort = { key: "default" };
+let currentSort = { key: "default", order: "default" };
 
 self.onmessage = (e) => {
   const { type, payload } = e.data;
@@ -35,7 +35,10 @@ self.onmessage = (e) => {
             currentFilter = payload.ui_state.filter;
           }
           if (payload.ui_state.sortKey) {
-            currentSort = { key: payload.ui_state.sortKey };
+            currentSort = { 
+              key: payload.ui_state.sortKey,
+              order: payload.ui_state.sortOrder || "default"
+            };
           }
         }
 
@@ -98,6 +101,10 @@ function processView(filter, sort) {
   result = [...result]; 
   const sorter = sorters[sort.key] || sorters.default;
   result.sort(sorter);
+
+  if (sort.order === "reverse") {
+    result.reverse();
+  }
 
   const viewIds = result.map(a => a.id);
 
