@@ -24,12 +24,12 @@ export const theme = $state({
   },
 
   albumGrid: {
-    "crease-height": 18,
-    "gap-x": 28,
-    "gap-y": 18,
+    "crease-height": 20,
+    "gap-x": 30,
+    "gap-y": 16,
     "cover-size": 200,
-    "text-gap-main": 10,
-    "text-gap-lesser": 4,
+    "text-gap-main": 11,
+    "text-gap-lesser": 2,
     "font-line-height-title": 16,
     "font-line-height-artist": 14,
     "drawer-gap-main": 0,

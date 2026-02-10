@@ -33,11 +33,11 @@ def resolve_album_tag_comment(ctx):
     ]
     return " ".join([p for p in parts if p]).strip()
 
-def resolve_album_tag_ctdbid(ctx):
+def resolve_track_tag_ctdbid(ctx):
     return str(ctx["source"].get("CTDBID", ""))
 
-def resolve_album_tag_accuripid(ctx):
+def resolve_track_tag_accuripid(ctx):
     return str(ctx["source"].get("ACCURIPID", ""))
 
-def resolve_album_tag_discid(ctx):
+def resolve_track_tag_discid(ctx):
     return str(ctx["source"].get("DISCID", ""))

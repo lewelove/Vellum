@@ -61,6 +61,9 @@
               export)
                 cd "$ROOT" && python -m cli.export "$@"
                 ;;
+              write)
+                cd "$ROOT" && python -m cli.write "$@"
+                ;;
               report)
                 cd "$ROOT" && python -m cli.report "$@"
                 ;;
