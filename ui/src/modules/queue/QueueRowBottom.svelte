@@ -1,5 +1,8 @@
 <script>
+  import { onMount } from "svelte";
   import { player } from "../player.svelte.js";
+
+  let tickingElapsed = $state(0);
 
   const formatTime = (totalSeconds) => {
     const s = Math.floor(totalSeconds || 0);
@@ -21,9 +24,22 @@
   });
 
   let totalQueue = $derived(String(player.queue.length));
-  
-  let timeElapsed = $derived(formatTime(player.elapsed));
   let timeTotal = $derived(formatTime(player.duration));
+
+  function tick() {
+    if (player.state === "play") {
+      const delta = (performance.now() - player.lastUpdated) / 1000;
+      tickingElapsed = Math.min(player.elapsed + delta, player.duration);
+    } else {
+      tickingElapsed = player.elapsed;
+    }
+    requestAnimationFrame(tick);
+  }
+
+  onMount(() => {
+    const raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  });
 </script>
 
 <div class="queue-row-bottom">
@@ -38,7 +54,7 @@
     <div class="vga-divider"></div>
 
     <div class="vga-group">
-      <span class="vga-data">{timeElapsed}</span>
+      <span class="vga-data">{formatTime(tickingElapsed)}</span>
       <span class="vga-sep">/</span>
       <span class="vga-data">{timeTotal}</span>
     </div>

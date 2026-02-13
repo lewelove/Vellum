@@ -1,6 +1,9 @@
 <script>
+  import { onMount } from "svelte";
   import { player } from "../player.svelte.js";
   import { library } from "../../library.svelte.js";
+
+  let tickingElapsed = $state(0);
 
   function formatDuration(str) {
     if (!str) return "0:00";
@@ -42,6 +45,21 @@
       }, 0);
     return formatMs(totalMs);
   }
+
+  function tick() {
+    if (player.state === "play") {
+      const delta = (performance.now() - player.lastUpdated) / 1000;
+      tickingElapsed = Math.min(player.elapsed + delta, player.duration);
+    } else {
+      tickingElapsed = player.elapsed;
+    }
+    requestAnimationFrame(tick);
+  }
+
+  onMount(() => {
+    const raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  });
 
   let mappedTracks = $derived(player.queue.map(item => {
     const meta = library.getTrackByPath(item.file);
@@ -88,7 +106,7 @@
   });
 
   let playbackPercent = $derived(
-    player.duration > 0 ? (player.elapsed / player.duration) * 100 : 0
+    player.duration > 0 ? (tickingElapsed / player.duration) * 100 : 0
   );
 </script>
 
