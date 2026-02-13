@@ -1,4 +1,6 @@
 mod harvest;
+mod server;
+mod config;
 
 use clap::{Parser, Subcommand};
 use std::path::{PathBuf};
@@ -25,6 +27,12 @@ enum Commands {
         /// Number of threads to use [default: all cores]
         #[arg(long, short = 'j')]
         jobs: Option<usize>,
+    },
+    /// Starts the Vellum Server (Rust implementation)
+    Server {
+        /// Port to listen on
+        #[arg(long, default_value = "8000")]
+        port: u16,
     }
 }
 
@@ -43,7 +51,15 @@ fn expand_path(path_str: &str) -> PathBuf {
     PathBuf::from(path_str)
 }
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
+    // Initialize logging for the server
+    simple_logger::SimpleLogger::new()
+        .with_level(log::LevelFilter::Info)
+        .env()
+        .init()
+        .ok();
+
     let cli = Cli::parse();
 
     match cli.command {
@@ -61,6 +77,9 @@ fn main() -> Result<()> {
                 .with_context(|| format!("Invalid path: {:?}", expanded))?;
                 
             harvest::run(target_root, pretty)
+        },
+        Commands::Server { port } => {
+            server::run(port).await
         }
     }
 }
