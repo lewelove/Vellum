@@ -1,50 +1,16 @@
-mod api;
-mod library;
-mod mpd_engine;
+pub mod state;
+pub mod library;
+pub mod mpd;
+pub mod api;
 
 use anyhow::{Context, Result};
-use axum::{
-    routing::{get, post},
-    Router,
-};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::sync::{broadcast, RwLock};
 use tower_http::cors::{Any, CorsLayer};
-use std::path::PathBuf;
 
 use crate::expand_path;
-
-pub struct AppState {
-    pub library: Arc<RwLock<library::Library>>,
-    pub ui_state: RwLock<serde_json::Value>,
-    pub tx: broadcast::Sender<String>,
-    pub config: AppConfig,
-    pub mpd_engine: mpd_engine::MpdEngine,
-}
-
-#[derive(Clone)]
-pub struct AppConfig {
-    pub library_root: PathBuf,
-    pub thumbnail_root: Option<PathBuf>,
-}
-
-fn find_config() -> Result<(PathBuf, String)> {
-    let mut curr = std::env::current_dir()?;
-    loop {
-        let conf_path = curr.join("config.toml");
-        if conf_path.exists() {
-            let content = std::fs::read_to_string(&conf_path)?;
-            return Ok((curr, content));
-        }
-        if let Some(parent) = curr.parent() {
-            curr = parent.to_path_buf();
-        } else {
-            break;
-        }
-    }
-    anyhow::bail!("config.toml not found in current or parent directories")
-}
+use self::state::{AppState, AppConfig};
 
 pub async fn run(port: u16) -> Result<()> {
     let (root_dir, config_content) = find_config().context("Project root not found")?;
@@ -55,43 +21,31 @@ pub async fn run(port: u16) -> Result<()> {
     let thumb_root_str = storage.get("thumbnail_cache_folder").and_then(|v| v.as_str());
 
     let lib_path = expand_path(lib_root_str);
-    let library_root = if lib_path.is_absolute() {
-        lib_path
-    } else {
-        root_dir.join(lib_path)
-    }.canonicalize().context("Invalid library_root")?;
+    let library_root = if lib_path.is_absolute() { lib_path } else { root_dir.join(lib_path) }
+        .canonicalize().context("Invalid library_root")?;
 
     let app_config = Arc::new(AppConfig {
         library_root: library_root.clone(),
         thumbnail_root: thumb_root_str.map(expand_path),
     });
 
-    let state_dir = expand_path("~/.vellum");
-    let state_file = state_dir.join("state.json");
+    let state_file = expand_path("~/.vellum/state.json");
     let ui_state_val = if state_file.exists() {
         let data = std::fs::read_to_string(&state_file).unwrap_or_default();
         serde_json::from_str(&data).unwrap_or(serde_json::json!({}))
     } else {
         serde_json::json!({
-            "activeTab": "home",
-            "sortKey": "default",
-            "sortOrder": "default",
-            "groupKey": "genre",
-            "filter": {"key": null, "val": null}
+            "activeTab": "home", "sortKey": "default", "sortOrder": "default",
+            "groupKey": "genre", "filter": {"key": null, "val": null}
         })
     };
 
     let mut library = library::Library::new(library_root);
     library.scan().await;
     let library_arc = Arc::new(RwLock::new(library));
+    let (tx, _) = broadcast::channel(100);
 
-    let (tx, _rx) = broadcast::channel(100);
-
-    let mpd_engine = mpd_engine::start_actor(
-        tx.clone(),
-        Arc::clone(&library_arc),
-        Arc::clone(&app_config)
-    );
+    let mpd_engine = mpd::start_actor(tx.clone(), Arc::clone(&library_arc), Arc::clone(&app_config));
 
     let app_state = Arc::new(AppState {
         library: library_arc,
@@ -101,34 +55,23 @@ pub async fn run(port: u16) -> Result<()> {
         mpd_engine,
     });
 
-    let cors = CorsLayer::new()
-        .allow_origin(Any)
-        .allow_methods(Any)
-        .allow_headers(Any);
-
-    let app = Router::new()
-        .route("/ws", get(api::ws_handler))
-        .route("/api/state", post(api::update_state))
-        .route("/api/internal/reset", post(api::trigger_full_reset))
-        .route("/api/internal/reload", post(api::trigger_reload))
-        .route("/api/covers/{hash}", get(api::get_cover_thumbnail))
-        .route("/api/assets/cover/{*id}", get(api::get_album_cover))
-        .route("/api/play/{*id}", post(api::play_album))
-        .route("/api/play-disc/{*id}", post(api::play_disc))
-        .route("/api/queue/{*id}", post(api::queue_album))
-        .route("/api/next", post(api::next_track))
-        .route("/api/prev", post(api::prev_track))
-        .route("/api/stop", post(api::stop_playback))
-        .route("/api/clear", post(api::clear_queue))
-        .route("/api/toggle-pause", post(api::toggle_pause))
-        .route("/api/open/{*id}", post(api::open_album_folder))
-        .layer(cors)
-        .with_state(app_state);
+    let cors = CorsLayer::new().allow_origin(Any).allow_methods(Any).allow_headers(Any);
+    let app = api::router(Arc::clone(&app_state)).layer(cors);
 
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
-    let listener = tokio::net::TcpListener::bind(addr).await?;
     log::info!("Vellum Server listening on http://{}", addr);
-    axum::serve(listener, app).await?;
+    axum::serve(tokio::net::TcpListener::bind(addr).await?, app).await?;
 
     Ok(())
+}
+
+fn find_config() -> Result<(std::path::PathBuf, String)> {
+    let mut curr = std::env::current_dir()?;
+    loop {
+        let conf_path = curr.join("config.toml");
+        if conf_path.exists() {
+            return Ok((curr, std::fs::read_to_string(&conf_path)?));
+        }
+        curr = curr.parent().context("config.toml not found")?.to_path_buf();
+    }
 }
