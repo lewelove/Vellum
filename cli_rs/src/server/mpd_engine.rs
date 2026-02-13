@@ -3,57 +3,70 @@ use mpd::{Client, Subsystem, Idle};
 use serde_json::json;
 use std::sync::Arc;
 use std::time::Duration;
+use tokio::sync::mpsc;
 use tokio::time::interval;
 
 pub fn start_monitor(state: Arc<AppState>) {
+    let (tx_event, mut rx_event) = mpsc::channel::<()>(10);
+
+    // Dedicated Idle Listener Thread
+    // This thread owns its own connection and blocks on MPD events indefinitely.
+    std::thread::spawn(move || {
+        loop {
+            match Client::connect("127.0.0.1:6600") {
+                Ok(mut client) => {
+                    log::info!("MPD Idle Listener connected.");
+                    loop {
+                        if client.wait(&[Subsystem::Player, Subsystem::Playlist, Subsystem::Options]).is_ok() {
+                            let _ = tx_event.blocking_send(());
+                        } else {
+                            break;
+                        }
+                    }
+                }
+                Err(_) => {
+                    std::thread::sleep(Duration::from_secs(2));
+                }
+            }
+        }
+    });
+
+    // Main Async Monitor Task
+    // This task manages status broadcasting and the 1Hz playback heartbeat.
     tokio::spawn(async move {
-        log::info!("Starting MPD Monitor...");
-
+        log::info!("Starting Async Status Monitor...");
         let mut heartbeat = interval(Duration::from_secs(1));
-
+        
         loop {
             let state_clone = state.clone();
 
+            // Retrieve status and broadcast using a dedicated command connection
             let playback_active = tokio::task::spawn_blocking(move || {
-                match Client::connect("127.0.0.1:6600") {
-                    Ok(mut client) => {
-                        let status = client.status().ok();
-                        let _ = broadcast_status(&mut client, &state_clone);
-                        status.map(|s| s.state == mpd::status::State::Play).unwrap_or(false)
-                    }
-                    Err(_) => false,
+                if let Ok(mut client) = Client::connect("127.0.0.1:6600") {
+                    let status = client.status().ok();
+                    let _ = broadcast_status(&mut client, &state_clone);
+                    return status.map(|s| s.state == mpd::status::State::Play).unwrap_or(false);
                 }
+                false
             })
             .await
             .unwrap_or(false);
 
             if playback_active {
+                // While playing, react to either the 1s pulse or an MPD event
                 tokio::select! {
                     _ = heartbeat.tick() => {},
-                    _ = wait_for_event() => {
+                    _ = rx_event.recv() => {
                         heartbeat = interval(Duration::from_secs(1));
                     }
                 }
             } else {
-                let _ = wait_for_event().await;
+                // While stopped/paused, only react to MPD events
+                let _ = rx_event.recv().await;
                 heartbeat = interval(Duration::from_secs(1));
             }
         }
     });
-}
-
-async fn wait_for_event() -> Result<(), ()> {
-    tokio::task::spawn_blocking(move || {
-        if let Ok(mut client) = Client::connect("127.0.0.1:6600") {
-            let _ = client.wait(&[Subsystem::Player, Subsystem::Playlist, Subsystem::Options]);
-            Ok(())
-        } else {
-            std::thread::sleep(Duration::from_secs(2));
-            Err(())
-        }
-    })
-    .await
-    .unwrap_or(Err(()))
 }
 
 fn broadcast_status(client: &mut Client, state: &Arc<AppState>) -> Result<(), mpd::error::Error> {
