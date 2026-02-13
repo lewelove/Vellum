@@ -1,3 +1,4 @@
+use ax_ws::WebSocket;
 use axum::extract::ws as ax_ws;
 use axum::extract::{State, WebSocketUpgrade};
 use axum::response::Response;
@@ -13,7 +14,9 @@ pub async fn ws_handler(
     ws.on_upgrade(|socket| handle_socket(socket, state))
 }
 
-async fn handle_socket(mut socket: ax_ws::WebSocket, state: Arc<AppState>) {
+async fn handle_socket(mut socket: WebSocket, state: Arc<AppState>) {
+    log::info!("WebSocket: Client connected");
+
     let init_payload = {
         let lib = state.library.read().await;
         let ui = state.ui_state.read().await;
@@ -24,7 +27,9 @@ async fn handle_socket(mut socket: ax_ws::WebSocket, state: Arc<AppState>) {
         }).to_string()
     };
     
-    if socket.send(ax_ws::Message::Text(init_payload.into())).await.is_err() { return; }
+    if socket.send(ax_ws::Message::Text(init_payload.into())).await.is_err() {
+        return;
+    }
 
     state.mpd_engine.send(MpdCommand::Refresh).await;
 
@@ -32,10 +37,15 @@ async fn handle_socket(mut socket: ax_ws::WebSocket, state: Arc<AppState>) {
     loop {
         tokio::select! {
             Some(msg) = socket.recv() => {
-                if let Ok(ax_ws::Message::Close(_)) | Err(_) = msg { break; }
+                if let Ok(ax_ws::Message::Close(_)) | Err(_) = msg {
+                    log::info!("WebSocket: Client disconnected");
+                    break;
+                }
             }
             Ok(msg) = rx.recv() => {
-                if socket.send(ax_ws::Message::Text(msg.into())).await.is_err() { break; }
+                if socket.send(ax_ws::Message::Text(msg.into())).await.is_err() {
+                    break;
+                }
             }
         }
     }

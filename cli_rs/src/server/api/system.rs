@@ -28,6 +28,7 @@ pub async fn update_state(
 }
 
 pub async fn trigger_full_reset(State(state): State<Arc<AppState>>) -> Response {
+    log::info!("System: Full library reset triggered");
     {
         let mut lib = state.library.write().await;
         lib.scan().await;
@@ -54,6 +55,12 @@ pub async fn trigger_reload(
     if let Some(path) = params.get("path") {
         let mut lib = state.library.write().await;
         if let Some(updated) = lib.update_album(path) {
+            let album_name = updated.album_data.other.get("ALBUM")
+                .and_then(|v| v.as_str())
+                .unwrap_or(&updated.id);
+            
+            log::info!("System: Live-Reloading album '{}'", album_name);
+
             let _ = state.tx.send(json!({
                 "type": "UPDATE",
                 "id": updated.id,
