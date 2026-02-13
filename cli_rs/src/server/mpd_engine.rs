@@ -63,10 +63,18 @@ impl MpdEngine {
     }
 }
 
+/// Helper to find a tag in the MPD song's tag list (Vec of tuples)
+fn get_tag(song: &mpd::song::Song, key: &str) -> Option<String> {
+    song.tags
+        .iter()
+        .find(|(k, _)| k.eq_ignore_ascii_case(key))
+        .map(|(_, v)| v.clone())
+}
+
 pub fn start_monitor(
     broadcast_tx: broadcast::Sender<String>,
     library: Arc<RwLock<Library>>,
-    config: Arc<AppConfig>,
+    _config: Arc<AppConfig>,
 ) -> MpdEngine {
     let (tx, rx) = mpsc::channel::<MpdRequest>();
     let stream_interrupt = Arc::new(parking_lot::Mutex::new(None));
@@ -92,9 +100,8 @@ pub fn start_monitor(
                             log::info!("MPD connected via single persistent channel.");
 
                             loop {
-                                if let Err(e) =
-                                    broadcast_status(&mut client, &broadcast_tx, &library, &config)
-                                {
+                                // We fetch status and queue every time to ensure UI stability
+                                if let Err(e) = broadcast_status(&mut client, &broadcast_tx, &library) {
                                     log::error!("Status broadcast failed: {}", e);
                                     break;
                                 }
@@ -146,16 +153,40 @@ fn broadcast_status(
     client: &mut Client<TcpStream>,
     tx: &broadcast::Sender<String>,
     library: &Arc<RwLock<Library>>,
-    _config: &Arc<AppConfig>,
 ) -> Result<()> {
     let status = client.status().context("Failed to get status")?;
-    let current_song = client.currentsong().context("Failed to get current song")?;
     let queue = client.queue().context("Failed to get queue")?;
+    let current_song = client.currentsong().context("Failed to get current song")?;
 
-    let file_path = current_song
-        .as_ref()
-        .map(|s| s.file.trim_start_matches('/').to_string())
-        .unwrap_or_default();
+    // Build the queue payload with metadata fallbacks for the UI
+    let queue_json: serde_json::Value = queue
+        .iter()
+        .enumerate()
+        .map(|(idx, s)| {
+            let normalized_file = s.file.trim_start_matches('/').to_string();
+            let title = s.title.clone().or_else(|| get_tag(s, "Title"));
+            let artist = get_tag(s, "Artist");
+            let album_artist = get_tag(s, "AlbumArtist");
+
+            serde_json::json!({
+                "id": idx,
+                "file": normalized_file,
+                "title": title,
+                "artist": artist,
+                "albumartist": album_artist,
+            })
+        })
+        .collect();
+
+    let (file_path, title, artist) = if let Some(s) = current_song {
+        (
+            s.file.trim_start_matches('/').to_string(),
+            s.title.clone().or_else(|| get_tag(&s, "Title")),
+            get_tag(&s, "Artist"),
+        )
+    } else {
+        (String::new(), None, None)
+    };
 
     let album_id = {
         let lib = library.blocking_read();
@@ -169,13 +200,9 @@ fn broadcast_status(
         "album_id": album_id,
         "elapsed": status.elapsed.map(|t| t.as_secs_f64()).unwrap_or(0.0),
         "duration": status.duration.map(|t| t.as_secs_f64()).unwrap_or(0.0),
-        "queue": queue.iter().enumerate().map(|(idx, s)| {
-            let normalized_file = s.file.trim_start_matches('/').to_string();
-            serde_json::json!({
-                "id": idx,
-                "file": normalized_file,
-            })
-        }).collect::<Vec<_>>()
+        "title": title,
+        "artist": artist,
+        "queue": queue_json
     });
 
     let _ = tx.send(payload.to_string());
