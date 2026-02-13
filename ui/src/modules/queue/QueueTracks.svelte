@@ -177,12 +177,15 @@
     flex-direction: column;
     box-sizing: border-box;
     background-color: transparent;
+    min-height: 0; /* Critical: allows container to respect parent flex constraints */
+    overflow: hidden;
   }
 
   .tracks-list {
     flex: 1;
     overflow-y: auto;
     padding: 0 0 16px 0;
+    min-height: 0;
   }
 
   .album-group-header {

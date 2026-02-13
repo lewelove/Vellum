@@ -111,7 +111,6 @@
         ></canvas>
       </div>
     {:else if player.state !== 'stop' && library.isLoading}
-      <!-- Logic Change: Show a loading state instead of "NOT PLAYING" while the library ingestion is in flight. -->
       <div class="empty-state">
         <span>Syncing Library...</span>
       </div>
@@ -144,10 +143,14 @@
 
   .row-top-wrapper, .row-bottom-wrapper {
     pointer-events: auto;
+    flex-shrink: 0;
   }
 
   .tracks-overlay {
     flex: 1;
+    min-height: 0; /* Critical: allows flex child to shrink below content height for scrolling */
+    display: flex;
+    flex-direction: column;
     align-self: flex-end;
     pointer-events: auto;
     background-color: transparent;
