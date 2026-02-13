@@ -130,7 +130,8 @@ async fn serve_image(path: PathBuf) -> Response {
             let mut contents = Vec::new();
             if file.read_to_end(&mut contents).await.is_ok() {
                 let mime = if let Some(ext) = path.extension() {
-                    if ext == "png" { "image/png" } else { "image/jpeg" }
+                    let e = ext.to_str().unwrap_or("").to_lowercase();
+                    if e == "png" { "image/png" } else { "image/jpeg" }
                 } else {
                     "application/octet-stream"
                 };
