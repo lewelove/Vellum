@@ -1,156 +1,183 @@
-use crate::server::AppState;
-use mpd::{Client, Subsystem, Idle};
-use serde_json::json;
-use std::sync::Arc;
+use crate::server::library::Library;
+use crate::server::AppConfig;
+use anyhow::{Context, Result};
+use mpd::{Client, Idle, Subsystem};
+use std::io::Write;
+use std::net::TcpStream;
+use std::sync::{mpsc, Arc};
 use std::time::Duration;
-use tokio::sync::mpsc;
-use tokio::time::interval;
+use tokio::sync::{broadcast, oneshot, RwLock};
 
-pub fn start_monitor(state: Arc<AppState>) {
-    let (tx_event, mut rx_event) = mpsc::channel::<()>(10);
+pub enum MpdRequest {
+    Execute(Box<dyn FnOnce(&mut Client<TcpStream>) -> Result<()> + Send>),
+    #[allow(dead_code)]
+    Query(
+        Box<dyn FnOnce(&mut Client<TcpStream>) -> Result<serde_json::Value> + Send>,
+        oneshot::Sender<Result<serde_json::Value>>,
+    ),
+}
 
-    // Dedicated Idle Listener Thread
-    // This thread owns its own connection and blocks on MPD events indefinitely.
+impl std::fmt::Debug for MpdRequest {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Execute(_) => write!(f, "MpdRequest::Execute"),
+            Self::Query(_, _) => write!(f, "MpdRequest::Query"),
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct MpdEngine {
+    tx: mpsc::Sender<MpdRequest>,
+    stream_interrupt: Arc<parking_lot::Mutex<Option<TcpStream>>>,
+}
+
+impl MpdEngine {
+    pub fn execute<F>(&self, f: F)
+    where
+        F: FnOnce(&mut Client<TcpStream>) -> Result<()> + Send + 'static,
+    {
+        if let Some(stream) = self.stream_interrupt.lock().as_mut() {
+            let _ = stream.write_all(b"noidle\n");
+            let _ = stream.flush();
+        }
+        let _ = self.tx.send(MpdRequest::Execute(Box::new(f)));
+    }
+
+    #[allow(dead_code)]
+    pub async fn query<F>(&self, f: F) -> Result<serde_json::Value>
+    where
+        F: FnOnce(&mut Client<TcpStream>) -> Result<serde_json::Value> + Send + 'static,
+    {
+        let (res_tx, res_rx) = oneshot::channel();
+        if let Some(stream) = self.stream_interrupt.lock().as_mut() {
+            let _ = stream.write_all(b"noidle\n");
+            let _ = stream.flush();
+        }
+        self.tx
+            .send(MpdRequest::Query(Box::new(f), res_tx))
+            .map_err(|_| anyhow::anyhow!("Failed to send query request to MPD worker"))?;
+        res_rx
+            .await
+            .map_err(|_| anyhow::anyhow!("MPD worker dropped the query response channel"))?
+    }
+}
+
+pub fn start_monitor(
+    broadcast_tx: broadcast::Sender<String>,
+    library: Arc<RwLock<Library>>,
+    config: Arc<AppConfig>,
+) -> MpdEngine {
+    let (tx, rx) = mpsc::channel::<MpdRequest>();
+    let stream_interrupt = Arc::new(parking_lot::Mutex::new(None));
+    let engine_handle = MpdEngine {
+        tx,
+        stream_interrupt: Arc::clone(&stream_interrupt),
+    };
+
+    let mpd_host = std::env::var("MPD_HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
+    let mpd_port = std::env::var("MPD_PORT").unwrap_or_else(|_| "6600".to_string());
+    let connection_str = format!("{}:{}", mpd_host, mpd_port);
+
     std::thread::spawn(move || {
         loop {
-            match Client::connect("127.0.0.1:6600") {
-                Ok(mut client) => {
-                    log::info!("MPD Idle Listener connected.");
-                    loop {
-                        if client.wait(&[Subsystem::Player, Subsystem::Playlist, Subsystem::Options]).is_ok() {
-                            let _ = tx_event.blocking_send(());
-                        } else {
-                            break;
+            match TcpStream::connect(&connection_str) {
+                Ok(stream) => {
+                    if let Ok(stream_clone) = stream.try_clone() {
+                        *stream_interrupt.lock() = Some(stream_clone);
+                    }
+
+                    match Client::new(stream) {
+                        Ok(mut client) => {
+                            log::info!("MPD connected via single persistent channel.");
+
+                            loop {
+                                if let Err(e) =
+                                    broadcast_status(&mut client, &broadcast_tx, &library, &config)
+                                {
+                                    log::error!("Status broadcast failed: {}", e);
+                                    break;
+                                }
+
+                                match rx.recv_timeout(Duration::from_secs(1)) {
+                                    Ok(request) => handle_request(request, &mut client),
+                                    Err(mpsc::RecvTimeoutError::Timeout) => {
+                                        let _ = client.wait(&[
+                                            Subsystem::Player,
+                                            Subsystem::Playlist,
+                                            Subsystem::Options,
+                                            Subsystem::Mixer,
+                                        ]);
+                                    }
+                                    Err(mpsc::RecvTimeoutError::Disconnected) => return,
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            log::error!("MPD client initialization failed: {}", e);
                         }
                     }
                 }
-                Err(_) => {
-                    std::thread::sleep(Duration::from_secs(2));
+                Err(e) => {
+                    log::error!("TCP Connection to MPD failed: {}. Retrying...", e);
                 }
             }
+            std::thread::sleep(Duration::from_secs(2));
         }
     });
 
-    // Main Async Monitor Task
-    // This task manages status broadcasting and the 1Hz playback heartbeat.
-    tokio::spawn(async move {
-        log::info!("Starting Async Status Monitor...");
-        let mut heartbeat = interval(Duration::from_secs(1));
-        
-        loop {
-            let state_clone = state.clone();
-
-            // Retrieve status and broadcast using a dedicated command connection
-            let playback_active = tokio::task::spawn_blocking(move || {
-                if let Ok(mut client) = Client::connect("127.0.0.1:6600") {
-                    let status = client.status().ok();
-                    let _ = broadcast_status(&mut client, &state_clone);
-                    return status.map(|s| s.state == mpd::status::State::Play).unwrap_or(false);
-                }
-                false
-            })
-            .await
-            .unwrap_or(false);
-
-            if playback_active {
-                // While playing, react to either the 1s pulse or an MPD event
-                tokio::select! {
-                    _ = heartbeat.tick() => {},
-                    _ = rx_event.recv() => {
-                        heartbeat = interval(Duration::from_secs(1));
-                    }
-                }
-            } else {
-                // While stopped/paused, only react to MPD events
-                let _ = rx_event.recv().await;
-                heartbeat = interval(Duration::from_secs(1));
-            }
-        }
-    });
+    engine_handle
 }
 
-fn broadcast_status(client: &mut Client, state: &Arc<AppState>) -> Result<(), mpd::error::Error> {
-    let status = client.status()?;
-    let current_song = client.currentsong()?;
-    let queue = client.queue()?;
+fn handle_request(request: MpdRequest, client: &mut Client<TcpStream>) {
+    match request {
+        MpdRequest::Execute(f) => {
+            if let Err(e) = f(client) {
+                log::error!("MPD Command failed: {}", e);
+            }
+        }
+        MpdRequest::Query(f, tx) => {
+            let _ = tx.send(f(client));
+        }
+    }
+}
 
-    let file_path = current_song.as_ref().map(|s| s.file.clone()).unwrap_or_default();
-    
+fn broadcast_status(
+    client: &mut Client<TcpStream>,
+    tx: &broadcast::Sender<String>,
+    library: &Arc<RwLock<Library>>,
+    _config: &Arc<AppConfig>,
+) -> Result<()> {
+    let status = client.status().context("Failed to get status")?;
+    let current_song = client.currentsong().context("Failed to get current song")?;
+    let queue = client.queue().context("Failed to get queue")?;
+
+    let file_path = current_song
+        .as_ref()
+        .map(|s| s.file.trim_start_matches('/').to_string())
+        .unwrap_or_default();
+
     let album_id = {
-        let lib = state.library.blocking_read();
-        let norm_path = file_path.trim_start_matches('/');
-        lib.path_lookup.get(norm_path).cloned()
+        let lib = library.blocking_read();
+        lib.path_lookup.get(&file_path).cloned()
     };
 
-    let payload = json!({
+    let payload = serde_json::json!({
         "type": "MPD_STATUS",
         "state": format!("{:?}", status.state).to_lowercase(),
         "file": file_path,
         "album_id": album_id,
         "elapsed": status.elapsed.map(|t| t.as_secs_f64()).unwrap_or(0.0),
         "duration": status.duration.map(|t| t.as_secs_f64()).unwrap_or(0.0),
-        "title": current_song.as_ref().and_then(|s| s.title.as_ref()).map(|s| s.as_str()).unwrap_or(""),
-        "artist": current_song.as_ref().and_then(|s| s.artist.as_ref()).map(|s| s.as_str()).unwrap_or(""),
-        "queue": queue.iter().enumerate().map(|(idx, s)| json!({
-            "id": idx, 
-            "file": s.file,
-            "title": s.title,
-            "artist": s.artist,
-            "albumartist": s.tags.iter().find(|(k, _)| k == "AlbumArtist").map(|(_, v)| v),
-        })).collect::<Vec<_>>()
+        "queue": queue.iter().enumerate().map(|(idx, s)| {
+            let normalized_file = s.file.trim_start_matches('/').to_string();
+            serde_json::json!({
+                "id": idx,
+                "file": normalized_file,
+            })
+        }).collect::<Vec<_>>()
     });
 
-    let _ = state.tx.send(payload.to_string());
+    let _ = tx.send(payload.to_string());
     Ok(())
-}
-
-fn get_mpd_conn() -> Result<Client, mpd::error::Error> {
-    Client::connect("127.0.0.1:6600")
-}
-
-pub fn play_paths(paths: Vec<String>, offset: usize) -> bool {
-    if paths.is_empty() { return false; }
-    
-    if let Ok(mut client) = get_mpd_conn() {
-        let _ = client.clear();
-        for path in paths {
-            let s = mpd::song::Song {
-                file: path,
-                last_mod: None,
-                name: None,
-                title: None,
-                artist: None,
-                duration: None,
-                place: None,
-                range: None,
-                tags: Vec::new(),
-            };
-            let _ = client.push(s);
-        }
-        let _ = client.switch(offset as u32);
-        return true;
-    }
-    false
-}
-
-pub fn enqueue_paths(paths: Vec<String>) -> bool {
-    if paths.is_empty() { return false; }
-    if let Ok(mut client) = get_mpd_conn() {
-        for path in paths {
-            let s = mpd::song::Song {
-                file: path,
-                last_mod: None,
-                name: None,
-                title: None,
-                artist: None,
-                duration: None,
-                place: None,
-                range: None,
-                tags: Vec::new(),
-            };
-            let _ = client.push(s);
-        }
-        return true;
-    }
-    false
 }

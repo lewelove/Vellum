@@ -1413,6 +1413,7 @@ dependencies = [
  "lofty",
  "log",
  "mpd",
+ "parking_lot",
  "rayon",
  "serde",
  "serde_json",

@@ -12,7 +12,7 @@ use std::path::PathBuf;
 use axum::http::{StatusCode, header};
 use tokio::fs::File;
 
-use crate::server::{AppState, mpd_engine};
+use crate::server::AppState;
 
 pub async fn ws_handler(
     ws: WebSocketUpgrade,
@@ -188,11 +188,21 @@ pub async fn play_album(
     axum::extract::Query(params): axum::extract::Query<std::collections::HashMap<String, String>>,
 ) -> Response {
     let offset: usize = params.get("offset").and_then(|s| s.parse().ok()).unwrap_or(0);
-    let paths = get_album_tracks(&id, &state, None).await;
-    if mpd_engine::play_paths(paths, offset) {
-        return Json(json!({"status": "ok"})).into_response();
-    }
-    (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": "mpd failed"}))).into_response()
+    let paths = get_album_tracks_internal(&id, &state, None).await;
+    
+    state.mpd_manager.execute(move |client| {
+        client.clear()?;
+        for path in paths {
+            client.push(mpd::song::Song {
+                file: path,
+                ..Default::default()
+            })?;
+        }
+        client.switch(offset as u32)?;
+        Ok(())
+    });
+
+    Json(json!({"status": "ok"})).into_response()
 }
 
 pub async fn play_disc(
@@ -201,22 +211,40 @@ pub async fn play_disc(
     axum::extract::Query(params): axum::extract::Query<std::collections::HashMap<String, String>>,
 ) -> Response {
     let disc_opt = params.get("disc").cloned();
-    let paths = get_album_tracks(&id, &state, disc_opt).await;
-    if mpd_engine::play_paths(paths, 0) {
-        return Json(json!({"status": "ok"})).into_response();
-    }
-    (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": "mpd failed"}))).into_response()
+    let paths = get_album_tracks_internal(&id, &state, disc_opt).await;
+
+    state.mpd_manager.execute(move |client| {
+        client.clear()?;
+        for path in paths {
+            client.push(mpd::song::Song {
+                file: path,
+                ..Default::default()
+            })?;
+        }
+        client.play()?;
+        Ok(())
+    });
+
+    Json(json!({"status": "ok"})).into_response()
 }
 
 pub async fn queue_album(
     Path(id): Path<String>,
     State(state): State<Arc<AppState>>,
 ) -> Response {
-    let paths = get_album_tracks(&id, &state, None).await;
-    if mpd_engine::enqueue_paths(paths) {
-         return Json(json!({"status": "ok"})).into_response();
-    }
-    (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": "mpd failed"}))).into_response()
+    let paths = get_album_tracks_internal(&id, &state, None).await;
+
+    state.mpd_manager.execute(move |client| {
+        for path in paths {
+            client.push(mpd::song::Song {
+                file: path,
+                ..Default::default()
+            })?;
+        }
+        Ok(())
+    });
+
+    Json(json!({"status": "ok"})).into_response()
 }
 
 pub async fn open_album_folder(
@@ -231,7 +259,7 @@ pub async fn open_album_folder(
     (StatusCode::NOT_FOUND, Json(json!({"error": "path not found"}))).into_response()
 }
 
-async fn get_album_tracks(id: &str, state: &Arc<AppState>, disc_filter: Option<String>) -> Vec<String> {
+async fn get_album_tracks_internal(id: &str, state: &Arc<AppState>, disc_filter: Option<String>) -> Vec<String> {
     let lib = state.library.read().await;
     let mut result = Vec::new();
     

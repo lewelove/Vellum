@@ -16,10 +16,11 @@ use std::path::PathBuf;
 use crate::expand_path;
 
 pub struct AppState {
-    pub library: RwLock<library::Library>,
+    pub library: Arc<RwLock<library::Library>>,
     pub ui_state: RwLock<serde_json::Value>,
     pub tx: broadcast::Sender<String>,
     pub config: AppConfig,
+    pub mpd_manager: mpd_engine::MpdEngine,
 }
 
 #[derive(Clone)]
@@ -46,7 +47,7 @@ fn find_config() -> Result<(PathBuf, String)> {
 }
 
 pub async fn run(port: u16) -> Result<()> {
-    log::info!("Starting Vellum Server (Rust) on port {}", port);
+    log::info!("Starting Vellum Server (Persistent Shared Mode) on port {}", port);
 
     let (root_dir, config_content) = find_config().context("Failed to locate project root/config.toml")?;
     let toml_val: toml::Value = toml::from_str(&config_content).context("Failed to parse config.toml")?;
@@ -62,10 +63,10 @@ pub async fn run(port: u16) -> Result<()> {
         root_dir.join(lib_path)
     }.canonicalize().context("Invalid library_root path")?;
 
-    let app_config = AppConfig {
+    let app_config = Arc::new(AppConfig {
         library_root,
         thumbnail_root: thumb_root_str.map(|s| expand_path(s)),
-    };
+    });
 
     let state_dir = expand_path("~/.vellum");
     let state_file = state_dir.join("state.json");
@@ -84,17 +85,23 @@ pub async fn run(port: u16) -> Result<()> {
 
     let mut library = library::Library::new(app_config.library_root.clone());
     library.scan().await;
+    let library_arc = Arc::new(RwLock::new(library));
 
     let (tx, _rx) = broadcast::channel(100);
 
-    let app_state = Arc::new(AppState {
-        library: RwLock::new(library),
-        ui_state: RwLock::new(ui_state_val),
-        tx: tx.clone(),
-        config: app_config,
-    });
+    let mpd_manager = mpd_engine::start_monitor(
+        tx.clone(),
+        Arc::clone(&library_arc),
+        Arc::clone(&app_config)
+    );
 
-    mpd_engine::start_monitor(app_state.clone());
+    let app_state = Arc::new(AppState {
+        library: library_arc,
+        ui_state: RwLock::new(ui_state_val),
+        tx,
+        config: (*app_config).clone(),
+        mpd_manager,
+    });
 
     let cors = CorsLayer::new()
         .allow_origin(Any)
