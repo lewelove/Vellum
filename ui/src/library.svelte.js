@@ -24,8 +24,10 @@ class LibraryState {
 
   viewVersion = $state(0);
 
-  albumCache = new Map();
-  trackPathMap = new Map();
+  // Logic Change: Convert caches to $state to ensure reactivity 
+  // when the worker finishes background ingestion.
+  albumCache = $state(new Map());
+  trackPathMap = $state(new Map());
   pinnedTextures = new Map();
 
   worker = null;
@@ -41,19 +43,28 @@ class LibraryState {
 
       if (type === "INIT_DATA") {
         console.log(`[Main] Caching ${count} objects...`);
-        this.trackPathMap.clear();
+        
+        // Logic Change: Clear and populate reactive maps.
+        // This triggers re-derivation in all components using getTrackByPath or getAlbumCoverUrl.
+        const newTrackMap = new Map();
+        const newAlbumCache = new Map();
+
         data.forEach(a => {
-          this.albumCache.set(a.id, a);
+          newAlbumCache.set(a.id, a);
           if (a.tracks) {
             a.tracks.forEach(t => {
               t.ALBUMARTIST = a.ALBUMARTIST;
               t.album_id = a.id;
               if (t.track_library_path) {
-                this.trackPathMap.set(t.track_library_path, t);
+                newTrackMap.set(t.track_library_path, t);
               }
             });
           }
         });
+
+        this.trackPathMap = newTrackMap;
+        this.albumCache = newAlbumCache;
+
         this.refreshSidebar();
         
         setTimeout(() => this.orchestratePrewarming(data), 1000);

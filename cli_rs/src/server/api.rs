@@ -1,6 +1,6 @@
 use axum::extract::ws as ax_ws;
 use axum::{
-    extract::{Path, State, WebSocketUpgrade},
+    extract::{Path, State, WebSocketUpgrade, Query},
     response::{IntoResponse, Response},
     Json,
 };
@@ -21,6 +21,13 @@ pub async fn ws_handler(
     ws.on_upgrade(|socket| handle_socket(socket, state))
 }
 
+fn get_mpd_tag(song: &mpd::song::Song, key: &str) -> Option<String> {
+    song.tags
+        .iter()
+        .find(|(k, _)| k.eq_ignore_ascii_case(key))
+        .map(|(_, v)| v.clone())
+}
+
 async fn handle_socket(mut socket: ax_ws::WebSocket, state: Arc<AppState>) {
     let init_payload = {
         let lib = state.library.read().await;
@@ -34,6 +41,45 @@ async fn handle_socket(mut socket: ax_ws::WebSocket, state: Arc<AppState>) {
     
     if socket.send(ax_ws::Message::Text(init_payload.into())).await.is_err() {
         return;
+    }
+
+    let mpd_host = std::env::var("MPD_HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
+    let mpd_port = std::env::var("MPD_PORT").unwrap_or_else(|_| "6600".to_string());
+    let connection_str = format!("{}:{}", mpd_host, mpd_port);
+
+    if let Ok(mut client) = mpd::Client::connect(&connection_str) {
+        if let (Ok(status), Ok(current_song), Ok(queue)) = (client.status(), client.currentsong(), client.queue()) {
+            let file_path = current_song.as_ref().map(|s| s.file.trim_start_matches('/').to_string()).unwrap_or_default();
+            
+            let album_id = {
+                let lib = state.library.read().await;
+                lib.path_lookup.get(&file_path).cloned()
+            };
+
+            let queue_json: serde_json::Value = queue.iter().enumerate().map(|(idx, s)| {
+                let normalized_file = s.file.trim_start_matches('/').to_string();
+                json!({
+                    "id": idx,
+                    "file": normalized_file,
+                    "title": s.title.clone().or_else(|| get_mpd_tag(s, "Title")),
+                    "artist": get_mpd_tag(s, "Artist"),
+                })
+            }).collect();
+
+            let status_payload = json!({
+                "type": "MPD_STATUS",
+                "state": format!("{:?}", status.state).to_lowercase(),
+                "file": file_path,
+                "album_id": album_id,
+                "elapsed": status.elapsed.map(|t| t.as_secs_f64()).unwrap_or(0.0),
+                "duration": status.duration.map(|t| t.as_secs_f64()).unwrap_or(0.0),
+                "title": current_song.as_ref().and_then(|s| s.title.clone().or_else(|| get_mpd_tag(s, "Title"))),
+                "artist": current_song.as_ref().and_then(|s| get_mpd_tag(s, "Artist")),
+                "queue": queue_json
+            }).to_string();
+
+            let _ = socket.send(ax_ws::Message::Text(status_payload.into())).await;
+        }
     }
 
     let mut rx = state.tx.subscribe();
@@ -208,7 +254,7 @@ pub async fn play_album(
 pub async fn play_disc(
     Path(id): Path<String>,
     State(state): State<Arc<AppState>>,
-    axum::extract::Query(params): axum::extract::Query<std::collections::HashMap<String, String>>,
+    axum::extract::Query(params): Query<std::collections::HashMap<String, String>>,
 ) -> Response {
     let disc_opt = params.get("disc").cloned();
     let paths = get_album_tracks_internal(&id, &state, disc_opt).await;

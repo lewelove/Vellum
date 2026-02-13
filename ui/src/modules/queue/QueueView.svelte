@@ -110,7 +110,12 @@
           style="width: {boxSize}px; height: {boxSize}px;"
         ></canvas>
       </div>
-    {:else if !coverUrl}
+    {:else if player.state !== 'stop' && library.isLoading}
+      <!-- Logic Change: Show a loading state instead of "NOT PLAYING" while the library ingestion is in flight. -->
+      <div class="empty-state">
+        <span>Syncing Library...</span>
+      </div>
+    {:else if !activeId || player.state === 'stop'}
       <div class="empty-state">
         <span>Not Playing</span>
       </div>

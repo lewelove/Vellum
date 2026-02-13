@@ -181,7 +181,7 @@
 
   .modal-content {
     display: grid;
-    grid-template-columns: 42% 58%;
+    grid-template-columns: 45% 55%;
     grid-template-rows: 100%;
     height: 100%;
     width: 100%;
