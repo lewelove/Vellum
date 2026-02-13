@@ -4,149 +4,133 @@ use anyhow::{Context, Result};
 use mpd::{Client, Idle, Subsystem};
 use std::io::Write;
 use std::net::TcpStream;
-use std::sync::{mpsc, Arc};
-use std::time::Duration;
-use tokio::sync::{broadcast, oneshot, RwLock};
+use std::sync::Arc;
+use tokio::sync::{broadcast, mpsc, RwLock};
 
-pub enum MpdRequest {
-    Execute(Box<dyn FnOnce(&mut Client<TcpStream>) -> Result<()> + Send>),
-    #[allow(dead_code)]
-    Query(
-        Box<dyn FnOnce(&mut Client<TcpStream>) -> Result<serde_json::Value> + Send>,
-        oneshot::Sender<Result<serde_json::Value>>,
-    ),
-}
-
-impl std::fmt::Debug for MpdRequest {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Execute(_) => write!(f, "MpdRequest::Execute"),
-            Self::Query(_, _) => write!(f, "MpdRequest::Query"),
-        }
-    }
+pub enum MpdCommand {
+    Play { tracks: Vec<String>, offset: usize },
+    Queue { tracks: Vec<String> },
+    Clear,
+    Stop,
+    Next,
+    Prev,
+    TogglePause,
+    Refresh,
 }
 
 #[derive(Clone)]
 pub struct MpdEngine {
-    tx: mpsc::Sender<MpdRequest>,
-    stream_interrupt: Arc<parking_lot::Mutex<Option<TcpStream>>>,
+    tx: mpsc::Sender<MpdCommand>,
+    interrupt_stream: Arc<parking_lot::Mutex<Option<TcpStream>>>,
 }
 
 impl MpdEngine {
-    pub fn execute<F>(&self, f: F)
-    where
-        F: FnOnce(&mut Client<TcpStream>) -> Result<()> + Send + 'static,
-    {
-        if let Some(stream) = self.stream_interrupt.lock().as_mut() {
+    pub async fn send(&self, command: MpdCommand) {
+        if let Some(stream) = self.interrupt_stream.lock().as_mut() {
             let _ = stream.write_all(b"noidle\n");
             let _ = stream.flush();
         }
-        let _ = self.tx.send(MpdRequest::Execute(Box::new(f)));
-    }
-
-    #[allow(dead_code)]
-    pub async fn query<F>(&self, f: F) -> Result<serde_json::Value>
-    where
-        F: FnOnce(&mut Client<TcpStream>) -> Result<serde_json::Value> + Send + 'static,
-    {
-        let (res_tx, res_rx) = oneshot::channel();
-        if let Some(stream) = self.stream_interrupt.lock().as_mut() {
-            let _ = stream.write_all(b"noidle\n");
-            let _ = stream.flush();
-        }
-        self.tx
-            .send(MpdRequest::Query(Box::new(f), res_tx))
-            .map_err(|_| anyhow::anyhow!("Failed to send query request to MPD worker"))?;
-        res_rx
-            .await
-            .map_err(|_| anyhow::anyhow!("MPD worker dropped the query response channel"))?
+        let _ = self.tx.send(command).await;
     }
 }
 
-/// Helper to find a tag in the MPD song's tag list (Vec of tuples)
-fn get_tag(song: &mpd::song::Song, key: &str) -> Option<String> {
-    song.tags
-        .iter()
-        .find(|(k, _)| k.eq_ignore_ascii_case(key))
-        .map(|(_, v)| v.clone())
-}
-
-pub fn start_monitor(
+pub fn start_actor(
     broadcast_tx: broadcast::Sender<String>,
     library: Arc<RwLock<Library>>,
-    _config: Arc<AppConfig>,
+    _app_config: Arc<AppConfig>,
 ) -> MpdEngine {
-    let (tx, rx) = mpsc::channel::<MpdRequest>();
-    let stream_interrupt = Arc::new(parking_lot::Mutex::new(None));
+    let (tx, mut rx) = mpsc::channel::<MpdCommand>(32);
+    let interrupt_stream = Arc::new(parking_lot::Mutex::new(None));
     let engine_handle = MpdEngine {
         tx,
-        stream_interrupt: Arc::clone(&stream_interrupt),
+        interrupt_stream: Arc::clone(&interrupt_stream),
     };
 
     let mpd_host = std::env::var("MPD_HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
     let mpd_port = std::env::var("MPD_PORT").unwrap_or_else(|_| "6600".to_string());
-    let connection_str = format!("{}:{}", mpd_host, mpd_port);
+    let addr = format!("{}:{}", mpd_host, mpd_port);
 
     std::thread::spawn(move || {
         loop {
-            match TcpStream::connect(&connection_str) {
+            match TcpStream::connect(&addr) {
                 Ok(stream) => {
-                    if let Ok(stream_clone) = stream.try_clone() {
-                        *stream_interrupt.lock() = Some(stream_clone);
+                    if let Ok(clone) = stream.try_clone() {
+                        *interrupt_stream.lock() = Some(clone);
                     }
 
-                    match Client::new(stream) {
-                        Ok(mut client) => {
-                            log::info!("MPD connected via single persistent channel.");
+                    if let Ok(mut client) = Client::new(stream) {
+                        log::info!("MPD Actor connected and ready.");
+                        
+                        loop {
+                            if let Err(e) = broadcast_status(&mut client, &broadcast_tx, &library) {
+                                log::error!("MPD broadcast error: {}", e);
+                                break;
+                            }
 
-                            loop {
-                                // We fetch status and queue every time to ensure UI stability
-                                if let Err(e) = broadcast_status(&mut client, &broadcast_tx, &library) {
-                                    log::error!("Status broadcast failed: {}", e);
-                                    break;
-                                }
+                            // Block on Idle until a subsystem changes or noidle is received
+                            let _ = client.wait(&[
+                                Subsystem::Player,
+                                Subsystem::Playlist,
+                                Subsystem::Options,
+                                Subsystem::Mixer,
+                            ]);
 
-                                match rx.recv_timeout(Duration::from_secs(1)) {
-                                    Ok(request) => handle_request(request, &mut client),
-                                    Err(mpsc::RecvTimeoutError::Timeout) => {
-                                        let _ = client.wait(&[
-                                            Subsystem::Player,
-                                            Subsystem::Playlist,
-                                            Subsystem::Options,
-                                            Subsystem::Mixer,
-                                        ]);
-                                    }
-                                    Err(mpsc::RecvTimeoutError::Disconnected) => return,
+                            // Drain all commands received while idling or interrupted
+                            while let Ok(cmd) = rx.try_recv() {
+                                if let Err(e) = handle_command(&mut client, cmd) {
+                                    log::error!("MPD Command execution error: {}", e);
                                 }
                             }
-                        }
-                        Err(e) => {
-                            log::error!("MPD client initialization failed: {}", e);
                         }
                     }
                 }
                 Err(e) => {
-                    log::error!("TCP Connection to MPD failed: {}. Retrying...", e);
+                    log::error!("MPD Connection failed: {}. Retrying in 2s...", e);
                 }
             }
-            std::thread::sleep(Duration::from_secs(2));
+            *interrupt_stream.lock() = None;
+            std::thread::sleep(std::time::Duration::from_secs(2));
         }
     });
 
     engine_handle
 }
 
-fn handle_request(request: MpdRequest, client: &mut Client<TcpStream>) {
-    match request {
-        MpdRequest::Execute(f) => {
-            if let Err(e) = f(client) {
-                log::error!("MPD Command failed: {}", e);
+fn handle_command(client: &mut Client<TcpStream>, cmd: MpdCommand) -> Result<()> {
+    match cmd {
+        MpdCommand::Play { tracks, offset } => {
+            client.clear()?;
+            for track in tracks {
+                client.push(mpd::song::Song {
+                    file: track,
+                    ..Default::default()
+                })?;
+            }
+            client.switch(offset as u32)?;
+        }
+        MpdCommand::Queue { tracks } => {
+            for track in tracks {
+                client.push(mpd::song::Song {
+                    file: track,
+                    ..Default::default()
+                })?;
             }
         }
-        MpdRequest::Query(f, tx) => {
-            let _ = tx.send(f(client));
+        MpdCommand::Clear => client.clear()?,
+        MpdCommand::Stop => client.stop()?,
+        MpdCommand::Next => client.next()?,
+        MpdCommand::Prev => client.prev()?,
+        MpdCommand::TogglePause => {
+            let status = client.status()?;
+            match status.state {
+                mpd::status::State::Play => client.pause(true)?,
+                mpd::status::State::Pause => client.pause(false)?,
+                mpd::status::State::Stop => client.play()?,
+            }
         }
+        MpdCommand::Refresh => {} 
     }
+    Ok(())
 }
 
 fn broadcast_status(
@@ -154,39 +138,31 @@ fn broadcast_status(
     tx: &broadcast::Sender<String>,
     library: &Arc<RwLock<Library>>,
 ) -> Result<()> {
-    let status = client.status().context("Failed to get status")?;
-    let queue = client.queue().context("Failed to get queue")?;
-    let current_song = client.currentsong().context("Failed to get current song")?;
+    let status = client.status().context("Status failed")?;
+    let current_song = client.currentsong().context("Current song failed")?;
+    let queue = client.queue().context("Queue failed")?;
 
-    // Build the queue payload with metadata fallbacks for the UI
+    let (file_path, title, artist) = if let Some(s) = current_song {
+        let path = s.file.trim_start_matches('/').to_string();
+        let t = s.title.clone().or_else(|| get_tag(&s, "Title"));
+        let a = get_tag(&s, "Artist");
+        (path, t, a)
+    } else {
+        (String::new(), None, None)
+    };
+
     let queue_json: serde_json::Value = queue
         .iter()
         .enumerate()
         .map(|(idx, s)| {
-            let normalized_file = s.file.trim_start_matches('/').to_string();
-            let title = s.title.clone().or_else(|| get_tag(s, "Title"));
-            let artist = get_tag(s, "Artist");
-            let album_artist = get_tag(s, "AlbumArtist");
-
             serde_json::json!({
                 "id": idx,
-                "file": normalized_file,
-                "title": title,
-                "artist": artist,
-                "albumartist": album_artist,
+                "file": s.file.trim_start_matches('/').to_string(),
+                "title": s.title.clone().or_else(|| get_tag(s, "Title")),
+                "artist": get_tag(s, "Artist"),
             })
         })
         .collect();
-
-    let (file_path, title, artist) = if let Some(s) = current_song {
-        (
-            s.file.trim_start_matches('/').to_string(),
-            s.title.clone().or_else(|| get_tag(&s, "Title")),
-            get_tag(&s, "Artist"),
-        )
-    } else {
-        (String::new(), None, None)
-    };
 
     let album_id = {
         let lib = library.blocking_read();
@@ -207,4 +183,11 @@ fn broadcast_status(
 
     let _ = tx.send(payload.to_string());
     Ok(())
+}
+
+fn get_tag(song: &mpd::song::Song, key: &str) -> Option<String> {
+    song.tags
+        .iter()
+        .find(|(k, _)| k.eq_ignore_ascii_case(key))
+        .map(|(_, v)| v.clone())
 }

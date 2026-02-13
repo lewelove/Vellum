@@ -9,7 +9,7 @@ use axum::{
 };
 use std::net::SocketAddr;
 use std::sync::Arc;
-use tokio::sync::{RwLock, broadcast};
+use tokio::sync::{broadcast, RwLock};
 use tower_http::cors::{Any, CorsLayer};
 use std::path::PathBuf;
 
@@ -20,7 +20,7 @@ pub struct AppState {
     pub ui_state: RwLock<serde_json::Value>,
     pub tx: broadcast::Sender<String>,
     pub config: AppConfig,
-    pub mpd_manager: mpd_engine::MpdEngine,
+    pub mpd_engine: mpd_engine::MpdEngine,
 }
 
 #[derive(Clone)]
@@ -47,32 +47,30 @@ fn find_config() -> Result<(PathBuf, String)> {
 }
 
 pub async fn run(port: u16) -> Result<()> {
-    log::info!("Starting Vellum Server (Persistent Shared Mode) on port {}", port);
-
-    let (root_dir, config_content) = find_config().context("Failed to locate project root/config.toml")?;
-    let toml_val: toml::Value = toml::from_str(&config_content).context("Failed to parse config.toml")?;
+    let (root_dir, config_content) = find_config().context("Project root not found")?;
+    let toml_val: toml::Value = toml::from_str(&config_content)?;
     
-    let storage = toml_val.get("storage");
-    let lib_root_str = storage.and_then(|v| v.get("library_root")).and_then(|v| v.as_str()).unwrap_or(".");
-    let thumb_root_str = storage.and_then(|v| v.get("thumbnail_cache_folder")).and_then(|v| v.as_str());
+    let storage = toml_val.get("storage").context("config.toml missing [storage]")?;
+    let lib_root_str = storage.get("library_root").and_then(|v| v.as_str()).unwrap_or(".");
+    let thumb_root_str = storage.get("thumbnail_cache_folder").and_then(|v| v.as_str());
 
     let lib_path = expand_path(lib_root_str);
     let library_root = if lib_path.is_absolute() {
         lib_path
     } else {
         root_dir.join(lib_path)
-    }.canonicalize().context("Invalid library_root path")?;
+    }.canonicalize().context("Invalid library_root")?;
 
     let app_config = Arc::new(AppConfig {
-        library_root,
-        thumbnail_root: thumb_root_str.map(|s| expand_path(s)),
+        library_root: library_root.clone(),
+        thumbnail_root: thumb_root_str.map(expand_path),
     });
 
     let state_dir = expand_path("~/.vellum");
     let state_file = state_dir.join("state.json");
     let ui_state_val = if state_file.exists() {
-        let data = std::fs::read_to_string(&state_file).unwrap_or_else(|_| "{}".to_string());
-        serde_json::from_str(&data).unwrap_or_else(|_| serde_json::json!({}))
+        let data = std::fs::read_to_string(&state_file).unwrap_or_default();
+        serde_json::from_str(&data).unwrap_or(serde_json::json!({}))
     } else {
         serde_json::json!({
             "activeTab": "home",
@@ -83,13 +81,13 @@ pub async fn run(port: u16) -> Result<()> {
         })
     };
 
-    let mut library = library::Library::new(app_config.library_root.clone());
+    let mut library = library::Library::new(library_root);
     library.scan().await;
     let library_arc = Arc::new(RwLock::new(library));
 
     let (tx, _rx) = broadcast::channel(100);
 
-    let mpd_manager = mpd_engine::start_monitor(
+    let mpd_engine = mpd_engine::start_actor(
         tx.clone(),
         Arc::clone(&library_arc),
         Arc::clone(&app_config)
@@ -100,7 +98,7 @@ pub async fn run(port: u16) -> Result<()> {
         ui_state: RwLock::new(ui_state_val),
         tx,
         config: (*app_config).clone(),
-        mpd_manager,
+        mpd_engine,
     });
 
     let cors = CorsLayer::new()
@@ -118,13 +116,18 @@ pub async fn run(port: u16) -> Result<()> {
         .route("/api/play/{*id}", post(api::play_album))
         .route("/api/play-disc/{*id}", post(api::play_disc))
         .route("/api/queue/{*id}", post(api::queue_album))
+        .route("/api/next", post(api::next_track))
+        .route("/api/prev", post(api::prev_track))
+        .route("/api/stop", post(api::stop_playback))
+        .route("/api/clear", post(api::clear_queue))
+        .route("/api/toggle-pause", post(api::toggle_pause))
         .route("/api/open/{*id}", post(api::open_album_folder))
         .layer(cors)
         .with_state(app_state);
 
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
     let listener = tokio::net::TcpListener::bind(addr).await?;
-    log::info!("Listening on http://{}", addr);
+    log::info!("Vellum Server listening on http://{}", addr);
     axum::serve(listener, app).await?;
 
     Ok(())
