@@ -49,6 +49,9 @@
               server)
                 cd "$ROOT" && python -m server.main "$@"
                 ;;
+              server_rs)
+                cd "$ROOT/cli_rs" && cargo run --release -- server "$@"
+                ;;
               update)
                 cd "$ROOT" && python -m cli.update "$@"
                 ;;

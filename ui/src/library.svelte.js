@@ -47,7 +47,7 @@ class LibraryState {
           if (a.tracks) {
             a.tracks.forEach(t => {
               t.ALBUMARTIST = a.ALBUMARTIST;
-              t.album_id = a.id; // Added: Link track to album for metadata lookups
+              t.album_id = a.id;
               if (t.track_library_path) {
                 this.trackPathMap.set(t.track_library_path, t);
               }
@@ -64,7 +64,7 @@ class LibraryState {
         if (data.tracks) {
           data.tracks.forEach(t => {
             t.ALBUMARTIST = data.ALBUMARTIST;
-            t.album_id = data.id; // Added: Link track to album
+            t.album_id = data.id;
             if (t.track_library_path) {
               this.trackPathMap.set(t.track_library_path, t);
             }
@@ -163,7 +163,6 @@ class LibraryState {
           await img.decode();
           this.pinnedTextures.set(url, img);
         } catch (err) {
-          // Failure ignored to maintain queue
         }
       }
     };
@@ -232,7 +231,7 @@ class LibraryState {
 
   getThumbnailUrl(album) {
     if (!album || !album.cover_hash) return "";
-    return `/api/covers/${album.cover_hash}.png`;
+    return `/api/covers/${album.cover_hash}`;
   }
 
   getAlbumCoverUrl(albumId) {
@@ -240,7 +239,7 @@ class LibraryState {
     if (!album || !album.cover_path || album.cover_path === "default_cover.png") {
       return "";
     }
-    return `/api/assets/${encodeURIComponent(album.id)}/cover?v=${album.cover_hash}`;
+    return `/api/assets/cover/${encodeURIComponent(album.id)}?v=${album.cover_hash}`;
   }
 
   setSidebarGrouper(key) {
@@ -263,7 +262,7 @@ class LibraryState {
 
   showRecentlyAdded() {
     this.activeFilter = { key: null, val: null };
-    this.activeSort = { key: "date_added", order: "default" }; // Hardcoded default for this view?
+    this.activeSort = { key: "date_added", order: "default" }; 
     this.focusedAlbum = null;
     this.refreshView(true);
     this.persistState();
@@ -278,15 +277,12 @@ class LibraryState {
   }
 
   applySort(key) {
-    // Temporary sort application (e.g. from hypothetical headers)
     this.activeSort = { key, order: "default" };
     this.refreshView(true);
   }
 
   setUserSort(key) {
     this.userSortPreference = key;
-    // When changing sort key, preserve current order or reset? 
-    // Usually user might want to keep "Reverse" if set. We keep it.
     this.activeSort = { key, order: this.userSortOrder };
     this.refreshView(true);
     this.persistState();

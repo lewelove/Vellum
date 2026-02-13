@@ -79,10 +79,11 @@ async def trigger_reload(path: str):
         return {"status": "reloaded"}
     raise HTTPException(status_code=404)
 
-@router.get("/api/covers/{cover_hash}.png")
+@router.get("/api/covers/{cover_hash}")
 def get_cover_thumbnail(cover_hash: str):
     if not config.THUMBNAIL_ROOT:
         raise HTTPException(status_code=404)
+    # Append .png manually since UI no longer provides it in the URL
     path = (config.THUMBNAIL_ROOT / f"{cover_hash}.png").resolve()
     if not path.exists(): 
         raise HTTPException(status_code=404)
@@ -93,7 +94,7 @@ def get_cover_thumbnail(cover_hash: str):
         }
     )
 
-@router.get("/api/assets/{album_id:path}/cover")
+@router.get("/api/assets/cover/{album_id:path}")
 def get_album_cover(album_id: str):
     album = STATE.album_map.get(album_id)
     if not album or not album.get("cover_path") or album.get("cover_path") == "default_cover.png":
