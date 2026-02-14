@@ -17,8 +17,14 @@
   let innerHeight = $state(0);
   let canvasEl = $state(null);
 
-  let boxSize = $derived(innerHeight);
+  const coverMargin = 20;
+
+  let boxSize = $derived(
+    Math.max(0, Math.min(innerWidth - (coverMargin * 2), innerHeight - (coverMargin * 2)))
+  );
+
   let boxX = $derived(Math.floor((innerWidth - boxSize) / 2));
+  let boxY = $derived(Math.floor((innerHeight - boxSize) / 2));
   
   let sidebarWidth = $derived(Math.max(0, (innerWidth - boxSize) / 2));
   let isQueueVisible = $derived(nav.activeTab === "queue");
@@ -98,6 +104,7 @@
           width: {boxSize}px; 
           height: {boxSize}px; 
           left: {boxX}px;
+          top: {boxY}px;
         "
       >
         <div class="hard-shadow" aria-hidden="true">
@@ -148,7 +155,7 @@
 
   .tracks-overlay {
     flex: 1;
-    min-height: 0; /* Critical: allows flex child to shrink below content height for scrolling */
+    min-height: 0;
     display: flex;
     flex-direction: column;
     align-self: flex-end;
@@ -165,8 +172,6 @@
 
   .pixel-stage {
     position: absolute;
-    top: 0;
-    bottom: 0;
     overflow: visible;
   }
 
