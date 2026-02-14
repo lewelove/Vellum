@@ -33,14 +33,14 @@ def resolve_album_helper_total_discs(ctx):
 
 def resolve_album_helper_file_tag_subset_match(ctx):
     """
-    Checks if all compiled uppercase tags for all tracks in this album 
+    Checks if all compiled uppercase tags (Album + Track scopes combined) 
     exactly match the tags currently present in the physical audio files.
     """
     tracks = ctx.get("all_tracks_final", [])
     harvested = ctx.get("harvested_data", {})
     album_root = ctx.get("album_root")
+    album_tags = ctx.get("final_album_tags", {})
     
-    # We create a reference object for is_match so it knows the disc count
     match_context = {
         "total_discs": str(ctx.get("total_discs_count", 0))
     }
@@ -61,14 +61,15 @@ def resolve_album_helper_file_tag_subset_match(ctx):
         
         physical_tags = harvest_item.get("tags", {})
         
-        for key, compiled_val in track.items():
-            if not key.isupper():
+        # We check both Album-level tags and Track-level tags
+        expected_state = {**album_tags, **track}
+        
+        for key, compiled_val in expected_state.items():
+            if not key.isupper() or not compiled_val:
                 continue
             
             physical_val = physical_tags.get(key)
             
-            # Standardized comparison logic.
-            # Passing match_context allows the single-disc DISCNUMBER rule to function.
             if not is_match(key, physical_val, compiled_val, album_lock=match_context):
                 return False
                 

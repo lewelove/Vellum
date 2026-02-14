@@ -168,12 +168,14 @@ def compile_album(
         "harvested_data": harvested_data
     }
 
+    final_album_tags = {}
     for key in A_TAGS:
         resolver = find_resolver(key, "ALBUM_TAGS")
-        if resolver:
-            final_album[key] = resolver(album_ctx)
-        else:
-            final_album[key] = str(album_defaults.get(key, ""))
+        val = resolver(album_ctx) if resolver else str(album_defaults.get(key, ""))
+        final_album_tags[key] = val
+        final_album[key] = val
+
+    album_ctx["final_album_tags"] = final_album_tags
 
     for key in A_HELPERS:
         resolver = find_resolver(key, "ALBUM_HELPERS")
