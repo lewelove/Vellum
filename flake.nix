@@ -47,25 +47,25 @@
                 cd "$ROOT" && python ui_qml/main.py "$@"
                 ;;
               server)
-                cd "$ROOT/cli_rs" && cargo run --release -- server "$@"
+                cd "$ROOT/rust" && cargo run --release -- server "$@"
                 ;;
               update)
-                cd "$ROOT" && python -m cli.update "$@"
+                cd "$ROOT" && python -m python.update "$@"
                 ;;
               generate)
-                cd "$ROOT" && python -m cli.generate "$@"
+                cd "$ROOT" && python -m python.generate "$@"
                 ;;
               harvest)
-                cd "$ROOT/cli_rs" && cargo run --release -- harvest "$@"
+                cd "$ROOT/rust" && cargo run --release -- harvest "$@"
                 ;;
               export)
-                cd "$ROOT" && python -m cli.export "$@"
+                cd "$ROOT" && python -m python.export "$@"
                 ;;
               write)
-                cd "$ROOT" && python -m cli.write "$@"
+                cd "$ROOT" && python -m python.write "$@"
                 ;;
               report)
-                cd "$ROOT" && python -m cli.report "$@"
+                cd "$ROOT" && python -m python.report "$@"
                 ;;
               help|--help|-h)
                 echo "Vellum CLI Commands:"

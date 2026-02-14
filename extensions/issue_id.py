@@ -1,4 +1,4 @@
-from cli.update.resolver.tags import resolve_album_tag_release_yyyy_mm
+from python.update.resolver.tags import resolve_album_tag_release_yyyy_mm
 
 def resolve_album_tag_country(ctx):
     return str(ctx["source"].get("COUNTRY", ""))

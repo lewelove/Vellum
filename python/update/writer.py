@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from cli.generate.compressor import get_layout_keys
+from python.generate.compressor import get_layout_keys
 
 def format_val(value):
     """Ensures values are TOML-compliant strings for the TOML writer."""

@@ -1,7 +1,7 @@
 import argparse
 import json
 from pathlib import Path
-from cli.update.harvester import harvest_metadata
+from python.update.harvester import harvest_metadata
 from .syncer import collect_changes, apply_write_plan
 
 def run_write():

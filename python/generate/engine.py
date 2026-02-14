@@ -1,5 +1,5 @@
 import json
-from cli.generate.compressor import get_layout_keys
+from python.generate.compressor import get_layout_keys
 
 def format_toml_value(value):
     return json.dumps(value, ensure_ascii=False)

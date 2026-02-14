@@ -3,7 +3,7 @@ import tomllib
 import numpy as np
 from pathlib import Path
 from PIL import Image
-from cli.update.resolver.helpers import resolve_album_helper_cover_hash
+from python.update.resolver.helpers import resolve_album_helper_cover_hash
 
 def resolve_album_helper_cover_entropy(ctx):
     c_hash = resolve_album_helper_cover_hash(ctx)

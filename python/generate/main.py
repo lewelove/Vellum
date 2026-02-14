@@ -6,7 +6,7 @@ from tqdm import tqdm
 
 from .engine import render_toml_block
 # Updated import to break circular dependency
-from cli.update.harvester import harvest_metadata
+from python.update.harvester import harvest_metadata
 from .compressor import compress
 from .grouper import group_tracks, resolve_anchor, sort_album_tracks
 
@@ -27,7 +27,7 @@ def extract_cover_from_track(track_path: Path, destination_base: Path):
         pass
 
 def run_generate():
-    from cli.update.main import run_update
+    from python.update.main import run_update
 
     config_path = Path("config.toml")
     if not config_path.exists():

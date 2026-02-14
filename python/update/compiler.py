@@ -4,12 +4,12 @@ import os
 import sys
 from pathlib import Path
 
-from cli.update.resolver import setup_registry, find_resolver, get_registered_keys
-from cli.update.zipper import scan_physical_spine, zip_tracks, parse_int
-from cli.update.writer import write_lock
-from cli.generate.compressor import get_layout_keys
-from cli.update.image_processor import generate_thumbnail
-from cli.update.harvester import harvest_metadata
+from python.update.resolver import setup_registry, find_resolver, get_registered_keys
+from python.update.zipper import scan_physical_spine, zip_tracks, parse_int
+from python.update.writer import write_lock
+from python.generate.compressor import get_layout_keys
+from python.update.image_processor import generate_thumbnail
+from python.update.harvester import harvest_metadata
 
 def validate_layout(config):
     A_TAGS, A_HELPERS, T_TAGS, T_HELPERS = get_registered_keys()

@@ -3,8 +3,8 @@ import shutil
 from pathlib import Path
 from tqdm import tqdm
 
-from cli.generate.naming import generate_filename
-from cli.generate.engine import render_toml_block
+from python.generate.naming import generate_filename
+from python.generate.engine import render_toml_block
 
 def run_export():
     config_path = Path("config.toml")
