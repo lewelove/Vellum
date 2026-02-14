@@ -16,6 +16,14 @@
   let innerWidth = $state(0);
   let innerHeight = $state(0);
   let canvasEl = $state(null);
+  
+  // Controls the visibility of the High-Res Canvas
+  let isCanvasReady = $state(false);
+  // Controls the global fade-in of the album art (backing image + shadow)
+  let isAlbumVisible = $state(false);
+  
+  let lastRenderKey = "";
+  let lastRenderUrl = "";
 
   const coverMargin = 20;
 
@@ -30,7 +38,24 @@
   let isQueueVisible = $derived(nav.activeTab === "queue");
 
   async function renderCover(url, size) {
-    if (!url || !size || !canvasEl || size <= 0) return;
+    if (!url || !size || !canvasEl || size <= 0) {
+      isAlbumVisible = false;
+      isCanvasReady = false;
+      return;
+    }
+
+    const renderKey = `${url}-${size}`;
+    if (renderKey === lastRenderKey) return;
+    
+    lastRenderKey = renderKey;
+
+    // Only fade out the entire stack if the album actually changed.
+    // If just resizing, we keep the backing image visible to prevent flashing.
+    if (url !== lastRenderUrl) {
+        isAlbumVisible = false;
+        isCanvasReady = false;
+        lastRenderUrl = url;
+    }
 
     try {
       const img = new Image();
@@ -39,7 +64,13 @@
       
       await img.decode();
 
+      // If this is a new album, show the backing elements now that we have the source
+      if (!isAlbumVisible) isAlbumVisible = true;
+
       const dpr = window.devicePixelRatio || 1;
+      
+      // Resizing the canvas clears it. 
+      // Because we have a backing <img>, the user sees that instead of a flash.
       canvasEl.width = size * dpr;
       canvasEl.height = size * dpr;
 
@@ -50,8 +81,13 @@
         features: ['js', 'wasm', 'ww']
       });
 
+      // Show the high-quality canvas once ready
+      isCanvasReady = true;
+
     } catch (err) {
       console.error("Pica Queue Render Failed:", err);
+      // Fallback: ensure at least the backing image is visible
+      isAlbumVisible = true;
     }
   }
 
@@ -107,13 +143,28 @@
           top: {boxY}px;
         "
       >
-        <div class="hard-shadow" aria-hidden="true">
+        <!-- Layer 1: Dithered Shadow -->
+        <!-- Only fades out on Album Change -->
+        <div class="hard-shadow" class:visible={isAlbumVisible} aria-hidden="true">
           <img src={coverUrl} alt="" style="width: 100%; height: 100%;" />
         </div>
 
+        <!-- Layer 2: Backing Image (Browser Scaling) -->
+        <!-- Prevents flashing when Canvas is cleared during resize -->
+        <!-- Only fades out on Album Change -->
+        <img 
+            src={coverUrl} 
+            class="backing-image" 
+            class:visible={isAlbumVisible}
+            alt="" 
+        />
+
+        <!-- Layer 3: High Quality Canvas (Pica) -->
+        <!-- Fades in over the backing image when processing is done -->
         <canvas 
           bind:this={canvasEl}
           class="raw-canvas"
+          class:visible={isCanvasReady}
           style="width: {boxSize}px; height: {boxSize}px;"
         ></canvas>
       </div>
@@ -180,12 +231,41 @@
     inset: 0;
     z-index: 1;
     filter: url(#dithered-shadow);
+    opacity: 0;
+    transition: opacity 0.4s ease;
+  }
+
+  .hard-shadow.visible {
+    opacity: 1;
+  }
+
+  .backing-image {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 2;
+    object-fit: fill;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    will-change: opacity;
+  }
+
+  .backing-image.visible {
+    opacity: 1;
   }
 
   .raw-canvas {
     position: relative;
-    z-index: 2;
+    z-index: 3;
     display: block;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    will-change: opacity;
+  }
+
+  .raw-canvas.visible {
+    opacity: 1;
   }
 
   .empty-state {
