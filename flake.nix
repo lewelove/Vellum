@@ -47,9 +47,6 @@
                 cd "$ROOT" && python ui_qml/main.py "$@"
                 ;;
               server)
-                cd "$ROOT" && python -m server.main "$@"
-                ;;
-              server_rs)
                 cd "$ROOT/cli_rs" && cargo run --release -- server "$@"
                 ;;
               update)
