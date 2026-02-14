@@ -1,11 +1,11 @@
 import tomllib
 import json
 import sys
+import os
 from pathlib import Path
 from tqdm import tqdm
 
 from .engine import render_toml_block
-# Updated import to break circular dependency
 from python.update.harvester import harvest_metadata
 from .compressor import compress
 from .grouper import group_tracks, resolve_anchor, sort_album_tracks
@@ -43,56 +43,53 @@ def run_generate():
     gen_cfg = config.get("generate", {})
     compress_cfg = config.get("compress", {})
     
-    supported_exts = gen_cfg.get("supported_extensions", [".flac"])
+    supported_exts = set(e.lower() for e in gen_cfg.get("supported_extensions", [".flac"]))
     grouping_keys = gen_cfg.get("grouping_keys", ["ALBUMARTIST", "ALBUM"])
     
     album_layout = compress_cfg.get("album", {}).get("layout", [])
     tracks_layout = compress_cfg.get("tracks", {}).get("layout", [])
 
-    if not force_mode:
-        print("Refreshing existing locks...")
-        run_update()
-
-    print(f"Scanning library at: {lib_root}")
+    print(f"Discovering unmanaged audio in: {lib_root}")
     
-    tracked_paths = set()
-    if not force_mode:
-        lock_files = list(lib_root.rglob("metadata.lock.json"))
-        for lf in lock_files:
-            try:
-                with open(lf, "r", encoding="utf-8") as f:
-                    lock_data = json.load(f)
-                    album_dir = lf.parent
-                    for t in lock_data.get("tracks", []):
-                        rel_path = t.get("track_path")
-                        if rel_path:
-                            abs_path = (album_dir / rel_path).resolve()
-                            tracked_paths.add(str(abs_path))
-            except Exception:
-                continue
-
-    print("Harvesting tags via Rust...")
-    harvested_inventory = harvest_metadata(lib_root)
+    dirs_to_harvest = []
     
-    raw_inventory = []
-    for path_str, data in tqdm(harvested_inventory.items(), desc="Processing Harvest", unit="file"):
-        if not force_mode and path_str in tracked_paths:
+    for root, dirs, files in os.walk(lib_root):
+        if not force_mode and "metadata.toml" in files:
+            dirs[:] = []
             continue
             
+        has_audio = False
+        for f in files:
+            if Path(f).suffix.lower() in supported_exts:
+                has_audio = True
+                break
+        
+        if has_audio:
+            dirs_to_harvest.append(Path(root))
+
+    if not dirs_to_harvest:
+        print("No new audio directories found.")
+        return
+
+    print(f"Harvesting tags from {len(dirs_to_harvest)} directories...")
+    harvested_inventory = harvest_metadata(dirs_to_harvest)
+    
+    if not harvested_inventory:
+        print("No new files found to process.")
+        return
+
+    raw_inventory = []
+    for path_str, data in harvested_inventory.items():
         tags = data["tags"]
         tags["track_path_absolute"] = path_str
         raw_inventory.append(tags)
-
-    if not raw_inventory:
-        print("No new files to process.")
-        return
 
     print("Grouping tracks...")
     album_buckets = group_tracks(raw_inventory, grouping_keys)
     print(f"Found {len(album_buckets)} album groups to generate.")
 
     for group_id, tracks in tqdm(album_buckets.items(), desc="Generating Metadata", unit="album"):
-        anchor_path, is_valid = resolve_anchor(tracks, str(lib_root), supported_exts)
+        anchor_path, is_valid = resolve_anchor(tracks, str(lib_root), list(supported_exts))
         
         if not is_valid:
             tqdm.write(f"Skipping group {group_id}: Ecological Exclusivity violation.")
