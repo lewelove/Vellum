@@ -30,28 +30,30 @@ struct PhysicsData {
     format: String,
 }
 
-pub fn run(root: PathBuf, pretty: bool) -> Result<()> {
-    // 1. Scan for audio files
+pub fn run(roots: Vec<PathBuf>, pretty: bool) -> Result<()> {
     let extensions = ["flac", "mp3", "m4a", "ogg", "wav", "opus"];
-    let files = scan_files(&root, &extensions);
+    let mut files = Vec::new();
+    
+    for root in roots {
+        files.extend(scan_files(&root, &extensions));
+    }
 
-    // 2. Setup Threading Channel for Stdout
+    if files.is_empty() {
+        return Ok(());
+    }
+
     let (tx, rx) = mpsc::channel::<String>();
 
     let printer_handle = thread::spawn(move || {
         let stdout = io::stdout();
         let mut handle = io::BufWriter::new(stdout.lock());
         for line in rx {
-            // If pretty, we add an extra newline for visual separation
-            // If not, we just print the line (which is a full object)
             writeln!(handle, "{}", line).ok();
         }
     });
 
-    // 3. Parallel Processing
     files.par_iter().for_each_with(tx, |tx, path| {
         if let Ok(payload) = harvest_file(path) {
-            
             let json_res = if pretty {
                 serde_json::to_string_pretty(&payload)
             } else {
@@ -70,6 +72,10 @@ pub fn run(root: PathBuf, pretty: bool) -> Result<()> {
 }
 
 fn scan_files(root: &Path, extensions: &[&str]) -> Vec<PathBuf> {
+    if root.is_file() {
+        return vec![root.to_path_buf()];
+    }
+
     WalkDir::new(root)
         .follow_links(true)
         .into_iter()

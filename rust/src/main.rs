@@ -15,10 +15,10 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Scans a directory and outputs one JSON object per file to stdout
+    /// Scans directories and outputs one JSON object per file to stdout
     Harvest {
-        #[arg(value_name = "PATH")]
-        path: String,
+        #[arg(value_name = "PATHS", required = true, num_args = 1..)]
+        paths: Vec<String>,
 
         /// Output human-readable indented JSON
         #[arg(long)]
@@ -53,7 +53,6 @@ fn expand_path(path_str: &str) -> PathBuf {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Initialize logging for the server
     simple_logger::SimpleLogger::new()
         .with_level(log::LevelFilter::Info)
         .env()
@@ -63,8 +62,7 @@ async fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Harvest { path, pretty, jobs } => {
-            // Initialize the global thread pool with the specified number of jobs
+        Commands::Harvest { paths, pretty, jobs } => {
             if let Some(j) = jobs {
                 rayon::ThreadPoolBuilder::new()
                     .num_threads(j)
@@ -72,11 +70,17 @@ async fn main() -> Result<()> {
                     .context("Failed to build thread pool")?;
             }
 
-            let expanded = expand_path(&path);
-            let target_root = expanded.canonicalize()
-                .with_context(|| format!("Invalid path: {:?}", expanded))?;
+            let mut targets = Vec::new();
+            for p in paths {
+                let expanded = expand_path(&p);
+                if let Ok(canon) = expanded.canonicalize() {
+                    targets.push(canon);
+                } else {
+                    targets.push(expanded);
+                }
+            }
                 
-            harvest::run(target_root, pretty)
+            harvest::run(targets, pretty)
         },
         Commands::Server { port } => {
             server::run(port).await
