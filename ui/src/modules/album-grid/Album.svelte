@@ -66,12 +66,9 @@
     canvas.width = w * dpr;
     canvas.height = h * dpr;
     
-    // CHANGE: alpha: false allows the browser to use subpixel antialiasing (ClearType)
-    // This is the standard, "non-hacky" way to get sharp, hinted text on Canvas.
     const ctx = canvas.getContext('2d', { alpha: false });
     ctx.scale(dpr, dpr);
     
-    // CHANGE: Since alpha is false, we must manually fill the background color
     const bgHex = theme.palette[theme.colors["background-main"]] || "#323232";
     ctx.fillStyle = bgHex;
     ctx.fillRect(0, 0, w, h);
@@ -123,13 +120,19 @@
   <button 
     class="album-cover" 
     class:active
-    style="
-      {coverUrl ? `background-image: url('${coverUrl}');` : ''}
-      z-index: 10;
-    "
+    style="z-index: 10;"
     {onclick}
     aria-label="Select album {album.title}"
-  ></button>
+  >
+    {#if coverUrl}
+      <img 
+        src={coverUrl} 
+        alt="" 
+        decoding="async" 
+        draggable="false"
+      />
+    {/if}
+  </button>
   
   <div 
     class="album-info" 
@@ -173,12 +176,18 @@
     margin-bottom: var(--text-gap-main);
     position: relative;
     background-color: #323232;
-    background-size: cover;
-    background-position: center;
     border-radius: 0px;
     box-shadow: var(--album-cover-shadow);
     transition: transform 0.2s ease, box-shadow 0.2s ease;
     pointer-events: auto;
+    overflow: hidden;
+  }
+
+  .album-cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
   }
 
   .album-info {
