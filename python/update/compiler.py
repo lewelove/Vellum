@@ -73,14 +73,10 @@ def compile_album(
 
     physical_spine = scan_physical_spine(album_root, supported_exts)
     
-    # --- OPTIMIZATION START ---
-    # Use pre-harvested data if provided (Bulk Harvest mode), 
-    # otherwise trigger a local harvest for this specific folder (Atomic mode).
     if pre_harvested_data is not None:
         harvested_data = pre_harvested_data
     else:
         harvested_data = harvest_metadata(album_root)
-    # --- OPTIMIZATION END ---
 
     album_defaults = raw_meta.get("album", {})
     raw_tracks_source = raw_meta.get("tracks", [])
@@ -127,7 +123,6 @@ def compile_album(
         t_path_rel = track_source.get("track_path", "")
         t_path_abs = (album_root / t_path_rel) if t_path_rel else None
         
-        # Resolve data from the harvest map (key is stringified absolute path)
         harvest_payload = None
         if t_path_abs:
             abs_key = str(t_path_abs.resolve())
@@ -169,7 +164,8 @@ def compile_album(
         "metadata_toml_mtime": meta_mtime,
         "total_tracks_count": len(final_tracks),
         "total_discs_count": len(unique_discs),
-        "all_tracks_final": final_tracks
+        "all_tracks_final": final_tracks,
+        "harvested_data": harvested_data
     }
 
     for key in A_TAGS:

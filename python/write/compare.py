@@ -25,7 +25,7 @@ def is_match(key: str, harvest_val: any, lock_val: any, album_lock: dict = None)
 
     # Rule: If it's a single disc release, ignore DISCNUMBER
     if key == "DISCNUMBER" and album_lock:
-        if parse_int(album_lock.get("TOTALDISCS")) == 1:
+        if parse_int(album_lock.get("total_discs")) == 1:
             return True
 
     # Rule: Numeric comparison for Track/Disc

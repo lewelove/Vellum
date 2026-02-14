@@ -3,6 +3,7 @@ import datetime
 import xxhash
 import base64
 from pathlib import Path
+from python.write.compare import is_match
 
 # --- UTILS ---
 
@@ -23,6 +24,55 @@ def _format_ms_to_time(ms):
     return f"{m}:{s:02d}"
 
 # --- ALBUM HELPERS ---
+
+def resolve_album_helper_total_tracks(ctx):
+    return str(ctx.get("total_tracks_count", 0))
+
+def resolve_album_helper_total_discs(ctx):
+    return str(ctx.get("total_discs_count", 0))
+
+def resolve_album_helper_file_tag_subset_match(ctx):
+    """
+    Checks if all compiled uppercase tags for all tracks in this album 
+    exactly match the tags currently present in the physical audio files.
+    """
+    tracks = ctx.get("all_tracks_final", [])
+    harvested = ctx.get("harvested_data", {})
+    album_root = ctx.get("album_root")
+    
+    # We create a reference object for is_match so it knows the disc count
+    match_context = {
+        "total_discs": str(ctx.get("total_discs_count", 0))
+    }
+
+    if not tracks or not harvested:
+        return False
+
+    for track in tracks:
+        rel_path = track.get("track_path")
+        if not rel_path:
+            return False
+            
+        abs_path = str((album_root / rel_path).resolve())
+        harvest_item = harvested.get(abs_path)
+        
+        if not harvest_item:
+            return False
+        
+        physical_tags = harvest_item.get("tags", {})
+        
+        for key, compiled_val in track.items():
+            if not key.isupper():
+                continue
+            
+            physical_val = physical_tags.get(key)
+            
+            # Standardized comparison logic.
+            # Passing match_context allows the single-disc DISCNUMBER rule to function.
+            if not is_match(key, physical_val, compiled_val, album_lock=match_context):
+                return False
+                
+    return True
 
 def resolve_album_helper_album_root_path(ctx):
     album_root = ctx.get("album_root")

@@ -72,12 +72,6 @@ def resolve_album_tag_release_date(ctx):
     yyyy_mm = resolve_album_tag_release_yyyy_mm(ctx)
     return _format_human_date(yyyy_mm)
 
-def resolve_album_tag_totaltracks(ctx):
-    return str(ctx.get("total_tracks_count", 0))
-
-def resolve_album_tag_totaldiscs(ctx):
-    return str(ctx.get("total_discs_count", 0))
-
 # --- TRACK TAGS ---
 
 def resolve_track_tag_title(ctx):

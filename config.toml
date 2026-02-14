@@ -114,8 +114,8 @@ album = [
   "\n",
   "album_duration_time",
   "album_duration_in_ms",
-  "TOTALDISCS",
-  "TOTALTRACKS",
+  "total_discs",
+  "total_tracks",
   "\n",
   "REPLAYGAIN_ALBUM_GAIN", 
   "REPLAYGAIN_ALBUM_PEAK",
@@ -132,6 +132,7 @@ album = [
   "metadata_toml_hash",
   "cover_mtime",
   "cover_byte_size",
+  "file_tag_subset_match",
   "*",
   "\n",
 ]
