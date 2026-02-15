@@ -25,6 +25,15 @@ def resolve_album_helper_cover_entropy(ctx):
     return 0
 
 def resolve_album_helper_cover_chroma(ctx):
+    """
+    Calculates the Hasler-Susstrunk Perceptual Colorfulness Metric.
+    
+    This is the industry standard statistical approach for measuring 
+    colorfulness in natural images without requiring a reference image.
+    
+    Source: Hasler, D., & Susstrunk, S. (2003). "Measuring colorfulness 
+    in natural images". Human Vision and Electronic Imaging VIII.
+    """
     c_hash = resolve_album_helper_cover_hash(ctx)
     if not c_hash:
         return 0.0
@@ -40,14 +49,34 @@ def resolve_album_helper_cover_chroma(ctx):
             return 0.0
 
         with Image.open(thumb_file) as img:
-            lab = img.convert("LAB")
-            arr = np.array(lab)
+            # Step 1: Normalize input to RGB space
+            img = img.convert("RGB")
+            arr = np.array(img).astype(float)
             
-            a = arr[:, :, 1].view(np.int8).astype(np.float32)
-            b = arr[:, :, 2].view(np.int8).astype(np.float32)
+            r, g, b = arr[:, :, 0], arr[:, :, 1], arr[:, :, 2]
             
-            chroma = np.sqrt(a**2 + b**2)
-            return float(np.mean(chroma))
+            # Step 2: Transform to Opponent Color Space
+            # Red-Green axis
+            rg = r - g
+            # Yellow-Blue axis
+            yb = 0.5 * (r + g) - b
+            
+            # Step 3: Compute Statistical Moments
+            std_rg = np.std(rg)
+            std_yb = np.std(yb)
+            
+            mean_rg = np.mean(rg)
+            mean_yb = np.mean(yb)
+            
+            # Step 4: Aggregate Axis Statistics
+            # Standard Deviation of the opponent space
+            std_root = np.sqrt(std_rg**2 + std_yb**2)
+            # Mean of the opponent space
+            mean_root = np.sqrt(mean_rg**2 + mean_yb**2)
+            
+            # Step 5: Calculate Final Perceptual Score
+            # Result represents the "Distance from Neutral" weighted by Variance.
+            return float(std_root + (0.3 * mean_root))
             
     except Exception:
         pass
