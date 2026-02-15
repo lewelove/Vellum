@@ -24,11 +24,15 @@ class LibraryState {
 
   viewVersion = $state(0);
 
-  // Logic Change: Convert caches to $state to ensure reactivity 
-  // when the worker finishes background ingestion.
   albumCache = $state(new Map());
   trackPathMap = $state(new Map());
-  pinnedTextures = new Map();
+  
+  /**
+   * pinnedTextures is now a reactive $state Map.
+   * This allows Svelte components to react immediately when an image 
+   * finishes its background decoding process.
+   */
+  pinnedTextures = $state(new Map());
 
   worker = null;
   
@@ -44,8 +48,6 @@ class LibraryState {
       if (type === "INIT_DATA") {
         console.log(`[Main] Caching ${count} objects...`);
         
-        // Logic Change: Clear and populate reactive maps.
-        // This triggers re-derivation in all components using getTrackByPath or getAlbumCoverUrl.
         const newTrackMap = new Map();
         const newAlbumCache = new Map();
 
@@ -67,7 +69,12 @@ class LibraryState {
 
         this.refreshSidebar();
         
-        setTimeout(() => this.orchestratePrewarming(data), 1000);
+        /**
+         * Artificial 1s timeout removed. 
+         * Prewarming now begins immediately upon data ingestion to minimize 
+         * the window where un-decoded images are visible.
+         */
+        this.orchestratePrewarming(data);
       }
       
       else if (type === "UPDATE_DATA") {
@@ -171,9 +178,17 @@ class LibraryState {
         img.src = url;
         
         try {
+          /**
+           * By calling decode(), we force the browser to prepare the bitmap 
+           * in GPU memory. Keeping the Image object in a Map ensures the 
+           * browser does not purge the decoded pixels from the cache.
+           */
           await img.decode();
           this.pinnedTextures.set(url, img);
+          // Trigger reactivity for the Map
+          this.pinnedTextures = new Map(this.pinnedTextures);
         } catch (err) {
+          // Decoding failed or aborted; ignore and continue
         }
       }
     };

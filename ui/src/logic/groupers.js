@@ -68,12 +68,11 @@ export const groupers = {
 
   chroma: (albums) => {
     const map = new Map();
-    // find() logic depends on the order of these thresholds
     const buckets = [
-      { label: "Monochrome", threshold: 0.0001 }, // Score exactly 0
-      { label: "Bleak", threshold: 1 },           // Score > 0 and < 1
-      { label: "Muted", threshold: 12 },
-      { label: "Standard", threshold: 30 },
+      { label: "Monochrome", threshold: 0.0001 },
+      { label: "Bleak", threshold: 15 },
+      { label: "Muted", threshold: 33 },
+      { label: "Standard", threshold: 60 },
       { label: "Vibrant", threshold: Infinity }
     ];
 
@@ -126,7 +125,6 @@ export function generateSidebarGroup(albums, groupKey) {
     const order = ["Vibrant", "Standard", "Muted", "Bleak", "Monochrome"];
     result.sort((a, b) => order.indexOf(a.label) - order.indexOf(b.label));
   } else if (groupKey === "year_added" || groupKey === "month_added") {
-    // Sort Added dates descending (newest at top)
     result.sort((a, b) => b.value.localeCompare(a.value));
   } else {
     result.sort((a, b) => a.value.localeCompare(b.value, undefined, { numeric: true }));

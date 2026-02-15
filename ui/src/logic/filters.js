@@ -58,10 +58,10 @@ export const filters = {
     const score = parseFloat(album.cover_chroma || 0);
     switch (val) {
       case "Monochrome": return score === 0;
-      case "Bleak":      return score > 0 && score < 1;
-      case "Muted":      return score >= 1 && score < 12;
-      case "Standard":   return score >= 12 && score < 30;
-      case "Vibrant":    return score >= 30;
+      case "Bleak":      return score > 0 && score < 15;
+      case "Muted":      return score >= 15 && score < 33;
+      case "Standard":   return score >= 33 && score < 60;
+      case "Vibrant":    return score >= 60;
       default:           return true;
     }
   }
