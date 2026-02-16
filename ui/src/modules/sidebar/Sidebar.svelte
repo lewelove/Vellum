@@ -233,8 +233,8 @@
   }
 
   .btn-icon {
-    width: 18px;
-    height: 18px;
+    width: 20px;
+    height: 20px;
     opacity: 0.7;
     margin-right: 8px;
     flex-shrink: 0;

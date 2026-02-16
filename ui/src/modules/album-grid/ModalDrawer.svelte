@@ -121,7 +121,7 @@
           <div class="scroll-fade-overlay-top"></div>
           <ModalDrawerTracks 
             tracks={album.tracks} 
-            totalDiscs={album.TOTALDISCS} 
+            totalDiscs={album.total_discs} 
             onplay={handlePlayTrack} 
             onplaydisc={handlePlayDisc}
           />
@@ -151,7 +151,7 @@
   }
 
   .bar-group img {
-    opacity: 0.8;
+    opacity: 0.6;
   }
 
   .bar-group.right {
@@ -242,7 +242,7 @@
   }
 
   .meta-sep {
-    color: #444444;
+    color: #888888;
   }
 
   .footer-container {
