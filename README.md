@@ -39,7 +39,7 @@ The `vellum` utility provides the following entry points:
 
 ## Development
 
-Vellum is an active development stage and provides a Nix flake for a reproducible dev and runtime environment, including all necessary Python, Rust, and Node.js dependencies. To use in current state install Nix and clone repo, then `cd` into directory and run:
+Vellum is in an active development stage and provides a Nix flake for a reproducible dev and runtime environment, including all necessary Python, Rust, and Node.js dependencies. To use in current state install Nix and clone repo, then `cd` into directory and run:
 
 ```bash
 nix develop
