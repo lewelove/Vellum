@@ -177,7 +177,7 @@
     flex-direction: column;
     box-sizing: border-box;
     background-color: transparent;
-    min-height: 0; /* Critical: allows container to respect parent flex constraints */
+    min-height: 0;
     overflow: hidden;
   }
 

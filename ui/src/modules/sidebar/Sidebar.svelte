@@ -59,7 +59,6 @@
 
   <div class="sidebar-controls">
     
-    <!-- Sort Row -->
     <div class="control-row">
       <div class="button-wrapper flex-grow">
         <button class="sidebar-btn" onclick={toggleSortMenu} class:active={isSortMenuOpen} title="Sort By">
@@ -92,7 +91,6 @@
       </button>
     </div>
 
-    <!-- Group Row -->
     <div class="control-row">
       <div class="button-wrapper flex-grow">
         <button class="sidebar-btn" onclick={toggleGroupMenu} class:active={isGroupMenuOpen} title="Group By">
@@ -142,7 +140,6 @@
     box-sizing: border-box;
   }
 
-  /* Nav Buttons - Styled to match list items */
   .sidebar-nav {
     display: flex;
     flex-direction: column;
@@ -173,7 +170,6 @@
     background-color: rgba(255, 255, 255, 0.05);
   }
 
-  /* Controls Section */
   .sidebar-controls {
     display: flex;
     flex-direction: column;
@@ -198,7 +194,6 @@
     min-width: 0;
   }
 
-  /* Shared Button Style (Matches ModalDrawer) */
   .sidebar-btn {
     width: 100%;
     height: 36px;
@@ -269,7 +264,6 @@
     transform: rotate(-90deg);
   }
 
-  /* Dropdown Menus */
   .control-menu {
     position: absolute;
     top: 100%;
