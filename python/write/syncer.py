@@ -53,12 +53,10 @@ def collect_changes(album_root, lock_data, harvested_map):
             if not is_match(key, harvest_val, lock_val, album_lock=album_lock):
                 write_val = parse_lock_value(lock_val)
                 
-                # If tag is missing from file, it goes to injection (silent)
                 if not harvest_val:
                     if abs_track_path not in injection_plan:
                         injection_plan[abs_track_path] = {}
                     injection_plan[abs_track_path][key] = write_val
-                # If tag exists but differs, it goes to sync (prompted)
                 else:
                     if abs_track_path not in sync_plan:
                         sync_plan[abs_track_path] = {}

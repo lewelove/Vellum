@@ -4,10 +4,6 @@
 
   let { album, active, onclick, scrollY = 0, rowY = 0 } = $props();
 
-  /**
-   * We retrieve the cover URL and then look up whether a pre-decoded 
-   * texture already exists in the library's reactive pinnedTextures map.
-   */
   let coverUrl = $derived(library.getThumbnailUrl(album));
   let prewarmed = $derived(library.pinnedTextures.get(coverUrl));
 

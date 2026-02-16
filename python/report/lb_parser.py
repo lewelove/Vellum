@@ -24,9 +24,7 @@ def parse_listenbrainz_export(zip_path, target_year=None):
                         meta = data.get("track_metadata", {})
                         info = meta.get("additional_info", {})
                         
-                        # Primary matching strategy
                         album = meta.get("release_name")
-                        # Try to find an explicit album artist, fallback to track artist
                         artist = info.get("albumartist") or meta.get("artist_name")
                         
                         if artist and album:

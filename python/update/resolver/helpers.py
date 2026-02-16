@@ -60,8 +60,6 @@ def resolve_album_helper_file_tag_subset_match(ctx):
             return False
         
         physical_tags = harvest_item.get("tags", {})
-        
-        # We check both Album-level tags and Track-level tags
         expected_state = {**album_tags, **track}
         
         for key, compiled_val in expected_state.items():

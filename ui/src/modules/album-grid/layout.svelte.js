@@ -3,15 +3,12 @@ import { theme } from "../../theme.svelte.js";
 export class LayoutManager {
   containerWidth = $state(0);
 
-  // Core dimensions derived from theme
   gapX = $derived(theme.albumGrid["gap-x"] ?? 24);
   gapY = $derived(theme.albumGrid["gap-y"] ?? 12);
   cardSize = $derived(theme.albumGrid["cover-size"] ?? 200);
   
-  // New derived property for crease-height
   creaseHeight = $derived(theme.albumGrid["crease-height"] ?? 0);
   
-  // The height of a single row of albums
   rowHeight = $derived(
     this.gapY +       
     this.cardSize +     
@@ -21,14 +18,9 @@ export class LayoutManager {
     (theme.albumGrid["font-line-height-artist"] ?? 16)
   );
 
-  // Grid logic
   cols = $derived(Math.max(1, Math.floor((this.containerWidth - 40 + this.gapX) / (this.cardSize + this.gapX))));
   gridWidth = $derived((this.cols * this.cardSize) + ((this.cols - 1) * this.gapX));
 
-  /**
-   * We calculate the topOffset to compensate for the padding-top inside Album.svelte
-   * so that the actual cover starts exactly at creaseHeight.
-   */
   get topOffset() {
     return this.creaseHeight - this.gapY;
   }

@@ -6,36 +6,21 @@ import LogicWorker from "./workers/logic.worker.js?worker";
 class LibraryState {
 
   albums = $state([]); 
-  
   sidebarGroups = $state(new Map()); 
-  
   isLoading = $state(true);
   isConnected = $state(false);
-  
   focusedAlbum = $state(null);
   activeFilter = $state({ key: null, val: null });
-  
   activeSort = $state({ key: "default", order: "default" });
-  
   userSortPreference = $state("default");
   userSortOrder = $state("default");
-  
   activeSidebarGrouper = $state("genre");
-
   viewVersion = $state(0);
-
   albumCache = $state(new Map());
   trackPathMap = $state(new Map());
-  
-  /**
-   * pinnedTextures is now a reactive $state Map.
-   * This allows Svelte components to react immediately when an image 
-   * finishes its background decoding process.
-   */
   pinnedTextures = $state(new Map());
 
   worker = null;
-  
   _tRequest = 0;
   _pendingViewReset = false;
 
@@ -68,12 +53,6 @@ class LibraryState {
         this.albumCache = newAlbumCache;
 
         this.refreshSidebar();
-        
-        /**
-         * Artificial 1s timeout removed. 
-         * Prewarming now begins immediately upon data ingestion to minimize 
-         * the window where un-decoded images are visible.
-         */
         this.orchestratePrewarming(data);
       }
       
@@ -98,7 +77,6 @@ class LibraryState {
         const transferTime = (tTransferEnd - this._tRequest - parseFloat(timing)).toFixed(2);
         
         this.albums = ids.map(id => this.albumCache.get(id)).filter(Boolean);
-        
         this.isLoading = false;
 
         if (this._pendingViewReset) {
@@ -178,18 +156,10 @@ class LibraryState {
         img.src = url;
         
         try {
-          /**
-           * By calling decode(), we force the browser to prepare the bitmap 
-           * in GPU memory. Keeping the Image object in a Map ensures the 
-           * browser does not purge the decoded pixels from the cache.
-           */
           await img.decode();
           this.pinnedTextures.set(url, img);
-          // Trigger reactivity for the Map
           this.pinnedTextures = new Map(this.pinnedTextures);
-        } catch (err) {
-          // Decoding failed or aborted; ignore and continue
-        }
+        } catch (err) {}
       }
     };
 

@@ -94,9 +94,6 @@ def run_update():
     
     print(f"Scanning {len(anchors)} albums...")
 
-    # --- Phase 1: Identification ---
-    # Determine which albums actually need processing based on cache and trust.
-    
     skips_count = 0
     for anchor in tqdm(anchors, desc="Verifying Library", unit="album"):
         album_root = anchor.parent
@@ -118,35 +115,21 @@ def run_update():
                 should_process = True
 
         if not should_process:
-            # Re-check trust if cache mtime matched, just in case of non-mtime anomalies?
-            # Sentry's 'verify_trust' is expensive (checks file existence/hashes).
-            # If mtime matches, we assume trust is valid to keep update fast.
-            # We strictly trust the cache here for speed unless force_mode.
             new_cache[album_path_str] = cached_info
             skips_count += 1
             continue
 
-        # If we suspect change, verify trust
         trust = verify_trust(album_root, force=force_mode)
         
         if trust != TrustState.VALID:
             work_queue.append((album_root, current_mtime_sum))
         else:
-            # Valid trust means mtime changed but files/content are logically consistent
-            # (e.g. maybe user touched file without changing content).
-            # Update cache to new mtime so we don't check again.
             new_cache[album_path_str] = {"mtime_sum": current_mtime_sum}
             skips_count += 1
 
-    # --- Phase 2: Bulk Harvesting (Optimization) ---
-    # If we are in force mode, it is significantly faster to harvest the entire library once
-    # than to spawn a subprocess for every single album.
-    
     harvest_map = None
     if force_mode and work_queue:
         print("Bulk Harvesting Metadata (Force Mode)...")
-        # We don't have a progress bar for the harvest process itself 
-        # as it is a single atomic Rust call, but it's typically I/O bound and fast.
         try:
             harvest_map = harvest_metadata(lib_root)
             print(f"Harvested {len(harvest_map)} tracks.")
@@ -154,14 +137,10 @@ def run_update():
             print(f"Bulk Harvest Failed: {e}. Falling back to atomic harvesting.")
             harvest_map = None
 
-    # --- Phase 3: Compilation ---
-    
     updates_count = 0
     if work_queue:
         for album_root, mtime_sum in tqdm(work_queue, desc="Compiling Updates", unit="album"):
             try:
-                # Pass the bulk harvest map if available. 
-                # If None, compile_album falls back to atomic harvest.
                 compile_album(
                     album_root, 
                     supported_exts, 
