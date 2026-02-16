@@ -6,9 +6,6 @@
   
   let isOpen = $state(false);
   
-  // Sync Data Loading
-  // In the new architecture, data is in RAM, so we don't need async fetching.
-  // We derive the items directly from the library state.
   let items = $derived(isOpen ? library.getSidebarGroup(groupKey) : []);
 
   let hasActiveSelection = $derived(
@@ -58,7 +55,6 @@
     padding: 12px 16px;
     background: none;
     border: none;
-    /* color: var(--text-muted); */
     font-family: var(--font-stack);
     font-size: 14px;
     font-weight: 400;

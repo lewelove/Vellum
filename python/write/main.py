@@ -50,7 +50,6 @@ def run_write():
         except Exception: 
             continue
 
-        # Skip logic: If the subset match is already verified, do nothing.
         album_meta = lock_data.get("album", {})
         if album_meta.get("file_tag_subset_match") is True:
             continue
@@ -61,13 +60,11 @@ def run_write():
 
         change_log, sync_plan, injection_plan = collect_changes(album_root, lock_data, harvested_map)
 
-        # 1. Perform silent injections (tags missing in audio but present in lock)
         if injection_plan:
             count = sum(len(tags) for tags in injection_plan.values())
             print(f"Injecting {count} missing tags into: {album_root.name}")
             apply_write_plan(injection_plan)
 
-        # 2. Prompt for syncs (tags that exist in audio but differ from lock)
         if change_log:
             print(f"\nDiscrepancies found in: {album_root}")
             for line in change_log:
