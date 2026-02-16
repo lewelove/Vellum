@@ -1,6 +1,6 @@
 # Vellum
 
-Vellum is a library manager and MPD client that treats each album as a structured data object. It uses a sidecar metadata architecture to decouple user-managed tags from the underlying audio files, enabling deterministic library management and version-controlled metadata.
+Vellum is a web-based MPD client and library manager that treats each album as a structured data object. It uses a sidecar metadata architecture to decouple user-managed tags from the audio files, enabling plain-text library management and version-controlled metadata.
 
 ## The Album as a Data Object
 
@@ -36,11 +36,10 @@ The `vellum` utility provides the following entry points:
 | `generate` | Scans for unmanaged audio and creates initial TOML manifests |
 | `write` | Synchronizes compiled metadata back into audio file headers |
 | `harvest` | Outputs raw file metadata as JSON |
-| `report` | Generates listening reports from ListenBrainz export data |
 
 ## Development
 
-Vellum provides a Nix flake for a reproducible development environment, including all necessary Python, Rust, and Node.js dependencies.
+Vellum is an active development stage and provides a Nix flake for a reproducible dev and runtime environment, including all necessary Python, Rust, and Node.js dependencies. To use in current state install Nix and clone repo, then `cd` into directory and run:
 
 ```bash
 nix develop
