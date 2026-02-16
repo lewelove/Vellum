@@ -1,5 +1,5 @@
 export const player = $state({
-  state: "stop", // play, stop, pause
+  state: "stop",
   currentAlbumId: null,
   currentFile: null,
   title: "",
