@@ -28,7 +28,7 @@ pub async fn update_state(
 }
 
 pub async fn trigger_full_reset(State(state): State<Arc<AppState>>) -> Response {
-    log::info!("System: Full library reset triggered");
+    log::info!("Full library reset triggered");
     {
         let mut lib = state.library.write().await;
         lib.scan().await;
@@ -59,7 +59,7 @@ pub async fn trigger_reload(
                 .and_then(|v| v.as_str())
                 .unwrap_or(&updated.id);
             
-            log::info!("System: Live-Reloading album '{}'", album_name);
+            log::info!("Updated: {}", album_name);
 
             let _ = state.tx.send(json!({
                 "type": "UPDATE",

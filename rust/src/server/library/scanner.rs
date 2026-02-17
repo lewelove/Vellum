@@ -27,7 +27,7 @@ impl Library {
     }
 
     pub async fn scan(&mut self) {
-        log::info!("Scanning library at {:?}", self.root);
+        log::info!("Scanning Library at {:?}", self.root);
         
         let mut albums = Vec::new();
         let mut album_map = HashMap::new();

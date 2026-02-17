@@ -49,19 +49,19 @@ pub fn start_actor(
                     }
 
                     if let Ok(mut client) = Client::new(stream) {
-                        log::info!("MPD: Actor connected to {}", addr);
+                        log::info!("MPD Connected: {}", addr);
                         loop {
                             if let Err(_) = broadcast_status(&mut client, &broadcast_tx, &library) { break; }
                             let _ = client.wait(&[Subsystem::Player, Subsystem::Playlist, Subsystem::Options]);
                             while let Ok(cmd) = rx.try_recv() {
                                 match &cmd {
-                                    MpdCommand::Play { tracks, .. } => log::info!("MPD: Playing album ({} tracks)", tracks.len()),
-                                    MpdCommand::Queue { tracks } => log::info!("MPD: Enqueuing {} tracks", tracks.len()),
-                                    MpdCommand::Next => log::info!("MPD: Skip next"),
-                                    MpdCommand::Prev => log::info!("MPD: Skip previous"),
-                                    MpdCommand::TogglePause => log::info!("MPD: Toggle pause"),
-                                    MpdCommand::Clear => log::info!("MPD: Clear queue"),
-                                    MpdCommand::Stop => log::info!("MPD: Stop playback"),
+                                    MpdCommand::Play { tracks, .. } => log::info!("Playing album ({} tracks)", tracks.len()),
+                                    MpdCommand::Queue { tracks } => log::info!("Enqueuing {} tracks", tracks.len()),
+                                    MpdCommand::Next => log::info!("Skip next"),
+                                    MpdCommand::Prev => log::info!("Skip previous"),
+                                    MpdCommand::TogglePause => log::info!("Toggle pause"),
+                                    MpdCommand::Clear => log::info!("Clear queue"),
+                                    MpdCommand::Stop => log::info!("Stop playback"),
                                     MpdCommand::Refresh => {}
                                 }
                                 
@@ -72,7 +72,7 @@ pub fn start_actor(
                         }
                     }
                 }
-                Err(e) => { log::error!("MPD: Connection failed: {}", e); }
+                Err(e) => { log::error!("MPD Connection Failed: {}", e); }
             }
             *interrupt_stream.lock() = None;
             std::thread::sleep(std::time::Duration::from_secs(2));

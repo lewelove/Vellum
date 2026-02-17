@@ -15,7 +15,7 @@ pub async fn ws_handler(
 }
 
 async fn handle_socket(mut socket: WebSocket, state: Arc<AppState>) {
-    log::info!("WebSocket: Client connected");
+    log::info!("Client connected");
 
     let init_payload = {
         let lib = state.library.read().await;
@@ -38,7 +38,7 @@ async fn handle_socket(mut socket: WebSocket, state: Arc<AppState>) {
         tokio::select! {
             Some(msg) = socket.recv() => {
                 if let Ok(ax_ws::Message::Close(_)) | Err(_) = msg {
-                    log::info!("WebSocket: Client disconnected");
+                    log::info!("Client disconnected");
                     break;
                 }
             }
