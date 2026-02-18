@@ -11,23 +11,23 @@ use std::thread;
 use walkdir::WalkDir;
 
 #[derive(Serialize)]
-struct TrackJson {
-    path: PathBuf,
-    tags: HashMap<String, String>,
-    physics: PhysicsData,
+pub struct TrackJson {
+    pub path: PathBuf,
+    pub tags: HashMap<String, String>,
+    pub physics: PhysicsData,
 }
 
 #[derive(Serialize)]
-struct PhysicsData {
-    file_size: u64,
-    mtime: u64,
-    duration_ms: u64,
-    sample_rate: u32,
-    bit_depth: Option<u8>,
-    channels: u8,
-    audio_bitrate: u32,
-    overall_bitrate: u32,
-    format: String,
+pub struct PhysicsData {
+    pub file_size: u64,
+    pub mtime: u64,
+    pub duration_ms: u64,
+    pub sample_rate: u32,
+    pub bit_depth: Option<u8>,
+    pub channels: u8,
+    pub audio_bitrate: u32,
+    pub overall_bitrate: u32,
+    pub format: String,
 }
 
 pub fn run(roots: Vec<PathBuf>, pretty: bool) -> Result<()> {
@@ -91,7 +91,7 @@ fn scan_files(root: &Path, extensions: &[&str]) -> Vec<PathBuf> {
         .collect()
 }
 
-fn harvest_file(path: &Path) -> Result<TrackJson> {
+pub fn harvest_file(path: &Path) -> Result<TrackJson> {
     let metadata = fs::metadata(path)?;
     let file_size = metadata.len();
     let mtime = metadata

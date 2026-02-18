@@ -1,6 +1,7 @@
 mod harvest;
 mod server;
 mod config;
+mod compile;
 
 use clap::{Parser, Subcommand};
 use std::path::{PathBuf};
@@ -33,10 +34,14 @@ enum Commands {
         /// Port to listen on
         #[arg(long, default_value = "8000")]
         port: u16,
+    },
+    /// Compiles metadata.toml into metadata.lock.json using Bun resolvers
+    Compile {
+        #[arg(value_name = "PATH", required = true)]
+        path: String,
     }
 }
 
-/// Manually expands "~" to the user's home directory
 fn expand_path(path_str: &str) -> PathBuf {
     if path_str.starts_with("~") {
         if let Some(home) = dirs::home_dir() {
@@ -84,6 +89,10 @@ async fn main() -> Result<()> {
         },
         Commands::Server { port } => {
             server::run(port).await
+        },
+        Commands::Compile { path } => {
+            let expanded = expand_path(&path);
+            compile::run(expanded)
         }
     }
 }
