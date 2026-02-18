@@ -49,7 +49,7 @@
 
             case "$COMMAND" in
               ui)
-                cd "$ROOT/ui" && npm run dev
+                cd "$ROOT/ui" && bun run dev
                 ;;
               ui_qml)
                 cd "$ROOT" && python ui_qml/main.py "$@"
