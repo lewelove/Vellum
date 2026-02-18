@@ -4,14 +4,8 @@
   "workspaces": [
     "ui"
   ],
-  "scripts": {
-    "ui": "bun run dev --filter ui",
-    "server": "python server/main.py"
-  },
   "dependencies": {
-    "@duckdb/duckdb-wasm": "^1.33.1-dev18.0",
     "@fontsource/dseg7-classic": "^5.2.5",
-    "apache-arrow": "^21.1.0",
     "dseg": "^0.46.0"
   }
 }

@@ -12,23 +12,12 @@
         pkgs = import nixpkgs { inherit system; };
 
         pythonEnv = pkgs.python3.withPackages (ps: with ps; [
-          fastapi
-          uvicorn
-          mpd2
-          pyyaml
-          watchdog
-          python-multipart 
           mutagen
           tqdm
           pillow
           numpy
           xxhash
-          orjson
           httpx
-          websockets
-          uvloop
-          pyside6
-          websocket-client
         ]);
 
         vellum-cli = pkgs.writeShellApplication {
@@ -36,7 +25,6 @@
           runtimeInputs = [ 
             pythonEnv 
             pkgs.bun
-            pkgs.git 
             pkgs.cargo 
             pkgs.rustc 
             pkgs.pkg-config 
@@ -50,9 +38,6 @@
             case "$COMMAND" in
               ui)
                 cd "$ROOT/ui" && bun run dev
-                ;;
-              ui_qml)
-                cd "$ROOT" && python ui_qml/main.py "$@"
                 ;;
               server)
                 cd "$ROOT/rust" && cargo run --release -- server "$@"
@@ -77,10 +62,10 @@
                 ;;
               help|--help|-h)
                 echo "Vellum CLI Commands:"
-                echo "  ui          : Start Svelte UI Dev Server"
-                echo "  server      : Start Backend (Live State Manager)"
-                echo "  update      : Compile metadata locks & Hot Reload Server"
-                echo "  generate    : Initialize metadata from files (Python)"
+                echo "  ui          : Start Svelte UI Dev Server (Bun)"
+                echo "  server      : Start Backend Rust Server"
+                echo "  update      : Compile metadata locks"
+                echo "  generate    : Initialize metadata from files"
                 echo "  harvest     : Harvest raw metadata to JSON (Rust)"
                 echo "  export      : Export snapshot"
                 echo "  report      : Generate listening report"
@@ -93,30 +78,16 @@
           '';
         };
 
-        qt6Deps = with pkgs.qt6; [
-          qtbase
-          qtdeclarative
-          qtsvg
-          qtwayland
-        ];
-
         devPackages = with pkgs; [
           pythonEnv
           bun
-          nodejs_22
           pkg-config
           openssl
           vellum-cli
           cargo
           rustc
           rust-analyzer
-          fontconfig
-          libglvnd
-          libxkbcommon
-          wayland
-          libGL
-          vulkan-loader
-        ] ++ qt6Deps;
+        ];
       in
       {
         devShells.default = pkgs.mkShell {
@@ -124,10 +95,6 @@
           shellHook = ''
             export PYTHONDONTWRITEBYTECODE=1
             export PATH="$PWD/ui/node_modules/.bin:$PATH"
-            export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath devPackages}:$LD_LIBRARY_PATH"
-            export QML2_IMPORT_PATH="${pkgs.qt6.qtdeclarative}/lib/qt-6/qml"
-            export QT_PLUGIN_PATH="${pkgs.qt6.qtbase}/lib/qt-6/plugins"
-            export QT_QPA_PLATFORM="wayland;xcb"
           '';
         };
       }
