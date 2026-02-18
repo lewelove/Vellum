@@ -3,19 +3,18 @@ import { svelte } from '@sveltejs/vite-plugin-svelte'
 import path from 'path'
 import net from 'node:net'
 import tls from 'node:tls'
+import { Stream } from 'node:stream'
 
-// --- BUN COMPATIBILITY SHIM START ---
-// Vite's proxy (http-proxy) uses socket.destroySoon(), which is a legacy 
-// Node.js method. Bun implements node:net but omits this deprecated method.
-// We patch it across all relevant Socket prototypes to ensure proxy stability.
-[net.Socket, tls.TLSSocket].forEach((SocketClass) => {
-  if (SocketClass && !SocketClass.prototype.destroySoon) {
-    SocketClass.prototype.destroySoon = function () {
-      this.destroy();
-    };
+// --- BUN COMPATIBILITY SHIM ---
+// Vite's proxy uses http-proxy which calls destroySoon().
+// Bun does not implement this legacy Node method. 
+// We patch it globally across all possible socket/stream classes.
+const patch = function () { this.destroy(); };
+[net.Socket, tls.TLSSocket, Stream].forEach((cls) => {
+  if (cls && cls.prototype && !cls.prototype.destroySoon) {
+    cls.prototype.destroySoon = patch;
   }
 });
-// --- BUN COMPATIBILITY SHIM END ---
 
 export default defineConfig({
   plugins: [svelte()],

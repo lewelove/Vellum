@@ -1,12 +1,23 @@
+/**
+ * WebSocket Connection Logic
+ * 
+ * Logic Change:
+ * The connection URL is modified to bypass the Vite development proxy (port 5173) 
+ * and connect directly to the Rust backend (port 8000). This circumvents a 
+ * known issue in Bun's Vite proxy implementation where large JSON payloads 
+ * (such as a library of ~800+ albums) are truncated or dropped, causing 
+ * the UI to fail during the INIT phase.
+ */
 export function connectSocket(onOpen, onMessage) {
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const host = window.location.host; 
+  // Direct connection to the backend to ensure payload integrity
+  const protocol = 'ws:';
+  const host = '127.0.0.1:8000'; 
   const url = `${protocol}//${host}/ws`;
 
   let socket = new WebSocket(url);
 
   socket.onopen = () => {
-    console.log("Live Lake Connected");
+    console.log("Vellum WebSocket: Connected to backend");
     if (onOpen) onOpen();
   };
 
@@ -15,14 +26,14 @@ export function connectSocket(onOpen, onMessage) {
   };
 
   socket.onclose = () => {
-    console.log("Live Lake Disconnected. Reconnecting in 2s...");
+    console.log("Vellum WebSocket: Disconnected. Reconnecting...");
     setTimeout(() => {
       connectSocket(onOpen, onMessage);
     }, 2000);
   };
 
   socket.onerror = (err) => {
-    console.error("Socket error", err);
+    console.error("Vellum WebSocket: Error", err);
   };
 
   return socket;
