@@ -5,7 +5,7 @@
     "ui"
   ],
   "scripts": {
-    "ui": "npm run dev -w ui",
+    "ui": "bun run dev --filter ui",
     "server": "python server/main.py"
   },
   "dependencies": {

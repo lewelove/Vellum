@@ -33,7 +33,15 @@
 
         vellum-cli = pkgs.writeShellApplication {
           name = "vellum";
-          runtimeInputs = [ pythonEnv pkgs.nodejs_22 pkgs.git pkgs.cargo pkgs.rustc pkgs.pkg-config pkgs.openssl ];
+          runtimeInputs = [ 
+            pythonEnv 
+            pkgs.bun
+            pkgs.git 
+            pkgs.cargo 
+            pkgs.rustc 
+            pkgs.pkg-config 
+            pkgs.openssl 
+          ];
           text = ''
             ROOT=$(git rev-parse --show-toplevel)
             COMMAND=''${1:-"help"}
@@ -94,6 +102,7 @@
 
         devPackages = with pkgs; [
           pythonEnv
+          bun
           nodejs_22
           pkg-config
           openssl
