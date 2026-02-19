@@ -70,10 +70,6 @@ extensions_folder = "~/dev/vellum/extensions/"
   "MUSICBRAINZ_TRACKID"
 ]
 
-# "test_logic" = [
-#   "is_cd"
-# ]
-
 [lock.layout]
 album = [
   "\n",
@@ -87,20 +83,20 @@ album = [
   "ORIGINAL_DATE",
   "ORIGINAL_YEAR",
   "ORIGINAL_YYYY_MM",
-  "\n",
-  "COUNTRY",
-  "LABEL",
-  "CATALOGNUMBER",
   "RELEASE_DATE",
   "RELEASE_YEAR",
   "RELEASE_YYYY_MM",
   "\n",
+  "COUNTRY",
+  "LABEL",
+  "CATALOGNUMBER",
   "MEDIA",
+  "\n",
   "DISCOGS_URL",
   "MUSICBRAINZ_URL",
   "\n",
   "date_added",
-  "\n",
+  "unix_added",
   "UNIX_ADDED_LOCAL",
   "UNIX_ADDED_FOOBAR", 
   "UNIX_ADDED_APPLEMUSIC",
@@ -117,6 +113,9 @@ album = [
   "total_discs",
   "total_tracks",
   "\n",
+  "cover_chroma",
+  "cover_entropy",
+  "\n",
   "REPLAYGAIN_ALBUM_GAIN", 
   "REPLAYGAIN_ALBUM_PEAK",
   "\n",
@@ -126,15 +125,15 @@ album = [
   "\n",
   "album_root_path",
   "cover_path",
-  "unix_added",
+  "cover_hash",
+  "cover_mtime",
+  "cover_byte_size",
   "\n",
   "metadata_toml_mtime",
   "metadata_toml_hash",
-  "cover_mtime",
-  "cover_byte_size",
   "file_tag_subset_match",
-  "*",
   "\n",
+  "*",
 ]
 
 tracks = [

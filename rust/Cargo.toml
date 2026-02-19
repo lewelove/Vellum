@@ -26,3 +26,7 @@ log = "0.4.29"
 toml = "1.0.1"
 parking_lot = "0.12.5"
 alphanumeric-sort = "1.5.5"
+tempfile = "3.25.0"
+sha2 = "0.10.9"
+xxhash-rust = { version = "0.8.15", features = ["xxh64"] }
+image = "0.25.9"

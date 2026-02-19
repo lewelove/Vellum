@@ -29,6 +29,7 @@
             pkgs.rustc 
             pkgs.pkg-config 
             pkgs.openssl 
+            pkgs.nix
           ];
           text = ''
             ROOT=$(git rev-parse --show-toplevel)
@@ -41,6 +42,9 @@
                 ;;
               server)
                 cd "$ROOT/rust" && cargo run --release -- server "$@"
+                ;;
+              compile)
+                cd "$ROOT/rust" && cargo run --release -- compile "$@"
                 ;;
               update)
                 cd "$ROOT" && python -m python.update "$@"
@@ -62,8 +66,9 @@
                 ;;
               help|--help|-h)
                 echo "Vellum CLI Commands:"
-                echo "  ui          : Start Svelte UI Dev Server (Bun)"
+                echo "  ui          : Start Svelte UI Dev Server"
                 echo "  server      : Start Backend Rust Server"
+                echo "  compile     : Compile metadata.toml to lock (Rust + Nix + Python)"
                 echo "  update      : Compile metadata locks"
                 echo "  generate    : Initialize metadata from files"
                 echo "  harvest     : Harvest raw metadata to JSON (Rust)"

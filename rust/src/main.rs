@@ -16,29 +16,24 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Scans directories and outputs one JSON object per file to stdout
     Harvest {
         #[arg(value_name = "PATHS", required = true, num_args = 1..)]
         paths: Vec<String>,
-
-        /// Output human-readable indented JSON
         #[arg(long)]
         pretty: bool,
-
-        /// Number of threads to use [default: all cores]
         #[arg(long, short = 'j')]
         jobs: Option<usize>,
     },
-    /// Starts the Vellum Server (Rust implementation)
     Server {
-        /// Port to listen on
         #[arg(long, default_value = "8000")]
         port: u16,
     },
-    /// Compiles metadata.toml into metadata.lock.json using Bun resolvers
     Compile {
         #[arg(value_name = "PATH", required = true)]
         path: String,
+        /// Output the final lock JSON to stdout
+        #[arg(long)]
+        json: bool,
     }
 }
 
@@ -90,9 +85,9 @@ async fn main() -> Result<()> {
         Commands::Server { port } => {
             server::run(port).await
         },
-        Commands::Compile { path } => {
+        Commands::Compile { path, json } => {
             let expanded = expand_path(&path);
-            compile::run(expanded)
+            compile::run(expanded, json)
         }
     }
 }
