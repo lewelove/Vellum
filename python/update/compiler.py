@@ -47,7 +47,7 @@ def compile_album(
     with open(config_path, "rb") as f:
         config = tomllib.load(f)
 
-    ext_folder = config.get("compiler", {}).get("extensions_folder")
+    ext_folder = config.get("compiler", {}).get("legacy_extensions_folder")
     ext_config = config.get("compiler", {}).get("extensions", {})
     setup_registry(ext_folder, ext_config)
 

@@ -41,18 +41,16 @@ def run_generate():
 
     lib_root = Path(config["storage"]["library_root"]).expanduser().resolve()
     gen_cfg = config.get("generate", {})
-    compress_cfg = config.get("compress", {})
+    registry_cfg = config.get("compiler_registry", {})
     
     supported_exts = set(e.lower() for e in gen_cfg.get("supported_extensions", [".flac"]))
     grouping_keys = gen_cfg.get("grouping_keys", ["ALBUMARTIST", "ALBUM"])
     
-    album_layout = compress_cfg.get("album", {}).get("layout", [])
-    tracks_layout = compress_cfg.get("tracks", {}).get("layout", [])
+    # Use compiler_registry as the layout source for generate/compress
+    album_layout = registry_cfg.get("album", [])
+    tracks_layout = registry_cfg.get("tracks", [])
 
-    print(f"Discovering unmanaged audio in: {lib_root}")
-    
     dirs_to_harvest = []
-    
     for root, dirs, files in os.walk(lib_root):
         if not force_mode and "metadata.toml" in files:
             dirs[:] = []
@@ -63,7 +61,6 @@ def run_generate():
             if Path(f).suffix.lower() in supported_exts:
                 has_audio = True
                 break
-        
         if has_audio:
             dirs_to_harvest.append(Path(root))
 
@@ -71,11 +68,8 @@ def run_generate():
         print("No new audio directories found.")
         return
 
-    print(f"Harvesting tags from {len(dirs_to_harvest)} directories...")
     harvested_inventory = harvest_metadata(dirs_to_harvest)
-    
     if not harvested_inventory:
-        print("No new files found to process.")
         return
 
     raw_inventory = []
@@ -84,45 +78,30 @@ def run_generate():
         tags["track_path_absolute"] = path_str
         raw_inventory.append(tags)
 
-    print("Grouping tracks...")
     album_buckets = group_tracks(raw_inventory, grouping_keys)
-    print(f"Found {len(album_buckets)} album groups to generate.")
 
     for group_id, tracks in tqdm(album_buckets.items(), desc="Generating Metadata", unit="album"):
         anchor_path, is_valid = resolve_anchor(tracks, str(lib_root), list(supported_exts))
-        
-        if not is_valid:
-            tqdm.write(f"Skipping group {group_id}: Ecological Exclusivity violation.")
-            continue
+        if not is_valid: continue
 
         sorted_tracks = sort_album_tracks(tracks)
-
         clean_tracks = []
         for t in sorted_tracks:
             clean = t.copy()
-            if "track_path_absolute" in clean:
-                del clean["track_path_absolute"]
+            if "track_path_absolute" in clean: del clean["track_path_absolute"]
             clean_tracks.append(clean)
 
-        album_pool, track_pools = compress(
-            clean_tracks, 
-            tracks_layout=tracks_layout
-        )
-        
+        album_pool, track_pools = compress(clean_tracks, tracks_layout=tracks_layout)
         meta_path = anchor_path / "metadata.toml"
         
         with open(meta_path, "w", encoding="utf-8") as f:
             f.write("[album]\n")
             f.write("\n".join(render_toml_block(album_pool, album_layout)) + "\n\n")
-            
             for tp in track_pools:
                 f.write("[[tracks]]\n")
                 f.write("\n".join(render_toml_block(tp, tracks_layout)) + "\n\n")
 
         if sorted_tracks:
-            first_track_path = Path(sorted_tracks[0]["track_path_absolute"])
-            extract_cover_from_track(first_track_path, anchor_path / "cover")
+            extract_cover_from_track(Path(sorted_tracks[0]["track_path_absolute"]), anchor_path / "cover")
 
-    print("\nFinalizing locks for new metadata...")
     run_update()
-    print("\nGeneration Complete.")

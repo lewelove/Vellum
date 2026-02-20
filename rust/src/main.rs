@@ -34,6 +34,12 @@ enum Commands {
         /// Output the final lock JSON to stdout
         #[arg(long)]
         json: bool,
+        /// Print the raw intermediary object (pre-extension) to stdout and exit
+        #[arg(long)]
+        intermediary: bool,
+        /// Use pretty-printed JSON for stdout output
+        #[arg(long)]
+        pretty: bool,
     }
 }
 
@@ -85,9 +91,9 @@ async fn main() -> Result<()> {
         Commands::Server { port } => {
             server::run(port).await
         },
-        Commands::Compile { path, json } => {
+        Commands::Compile { path, json, intermediary, pretty } => {
             let expanded = expand_path(&path);
-            compile::run(expanded, json)
+            compile::run(expanded, json, intermediary, pretty).await
         }
     }
 }

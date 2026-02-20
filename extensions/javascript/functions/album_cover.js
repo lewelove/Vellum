@@ -2,7 +2,7 @@ import { $ } from "bun";
 import path from "node:path";
 
 export async function resolve_album_helper_cover_entropy(ctx) {
-    const cHash = ctx.cover_hash;
+    const cHash = ctx.paths.cover_hash;
     if (!cHash) return 0;
 
     const thumbDir = ctx.config.storage.thumbnail_cache_folder;

@@ -30,3 +30,4 @@ tempfile = "3.25.0"
 sha2 = "0.10.9"
 xxhash-rust = { version = "0.8.15", features = ["xxh64"] }
 image = "0.25.9"
+chrono = "0.4.43"

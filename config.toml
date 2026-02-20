@@ -1,6 +1,5 @@
 [storage]
 library_root = "/run/media/lewelove/1000xhome/backup-everything/FB2K/Library Historyfied!/"
-# library_root = "/home/lewelove/dev/vellum-test-library/albums/"
 library_export = "~/dev/vellum-test-library/metadata_output"
 thumbnail_cache_folder = "~/.vellum/covers/thumbnails"
 
@@ -14,63 +13,16 @@ grouping_keys = ["ALBUMARTIST", "ALBUM", "CUSTOM_ID"]
 naming_separator = "_"
 naming_sanitization_char = "_"
 
+[extensions]
+folder = "/home/lewelove/dev/vellum/extensions/python"
+functions_folder = "functions"
+flake = "flake.nix"
+kernel_command = "python extensions/python/compile_kernel.py"
+
 [compiler]
-extensions_folder = "~/dev/vellum/extensions/"
+legacy_extensions_folder = "python/legacy_extensions"
 
-[compiler.extensions]
-"issue_id" = [
-  "COUNTRY", 
-  "LABEL", 
-  "CATALOGNUMBER", 
-  "MEDIA", 
-  "COMMENT", 
-  "CTDBID", 
-  "ACCURIPID", 
-  "DISCID"
-]
-
-"album_cover" = [
-  "cover_entropy",
-  "cover_chroma",
-]
-
-"replay_gain" = [
-  "REPLAYGAIN_ALBUM_GAIN", 
-  "REPLAYGAIN_ALBUM_PEAK",
-  "REPLAYGAIN_TRACK_GAIN",
-  "REPLAYGAIN_TRACK_PEAK",
-]
-
-"url" = [
-  "DISCOGS_URL", 
-  "MUSICBRAINZ_URL"
-]
-
-"history" = [
-  "UNIX_ADDED_PRIMARY", 
-  "UNIX_ADDED_LOCAL", 
-  "UNIX_ADDED_FOOBAR", 
-  "UNIX_ADDED_APPLEMUSIC", 
-  "UNIX_ADDED_YOUTUBE"
-]
-
-"custom" = [
-  "CUSTOM_ID", 
-  "CUSTOM_ALBUMARTIST", 
-  "CUSTOM_STRING", 
-  "OLD_COMMENT"
-]
-
-"musicbrainz" = [
-  "MUSICBRAINZ_ALBUMARTISTID", 
-  "MUSICBRAINZ_RELEASEGROUPID", 
-  "MUSICBRAINZ_ALBUMID", 
-  "MUSICBRAINZ_ARTISTID", 
-  "MUSICBRAINZ_RELEASETRACKID", 
-  "MUSICBRAINZ_TRACKID"
-]
-
-[lock.layout]
+[compiler_registry]
 album = [
   "\n",
   "ALBUM", 
@@ -132,8 +84,6 @@ album = [
   "metadata_toml_mtime",
   "metadata_toml_hash",
   "file_tag_subset_match",
-  "\n",
-  "*",
 ]
 
 tracks = [
@@ -153,7 +103,6 @@ tracks = [
   "track_mtime",
   "track_size",
   "track_duration_in_ms",
-  "track_duration_in_samples",
   "track_library_path",
   "LYRICS",
   "lyrics_path",
@@ -162,34 +111,4 @@ tracks = [
   "MUSICBRAINZ_TRACKID",
   "MUSICBRAINZ_RELEASETRACKID",
   "MUSICBRAINZ_ARTISTID",
-  "*",
-  "\n",
-]
-
-[compress.album]
-layout = [
-  "\n",
-  "ALBUM",
-  "ALBUMARTIST",
-  "DATE",
-  "GENRE",
-  { "" = ["\n", "COMMENT"] },
-  { "" = ["\n", "ORIGINAL_DATE", "ORIGINAL_YEAR", "ORIGINAL_YYYY_MM"] },
-  { "" = ["\n", "COUNTRY", "LABEL", "CATALOGNUMBER", "RELEASE_DATE", "RELEASE_YEAR", "RELEASE_YYYY_MM"] },
-  { "" = ["\n", "MEDIA", "DISCOGS_URL", "MUSICBRAINZ_URL"] },
-  { "" = ["\n", "ACCURIPID", "CTDBID", "DISCID"] },
-  { "" = ["\n", "DATEADDED"] },
-  { "" = ["\n", "UNIX_ADDED_LOCAL", "UNIX_ADDED_LOCAL", "UNIX_ADDED_APPLEMUSIC", "UNIX_ADDED_YOUTUBE", "UNIX_ADDED_PRIMARY", "UNIXTIMEFOOBAR", "UNIXTIMEAPPLE", "UNIXTIMEYOUTUBE"] },
-  { "" = ["\n", "MAGNET", "SOURCE"] },
-  "\n",
-  "*",
-  { "\n# -- MusicBraiz Metadata --" = ["MUSICBRAINZ_ALBUMID", "MUSICBRAINZ_ALBUMARTISTID", "MUSICBRAINZ_RELEASEGROUPID"] },
-]
-
-[compress.tracks]
-layout = [
-  "TRACKNUMBER",
-  "TITLE",
-  "ARTIST",
-  { "" = ["MUSICBRAINZ_TRACKID", "MUSICBRAINZ_RELEASETRACKID", "MUSICBRAINZ_ARTISTID"] },
 ]
