@@ -1,9 +1,22 @@
 import argparse
 import json
 import tomllib
+import subprocess
 from pathlib import Path
-from python.update.harvester import harvest_metadata
 from .syncer import collect_changes, apply_write_plan
+
+def harvest_metadata(target_path):
+    """Call the native rust binary directly for harvesting."""
+    cmd = ["vellum", "harvest", str(target_path)]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    
+    harvested_map = {}
+    if result.returncode == 0:
+        for line in result.stdout.strip().split("\n"):
+            if not line: continue
+            item = json.loads(line)
+            harvested_map[str(Path(item["path"]).resolve())] = item
+    return harvested_map
 
 def run_write():
     parser = argparse.ArgumentParser(

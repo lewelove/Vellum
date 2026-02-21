@@ -47,7 +47,7 @@
                 cd "$ROOT/rust" && cargo run --release -- compile "$@"
                 ;;
               update)
-                cd "$ROOT" && python -m python.update "$@"
+                cd "$ROOT/rust" && cargo run --release -- update "$@"
                 ;;
               generate)
                 cd "$ROOT" && python -m python.generate "$@"
@@ -68,10 +68,10 @@
                 echo "Vellum CLI Commands:"
                 echo "  ui          : Start Svelte UI Dev Server"
                 echo "  server      : Start Backend Rust Server"
-                echo "  compile     : Compile metadata.toml to lock (Rust + Nix + Python)"
-                echo "  update      : Compile metadata locks"
+                echo "  compile     : Compile metadata.toml to lock"
+                echo "  update      : Update library"
                 echo "  generate    : Initialize metadata from files"
-                echo "  harvest     : Harvest raw metadata to JSON (Rust)"
+                echo "  harvest     : Harvest raw metadata to JSON"
                 echo "  export      : Export snapshot"
                 echo "  report      : Generate listening report"
                 ;;

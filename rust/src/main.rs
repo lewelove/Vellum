@@ -2,10 +2,17 @@ mod harvest;
 mod server;
 mod config;
 mod compile;
+mod update;
 
-use clap::{Parser, Subcommand};
-use std::path::{PathBuf};
-use anyhow::{Context, Result};
+use clap::{
+    Parser,
+    Subcommand,
+};
+use std::path::PathBuf;
+use anyhow::{
+    Context,
+    Result,
+};
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -31,19 +38,30 @@ enum Commands {
     Compile {
         #[arg(value_name = "PATH", required = true)]
         path: String,
-        /// Output the final lock JSON to stdout
         #[arg(long)]
-        json: bool,
-        /// Print the raw intermediary object (pre-extension) to stdout and exit
+        stdout: bool,
         #[arg(long)]
         intermediary: bool,
-        /// Use pretty-printed JSON for stdout output
         #[arg(long)]
         pretty: bool,
+        #[arg(long, value_delimiter = ',')]
+        flags: Vec<String>,
+        #[arg(long)]
+        no_extensions: bool,
+    },
+    Update {
+        #[arg(value_name = "PATH")]
+        path: Option<String>,
+        #[arg(long)]
+        force: bool,
+        #[arg(long, short = 'j')]
+        jobs: Option<usize>,
+        #[arg(long)]
+        no_extensions: bool,
     }
 }
 
-fn expand_path(path_str: &str) -> PathBuf {
+pub fn expand_path(path_str: &str) -> PathBuf {
     if path_str.starts_with("~") {
         if let Some(home) = dirs::home_dir() {
             if path_str == "~" {
@@ -68,7 +86,11 @@ async fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Harvest { paths, pretty, jobs } => {
+        Commands::Harvest {
+            paths,
+            pretty,
+            jobs,
+        } => {
             if let Some(j) = jobs {
                 rayon::ThreadPoolBuilder::new()
                     .num_threads(j)
@@ -88,12 +110,40 @@ async fn main() -> Result<()> {
                 
             harvest::run(targets, pretty)
         },
-        Commands::Server { port } => {
+        Commands::Server {
+            port,
+        } => {
             server::run(port).await
         },
-        Commands::Compile { path, json, intermediary, pretty } => {
+        Commands::Compile {
+            path,
+            stdout,
+            intermediary,
+            pretty,
+            flags,
+            no_extensions,
+        } => {
             let expanded = expand_path(&path);
-            compile::run(expanded, json, intermediary, pretty).await
+            compile::run(
+                expanded,
+                stdout,
+                intermediary,
+                pretty,
+                flags,
+                None,
+                None,
+                no_extensions,
+                None,
+            ).await
+        },
+        Commands::Update {
+            path,
+            force,
+            jobs,
+            no_extensions,
+        } => {
+            let expanded = path.map(|p| expand_path(&p));
+            update::run(expanded, force, jobs, no_extensions).await
         }
     }
 }

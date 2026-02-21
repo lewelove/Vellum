@@ -2,33 +2,31 @@ import tomllib
 import json
 import sys
 import os
+import subprocess
 from pathlib import Path
 from tqdm import tqdm
 
 from .engine import render_toml_block
-from python.update.harvester import harvest_metadata
 from .compressor import compress
 from .grouper import group_tracks, resolve_anchor, sort_album_tracks
 
-def extract_cover_from_track(track_path: Path, destination_base: Path):
-    try:
-        from mutagen.flac import FLAC
-        audio = FLAC(track_path)
-        if not audio or not audio.pictures:
-            return
-
-        pic = audio.pictures[0]
-        ext = ".png" if pic.mime == "image/png" else ".jpg"
-        final_dest = destination_base.with_suffix(ext)
-        
-        with open(final_dest, "wb") as f:
-            f.write(pic.data)
-    except Exception:
-        pass
+def harvest_metadata(target_paths):
+    """Call the native rust binary directly for harvesting."""
+    if not isinstance(target_paths, list):
+        target_paths = [target_paths]
+    
+    cmd = ["vellum", "harvest"] + [str(p) for p in target_paths]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    
+    harvested_map = {}
+    if result.returncode == 0:
+        for line in result.stdout.strip().split("\n"):
+            if not line: continue
+            item = json.loads(line)
+            harvested_map[str(Path(item["path"]).resolve())] = item
+    return harvested_map
 
 def run_generate():
-    from python.update.main import run_update
-
     config_path = Path("config.toml")
     if not config_path.exists():
         print("Error: config.toml not found.")
@@ -46,7 +44,6 @@ def run_generate():
     supported_exts = set(e.lower() for e in gen_cfg.get("supported_extensions", [".flac"]))
     grouping_keys = gen_cfg.get("grouping_keys", ["ALBUMARTIST", "ALBUM"])
     
-    # Use compiler_registry as the layout source for generate/compress
     album_layout = registry_cfg.get("album", [])
     tracks_layout = registry_cfg.get("tracks", [])
 
@@ -101,7 +98,6 @@ def run_generate():
                 f.write("[[tracks]]\n")
                 f.write("\n".join(render_toml_block(tp, tracks_layout)) + "\n\n")
 
-        if sorted_tracks:
-            extract_cover_from_track(Path(sorted_tracks[0]["track_path_absolute"]), anchor_path / "cover")
-
-    run_update()
+    # Trigger the NEW Rust-based update via subprocess
+    print("\nGeneration complete. Triggering library update...")
+    subprocess.run(["vellum", "update"])

@@ -1,12 +1,10 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Result};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
-use std::collections::HashSet;
 use std::fs::File;
-use std::io::{BufReader, Read};
-use std::path::{Path, PathBuf};
+use std::io::BufReader;
+use std::path::Path;
 use std::time::SystemTime;
-use xxhash_rust::xxh64::Xxh64;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine;
 use image::{DynamicImage, GenericImageView};
@@ -21,6 +19,8 @@ pub fn build(
     project_root: &Path,
     config: &Value,
     gen_cfg: &Value,
+    active_flags: &[String],
+    no_extensions: bool,
 ) -> Result<Value> {
     let metadata_path = album_root.join("metadata.toml");
     
@@ -39,9 +39,8 @@ pub fn build(
     let metadata_toml: toml::Value = toml::from_str(&content)?;
     let metadata_json = serde_json::to_value(metadata_toml)?;
 
-    let (cover_path, cover_hash) = resolve_cover_info(album_root);
+    let (cover_path, cover_hash, cover_mtime, cover_byte_size) = resolve_cover_info(album_root);
     
-    // Thumbnail Generation Logic
     let storage = config.get("storage").ok_or_else(|| anyhow!("Missing [storage]"))?;
     let thumb_dir_raw = storage.get("thumbnail_cache_folder").and_then(|v| v.as_str());
     
@@ -55,11 +54,8 @@ pub fn build(
             if let Ok(img) = image::open(album_root.join(cp)) {
                 let (w, h) = img.dimensions();
                 let side = std::cmp::min(w, h);
-                let mut square = img.crop_imm((w - side) / 2, (h - side) / 2, side, side);
-                
-                // Resize to standard 200px thumbnail for analysis and storage
+                let square = img.crop_imm((w - side) / 2, (h - side) / 2, side, side);
                 let final_thumb = square.resize(200, 200, image::imageops::FilterType::Lanczos3);
-                
                 let _ = std::fs::create_dir_all(&thumb_dir);
                 let _ = final_thumb.save(&thumb_path);
                 loaded_image = Some(final_thumb);
@@ -69,12 +65,14 @@ pub fn build(
         }
     }
 
-    let supported: Vec<String> = gen_cfg.get("supported_extensions")
+    let supported_candidates = gen_cfg.get("supported_extensions")
         .and_then(|v| v.as_array())
         .map(|arr| arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
-        .unwrap_or_else(|| vec![".flac".to_string()]);
+        .unwrap_or_else(|| vec![
+            ".flac".to_string()
+        ]);
     
-    let exts: Vec<&str> = supported.iter().map(|s| s.as_str()).collect();
+    let exts: Vec<&str> = supported_candidates.iter().map(|s| s.as_str()).collect();
     let audio_files = scan::scan_audio_files(album_root, &exts);
 
     let album_src = metadata_json.get("album").cloned().unwrap_or(json!({}));
@@ -85,13 +83,9 @@ pub fn build(
         return Err(anyhow!("Manifest Mismatch in {:?}: {} files vs {} entries", album_root, audio_files.len(), track_entries.len()));
     }
 
-    let reg_cfg = config.get("compiler_registry").ok_or_else(|| anyhow!("Missing [compiler_registry]"))?;
-    let album_reg: HashSet<String> = reg_cfg.get("album").and_then(|v| v.as_array())
-        .map(|a| a.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
-        .unwrap_or_default();
-    let track_reg: HashSet<String> = reg_cfg.get("tracks").and_then(|v| v.as_array())
-        .map(|a| a.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
-        .unwrap_or_default();
+    let registry = config.get("compiler_registry")
+        .and_then(|v| v.as_object())
+        .ok_or_else(|| anyhow!("Missing [compiler_registry]"))?;
 
     let library_root = Path::new(storage.get("library_root").and_then(|v| v.as_str()).unwrap_or("."));
 
@@ -110,6 +104,7 @@ pub fn build(
         a.path.cmp(&b.path)
     });
 
+    let mut requires_python = false;
     let mut final_tracks = Vec::with_capacity(audio_files.len());
     let mut harvested_cache = Vec::with_capacity(audio_files.len());
     let mut current_physical_disc = None;
@@ -138,9 +133,29 @@ pub fn build(
             library_root,
         };
 
-        for key in &track_reg {
-            if let Some(val) = resolve::resolve_track_standard(key, &track_ctx) {
-                track_obj.insert(key.clone(), val);
+        for (key, meta) in registry {
+            if meta.get("level").and_then(|v| v.as_str()) != Some("tracks") {
+                continue;
+            }
+
+            let entry_flags = meta.get("flags").and_then(|v| v.as_array())
+                .map(|arr| arr.iter().filter_map(|f| f.as_str().map(|s| s.to_string())).collect::<Vec<_>>())
+                .unwrap_or_else(|| vec!["default".to_string()]);
+
+            let is_active = entry_flags.iter().any(|f| active_flags.contains(f));
+
+            if is_active {
+                let provider = meta.get("provider").and_then(|v| v.as_str()).unwrap_or("native");
+                if provider == "native" {
+                    track_obj.insert(key.clone(), resolve::resolve_track_standard(key, &track_ctx).unwrap_or(json!(null)));
+                } else if no_extensions {
+                    track_obj.insert(key.clone(), json!(null));
+                } else {
+                    track_obj.insert(key.clone(), json!(null));
+                    requires_python = true;
+                }
+            } else {
+                track_obj.insert(key.clone(), json!(null));
             }
         }
 
@@ -161,21 +176,45 @@ pub fn build(
         meta_mtime: metadata_mtime,
         cover_hash: &cover_hash,
         cover_path: cover_path.as_deref(),
+        cover_mtime,
+        cover_byte_size,
         cover_image: loaded_image.as_ref(),
     };
 
     let mut final_album = serde_json::Map::new();
-    for key in &album_reg {
-        if let Some(val) = resolve::resolve_album_standard(key, &album_ctx) {
-            final_album.insert(key.clone(), val);
+    for (key, meta) in registry {
+        if meta.get("level").and_then(|v| v.as_str()) != Some("album") {
+            continue;
+        }
+
+        let entry_flags = meta.get("flags").and_then(|v| v.as_array())
+            .map(|arr| arr.iter().filter_map(|f| f.as_str().map(|s| s.to_string())).collect::<Vec<_>>())
+            .unwrap_or_else(|| vec!["default".to_string()]);
+
+        let is_active = entry_flags.iter().any(|f| active_flags.contains(f));
+
+        if is_active {
+            let provider = meta.get("provider").and_then(|v| v.as_str()).unwrap_or("native");
+            if provider == "native" {
+                final_album.insert(key.clone(), resolve::resolve_album_standard(key, &album_ctx).unwrap_or(json!(null)));
+            } else if no_extensions {
+                final_album.insert(key.clone(), json!(null));
+            } else {
+                final_album.insert(key.clone(), json!(null));
+                requires_python = true;
+            }
+        } else {
+            final_album.insert(key.clone(), json!(null));
         }
     }
 
     Ok(json!({
         "album": Value::Object(final_album),
         "tracks": final_tracks,
+        "requires_python": requires_python,
         "ctx": {
             "config": config,
+            "active_flags": active_flags,
             "metadata": metadata_json,
             "harvest": harvested_cache,
             "paths": {
@@ -191,24 +230,34 @@ fn parse_tag_int(val: Option<&String>) -> u32 {
     val.and_then(|s| s.split('/').next()).and_then(|s| s.parse::<u32>().ok()).unwrap_or(0)
 }
 
-fn resolve_cover_info(root: &Path) -> (Option<String>, String) {
-    for c in ["cover.jpg", "cover.png", "folder.jpg", "front.jpg"] {
+fn resolve_cover_info(root: &Path) -> (Option<String>, String, u64, u64) {
+    let cover_candidates = [
+        "cover.jpg",
+        "cover.png",
+        "folder.jpg",
+        "front.jpg"
+    ];
+
+    for c in cover_candidates {
         let p = root.join(c);
-        if p.exists() {
-            if let Ok(mut file) = File::open(&p) {
-                let mut hasher = Xxh64::new(0);
-                let mut buffer = [0; 8192];
-                loop {
-                    match file.read(&mut buffer) {
-                        Ok(0) => break,
-                        Ok(n) => hasher.write(&buffer[..n]),
-                        Err(_) => return (Some(c.to_string()), String::new()),
-                    }
-                }
-                let hash = hasher.finish();
-                return (Some(c.to_string()), URL_SAFE_NO_PAD.encode(hash.to_be_bytes()));
+        if let Ok(meta) = std::fs::metadata(&p) {
+            if let Ok(mtime) = meta.modified() {
+                let mtime_secs = mtime.duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_secs();
+                let size = meta.len();
+                
+                let mut hasher = sha2::Sha256::new();
+                hasher.update(mtime_secs.to_be_bytes());
+                hasher.update(size.to_be_bytes());
+                
+                let hash = hasher.finalize();
+                return (
+                    Some(c.to_string()),
+                    URL_SAFE_NO_PAD.encode(&hash[..8]),
+                    mtime_secs,
+                    size
+                );
             }
         }
     }
-    (None, String::new())
+    (None, String::new(), 0, 0)
 }

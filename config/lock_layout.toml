@@ -1,34 +1,11 @@
-[storage]
-library_root = "/run/media/lewelove/1000xhome/backup-everything/FB2K/Library Historyfied!/"
-library_export = "~/dev/vellum-test-library/metadata_output"
-thumbnail_cache_folder = "~/.vellum/covers/thumbnails"
+[lock.layout]
 
-[theme]
-thumbnail_size = 200
-thumbnail_resampling = "LANCZOS"
-
-[generate]
-supported_extensions = [".flac"]
-grouping_keys = ["ALBUMARTIST", "ALBUM", "CUSTOM_ID"]
-naming_separator = "_"
-naming_sanitization_char = "_"
-
-[extensions]
-folder = "/home/lewelove/dev/vellum/extensions/python"
-functions_folder = "functions"
-flake = "flake.nix"
-kernel_command = "python extensions/python/compile_kernel.py"
-
-[compiler]
-legacy_extensions_folder = "python/legacy_extensions"
-
-[compiler_registry]
 album = [
   "\n",
-  "ALBUM", 
-  "ALBUMARTIST", 
-  "DATE", 
-  "GENRE", 
+  "ALBUM",
+  "ALBUMARTIST",
+  "DATE",
+  "GENRE",
   "\n",
   "COMMENT",
   "\n",
@@ -50,7 +27,7 @@ album = [
   "date_added",
   "unix_added",
   "UNIX_ADDED_LOCAL",
-  "UNIX_ADDED_FOOBAR", 
+  "UNIX_ADDED_FOOBAR",
   "UNIX_ADDED_APPLEMUSIC",
   "UNIX_ADDED_YOUTUBE",
   "UNIX_ADDED_PRIMARY",
@@ -68,7 +45,7 @@ album = [
   "cover_chroma",
   "cover_entropy",
   "\n",
-  "REPLAYGAIN_ALBUM_GAIN", 
+  "REPLAYGAIN_ALBUM_GAIN",
   "REPLAYGAIN_ALBUM_PEAK",
   "\n",
   "MUSICBRAINZ_ALBUMID",
@@ -83,7 +60,7 @@ album = [
   "\n",
   "metadata_toml_mtime",
   "metadata_toml_hash",
-  "file_tag_subset_match",
+  "file_tag_subset_match"
 ]
 
 tracks = [
@@ -110,5 +87,6 @@ tracks = [
   "REPLAYGAIN_TRACK_PEAK",
   "MUSICBRAINZ_TRACKID",
   "MUSICBRAINZ_RELEASETRACKID",
-  "MUSICBRAINZ_ARTISTID",
+  "MUSICBRAINZ_ARTISTID"
 ]
+

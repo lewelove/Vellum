@@ -1,5 +1,7 @@
 use anyhow::{Context, Result};
-use lofty::{AudioFile, ItemKey, Probe, TaggedFileExt};
+use lofty::config::ParseOptions;
+use lofty::prelude::*;
+use lofty::probe::Probe;
 use rayon::prelude::*;
 use serde::Serialize;
 use std::collections::HashMap;
@@ -31,7 +33,14 @@ pub struct PhysicsData {
 }
 
 pub fn run(roots: Vec<PathBuf>, pretty: bool) -> Result<()> {
-    let extensions = ["flac", "mp3", "m4a", "ogg", "wav", "opus"];
+    let extensions = [
+        "flac",
+        "mp3",
+        "m4a",
+        "ogg",
+        "wav",
+        "opus"
+    ];
     let mut files = Vec::new();
     
     for root in roots {
@@ -101,6 +110,7 @@ pub fn harvest_file(path: &Path) -> Result<TrackJson> {
 
     let tagged_file = Probe::open(path)
         .context("Open failed")?
+        .options(ParseOptions::new().read_cover_art(false))
         .read()
         .context("Read failed")?;
 
@@ -124,20 +134,21 @@ pub fn harvest_file(path: &Path) -> Result<TrackJson> {
         let tag_type = tag.tag_type();
 
         for item in tag.items() {
-            let key_opt = item.key().map_key(tag_type, false).map(|s| s.to_string());
-
-            let key_string = match key_opt {
-                Some(s) => Some(s),
-                None => match item.key() {
-                    ItemKey::Unknown(s) => Some(s.clone()),
-                    _ => None, 
-                }
-            };
-
-            let key = match key_string {
-                Some(k) => k.to_uppercase(),
-                None => continue,
-            };
+            let key = item.key()
+                .map_key(tag_type)
+                .map(str::to_string)
+                .unwrap_or_else(|| {
+                    let k = format!("{:?}", item.key());
+                    if let Some(start) = k.find('"') {
+                        if let Some(end) = k.rfind('"') {
+                            if start < end {
+                                return k[start + 1..end].to_string();
+                            }
+                        }
+                    }
+                    k
+                })
+                .to_uppercase();
 
             let value = match item.value().text() {
                 Some(v) => v.trim().to_string(),

@@ -1,19 +1,12 @@
 import sys
 import json
-import os
 import importlib.util
 from pathlib import Path
 
 def load_extensions(functions_dir):
-    """
-    Locates and indexes only the custom functions in the extensions directory.
-    No legacy vellum code is imported or registered.
-    """
     registry = {
-        "ALBUM_TAGS": {},
-        "ALBUM_HELPERS": {},
-        "TRACK_TAGS": {},
-        "TRACK_HELPERS": {}
+        "album": {},
+        "tracks": {}
     }
 
     if not functions_dir.exists():
@@ -44,48 +37,52 @@ def load_extensions(functions_dir):
             if len(parts) < 4:
                 continue
 
-            scope = parts[1] # "album" or "track"
-            kind = parts[2]  # "tag" or "helper"
+            scope = parts[1]
+            kind = parts[2]
             key_raw = "_".join(parts[3:])
 
-            if scope == "album" and kind == "tag":
-                registry["ALBUM_TAGS"][key_raw.upper()] = func
-            elif scope == "album" and kind == "helper":
-                registry["ALBUM_HELPERS"][key_raw.lower()] = func
-            elif scope == "track" and kind == "tag":
-                registry["TRACK_TAGS"][key_raw.upper()] = func
-            elif scope == "track" and kind == "helper":
-                registry["TRACK_HELPERS"][key_raw.lower()] = func
+            if kind == "tag":
+                final_key = key_raw.upper()
+            else:
+                final_key = key_raw.lower()
+
+            if scope == "album":
+                registry["album"][final_key] = func
+            elif scope == "track":
+                registry["tracks"][final_key] = func
 
     return registry
 
 def main():
-    # Capture original stdout for JSON communication
     original_stdout = sys.stdout
     sys.stdout = sys.stderr
 
-    registry = None
+    ext_functions = None
+    compiler_registry = None
 
     for line in sys.stdin:
         if not line.strip():
             continue
         
         try:
-            manifest = json.loads(line)
-            album_data = manifest.get("album", {})
-            tracks_data = manifest.get("tracks", [])
-            base_ctx = manifest.get("ctx", {})
+            pkg = json.loads(line)
+            album_data = pkg.get("album", {})
+            tracks_data = pkg.get("tracks", [])
+            base_ctx = pkg.get("ctx", {})
             
-            if registry is None:
-                ext_cfg = base_ctx.get("config", {}).get("extensions", {})
+            active_flags = base_ctx.get("active_flags", ["default"])
+            
+            if ext_functions is None:
+                config = base_ctx.get("config", {})
+                compiler_registry = config.get("compiler_registry", {})
+                ext_cfg = config.get("extensions", {})
                 functions_dir = Path(ext_cfg.get("folder", "")).expanduser() / ext_cfg.get("functions_folder", "functions")
-                registry = load_extensions(functions_dir)
+                ext_functions = load_extensions(functions_dir)
 
             rust_paths = base_ctx.get("paths", {})
             album_root = Path(rust_paths.get("album_root")) if rust_paths.get("album_root") else None
             library_root = Path(rust_paths.get("library_root")) if rust_paths.get("library_root") else None
 
-            # Context construction for Album scope
             album_ctx = {
                 "album": album_data,
                 "tracks": tracks_data,
@@ -95,17 +92,18 @@ def main():
                 "library_root": library_root,
             }
             
-            # Enforce custom overrides only. 
-            # If a key isn't in our extension registry, the Rust value is preserved.
             for key in list(album_data.keys()):
-                resolver = registry["ALBUM_TAGS"].get(key) or registry["ALBUM_HELPERS"].get(key.lower())
-                if resolver:
-                    album_data[key] = resolver(album_ctx)
+                reg_meta = compiler_registry.get(key, {})
+                if reg_meta.get("provider") == "extension":
+                    reg_flags = reg_meta.get("flags", ["default"])
+                    if any(f in active_flags for f in reg_flags):
+                        resolver = ext_functions["album"].get(key)
+                        if resolver:
+                            album_data[key] = resolver(album_ctx)
 
             m_tracks = base_ctx.get("metadata", {}).get("tracks", [])
             h_tracks = base_ctx.get("harvest", [])
 
-            # Context construction for Track scope
             for idx, track in enumerate(tracks_data):
                 harvest_item = h_tracks[idx] if idx < len(h_tracks) else {}
                 
@@ -116,7 +114,7 @@ def main():
                     "album_root": album_root,
                     "library_root": library_root,
                     "source": {
-                        **base_ctx.get("metadata", {}).get("album", {}), 
+                        **base_ctx.get("metadata", {}).get("album", {}),
                         **(m_tracks[idx] if idx < len(m_tracks) else {}),
                     },
                     "physics": harvest_item.get("physics", {}),
@@ -125,11 +123,14 @@ def main():
                 }
                 
                 for key in list(track.keys()):
-                    resolver = registry["TRACK_TAGS"].get(key) or registry["TRACK_HELPERS"].get(key.lower())
-                    if resolver:
-                        track[key] = resolver(t_ctx)
+                    reg_meta = compiler_registry.get(key, {})
+                    if reg_meta.get("provider") == "extension":
+                        reg_flags = reg_meta.get("flags", ["default"])
+                        if any(f in active_flags for f in reg_flags):
+                            resolver = ext_functions["tracks"].get(key)
+                            if resolver:
+                                track[key] = resolver(t_ctx)
 
-            # Emit the final enriched object
             original_stdout.write(json.dumps({
                 "album": album_data,
                 "tracks": tracks_data,

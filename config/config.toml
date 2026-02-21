@@ -1,0 +1,31 @@
+import = [
+  "compiler_registry.toml",
+  "lock_layout.toml"
+]
+
+[storage]
+library_root = "/run/media/lewelove/1000xhome/backup-everything/FB2K/Library Historyfied!/"
+library_export = "~/dev/vellum-test-library/metadata_output"
+thumbnail_cache_folder = "~/.vellum/covers/thumbnails"
+
+[theme]
+thumbnail_size = 200
+thumbnail_resampling = "LANCZOS"
+
+[generate]
+supported_extensions = [
+  ".flac"
+]
+grouping_keys = [
+  "ALBUMARTIST",
+  "ALBUM",
+  "CUSTOM_ID"
+]
+naming_separator = "_"
+naming_sanitization_char = "_"
+
+[extensions]
+folder = "/home/lewelove/dev/vellum/extensions/python"
+functions_folder = "functions"
+flake = "flake.nix"
+kernel_command = "python extensions/python/compile_kernel.py"

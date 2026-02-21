@@ -2,29 +2,19 @@ use anyhow::Result;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
-pub fn find_project_root() -> Option<PathBuf> {
-    let mut curr = std::env::current_dir().ok()?;
-    loop {
-        if curr.join("config.toml").exists() {
-            return Some(curr);
-        }
-        if let Some(parent) = curr.parent() {
-            curr = parent.to_path_buf();
-        } else {
-            return None;
-        }
-    }
-}
-
 pub fn find_target_albums(path: &Path, max_depth: usize) -> Result<Vec<PathBuf>> {
     let mut results = Vec::new();
     if path.join("metadata.toml").exists() {
-        results.push(path.to_path_buf());
+        results.push(
+            path.to_path_buf()
+        );
     } else {
         for entry in WalkDir::new(path).max_depth(max_depth).into_iter().filter_map(|e| e.ok()) {
             if entry.file_name() == "metadata.toml" {
                 if let Some(parent) = entry.path().parent() {
-                    results.push(parent.to_path_buf());
+                    results.push(
+                        parent.to_path_buf()
+                    );
                 }
             }
         }
@@ -33,7 +23,6 @@ pub fn find_target_albums(path: &Path, max_depth: usize) -> Result<Vec<PathBuf>>
 }
 
 pub fn scan_audio_files(root: &Path, extensions: &[&str]) -> Vec<PathBuf> {
-    // Default audio scan depth is set to 3 to handle multi-disc/nested folder structures
     let max_audio_depth = 3; 
     
     let mut files: Vec<PathBuf> = WalkDir::new(root)
