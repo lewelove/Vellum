@@ -332,6 +332,7 @@
     min-height: 0;
     scrollbar-width: none;
     -ms-overflow-style: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   }
 
   .sidebar-scroll::-webkit-scrollbar {
