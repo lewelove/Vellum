@@ -292,7 +292,8 @@
     display: block;
     width: 100%;
     text-align: left;
-    padding: 8px 12px;
+    padding: 6px 12px;
+    margin-bottom: 2px;
     background: none;
     border: none;
     color: var(--text-muted);
@@ -300,18 +301,20 @@
     font-size: 13px;
     text-transform: lowercase;
     cursor: pointer;
-    border-radius: 4px;
+    border-radius: 8px;
     outline: none;
+    box-sizing: border-box;
+    transition: background-color 0.1s ease;
   }
 
   .menu-item:hover {
-    background-color: rgba(255, 255, 255, 0.05);
+    background-color: rgba(255, 255, 255, 0.03);
     color: var(--text-main);
   }
 
   .menu-item.selected {
     color: var(--text-main);
-    background-color: rgba(255, 255, 255, 0.1);
+    background-color: rgba(255, 255, 255, 0.05);
   }
 
   .sidebar-scroll {
