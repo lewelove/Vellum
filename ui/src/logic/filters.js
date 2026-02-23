@@ -5,26 +5,26 @@ export const filters = {
     }
     return album.GENRE === val;
   },
-  
-  totaltracks: (album, val) => album.TOTALTRACKS === String(val),
+
+  totaltracks: (album, val) => album.total_tracks === String(val),
 
   search: (album, val) => {
     const q = val.toLowerCase();
-    
+
     if (
       (album.ALBUM && album.ALBUM.toLowerCase().includes(q)) ||
       (album.ALBUMARTIST && album.ALBUMARTIST.toLowerCase().includes(q))
     ) {
       return true;
     }
-    
+
     if (album.tracks && album.tracks.some(t => t.TITLE && t.TITLE.toLowerCase().includes(q))) {
       return true;
     }
-    
+
     return false;
   },
-  
+
   decade: (album, val) => {
     if (!album.DATE) return false;
     const year = parseInt(album.DATE.substring(0, 4));
@@ -32,7 +32,7 @@ export const filters = {
     const end = start + 9;
     return year >= start && year <= end;
   },
-  
+
   recent: (album) => {
     const now = Math.floor(Date.now() / 1000);
     const added = parseInt(album.unix_added || 0);

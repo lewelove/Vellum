@@ -126,6 +126,7 @@
   </div>
 
   <div class="sidebar-scroll">
+    <div class="scroll-fade-overlay-top"></div>
     {#each items as item}
       <SidebarItem 
         label={item.label} 
@@ -134,6 +135,7 @@
         onclick={() => library.applyFilter(item.filterTarget, item.value)}
       />
     {/each}
+    <div class="scroll-fade-overlay-bottom"></div>
   </div>
 </div>
 
@@ -155,6 +157,7 @@
     gap: 4px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
     margin-bottom: 12px;
+    flex-shrink: 0;
   }
 
   .nav-button {
@@ -184,7 +187,8 @@
     gap: 10px;
     padding-bottom: 12px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    margin-bottom: 4px;
+    margin-bottom: 0px;
+    flex-shrink: 0;
   }
 
   .control-row {
@@ -318,8 +322,46 @@
   }
 
   .sidebar-scroll {
+    position: relative;
     flex: 1;
-    overflow-y: auto;
-    padding-bottom: 12px;
+    overflow-y: scroll;
+    padding: 0;
+    min-height: 0;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .sidebar-scroll::-webkit-scrollbar {
+    display: none;
+  }
+
+  .scroll-fade-overlay-top {
+    position: sticky;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 12px;
+    background: linear-gradient(
+      to bottom, 
+      #242424 0%, 
+      transparent 100%
+    );
+    z-index: 10;
+    pointer-events: none;
+  }
+
+  .scroll-fade-overlay-bottom {
+    position: sticky;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 12px;
+    background: linear-gradient(
+      to top, 
+      #242424 0%, 
+      transparent 100%
+    );
+    z-index: 10;
+    pointer-events: none;
   }
 </style>

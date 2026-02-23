@@ -5,14 +5,14 @@ export const groupers = {
     albums.forEach(a => {
       const val = a.GENRE;
       const genres = Array.isArray(val) ? val : [val || "Unknown"];
-      
+
       genres.forEach(g => {
         map.set(g, (map.get(g) || 0) + 1);
       });
     });
     return map;
   },
-  
+
   decade: (albums) => {
     const map = new Map();
     albums.forEach(a => {
@@ -47,7 +47,7 @@ export const groupers = {
         const monthNum = date.getMonth() + 1;
         const key = `${year}-${String(monthNum).padStart(2, '0')}`;
         const label = `${monthNames[date.getMonth()]} ${year}`;
-        
+
         if (!map.has(key)) {
           map.set(key, { label, count: 0 });
         }
@@ -60,7 +60,7 @@ export const groupers = {
   totaltracks: (albums) => {
     const map = new Map();
     albums.forEach(a => {
-      const t = a.TOTALTRACKS || "0";
+      const t = a.total_tracks || "0";
       map.set(t, (map.get(t) || 0) + 1);
     });
     return map;
@@ -99,10 +99,10 @@ export const GROUPER_LABELS = {
 
 export function generateSidebarGroup(albums, groupKey) {
   if (!groupers[groupKey]) return [];
-  
+
   const map = groupers[groupKey](albums);
   const result = [];
-  
+
   for (const [val, data] of map.entries()) {
     if (groupKey === "month_added") {
       result.push({
@@ -120,7 +120,7 @@ export function generateSidebarGroup(albums, groupKey) {
       });
     }
   }
-  
+
   if (groupKey === "chroma") {
     const order = ["Vibrant", "Standard", "Muted", "Bleak", "Monochrome"];
     result.sort((a, b) => order.indexOf(a.label) - order.indexOf(b.label));
