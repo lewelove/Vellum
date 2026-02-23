@@ -127,6 +127,7 @@
 
   <div class="sidebar-scroll">
     <div class="scroll-fade-overlay-top"></div>
+    
     {#each items as item}
       <SidebarItem 
         label={item.label} 
@@ -135,6 +136,8 @@
         onclick={() => library.applyFilter(item.filterTarget, item.value)}
       />
     {/each}
+
+    <div class="scroll-spacer"></div>
     <div class="scroll-fade-overlay-bottom"></div>
   </div>
 </div>
@@ -146,7 +149,7 @@
     display: flex;
     flex-direction: column;
     background-color: #242424; 
-    padding: 12px 12px 0 12px; 
+    padding: 12px; 
     box-sizing: border-box;
   }
 
@@ -363,5 +366,10 @@
     );
     z-index: 10;
     pointer-events: none;
+  }
+
+  .scroll-spacer {
+    height: 12px;
+    flex-shrink: 0;
   }
 </style>
