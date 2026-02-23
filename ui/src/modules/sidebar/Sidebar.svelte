@@ -64,7 +64,11 @@
         <button class="sidebar-btn" onclick={toggleSortMenu} class:active={isSortMenuOpen} title="Sort By">
           <img src="/material/swap_vert_20dp_FFFFFF.svg" alt="" class="btn-icon" />
           <span class="btn-label">{sortLabel}</span>
-          <span class="chevron" class:open={isSortMenuOpen}>›</span>
+          <img 
+            src={isSortMenuOpen ? "/material/arrow_drop_up_24dp_FFFFFF.svg" : "/material/arrow_drop_down_24dp_FFFFFF.svg"} 
+            class="chevron" 
+            alt="" 
+          />
         </button>
 
         {#if isSortMenuOpen}
@@ -96,7 +100,11 @@
         <button class="sidebar-btn" onclick={toggleGroupMenu} class:active={isGroupMenuOpen} title="Group By">
           <img src="/material/stack_20dp_FFFFFF.svg" alt="" class="btn-icon" />
           <span class="btn-label">{groupLabel}</span>
-          <span class="chevron" class:open={isGroupMenuOpen}>›</span>
+          <img 
+            src={isGroupMenuOpen ? "/material/arrow_drop_up_24dp_FFFFFF.svg" : "/material/arrow_drop_down_24dp_FFFFFF.svg"} 
+            class="chevron" 
+            alt="" 
+          />
         </button>
     
         {#if isGroupMenuOpen}
@@ -173,7 +181,7 @@
   .sidebar-controls {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
     padding-bottom: 12px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
     margin-bottom: 4px;
@@ -181,7 +189,7 @@
 
   .control-row {
     display: flex;
-    gap: 8px;
+    gap: 10px;
     width: 100%;
   }
 
@@ -233,6 +241,7 @@
     opacity: 0.7;
     margin-right: 8px;
     flex-shrink: 0;
+    transition: opacity 0.1s;
   }
   
   .btn-icon.no-margin {
@@ -253,15 +262,15 @@
   }
 
   .chevron {
-    transform: rotate(90deg);
-    transition: transform 0.2s;
-    font-size: 14px;
+    width: 20px;
+    height: 20px;
     margin-left: 4px;
     opacity: 0.5;
+    flex-shrink: 0;
   }
 
-  .chevron.open {
-    transform: rotate(-90deg);
+  .sidebar-btn:hover .chevron, .sidebar-btn.active .chevron {
+    opacity: 1;
   }
 
   .control-menu {

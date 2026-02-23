@@ -25,7 +25,11 @@
 <div class="sidebar-section">
   <button class="section-header" onclick={toggle} class:active={hasActiveSelection}>
     <span class="header-label">{formatLabel(groupKey)}</span>
-    <span class="chevron" class:open={isOpen}>›</span>
+    <img 
+      src={isOpen ? "/material/arrow_drop_up_24dp_FFFFFF.svg" : "/material/arrow_drop_down_24dp_FFFFFF.svg"} 
+      class="chevron" 
+      alt="" 
+    />
   </button>
 
   {#if isOpen}
@@ -60,6 +64,7 @@
     font-weight: 400;
     cursor: pointer;
     text-transform: uppercase;
+    color: var(--text-muted);
   }
 
   .section-header:hover {
@@ -71,13 +76,14 @@
   }
 
   .chevron {
-    transform: rotate(0deg);
-    transition: transform 0.2s;
-    font-size: 16px;
+    width: 20px;
+    height: 20px;
+    opacity: 0.5;
+    flex-shrink: 0;
   }
 
-  .chevron.open {
-    transform: rotate(90deg);
+  .section-header:hover .chevron, .section-header.active .chevron {
+    opacity: 1;
   }
 
   .section-content {

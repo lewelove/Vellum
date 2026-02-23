@@ -150,10 +150,6 @@
     gap: 10px;
   }
 
-  .bar-group img {
-    opacity: 0.6;
-  }
-
   .bar-group.right {
     margin-left: auto;
   }
@@ -290,17 +286,24 @@
     cursor: pointer;
     border-radius: 8px;
     box-shadow: var(--button-shadow);
-    transition: background-color 0.1s, transform 0.1s;
+    transition: background-color 0.1s, border-color 0.1s;
   }
 
   .icon-btn:hover {
     background-color: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
   }
 
   .icon-btn img {
     width: 24px;
     height: 24px;
+    opacity: 0.7;
     pointer-events: none;
+    transition: opacity 0.1s;
+  }
+
+  .icon-btn:hover img {
+    opacity: 1;
   }
 
   .tracks-scroll-area {
