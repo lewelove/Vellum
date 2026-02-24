@@ -7,6 +7,26 @@ const getSortableArtist = (name) => {
   return n;
 };
 
+/**
+ * Resolves the added date based on strict UI priority:
+ * 1. UNIX_ADDED_YOUTUBE
+ * 2. UNIX_ADDED_APPLEMUSIC
+ * 3. UNIX_ADDED_FOOBAR
+ * 4. Fallback to computed unix_added
+ */
+const getPriorityAddedDate = (album) => {
+  const yt = parseInt(album.UNIX_ADDED_YOUTUBE) || 0;
+  if (yt > 0) return yt;
+
+  const am = parseInt(album.UNIX_ADDED_APPLEMUSIC) || 0;
+  if (am > 0) return am;
+
+  const fb = parseInt(album.UNIX_ADDED_FOOBAR) || 0;
+  if (fb > 0) return fb;
+
+  return parseInt(album.unix_added) || 0;
+};
+
 export const sorters = {
   default: (a, b) => {
     const artistA = getSortableArtist(a.CUSTOM_ALBUMARTIST).toLowerCase();
@@ -24,7 +44,7 @@ export const sorters = {
     return titleA.localeCompare(titleB);
   },
 
-  date_added: (a, b) => (b.unix_added || 0) - (a.unix_added || 0),
+  date_added: (a, b) => getPriorityAddedDate(b) - getPriorityAddedDate(a),
   
   az: (a, b) => (a.ALBUM || "").localeCompare(b.ALBUM || ""),
   
