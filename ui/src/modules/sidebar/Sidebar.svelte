@@ -285,7 +285,7 @@
     top: 100%;
     left: 0;
     width: 100%;
-    margin-top: 4px;
+    margin-top: 6px;
     background-color: #242424; 
     z-index: 50;
     box-shadow: 0 4px 12px rgba(0,0,0,0.4);
