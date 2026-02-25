@@ -1,6 +1,7 @@
 use crate::compile::resolve::{AlbumContext, TrackContext};
 use serde_json::{json, Value};
 use std::collections::HashSet;
+use std::io::Cursor;
 
 pub fn resolve_album_key(key: &str, ctx: &AlbumContext) -> Option<Value> {
     match key {
@@ -90,7 +91,12 @@ pub fn resolve_comment(ctx: &AlbumContext) -> String {
     if country.is_empty() && label.is_empty() && cat.is_empty() { return "".to_string(); }
     let yyyy_mm = resolve_release_yyyy_mm(ctx);
     let year = if yyyy_mm.len() >= 4 { &yyyy_mm[0..4] } else { "" };
-    [year, &country, &label, &cat].iter().filter(|s| !s.is_empty()).cloned().collect::<Vec<_>>().join(" ")
+    [
+        year,
+        &country,
+        &label,
+        &cat
+    ].iter().filter(|s| !s.is_empty()).cloned().collect::<Vec<_>>().join(" ")
 }
 
 fn resolve_cover_chroma(ctx: &AlbumContext) -> Option<Value> {
@@ -123,16 +129,13 @@ fn resolve_cover_chroma(ctx: &AlbumContext) -> Option<Value> {
 
 fn resolve_cover_entropy(ctx: &AlbumContext) -> Option<Value> {
     let img = ctx.cover_image?;
-    let thumb = img.to_luma8();
-    let mut counts = [0u64; 256];
-    for p in thumb.pixels() { counts[p[0] as usize] += 1; }
-    let total = thumb.len() as f64;
-    let mut ent = 0.0;
-    for &c in &counts {
-        if c > 0 {
-            let p = c as f64 / total;
-            ent -= p * p.log2();
-        }
-    }
-    Some(json!(ent))
+    let thumb = img.thumbnail(200, 200);
+    let gray = thumb.grayscale();
+    
+    let mut buf = Vec::new();
+    let mut cursor = Cursor::new(&mut buf);
+    
+    gray.write_to(&mut cursor, image::ImageFormat::Png).ok()?;
+    
+    Some(json!(buf.len()))
 }
