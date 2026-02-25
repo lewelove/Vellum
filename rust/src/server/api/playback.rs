@@ -65,11 +65,13 @@ pub async fn toggle_pause(State(state): State<Arc<AppState>>) -> Response {
 async fn get_tracks_internal(id: &str, state: &Arc<AppState>, disc_filter: Option<String>) -> Vec<String> {
     let lib = state.library.read().await;
     let mut paths = Vec::new();
+    
+    let target_disc = disc_filter.and_then(|s| s.parse::<u32>().ok());
+
     if let Some(album) = lib.album_map.get(id) {
         for track in &album.tracks {
-            if let Some(df) = &disc_filter {
-                let d = &track.discnumber;
-                if d != df { continue; }
+            if let Some(td) = target_disc {
+                if track.discnumber != td { continue; }
             }
             let tp = &track.info.track_library_path;
             if let Some(abs) = lib.track_map.get(tp) {

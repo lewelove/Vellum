@@ -46,8 +46,8 @@ pub fn resolve_track_key(key: &str, ctx: &TrackContext) -> Option<Value> {
     match key {
         "title" => Some(json!(get_raw(ctx.source, "title", "Untitled"))),
         "artist" => Some(json!(get_raw_with_fallback(ctx.source, ctx.album_source, "artist", "albumartist", "Unknown Artist"))),
-        "tracknumber" => Some(json!(ctx.ordinal_track_number.to_string())),
-        "discnumber" => Some(json!(ctx.ordinal_disc_number.to_string())),
+        "tracknumber" => Some(json!(ctx.ordinal_track_number)),
+        "discnumber" => Some(json!(ctx.ordinal_disc_number)),
         _ => native_extensions::resolve_track_key(key, ctx),
     }
 }
@@ -93,8 +93,13 @@ pub fn format_ms(ms: u64) -> String {
 pub fn calculate_total_discs(tracks: &[Value]) -> u32 {
     let mut discs = HashSet::new();
     for t in tracks {
-        if let Some(d) = t.get("DISCNUMBER").and_then(|v| v.as_str()) {
-            if let Ok(n) = d.parse::<u64>() { discs.insert(n); }
+        let val = match t.get("DISCNUMBER") {
+            Some(Value::Number(n)) => n.as_u64().unwrap_or(0),
+            Some(Value::String(s)) => s.split('/').next().unwrap_or("0").parse::<u64>().unwrap_or(0),
+            _ => 0,
+        };
+        if val > 0 {
+            discs.insert(val);
         }
     }
     if discs.is_empty() { 1 } else { discs.len() as u32 }

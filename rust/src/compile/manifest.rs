@@ -101,6 +101,14 @@ pub fn build(
     let empty_obj = json!({});
     let metadata_album_source = metadata_json.get("album").unwrap_or(&empty_obj);
 
+    let to_strict_u32 = |v: Option<&Value>| -> u32 {
+        match v {
+            Some(Value::Number(n)) => n.as_u64().unwrap_or(0) as u32,
+            Some(Value::String(s)) => s.split('/').next().unwrap_or("0").parse().unwrap_or(0),
+            _ => 0,
+        }
+    };
+
     for (idx, h_data) in harvested_spine.into_iter().enumerate() {
         let p_disc = parse_tag_int(h_data.tags.get("DISCNUMBER"));
         if Some(p_disc) != current_physical_disc {
@@ -139,8 +147,14 @@ pub fn build(
         track_obj.insert("info".to_string(), Value::Object(track_info));
         track_obj.insert("TITLE".to_string(), track_entries_source.get("title").cloned().unwrap_or_else(|| resolve::resolve_track_key("title", &track_ctx).unwrap_or(json!(null))));
         track_obj.insert("ARTIST".to_string(), track_entries_source.get("artist").cloned().unwrap_or_else(|| resolve::resolve_track_key("artist", &track_ctx).unwrap_or(json!(null))));
-        track_obj.insert("TRACKNUMBER".to_string(), track_entries_source.get("tracknumber").cloned().unwrap_or_else(|| resolve::resolve_track_key("tracknumber", &track_ctx).unwrap_or(json!(null))));
-        track_obj.insert("DISCNUMBER".to_string(), track_entries_source.get("discnumber").cloned().unwrap_or_else(|| resolve::resolve_track_key("discnumber", &track_ctx).unwrap_or(json!(null))));
+        
+        let t_num = to_strict_u32(track_entries_source.get("tracknumber"))
+            .max(to_strict_u32(resolve::resolve_track_key("tracknumber", &track_ctx).as_ref()));
+        let d_num = to_strict_u32(track_entries_source.get("discnumber"))
+            .max(to_strict_u32(resolve::resolve_track_key("discnumber", &track_ctx).as_ref()));
+
+        track_obj.insert("TRACKNUMBER".to_string(), json!(t_num));
+        track_obj.insert("DISCNUMBER".to_string(), json!(d_num));
 
         let mut track_tags = serde_json::Map::new();
         for (key, meta) in registry {
@@ -258,7 +272,12 @@ fn parse_tag_int(val: Option<&String>) -> u32 {
 }
 
 fn resolve_cover_info(root: &Path) -> (Option<String>, String, u64, u64) {
-    let candidates = ["cover.jpg", "cover.png", "folder.jpg", "front.jpg"];
+    let candidates = [
+        "cover.jpg",
+        "cover.png",
+        "folder.jpg",
+        "front.jpg"
+    ];
     for c in candidates {
         let p = root.join(c);
         if let Ok(m) = std::fs::metadata(&p) {

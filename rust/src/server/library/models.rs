@@ -35,9 +35,9 @@ pub struct TrackLock {
     #[serde(rename = "ARTIST")]
     pub artist: String,
     #[serde(rename = "TRACKNUMBER")]
-    pub tracknumber: String,
+    pub tracknumber: u32,
     #[serde(rename = "DISCNUMBER")]
-    pub discnumber: String,
+    pub discnumber: u32,
     #[serde(default)]
     pub tags: HashMap<String, serde_json::Value>,
 }
