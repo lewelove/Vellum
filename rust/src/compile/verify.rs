@@ -11,9 +11,7 @@ pub fn calculate_file_tag_subset_match(enriched: &Value, harvest: &[Value], regi
         "ALBUMARTIST",
         "DATE",
         "GENRE",
-        "COMMENT",
-        "ORIGINAL_DATE",
-        "RELEASE_DATE"
+        "COMMENT"
     ];
 
     let track_core_keys = [

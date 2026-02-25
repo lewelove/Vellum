@@ -37,11 +37,7 @@ pub fn resolve_album_key(key: &str, ctx: &AlbumContext) -> Option<Value> {
         "genre" => Some(json!(native_extensions::resolve_genre(ctx))),
         "comment" => Some(json!(native_extensions::resolve_comment(ctx))),
         "original_yyyy_mm" => Some(json!(native_extensions::resolve_original_yyyy_mm(ctx))),
-        "original_year" => Some(json!(native_extensions::resolve_original_yyyy_mm(ctx)[0..4])),
-        "original_date" => Some(json!(format_human_date(&native_extensions::resolve_original_yyyy_mm(ctx)))),
         "release_yyyy_mm" => Some(json!(native_extensions::resolve_release_yyyy_mm(ctx))),
-        "release_year" => Some(json!(native_extensions::resolve_release_yyyy_mm(ctx)[0..4])),
-        "release_date" => Some(json!(format_human_date(&native_extensions::resolve_release_yyyy_mm(ctx)))),
         _ => native_extensions::resolve_album_key(key, ctx),
     }
 }
@@ -106,12 +102,4 @@ pub fn calculate_total_discs(tracks: &[Value]) -> u32 {
 
 pub fn rel_path(target: &Path, base: &Path) -> String {
     target.strip_prefix(base).map(|p| p.to_string_lossy().to_string()).unwrap_or_else(|_| target.to_string_lossy().to_string())
-}
-
-fn format_human_date(yyyy_mm: &str) -> String {
-    if yyyy_mm.is_empty() || yyyy_mm == "0000-00" { return "Unknown Date".to_string(); }
-    let parts: Vec<&str> = yyyy_mm.split('-').collect();
-    let year = parts[0];
-    let month = parts.get(1).unwrap_or(&"00");
-    if *month == "00" { year.to_string() } else { year.to_string() }
 }

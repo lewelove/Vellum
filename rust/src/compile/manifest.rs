@@ -201,11 +201,7 @@ pub fn build(
     album_obj.insert("DATE".to_string(), metadata_album_source.get("date").cloned().unwrap_or_else(|| resolve::resolve_album_key("date", &album_ctx).unwrap_or(json!(null))));
     album_obj.insert("GENRE".to_string(), metadata_album_source.get("genre").cloned().unwrap_or_else(|| resolve::resolve_album_key("genre", &album_ctx).unwrap_or(json!(null))));
     album_obj.insert("COMMENT".to_string(), metadata_album_source.get("comment").cloned().unwrap_or_else(|| resolve::resolve_album_key("comment", &album_ctx).unwrap_or(json!(null))));
-    album_obj.insert("ORIGINAL_DATE".to_string(), metadata_album_source.get("original_date").cloned().unwrap_or_else(|| resolve::resolve_album_key("original_date", &album_ctx).unwrap_or(json!(null))));
-    album_obj.insert("ORIGINAL_YEAR".to_string(), metadata_album_source.get("original_year").cloned().unwrap_or_else(|| resolve::resolve_album_key("original_year", &album_ctx).unwrap_or(json!(null))));
     album_obj.insert("ORIGINAL_YYYY_MM".to_string(), metadata_album_source.get("original_yyyy_mm").cloned().unwrap_or_else(|| resolve::resolve_album_key("original_yyyy_mm", &album_ctx).unwrap_or(json!(null))));
-    album_obj.insert("RELEASE_DATE".to_string(), metadata_album_source.get("release_date").cloned().unwrap_or_else(|| resolve::resolve_album_key("release_date", &album_ctx).unwrap_or(json!(null))));
-    album_obj.insert("RELEASE_YEAR".to_string(), metadata_album_source.get("release_year").cloned().unwrap_or_else(|| resolve::resolve_album_key("release_year", &album_ctx).unwrap_or(json!(null))));
     album_obj.insert("RELEASE_YYYY_MM".to_string(), metadata_album_source.get("release_yyyy_mm").cloned().unwrap_or_else(|| resolve::resolve_album_key("release_yyyy_mm", &album_ctx).unwrap_or(json!(null))));
 
     let mut album_tags = serde_json::Map::new();
