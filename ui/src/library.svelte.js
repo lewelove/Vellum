@@ -40,6 +40,15 @@ class LibraryState {
           newAlbumCache.set(a.id, a);
           if (a.tracks) {
             a.tracks.forEach(t => {
+              // Flatten track info
+              if (t.info) Object.assign(t, t.info);
+              
+              // Normalize track keys
+              t.TITLE = t.TITLE || t.title;
+              t.ARTIST = t.ARTIST || t.artist;
+              t.TRACKNUMBER = t.TRACKNUMBER || t.tracknumber;
+              t.DISCNUMBER = t.DISCNUMBER || t.discnumber;
+              
               t.ALBUMARTIST = a.ALBUMARTIST;
               t.album_id = a.id;
               if (t.track_library_path) {
@@ -60,6 +69,10 @@ class LibraryState {
         this.albumCache.set(data.id, data);
         if (data.tracks) {
           data.tracks.forEach(t => {
+            if (t.info) Object.assign(t, t.info);
+            t.TITLE = t.TITLE || t.title;
+            t.ARTIST = t.ARTIST || t.artist;
+            
             t.ALBUMARTIST = data.ALBUMARTIST;
             t.album_id = data.id;
             if (t.track_library_path) {
@@ -232,10 +245,13 @@ class LibraryState {
 
   getAlbumCoverUrl(albumId) {
     const album = this.albumCache.get(albumId);
-    if (!album || !album.cover_path || album.cover_path === "default_cover.png") {
+    // Note: check flattened cover_path or nested info.cover_path
+    const cp = album.cover_path || album.info?.cover_path;
+    const ch = album.cover_hash || album.info?.cover_hash;
+    if (!album || !cp || cp === "default_cover.png") {
       return "";
     }
-    return `/api/assets/cover/${encodeURIComponent(album.id)}?v=${album.cover_hash}`;
+    return `/api/assets/cover/${encodeURIComponent(album.id)}?v=${ch}`;
   }
 
   setSidebarGrouper(key) {

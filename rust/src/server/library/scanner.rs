@@ -42,29 +42,39 @@ impl Library {
             .collect();
 
         for lock_path in entries {
-            if let Ok(content) = std::fs::read_to_string(&lock_path) {
-                if let Ok(lock_data) = serde_json::from_str::<LockFile>(&content) {
-                    let alb_id = lock_data.album.info.album_path.clone();
-                    let album_dir = lock_path.parent().unwrap_or(&self.root);
-                    
-                    let view = AlbumView {
-                        id: alb_id.clone(),
-                        album_data: lock_data.album.clone(),
-                        tracks: lock_data.tracks.clone(),
-                    };
+            match std::fs::read_to_string(&lock_path) {
+                Ok(content) => {
+                    match serde_json::from_str::<LockFile>(&content) {
+                        Ok(lock_data) => {
+                            let alb_id = lock_data.album.info.album_path.clone();
+                            let album_dir = lock_path.parent().unwrap_or(&self.root);
+                            
+                            let view = AlbumView {
+                                id: alb_id.clone(),
+                                album_data: lock_data.album.clone(),
+                                tracks: lock_data.tracks.clone(),
+                            };
 
-                    albums.push(view.clone());
-                    album_map.insert(alb_id.clone(), view);
+                            albums.push(view.clone());
+                            album_map.insert(alb_id.clone(), view);
 
-                    for track in &lock_data.tracks {
-                        let t_id = track.info.track_library_path.clone();
-                        let abs_path = album_dir.join(&track.info.track_path);
-                        track_map.insert(t_id, abs_path);
-                        
-                        let full_rel_path = Path::new(&alb_id).join(&track.info.track_path);
-                        let normalized = self.normalize_path(full_rel_path.to_str().unwrap_or(""));
-                        path_lookup.insert(normalized, alb_id.clone());
+                            for track in &lock_data.tracks {
+                                let t_id = track.info.track_library_path.clone();
+                                let abs_path = album_dir.join(&track.info.track_path);
+                                track_map.insert(t_id, abs_path);
+                                
+                                let full_rel_path = Path::new(&alb_id).join(&track.info.track_path);
+                                let normalized = self.normalize_path(full_rel_path.to_str().unwrap_or(""));
+                                path_lookup.insert(normalized, alb_id.clone());
+                            }
+                        }
+                        Err(e) => {
+                            log::error!("Schema Mismatch at {:?}: {}", lock_path, e);
+                        }
                     }
+                }
+                Err(e) => {
+                    log::error!("Failed to read lock file at {:?}: {}", lock_path, e);
                 }
             }
         }
@@ -81,34 +91,39 @@ impl Library {
     pub fn update_album(&mut self, folder_path_str: &str) -> Option<AlbumView> {
         let lock_path = Path::new(folder_path_str).join("metadata.lock.json");
         if let Ok(content) = std::fs::read_to_string(&lock_path) {
-            if let Ok(lock_data) = serde_json::from_str::<LockFile>(&content) {
-                let alb_id = lock_data.album.info.album_path.clone();
-                let album_dir = lock_path.parent().unwrap_or(&self.root);
+            match serde_json::from_str::<LockFile>(&content) {
+                Ok(lock_data) => {
+                    let alb_id = lock_data.album.info.album_path.clone();
+                    let album_dir = lock_path.parent().unwrap_or(&self.root);
 
-                let view = AlbumView {
-                    id: alb_id.clone(),
-                    album_data: lock_data.album.clone(),
-                    tracks: lock_data.tracks.clone(),
-                };
+                    let view = AlbumView {
+                        id: alb_id.clone(),
+                        album_data: lock_data.album.clone(),
+                        tracks: lock_data.tracks.clone(),
+                    };
 
-                self.album_map.insert(alb_id.clone(), view.clone());
-                if let Some(idx) = self.albums.iter().position(|x| x.id == alb_id) {
-                    self.albums[idx] = view.clone();
-                } else {
-                    self.albums.push(view.clone());
-                    self.albums.sort_by(|a, b| a.id.cmp(&b.id));
+                    self.album_map.insert(alb_id.clone(), view.clone());
+                    if let Some(idx) = self.albums.iter().position(|x| x.id == alb_id) {
+                        self.albums[idx] = view.clone();
+                    } else {
+                        self.albums.push(view.clone());
+                        self.albums.sort_by(|a, b| a.id.cmp(&b.id));
+                    }
+
+                    for track in &lock_data.tracks {
+                        let t_id = track.info.track_library_path.clone();
+                        let abs_path = album_dir.join(&track.info.track_path);
+                        self.track_map.insert(t_id, abs_path);
+
+                        let full_rel_path = Path::new(&alb_id).join(&track.info.track_path);
+                        let normalized = self.normalize_path(full_rel_path.to_str().unwrap_or(""));
+                        self.path_lookup.insert(normalized, alb_id.clone());
+                    }
+                    return Some(view);
                 }
-
-                for track in &lock_data.tracks {
-                    let t_id = track.info.track_library_path.clone();
-                    let abs_path = album_dir.join(&track.info.track_path);
-                    self.track_map.insert(t_id, abs_path);
-
-                    let full_rel_path = Path::new(&alb_id).join(&track.info.track_path);
-                    let normalized = self.normalize_path(full_rel_path.to_str().unwrap_or(""));
-                    self.path_lookup.insert(normalized, alb_id.clone());
+                Err(e) => {
+                    log::error!("Schema Mismatch during update at {:?}: {}", lock_path, e);
                 }
-                return Some(view);
             }
         }
         None
