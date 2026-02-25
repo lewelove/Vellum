@@ -54,9 +54,9 @@ export const sorters = {
     return dateB.localeCompare(dateA);
   },
 
-  entropy: (a, b) => (b.tags?.cover_entropy || 0) - (a.tags?.cover_entropy || 0),
+  entropy: (a, b) => (b.tags?.COVER_ENTROPY || 0) - (a.tags?.COVER_ENTROPY || 0),
 
-  chroma: (a, b) => (b.tags?.cover_chroma || 0) - (a.tags?.cover_chroma || 0),
+  chroma: (a, b) => (b.tags?.COVER_CHROMA || 0) - (a.tags?.COVER_CHROMA || 0),
 
   duration: (a, b) => (b.album_duration || 0) - (a.album_duration || 0)
 };

@@ -77,7 +77,7 @@ export const groupers = {
     ];
 
     albums.forEach(a => {
-      const val = parseFloat(a.tags?.cover_chroma || 0);
+      const val = parseFloat(a.tags?.COVER_CHROMA || 0);
       const bucket = buckets.find(b => val < b.threshold);
       if (bucket) {
         map.set(bucket.label, (map.get(bucket.label) || 0) + 1);
@@ -94,7 +94,7 @@ export const GROUPER_LABELS = {
   year_added: "Year Added",
   month_added: "Month Added",
   totaltracks: "Total Tracks",
-  chroma: "Chromaticity"
+  chroma: "Chroma"
 };
 
 export function generateSidebarGroup(albums, groupKey) {

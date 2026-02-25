@@ -55,7 +55,7 @@ export const filters = {
   },
 
   chroma: (album, val) => {
-    const score = parseFloat(album.tags?.cover_chroma || 0);
+    const score = parseFloat(album.tags?.COVER_CHROMA || 0);
     switch (val) {
       case "Monochrome": return score === 0;
       case "Bleak":      return score > 0 && score < 15;
