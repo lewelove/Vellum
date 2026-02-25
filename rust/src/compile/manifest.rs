@@ -20,14 +20,13 @@ pub fn build(
     config: &Value,
     gen_cfg: &Value,
     active_flags: &[String],
-    no_extensions: bool,
+    _no_extensions: bool,
 ) -> Result<Value> {
     let metadata_path = album_root.join("metadata.toml");
     
     let (metadata_mtime, metadata_hash) = {
         let meta = std::fs::metadata(&metadata_path)?;
         let mtime = meta.modified()?.duration_since(SystemTime::UNIX_EPOCH)?.as_secs();
-        
         let file = File::open(&metadata_path)?;
         let mut reader = BufReader::new(file);
         let mut hasher = Sha256::new();
@@ -37,19 +36,15 @@ pub fn build(
 
     let content = std::fs::read_to_string(&metadata_path)?;
     let metadata_toml: toml::Value = toml::from_str(&content)?;
-    let metadata_json = serde_json::to_value(metadata_toml)?;
+    let metadata_json = normalize_json_keys(serde_json::to_value(metadata_toml)?);
 
     let (cover_path, cover_hash, cover_mtime, cover_byte_size) = resolve_cover_info(album_root);
-    
-    let storage = config.get("storage").ok_or_else(|| anyhow!("Missing [storage]"))?;
-    let thumb_dir_raw = storage.get("thumbnail_cache_folder").and_then(|v| v.as_str());
-    
     let mut loaded_image: Option<DynamicImage> = None;
 
-    if let (Some(dir_str), Some(cp), false) = (thumb_dir_raw, &cover_path, cover_hash.is_empty()) {
+    let storage = config.get("storage").ok_or_else(|| anyhow!("Missing [storage]"))?;
+    if let (Some(dir_str), Some(cp), false) = (storage.get("thumbnail_cache_folder").and_then(|v| v.as_str()), &cover_path, cover_hash.is_empty()) {
         let thumb_dir = expand_path(dir_str);
         let thumb_path = thumb_dir.join(format!("{}.png", cover_hash));
-
         if !thumb_path.exists() {
             if let Ok(img) = image::open(album_root.join(cp)) {
                 let (w, h) = img.dimensions();
@@ -65,31 +60,23 @@ pub fn build(
         }
     }
 
-    let supported_candidates = gen_cfg.get("supported_extensions")
-        .and_then(|v| v.as_array())
-        .map(|arr| arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
-        .unwrap_or_else(|| vec![
-            ".flac".to_string()
-        ]);
-    
-    let exts: Vec<&str> = supported_candidates.iter().map(|s| s.as_str()).collect();
+    let exts_raw = gen_cfg.get("supported_extensions").and_then(|v| v.as_array());
+    let exts: Vec<&str> = exts_raw.map(|arr| arr.iter().filter_map(|v| v.as_str()).collect()).unwrap_or_else(|| vec![".flac"]);
     let audio_files = scan::scan_audio_files(album_root, &exts);
 
-    let album_src = metadata_json.get("album").cloned().unwrap_or(json!({}));
     let track_entries = metadata_json.get("tracks").and_then(|v| v.as_array())
-        .ok_or_else(|| anyhow!("Missing [[tracks]] in metadata.toml for {:?}", album_root))?;
+        .ok_or_else(|| anyhow!("Missing [[tracks]] in metadata.toml"))?;
 
     if audio_files.len() != track_entries.len() {
-        return Err(anyhow!("Manifest Mismatch in {:?}: {} files vs {} entries", album_root, audio_files.len(), track_entries.len()));
+        return Err(anyhow!("Manifest Mismatch: {} files vs {} entries", audio_files.len(), track_entries.len()));
     }
 
-    let registry = config.get("compiler_registry")
-        .and_then(|v| v.as_object())
+    let registry = config.get("compiler_registry").and_then(|v| v.as_object())
         .ok_or_else(|| anyhow!("Missing [compiler_registry]"))?;
 
     let library_root = Path::new(storage.get("library_root").and_then(|v| v.as_str()).unwrap_or("."));
 
-    let mut harvested_spine = Vec::with_capacity(audio_files.len());
+    let mut harvested_spine = Vec::new();
     for path in &audio_files {
         harvested_spine.push(harvest::harvest_file(path)?);
     }
@@ -105,111 +92,122 @@ pub fn build(
     });
 
     let mut requires_python = false;
-    let mut final_tracks = Vec::with_capacity(audio_files.len());
-    let mut harvested_cache = Vec::with_capacity(audio_files.len());
+    let mut final_tracks = Vec::new();
+    let mut harvested_cache = Vec::new();
     let mut current_physical_disc = None;
-    let mut ordinal_disc_counter = 0;
-    let mut ordinal_track_counter = 0;
+    let mut o_disc = 0;
+    let mut o_track = 0;
 
-    for (idx, harvest_data) in harvested_spine.into_iter().enumerate() {
-        let phys_disc = parse_tag_int(harvest_data.tags.get("DISCNUMBER"));
-        if Some(phys_disc) != current_physical_disc {
-            current_physical_disc = Some(phys_disc);
-            ordinal_disc_counter += 1;
-            ordinal_track_counter = 1;
+    let empty_obj = json!({});
+    let metadata_album_source = metadata_json.get("album").unwrap_or(&empty_obj);
+
+    for (idx, h_data) in harvested_spine.into_iter().enumerate() {
+        let p_disc = parse_tag_int(h_data.tags.get("DISCNUMBER"));
+        if Some(p_disc) != current_physical_disc {
+            current_physical_disc = Some(p_disc);
+            o_disc += 1;
+            o_track = 1;
         } else {
-            ordinal_track_counter += 1;
+            o_track += 1;
         }
 
-        let entry = &track_entries[idx];
-        let mut track_obj = serde_json::Map::new();
+        let track_entries_source = &track_entries[idx];
         let track_ctx = TrackContext {
-            ordinal_track_number: ordinal_track_counter,
-            ordinal_disc_number: ordinal_disc_counter,
-            harvest: &harvest_data,
-            source: entry,
-            album_source: &album_src,
-            album_root,
-            library_root,
+            ordinal_track_number: o_track,
+            ordinal_disc_number: o_disc,
+            _harvest: &h_data,
+            source: track_entries_source,
+            album_source: metadata_album_source,
+            _album_root: album_root,
+            _library_root: library_root,
         };
 
+        let mut track_obj = serde_json::Map::new();
+        let mut track_info = serde_json::Map::new();
+        track_info.insert("track_path".to_string(), json!(resolve::rel_path(&h_data.path, album_root)));
+        track_info.insert("track_library_path".to_string(), json!(resolve::rel_path(&h_data.path, library_root)));
+        track_info.insert("track_duration".to_string(), json!(h_data.physics.duration_ms));
+        track_info.insert("track_duration_time".to_string(), json!(resolve::format_ms(h_data.physics.duration_ms)));
+        track_info.insert("encoding".to_string(), json!(h_data.physics.format));
+        track_info.insert("sample_rate".to_string(), json!(h_data.physics.sample_rate));
+        track_info.insert("bits_per_sample".to_string(), json!(h_data.physics.bit_depth.unwrap_or(0)));
+        track_info.insert("channels".to_string(), json!(h_data.physics.channels));
+        track_info.insert("track_mtime".to_string(), json!(h_data.physics.mtime));
+        track_info.insert("track_byte_size".to_string(), json!(h_data.physics.file_size));
+        track_info.insert("lyrics_path".to_string(), json!("")); 
+
+        track_obj.insert("info".to_string(), Value::Object(track_info));
+
         for (key, meta) in registry {
-            if meta.get("level").and_then(|v| v.as_str()) != Some("tracks") {
-                continue;
-            }
-
-            let entry_flags = meta.get("flags").and_then(|v| v.as_array())
-                .map(|arr| arr.iter().filter_map(|f| f.as_str().map(|s| s.to_string())).collect::<Vec<_>>())
-                .unwrap_or_else(|| vec!["default".to_string()]);
-
-            let is_active = entry_flags.iter().any(|f| active_flags.contains(f));
-
-            if is_active {
-                let provider = meta.get("provider").and_then(|v| v.as_str()).unwrap_or("native");
-                if provider == "native" {
-                    track_obj.insert(key.clone(), resolve::resolve_track_standard(key, &track_ctx).unwrap_or(json!(null)));
-                } else if no_extensions {
-                    track_obj.insert(key.clone(), json!(null));
-                } else {
-                    track_obj.insert(key.clone(), json!(null));
-                    requires_python = true;
-                }
+            if meta.get("level").and_then(|v| v.as_str()) != Some("tracks") { continue; }
+            
+            let val = if let Some(user_val) = track_entries_source.get(key) {
+                user_val.clone()
+            } else if meta.get("provider").and_then(|v| v.as_str()) == Some("extension") {
+                requires_python = true;
+                json!(null)
             } else {
-                track_obj.insert(key.clone(), json!(null));
-            }
+                resolve::resolve_track_key(key, &track_ctx).unwrap_or(json!(null))
+            };
+            
+            track_obj.insert(key.clone(), val);
         }
 
-        let mut h_item = serde_json::to_value(&harvest_data)?;
-        if let Ok(rel) = harvest_data.path.strip_prefix(album_root) {
-            h_item["track_path"] = json!(rel.to_string_lossy());
-        }
+        let mut h_item = serde_json::to_value(&h_data)?;
+        h_item["track_path"] = json!(resolve::rel_path(&h_data.path, album_root));
         harvested_cache.push(h_item);
         final_tracks.push(Value::Object(track_obj));
     }
 
     let album_ctx = AlbumContext {
-        source: &album_src,
+        source: metadata_album_source,
         tracks: &final_tracks,
-        album_root,
-        library_root,
-        meta_hash: &metadata_hash,
-        meta_mtime: metadata_mtime,
-        cover_hash: &cover_hash,
-        cover_path: cover_path.as_deref(),
-        cover_mtime,
-        cover_byte_size,
+        _album_root: album_root,
+        _library_root: library_root,
+        _meta_hash: &metadata_hash,
+        _meta_mtime: metadata_mtime,
+        _cover_hash: &cover_hash,
+        _cover_path: cover_path.as_deref(),
+        _cover_mtime: cover_mtime,
+        _cover_byte_size: cover_byte_size,
         cover_image: loaded_image.as_ref(),
     };
 
-    let mut final_album = serde_json::Map::new();
+    let mut album_obj = serde_json::Map::new();
+    let mut album_info = serde_json::Map::new();
+    album_info.insert("album_path".to_string(), json!(resolve::rel_path(album_root, library_root)));
+    album_info.insert("unix_added".to_string(), json!(resolve::resolve_album_info_unix_added(&album_ctx)));
+    album_info.insert("album_duration".to_string(), json!(resolve::resolve_album_info_duration_ms(&album_ctx)));
+    album_info.insert("album_duration_time".to_string(), json!(resolve::format_ms(resolve::resolve_album_info_duration_ms(&album_ctx))));
+    album_info.insert("total_discs".to_string(), json!(resolve::calculate_total_discs(&final_tracks)));
+    album_info.insert("total_tracks".to_string(), json!(final_tracks.len()));
+    album_info.insert("metadata_toml_hash".to_string(), json!(metadata_hash));
+    album_info.insert("metadata_toml_mtime".to_string(), json!(metadata_mtime));
+    album_info.insert("file_tag_subset_match".to_string(), json!(false));
+    album_info.insert("cover_path".to_string(), json!(cover_path.clone().unwrap_or_else(|| "default_cover.png".to_string())));
+    album_info.insert("cover_hash".to_string(), json!(cover_hash));
+    album_info.insert("cover_mtime".to_string(), json!(cover_mtime));
+    album_info.insert("cover_byte_size".to_string(), json!(cover_byte_size));
+
+    album_obj.insert("info".to_string(), Value::Object(album_info));
+
     for (key, meta) in registry {
-        if meta.get("level").and_then(|v| v.as_str()) != Some("album") {
-            continue;
-        }
-
-        let entry_flags = meta.get("flags").and_then(|v| v.as_array())
-            .map(|arr| arr.iter().filter_map(|f| f.as_str().map(|s| s.to_string())).collect::<Vec<_>>())
-            .unwrap_or_else(|| vec!["default".to_string()]);
-
-        let is_active = entry_flags.iter().any(|f| active_flags.contains(f));
-
-        if is_active {
-            let provider = meta.get("provider").and_then(|v| v.as_str()).unwrap_or("native");
-            if provider == "native" {
-                final_album.insert(key.clone(), resolve::resolve_album_standard(key, &album_ctx).unwrap_or(json!(null)));
-            } else if no_extensions {
-                final_album.insert(key.clone(), json!(null));
-            } else {
-                final_album.insert(key.clone(), json!(null));
-                requires_python = true;
-            }
+        if meta.get("level").and_then(|v| v.as_str()) != Some("album") { continue; }
+        
+        let val = if let Some(user_val) = metadata_album_source.get(key) {
+            user_val.clone()
+        } else if meta.get("provider").and_then(|v| v.as_str()) == Some("extension") {
+            requires_python = true;
+            json!(null)
         } else {
-            final_album.insert(key.clone(), json!(null));
-        }
+            resolve::resolve_album_key(key, &album_ctx).unwrap_or(json!(null))
+        };
+        
+        album_obj.insert(key.clone(), val);
     }
 
     Ok(json!({
-        "album": Value::Object(final_album),
+        "album": Value::Object(album_obj),
         "tracks": final_tracks,
         "requires_python": requires_python,
         "ctx": {
@@ -226,37 +224,35 @@ pub fn build(
     }))
 }
 
+fn normalize_json_keys(v: Value) -> Value {
+    match v {
+        Value::Object(map) => {
+            let mut new_map = serde_json::Map::new();
+            for (k, val) in map {
+                new_map.insert(k.to_lowercase(), normalize_json_keys(val));
+            }
+            Value::Object(new_map)
+        }
+        Value::Array(arr) => Value::Array(arr.into_iter().map(normalize_json_keys).collect()),
+        _ => v,
+    }
+}
+
 fn parse_tag_int(val: Option<&String>) -> u32 {
-    val.and_then(|s| s.split('/').next()).and_then(|s| s.parse::<u32>().ok()).unwrap_or(0)
+    val.and_then(|s| s.split('/').next()).and_then(|s| s.parse().ok()).unwrap_or(0)
 }
 
 fn resolve_cover_info(root: &Path) -> (Option<String>, String, u64, u64) {
-    let cover_candidates = [
-        "cover.jpg",
-        "cover.png",
-        "folder.jpg",
-        "front.jpg"
-    ];
-
-    for c in cover_candidates {
+    let candidates = ["cover.jpg", "cover.png", "folder.jpg", "front.jpg"];
+    for c in candidates {
         let p = root.join(c);
-        if let Ok(meta) = std::fs::metadata(&p) {
-            if let Ok(mtime) = meta.modified() {
-                let mtime_secs = mtime.duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_secs();
-                let size = meta.len();
-                
-                let mut hasher = sha2::Sha256::new();
-                hasher.update(mtime_secs.to_be_bytes());
-                hasher.update(size.to_be_bytes());
-                
-                let hash = hasher.finalize();
-                return (
-                    Some(c.to_string()),
-                    URL_SAFE_NO_PAD.encode(&hash[..8]),
-                    mtime_secs,
-                    size
-                );
-            }
+        if let Ok(m) = std::fs::metadata(&p) {
+            let mtime = m.modified().unwrap().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs();
+            let size = m.len();
+            let mut h = sha2::Sha256::new();
+            h.update(mtime.to_be_bytes());
+            h.update(size.to_be_bytes());
+            return (Some(c.to_string()), URL_SAFE_NO_PAD.encode(&h.finalize()[..8]), mtime, size);
         }
     }
     (None, String::new(), 0, 0)

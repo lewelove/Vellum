@@ -1,81 +1,49 @@
 [compiler_registry]
 
-# --- default tags ---
-ALBUM = { level = "album" }
-ALBUMARTIST = { level = "album" }
-DATE = { level = "album" }
-GENRE = { level = "album" }
-COMMENT = { level = "album" }
-ORIGINAL_DATE = { level = "album" }
-ORIGINAL_YEAR = { level = "album" }
-ORIGINAL_YYYY_MM = { level = "album" }
-RELEASE_DATE = { level = "album" }
-RELEASE_YEAR = { level = "album" }
-RELEASE_YYYY_MM = { level = "album" }
+album = { level = "album" }
+albumartist = { level = "album" }
+date = { level = "album" }
+genre = { level = "album" }
+comment = { level = "album" }
+original_date = { level = "album" }
+original_year = { level = "album" }
+original_yyyy_mm = { level = "album" }
+release_date = { level = "album" }
+release_year = { level = "album" }
+release_yyyy_mm = { level = "album" }
+country = { level = "album" }
+label = { level = "album" }
+catalognumber = { level = "album" }
+media = { level = "album" }
+discogs_url = { level = "album" }
+musicbrainz_url = { level = "album" }
+unix_added_local = { level = "album" }
+unix_added_foobar = { level = "album" }
+unix_added_applemusic = { level = "album" }
+unix_added_youtube = { level = "album" }
+unix_added_primary = { level = "album" }
+custom_id = { level = "album" }
+custom_albumartist = { level = "album" }
+custom_string = { level = "album" }
+old_comment = { level = "album" }
+replaygain_album_gain = { level = "album" }
+replaygain_album_peak = { level = "album" }
+musicbrainz_albumid = { level = "album" }
+musicbrainz_albumartistid = { level = "album" }
+musicbrainz_releasegroupid = { level = "album" }
+cover_chroma = { level = "album", sync = false }
+cover_entropy = { level = "album", sync = false }
 
-TITLE = { level = "tracks" }
-ARTIST = { level = "tracks" }
-TRACKNUMBER = { level = "tracks" }
-DISCNUMBER = { level = "tracks" }
-LYRICS = { level = "tracks" }
-
-# --- extensions (now native) ---
-COUNTRY = { level = "album" }
-LABEL = { level = "album" }
-CATALOGNUMBER = { level = "album" }
-MEDIA = { level = "album" }
-DISCOGS_URL = { level = "album" }
-MUSICBRAINZ_URL = { level = "album" }
-UNIX_ADDED_LOCAL = { level = "album" }
-UNIX_ADDED_FOOBAR = { level = "album" }
-UNIX_ADDED_APPLEMUSIC = { level = "album" }
-UNIX_ADDED_YOUTUBE = { level = "album" }
-UNIX_ADDED_PRIMARY = { level = "album" }
-CUSTOM_ID = { level = "album" }
-CUSTOM_ALBUMARTIST = { level = "album" }
-CUSTOM_STRING = { level = "album" }
-OLD_COMMENT = { level = "album" }
-REPLAYGAIN_ALBUM_GAIN = { level = "album" }
-REPLAYGAIN_ALBUM_PEAK = { level = "album" }
-MUSICBRAINZ_ALBUMID = { level = "album" }
-MUSICBRAINZ_ALBUMARTISTID = { level = "album" }
-MUSICBRAINZ_RELEASEGROUPID = { level = "album" }
-
-ACCURIPID = { level = "tracks" }
-CTDBID = { level = "tracks" }
-DISCID = { level = "tracks" }
-REPLAYGAIN_TRACK_GAIN = { level = "tracks" }
-REPLAYGAIN_TRACK_PEAK = { level = "tracks" }
-MUSICBRAINZ_TRACKID = { level = "tracks" }
-MUSICBRAINZ_RELEASETRACKID = { level = "tracks" }
-MUSICBRAINZ_ARTISTID = { level = "tracks" }
-
-# --- helpers ---
-album_root_path = { level = "album" }
-cover_path = { level = "album" }
-cover_hash = { level = "album" }
-cover_mtime = { level = "album" }
-cover_byte_size = { level = "album" }
-metadata_toml_mtime = { level = "album" }
-metadata_toml_hash = { level = "album" }
-file_tag_subset_match = { level = "album" }
-date_added = { level = "album" }
-unix_added = { level = "album" }
-album_duration_time = { level = "album" }
-album_duration_in_ms = { level = "album" }
-total_discs = { level = "album" }
-total_tracks = { level = "album" }
-cover_chroma = { level = "album" }
-cover_entropy = { level = "album" }
-
-track_duration_time = { level = "tracks" }
-encoding = { level = "tracks" }
-sample_rate = { level = "tracks" }
-bits_per_sample = { level = "tracks" }
-channels = { level = "tracks" }
-track_mtime = { level = "tracks" }
-track_size = { level = "tracks" }
-track_duration_in_ms = { level = "tracks" }
-track_library_path = { level = "tracks" }
-track_path = { level = "tracks" }
-lyrics_path = { level = "tracks" }
+title = { level = "tracks" }
+artist = { level = "tracks" }
+tracknumber = { level = "tracks" }
+discnumber = { level = "tracks" }
+lyrics = { level = "tracks" }
+accuripid = { level = "tracks" }
+ctdbid = { level = "tracks" }
+discid = { level = "tracks" }
+replaygain_track_gain = { level = "tracks" }
+replaygain_track_peak = { level = "tracks" }
+musicbrainz_trackid = { level = "tracks" }
+musicbrainz_releasetrackid = { level = "tracks" }
+musicbrainz_artistid = { level = "tracks" }

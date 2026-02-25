@@ -7,8 +7,8 @@ pub struct Library {
     pub root: PathBuf,
     pub albums: Vec<AlbumView>,
     pub album_map: HashMap<String, AlbumView>,
-    pub track_map: HashMap<String, PathBuf>, // track_library_path -> absolute path
-    pub path_lookup: HashMap<String, String>, // normalized relative path -> album_id
+    pub track_map: HashMap<String, PathBuf>,
+    pub path_lookup: HashMap<String, String>,
 }
 
 impl Library {
@@ -44,28 +44,26 @@ impl Library {
         for lock_path in entries {
             if let Ok(content) = std::fs::read_to_string(&lock_path) {
                 if let Ok(lock_data) = serde_json::from_str::<LockFile>(&content) {
-                    if let Some(alb_id) = &lock_data.album.album_root_path {
-                        let album_dir = lock_path.parent().unwrap_or(&self.root);
+                    let alb_id = lock_data.album.info.album_path.clone();
+                    let album_dir = lock_path.parent().unwrap_or(&self.root);
+                    
+                    let view = AlbumView {
+                        id: alb_id.clone(),
+                        album_data: lock_data.album.clone(),
+                        tracks: lock_data.tracks.clone(),
+                    };
+
+                    albums.push(view.clone());
+                    album_map.insert(alb_id.clone(), view);
+
+                    for track in &lock_data.tracks {
+                        let t_id = track.info.track_library_path.clone();
+                        let abs_path = album_dir.join(&track.info.track_path);
+                        track_map.insert(t_id, abs_path);
                         
-                        let view = AlbumView {
-                            id: alb_id.clone(),
-                            album_data: lock_data.album.clone(),
-                            tracks: lock_data.tracks.clone(),
-                        };
-
-                        albums.push(view.clone());
-                        album_map.insert(alb_id.clone(), view);
-
-                        for track in &lock_data.tracks {
-                            if let Some(t_id) = &track.track_library_path {
-                                let abs_path = album_dir.join(&track.track_path);
-                                track_map.insert(t_id.clone(), abs_path);
-                            }
-                            
-                            let full_rel_path = Path::new(alb_id).join(&track.track_path);
-                            let normalized = self.normalize_path(full_rel_path.to_str().unwrap_or(""));
-                            path_lookup.insert(normalized, alb_id.clone());
-                        }
+                        let full_rel_path = Path::new(&alb_id).join(&track.info.track_path);
+                        let normalized = self.normalize_path(full_rel_path.to_str().unwrap_or(""));
+                        path_lookup.insert(normalized, alb_id.clone());
                     }
                 }
             }
@@ -84,34 +82,33 @@ impl Library {
         let lock_path = Path::new(folder_path_str).join("metadata.lock.json");
         if let Ok(content) = std::fs::read_to_string(&lock_path) {
             if let Ok(lock_data) = serde_json::from_str::<LockFile>(&content) {
-                if let Some(alb_id) = &lock_data.album.album_root_path {
-                    let album_dir = lock_path.parent().unwrap_or(&self.root);
+                let alb_id = lock_data.album.info.album_path.clone();
+                let album_dir = lock_path.parent().unwrap_or(&self.root);
 
-                    let view = AlbumView {
-                        id: alb_id.clone(),
-                        album_data: lock_data.album.clone(),
-                        tracks: lock_data.tracks.clone(),
-                    };
+                let view = AlbumView {
+                    id: alb_id.clone(),
+                    album_data: lock_data.album.clone(),
+                    tracks: lock_data.tracks.clone(),
+                };
 
-                    self.album_map.insert(alb_id.clone(), view.clone());
-                    if let Some(idx) = self.albums.iter().position(|x| x.id == *alb_id) {
-                        self.albums[idx] = view.clone();
-                    } else {
-                        self.albums.push(view.clone());
-                        self.albums.sort_by(|a, b| a.id.cmp(&b.id));
-                    }
-
-                    for track in &lock_data.tracks {
-                        if let Some(t_id) = &track.track_library_path {
-                             let abs_path = album_dir.join(&track.track_path);
-                             self.track_map.insert(t_id.clone(), abs_path);
-                        }
-                        let full_rel_path = Path::new(alb_id).join(&track.track_path);
-                        let normalized = self.normalize_path(full_rel_path.to_str().unwrap_or(""));
-                        self.path_lookup.insert(normalized, alb_id.clone());
-                    }
-                    return Some(view);
+                self.album_map.insert(alb_id.clone(), view.clone());
+                if let Some(idx) = self.albums.iter().position(|x| x.id == alb_id) {
+                    self.albums[idx] = view.clone();
+                } else {
+                    self.albums.push(view.clone());
+                    self.albums.sort_by(|a, b| a.id.cmp(&b.id));
                 }
+
+                for track in &lock_data.tracks {
+                    let t_id = track.info.track_library_path.clone();
+                    let abs_path = album_dir.join(&track.info.track_path);
+                    self.track_map.insert(t_id, abs_path);
+
+                    let full_rel_path = Path::new(&alb_id).join(&track.info.track_path);
+                    let normalized = self.normalize_path(full_rel_path.to_str().unwrap_or(""));
+                    self.path_lookup.insert(normalized, alb_id.clone());
+                }
+                return Some(view);
             }
         }
         None

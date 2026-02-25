@@ -55,7 +55,7 @@ pub async fn trigger_reload(
     if let Some(path) = params.get("path") {
         let mut lib = state.library.write().await;
         if let Some(updated) = lib.update_album(path) {
-            let album_name = updated.album_data.other.get("ALBUM")
+            let album_name = updated.album_data.keys.get("album")
                 .and_then(|v| v.as_str())
                 .unwrap_or(&updated.id);
             

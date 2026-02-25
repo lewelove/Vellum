@@ -6,6 +6,7 @@ use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::Child;
 use tokio::sync::mpsc;
+use std::collections::HashMap;
 
 use crate::compile::{manifest, verify};
 
@@ -30,7 +31,14 @@ pub async fn run(
     let active_flags_clone = Arc::clone(&active_flags);
     let notify_tx_arc = notify_tx.map(Arc::new);
 
+    let registry = config.get("compiler_registry")
+        .and_then(|v| v.as_object())
+        .map(|v| v.clone().into_iter().collect::<HashMap<String, Value>>())
+        .unwrap_or_default();
+    let registry_arc = Arc::new(registry);
+
     let notify_tx_for_blocking = notify_tx_arc.clone();
+    let registry_for_blocking = Arc::clone(&registry_arc);
     let blocking_handle = tokio::task::spawn_blocking(move || {
         let default_parallelism = std::thread::available_parallelism()
             .map(|n| n.get())
@@ -46,9 +54,8 @@ pub async fn run(
                 match manifest::build(album_root, &project_root_clone, &config_clone, &gen_cfg_clone, &active_flags_clone, no_extensions) {
                     Ok(man) => {
                         let requires_python = man.get("requires_python").and_then(|v| v.as_bool()).unwrap_or(true);
-                        
                         if !requires_python {
-                            let _ = finalize_and_write(man, stdout_output, notify_tx_for_blocking.as_ref().map(|a| Arc::clone(a)));
+                            let _ = finalize_and_write(man, stdout_output, notify_tx_for_blocking.as_ref().map(|a| Arc::clone(a)), &registry_for_blocking);
                         } else if let Ok(line) = serde_json::to_string(&man) {
                             let _ = tx.blocking_send(line);
                         }
@@ -66,6 +73,7 @@ pub async fn run(
         let stdout = child_proc.stdout.take().context("Failed to open Kernel stdout")?;
 
         let notify_tx_for_receiver = notify_tx_arc.clone();
+        let registry_for_receiver = Arc::clone(&registry_arc);
         let sender_handle = tokio::spawn(async move {
             while let Some(line) = rx.recv().await {
                 let _ = stdin.write_all(line.as_bytes()).await;
@@ -77,11 +85,10 @@ pub async fn run(
         let receiver_handle = tokio::spawn(async move {
             let reader = BufReader::new(stdout);
             let mut lines = reader.lines();
-
             while let Ok(Some(line)) = lines.next_line().await {
                 if line.trim().is_empty() { continue; }
                 if let Ok(enriched) = serde_json::from_str(&line) {
-                    let _ = finalize_and_write(enriched, stdout_output, notify_tx_for_receiver.as_ref().map(|a| Arc::clone(a)));
+                    let _ = finalize_and_write(enriched, stdout_output, notify_tx_for_receiver.as_ref().map(|a| Arc::clone(a)), &registry_for_receiver);
                 }
             }
         });
@@ -92,7 +99,6 @@ pub async fn run(
     }
 
     let _ = blocking_handle.await;
-
     Ok(())
 }
 
@@ -119,7 +125,7 @@ fn strip_empty_values(value: &mut Value) {
     }
 }
 
-fn finalize_and_write(mut enriched: Value, stdout_output: bool, notify_tx: Option<Arc<mpsc::Sender<PathBuf>>>) -> Result<()> {
+fn finalize_and_write(mut enriched: Value, stdout_output: bool, notify_tx: Option<Arc<mpsc::Sender<PathBuf>>>, registry: &HashMap<String, Value>) -> Result<()> {
     let ctx = if let Some(obj) = enriched.as_object_mut() {
         obj.remove("ctx").unwrap_or(json!({}))
     } else {
@@ -128,19 +134,17 @@ fn finalize_and_write(mut enriched: Value, stdout_output: bool, notify_tx: Optio
 
     let harvest = ctx.get("harvest").cloned().unwrap_or(json!([]));
     let h_arr = harvest.as_array().map(|v| v.as_slice()).unwrap_or(&[]);
-    let is_match = verify::calculate_file_tag_subset_match(&enriched, h_arr);
+    let is_match = verify::calculate_file_tag_subset_match(&enriched, h_arr, registry);
     
     if let Some(a) = enriched.get_mut("album").and_then(|v| v.as_object_mut()) {
-        a.insert(
-            "file_tag_subset_match".to_string(),
-            json!(is_match)
-        );
+        if let Some(info) = a.get_mut("info").and_then(|v| v.as_object_mut()) {
+            info.insert("file_tag_subset_match".to_string(), json!(is_match));
+        }
     }
 
     strip_empty_values(&mut enriched);
 
     let album_root_str = ctx.get("paths").and_then(|p| p.get("album_root")).and_then(|s| s.as_str());
-
     if let Some(path) = album_root_str {
         let album_root = PathBuf::from(path);
         let dest = album_root.join("metadata.lock.json");

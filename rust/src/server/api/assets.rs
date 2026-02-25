@@ -25,9 +25,8 @@ pub async fn get_album_cover(
     let path_opt = {
         let lib = state.library.read().await;
         lib.album_map.get(&id).and_then(|a| {
-            a.album_data.cover_path.as_ref().map(|cp| {
-                state.config.library_root.join(&id).join(cp)
-            })
+            let cp = &a.album_data.info.cover_path;
+            Some(state.config.library_root.join(&id).join(cp))
         })
     };
 
