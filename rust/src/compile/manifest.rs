@@ -138,6 +138,20 @@ pub fn build(
 
         track_obj.insert("info".to_string(), Value::Object(track_info));
 
+        let core_track_tags = [
+            "TITLE",
+            "ARTIST",
+            "TRACKNUMBER",
+            "DISCNUMBER"
+        ];
+
+        for key in core_track_tags {
+            let val = track_entries_source.get(&key.to_lowercase())
+                .cloned()
+                .unwrap_or_else(|| resolve::resolve_track_key(&key.to_lowercase(), &track_ctx).unwrap_or(json!(null)));
+            track_obj.insert(key.to_string(), val);
+        }
+
         for (key, meta) in registry {
             if meta.get("level").and_then(|v| v.as_str()) != Some("tracks") { continue; }
             
@@ -150,7 +164,7 @@ pub fn build(
                 resolve::resolve_track_key(key, &track_ctx).unwrap_or(json!(null))
             };
             
-            track_obj.insert(key.clone(), val);
+            track_obj.insert(key.to_uppercase(), val);
         }
 
         let mut h_item = serde_json::to_value(&h_data)?;
@@ -191,6 +205,19 @@ pub fn build(
 
     album_obj.insert("info".to_string(), Value::Object(album_info));
 
+    let core_album_tags = [
+        "ALBUM",
+        "ALBUMARTIST",
+        "DATE"
+    ];
+
+    for key in core_album_tags {
+        let val = metadata_album_source.get(&key.to_lowercase())
+            .cloned()
+            .unwrap_or_else(|| resolve::resolve_album_key(&key.to_lowercase(), &album_ctx).unwrap_or(json!(null)));
+        album_obj.insert(key.to_string(), val);
+    }
+
     for (key, meta) in registry {
         if meta.get("level").and_then(|v| v.as_str()) != Some("album") { continue; }
         
@@ -203,7 +230,7 @@ pub fn build(
             resolve::resolve_album_key(key, &album_ctx).unwrap_or(json!(null))
         };
         
-        album_obj.insert(key.clone(), val);
+        album_obj.insert(key.to_uppercase(), val);
     }
 
     Ok(json!({

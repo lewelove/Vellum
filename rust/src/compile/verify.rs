@@ -6,15 +6,30 @@ pub fn calculate_file_tag_subset_match(enriched: &Value, harvest: &[Value], regi
     let Some(tracks_arr) = enriched.get("tracks").and_then(|v| v.as_array()) else { return false; };
     if tracks_arr.len() != harvest.len() { return false; }
 
-    let album_sync_keys: Vec<String> = registry.iter()
-        .filter(|(_, m)| m.get("level").and_then(|l| l.as_str()) == Some("album") && m.get("sync").and_then(|s| s.as_bool()).unwrap_or(true))
-        .map(|(k, _)| k.clone())
-        .collect();
+    let mut album_sync_keys = vec![
+        "ALBUM".to_string(),
+        "ALBUMARTIST".to_string(),
+        "DATE".to_string()
+    ];
 
-    let track_sync_keys: Vec<String> = registry.iter()
-        .filter(|(_, m)| m.get("level").and_then(|l| l.as_str()) == Some("tracks") && m.get("sync").and_then(|s| s.as_bool()).unwrap_or(true))
-        .map(|(k, _)| k.clone())
-        .collect();
+    let mut track_sync_keys = vec![
+        "TITLE".to_string(),
+        "ARTIST".to_string(),
+        "TRACKNUMBER".to_string(),
+        "DISCNUMBER".to_string()
+    ];
+
+    album_sync_keys.extend(
+        registry.iter()
+            .filter(|(_, m)| m.get("level").and_then(|l| l.as_str()) == Some("album") && m.get("sync").and_then(|s| s.as_bool()).unwrap_or(true))
+            .map(|(k, _)| k.to_uppercase())
+    );
+
+    track_sync_keys.extend(
+        registry.iter()
+            .filter(|(_, m)| m.get("level").and_then(|l| l.as_str()) == Some("tracks") && m.get("sync").and_then(|s| s.as_bool()).unwrap_or(true))
+            .map(|(k, _)| k.to_uppercase())
+    );
 
     for (idx, compiled_track) in tracks_arr.iter().enumerate() {
         let Some(t_obj) = compiled_track.as_object() else { return false; };
@@ -47,7 +62,8 @@ fn compare_values(key: &str, compiled: &Value, physical: &str) -> bool {
         _ => compiled.to_string().replace('"', ""),
     };
     let (s_c, s_p) = (s_comp.trim(), physical.trim());
-    if key == "tracknumber" || key == "discnumber" {
+    let k_lower = key.to_lowercase();
+    if k_lower == "tracknumber" || k_lower == "discnumber" {
         let parse = |s: &str| s.split('/').next().unwrap_or("0").parse::<u64>().unwrap_or(0);
         return parse(s_c) == parse(s_p);
     }

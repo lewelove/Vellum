@@ -1,8 +1,5 @@
 [compiler_registry]
 
-album = { level = "album" }
-albumartist = { level = "album" }
-date = { level = "album" }
 genre = { level = "album" }
 comment = { level = "album" }
 original_date = { level = "album" }
@@ -34,10 +31,6 @@ musicbrainz_releasegroupid = { level = "album" }
 cover_chroma = { level = "album", sync = false }
 cover_entropy = { level = "album", sync = false }
 
-title = { level = "tracks" }
-artist = { level = "tracks" }
-tracknumber = { level = "tracks" }
-discnumber = { level = "tracks" }
 lyrics = { level = "tracks" }
 accuripid = { level = "tracks" }
 ctdbid = { level = "tracks" }

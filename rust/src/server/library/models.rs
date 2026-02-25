@@ -30,6 +30,14 @@ pub struct TrackInfo {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TrackLock {
     pub info: TrackInfo,
+    #[serde(rename = "TITLE")]
+    pub title: String,
+    #[serde(rename = "ARTIST")]
+    pub artist: String,
+    #[serde(rename = "TRACKNUMBER")]
+    pub tracknumber: String,
+    #[serde(rename = "DISCNUMBER")]
+    pub discnumber: String,
     #[serde(flatten)]
     pub keys: HashMap<String, serde_json::Value>,
 }
@@ -67,6 +75,12 @@ pub struct AlbumInfo {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AlbumLock {
     pub info: AlbumInfo,
+    #[serde(rename = "ALBUM")]
+    pub album: String,
+    #[serde(rename = "ALBUMARTIST")]
+    pub albumartist: String,
+    #[serde(rename = "DATE")]
+    pub date: String,
     #[serde(flatten)]
     pub keys: HashMap<String, serde_json::Value>,
 }
