@@ -52,9 +52,8 @@ pub async fn run(
         pool.install(|| {
             albums_clone.par_iter().for_each(|album_root| {
                 match manifest::build(album_root, &project_root_clone, &config_clone, &gen_cfg_clone, &active_flags_clone, no_extensions) {
-                    Ok(man) => {
-                        let requires_python = man.get("requires_python").and_then(|v| v.as_bool()).unwrap_or(true);
-                        if !requires_python {
+                    Ok((man, needs_external)) => {
+                        if !needs_external || no_extensions {
                             let _ = finalize_and_write(man, stdout_output, notify_tx_for_blocking.as_ref().map(|a| Arc::clone(a)), &registry_for_blocking);
                         } else if let Ok(line) = serde_json::to_string(&man) {
                             let _ = tx.blocking_send(line);

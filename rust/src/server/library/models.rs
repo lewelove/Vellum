@@ -126,8 +126,6 @@ where
 pub struct LockFile {
     pub album: AlbumLock,
     pub tracks: Vec<TrackLock>,
-    #[serde(default)]
-    pub requires_python: bool,
 }
 
 #[derive(Clone, Debug, Serialize)]

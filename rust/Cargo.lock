@@ -2789,7 +2789,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "vellum_cli"
+name = "vellum"
 version = "0.1.0"
 dependencies = [
  "alphanumeric-sort",

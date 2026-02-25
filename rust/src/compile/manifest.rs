@@ -21,7 +21,7 @@ pub fn build(
     gen_cfg: &Value,
     active_flags: &[String],
     _no_extensions: bool,
-) -> Result<Value> {
+) -> Result<(Value, bool)> {
     let metadata_path = album_root.join("metadata.toml");
     
     let (metadata_mtime, metadata_hash) = {
@@ -91,7 +91,7 @@ pub fn build(
         a.path.cmp(&b.path)
     });
 
-    let mut requires_python = false;
+    let mut requires_external = false;
     let mut final_tracks = Vec::new();
     let mut harvested_cache = Vec::new();
     let mut current_physical_disc = None;
@@ -163,7 +163,7 @@ pub fn build(
             let val = if let Some(user_val) = track_entries_source.get(key) {
                 user_val.clone()
             } else if meta.get("provider").and_then(|v| v.as_str()) == Some("extension") {
-                requires_python = true;
+                requires_external = true;
                 json!(null)
             } else {
                 resolve::resolve_track_key(key, &track_ctx).unwrap_or(json!(null))
@@ -225,7 +225,7 @@ pub fn build(
         let val = if let Some(user_val) = metadata_album_source.get(key) {
             user_val.clone()
         } else if meta.get("provider").and_then(|v| v.as_str()) == Some("extension") {
-            requires_python = true;
+            requires_external = true;
             json!(null)
         } else {
             resolve::resolve_album_key(key, &album_ctx).unwrap_or(json!(null))
@@ -235,10 +235,9 @@ pub fn build(
     }
     album_obj.insert("tags".to_string(), Value::Object(album_tags));
 
-    Ok(json!({
+    let final_json = json!({
         "album": Value::Object(album_obj),
         "tracks": final_tracks,
-        "requires_python": requires_python,
         "ctx": {
             "config": config,
             "active_flags": active_flags,
@@ -250,7 +249,9 @@ pub fn build(
                 "library_root": library_root.to_string_lossy(),
             }
         }
-    }))
+    });
+
+    Ok((final_json, requires_external))
 }
 
 fn normalize_json_keys(v: Value) -> Value {

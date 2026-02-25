@@ -63,7 +63,7 @@ pub async fn run(
 
     if intermediary {
         for album_root in albums {
-            let man = manifest::build(
+            let (man, _) = manifest::build(
                 &album_root,
                 &project_root,
                 &config_json,
@@ -80,7 +80,14 @@ pub async fn run(
         return Ok(());
     }
 
-    if no_extensions {
+    let registry = config_json.get("compiler_registry").and_then(|v| v.as_object());
+    let has_extensions = registry.map(|r| {
+        r.values().any(|v| v.get("provider").and_then(|s| s.as_str()) == Some("extension"))
+    }).unwrap_or(false);
+
+    let effective_no_extensions = no_extensions || !has_extensions;
+
+    if effective_no_extensions {
         log::info!("Compiling {} albums (Native Only)...", albums.len());
         return stream::run(
             None,
@@ -91,7 +98,7 @@ pub async fn run(
             active_flags,
             stdout_output,
             jobs,
-            no_extensions,
+            true,
             notify_tx,
         ).await;
     }
@@ -125,7 +132,7 @@ pub async fn run(
         active_flags,
         stdout_output,
         jobs,
-        no_extensions,
+        false,
         notify_tx,
     ).await
 }
