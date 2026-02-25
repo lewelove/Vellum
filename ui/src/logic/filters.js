@@ -6,7 +6,7 @@ export const filters = {
     return album.GENRE === val;
   },
 
-  totaltracks: (album, val) => album.total_tracks === String(val),
+  totaltracks: (album, val) => String(album.total_tracks) === String(val),
 
   search: (album, val) => {
     const q = val.toLowerCase();
@@ -55,7 +55,7 @@ export const filters = {
   },
 
   chroma: (album, val) => {
-    const score = parseFloat(album.cover_chroma || 0);
+    const score = parseFloat(album.tags?.cover_chroma || 0);
     switch (val) {
       case "Monochrome": return score === 0;
       case "Bleak":      return score > 0 && score < 15;

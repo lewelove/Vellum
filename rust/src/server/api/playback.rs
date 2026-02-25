@@ -68,7 +68,7 @@ async fn get_tracks_internal(id: &str, state: &Arc<AppState>, disc_filter: Optio
     if let Some(album) = lib.album_map.get(id) {
         for track in &album.tracks {
             if let Some(df) = &disc_filter {
-                let d = track.keys.get("discnumber").and_then(|v| v.as_str()).unwrap_or("1");
+                let d = &track.discnumber;
                 if d != df { continue; }
             }
             let tp = &track.info.track_library_path;

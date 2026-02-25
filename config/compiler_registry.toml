@@ -1,13 +1,5 @@
 [compiler_registry]
 
-genre = { level = "album" }
-comment = { level = "album" }
-original_date = { level = "album" }
-original_year = { level = "album" }
-original_yyyy_mm = { level = "album" }
-release_date = { level = "album" }
-release_year = { level = "album" }
-release_yyyy_mm = { level = "album" }
 country = { level = "album" }
 label = { level = "album" }
 catalognumber = { level = "album" }

@@ -31,8 +31,6 @@ class LibraryState {
       const { type, data, ids, timing, result, key, count } = e.data;
 
       if (type === "INIT_DATA") {
-        console.log(`[Main] Caching ${count} objects...`);
-        
         const newTrackMap = new Map();
         const newAlbumCache = new Map();
 
@@ -40,17 +38,6 @@ class LibraryState {
           newAlbumCache.set(a.id, a);
           if (a.tracks) {
             a.tracks.forEach(t => {
-              // Flatten track info
-              if (t.info) Object.assign(t, t.info);
-              
-              // Normalize track keys
-              t.TITLE = t.TITLE || t.title;
-              t.ARTIST = t.ARTIST || t.artist;
-              t.TRACKNUMBER = t.TRACKNUMBER || t.tracknumber;
-              t.DISCNUMBER = t.DISCNUMBER || t.discnumber;
-              
-              t.ALBUMARTIST = a.ALBUMARTIST;
-              t.album_id = a.id;
               if (t.track_library_path) {
                 newTrackMap.set(t.track_library_path, t);
               }
@@ -69,12 +56,6 @@ class LibraryState {
         this.albumCache.set(data.id, data);
         if (data.tracks) {
           data.tracks.forEach(t => {
-            if (t.info) Object.assign(t, t.info);
-            t.TITLE = t.TITLE || t.title;
-            t.ARTIST = t.ARTIST || t.artist;
-            
-            t.ALBUMARTIST = data.ALBUMARTIST;
-            t.album_id = data.id;
             if (t.track_library_path) {
               this.trackPathMap.set(t.track_library_path, t);
             }
@@ -86,9 +67,6 @@ class LibraryState {
       }
 
       else if (type === "VIEW_UPDATED") {
-        const tTransferEnd = performance.now();
-        const transferTime = (tTransferEnd - this._tRequest - parseFloat(timing)).toFixed(2);
-        
         this.albums = ids.map(id => this.albumCache.get(id)).filter(Boolean);
         this.isLoading = false;
 
@@ -96,8 +74,6 @@ class LibraryState {
             this.viewVersion++;
             this._pendingViewReset = false;
         }
-
-        console.log(`[Worker] Logic: ${timing} ms | Transfer: ${transferTime} ms | Items: ${ids.length}`);
       } 
       
       else if (type === "GROUP_RESULT") {
@@ -178,7 +154,6 @@ class LibraryState {
 
     const workers = Array.from({ length: concurrencyLimit }, () => processor());
     await Promise.all(workers);
-    console.log(`[Prewarmer] Pinned ${this.pinnedTextures.size} textures.`);
   }
 
   applyPersistedState(state) {
@@ -206,7 +181,6 @@ class LibraryState {
 
   refreshView(resetScroll = true) {
     if (!this.worker) return;
-    this._tRequest = performance.now(); 
     this._pendingViewReset = resetScroll;
     
     this.worker.postMessage({
@@ -245,10 +219,10 @@ class LibraryState {
 
   getAlbumCoverUrl(albumId) {
     const album = this.albumCache.get(albumId);
-    // Note: check flattened cover_path or nested info.cover_path
-    const cp = album.cover_path || album.info?.cover_path;
-    const ch = album.cover_hash || album.info?.cover_hash;
-    if (!album || !cp || cp === "default_cover.png") {
+    if (!album) return "";
+    const cp = album.cover_path;
+    const ch = album.cover_hash;
+    if (!cp || cp === "default_cover.png") {
       return "";
     }
     return `/api/assets/cover/${encodeURIComponent(album.id)}?v=${ch}`;

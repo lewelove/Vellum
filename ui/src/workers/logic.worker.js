@@ -23,24 +23,19 @@ self.onmessage = (e) => {
           data = sourceData.data;
         }
         
-        // Normalize nested and lowercase data for the UI
         data.forEach(a => {
-          // 1. Flatten the 'info' object to the top level
           if (a.info) {
             Object.assign(a, a.info);
           }
           
-          // 2. Map lowercase keys to the uppercase keys expected by logic/filters/sorters
-          a.ALBUM = a.ALBUM || a.album;
-          a.ALBUMARTIST = a.ALBUMARTIST || a.albumartist;
-          a.GENRE = a.GENRE || a.genre;
-          a.DATE = a.DATE || a.date;
-          a.COMMENT = a.COMMENT || a.comment;
-          a.CUSTOM_ALBUMARTIST = a.CUSTOM_ALBUMARTIST || a.custom_albumartist;
-
-          // 3. Set display helpers
           a.title = a.ALBUM;
           a.artist = a.ALBUMARTIST;
+          
+          if (a.tracks) {
+            a.tracks.forEach(t => {
+                if (t.info) Object.assign(t, t.info);
+            });
+          }
         });
 
         rawAlbums = data;
@@ -70,12 +65,16 @@ self.onmessage = (e) => {
       case "UPDATE": {
         const albumData = payload;
         
-        // Normalize update payload
         if (albumData.info) Object.assign(albumData, albumData.info);
-        albumData.ALBUM = albumData.ALBUM || albumData.album;
-        albumData.ALBUMARTIST = albumData.ALBUMARTIST || albumData.albumartist;
+        
         albumData.title = albumData.ALBUM;
         albumData.artist = albumData.ALBUMARTIST;
+
+        if (albumData.tracks) {
+            albumData.tracks.forEach(t => {
+                if (t.info) Object.assign(t, t.info);
+            });
+        }
 
         const index = rawAlbums.findIndex(a => a.id === payload.id);
         if (index !== -1) {

@@ -60,7 +60,7 @@ export const groupers = {
   totaltracks: (albums) => {
     const map = new Map();
     albums.forEach(a => {
-      const t = a.total_tracks || "0";
+      const t = String(a.total_tracks || "0");
       map.set(t, (map.get(t) || 0) + 1);
     });
     return map;
@@ -77,7 +77,7 @@ export const groupers = {
     ];
 
     albums.forEach(a => {
-      const val = parseFloat(a.cover_chroma || 0);
+      const val = parseFloat(a.tags?.cover_chroma || 0);
       const bucket = buckets.find(b => val < b.threshold);
       if (bucket) {
         map.set(bucket.label, (map.get(bucket.label) || 0) + 1);

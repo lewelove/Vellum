@@ -1,4 +1,4 @@
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Deserializer};
 use std::collections::HashMap;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -38,8 +38,8 @@ pub struct TrackLock {
     pub tracknumber: String,
     #[serde(rename = "DISCNUMBER")]
     pub discnumber: String,
-    #[serde(flatten)]
-    pub keys: HashMap<String, serde_json::Value>,
+    #[serde(default)]
+    pub tags: HashMap<String, serde_json::Value>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -81,8 +81,45 @@ pub struct AlbumLock {
     pub albumartist: String,
     #[serde(rename = "DATE")]
     pub date: String,
-    #[serde(flatten)]
-    pub keys: HashMap<String, serde_json::Value>,
+    #[serde(rename = "GENRE", default, deserialize_with = "deserialize_vec_or_string")]
+    pub genre: Vec<String>,
+    #[serde(rename = "COMMENT", default)]
+    pub comment: String,
+    #[serde(rename = "ORIGINAL_DATE", default)]
+    pub original_date: String,
+    #[serde(rename = "ORIGINAL_YEAR", default)]
+    pub original_year: String,
+    #[serde(rename = "ORIGINAL_YYYY_MM", default)]
+    pub original_yyyy_mm: String,
+    #[serde(rename = "RELEASE_DATE", default)]
+    pub release_date: String,
+    #[serde(rename = "RELEASE_YEAR", default)]
+    pub release_year: String,
+    #[serde(rename = "RELEASE_YYYY_MM", default)]
+    pub release_yyyy_mm: String,
+    #[serde(default)]
+    pub tags: HashMap<String, serde_json::Value>,
+}
+
+fn deserialize_vec_or_string<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum VecOrString {
+        Vec(Vec<String>),
+        String(String),
+    }
+
+    match VecOrString::deserialize(deserializer)? {
+        VecOrString::Vec(v) => Ok(v),
+        VecOrString::String(s) => Ok(s
+            .split(';')
+            .map(|part| part.trim().to_string())
+            .filter(|part| !part.is_empty())
+            .collect()),
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

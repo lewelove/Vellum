@@ -4,14 +4,7 @@ use std::collections::HashSet;
 
 pub fn resolve_album_key(key: &str, ctx: &AlbumContext) -> Option<Value> {
     match key {
-        "genre" => Some(json!(resolve_genre(ctx))),
-        "date" => Some(json!(resolve_date(ctx))),
-        "original_yyyy_mm" => Some(json!(resolve_original_yyyy_mm(ctx))),
-        "original_year" => Some(json!(resolve_original_yyyy_mm(ctx)[0..4])),
-        "release_yyyy_mm" => Some(json!(resolve_release_yyyy_mm(ctx))),
-        "release_year" => Some(json!(resolve_release_yyyy_mm(ctx)[0..4])),
         "custom_albumartist" => Some(json!(resolve_custom_albumartist(ctx))),
-        "comment" => Some(json!(resolve_comment(ctx))),
         "cover_chroma" => resolve_cover_chroma(ctx),
         "cover_entropy" => resolve_cover_entropy(ctx),
         _ => None,
@@ -28,26 +21,37 @@ fn get_str(source: &Value, key: &str) -> String {
     source.get(key).and_then(|v| v.as_str()).unwrap_or("").to_string()
 }
 
-fn resolve_genre(ctx: &AlbumContext) -> Vec<String> {
-    let raw = ctx.source.get("genre").cloned().unwrap_or(json!("Unknown"));
+pub fn resolve_genre(ctx: &AlbumContext) -> Vec<String> {
+    let raw = ctx.source.get("genre").cloned().unwrap_or(json!(null));
     let mut parts = Vec::new();
     match raw {
         Value::Array(arr) => {
-            for v in arr { if let Some(s) = v.as_str() { parts.push(s.trim().to_string()); } }
+            for v in arr {
+                if let Some(s) = v.as_str() {
+                    parts.push(s.trim().to_string());
+                }
+            }
         }
         Value::String(s) => {
             for p in s.split(';') {
                 let t = p.trim();
-                if !t.is_empty() { parts.push(t.to_string()); }
+                if !t.is_empty() {
+                    parts.push(t.to_string());
+                }
             }
         }
         _ => {}
     }
+
+    if parts.is_empty() {
+        parts.push("Unknown".to_string());
+    }
+
     let mut seen = HashSet::new();
     parts.into_iter().filter(|p| seen.insert(p.clone())).collect()
 }
 
-fn resolve_date(ctx: &AlbumContext) -> String {
+pub fn resolve_date(ctx: &AlbumContext) -> String {
     ctx.source.get("date")
         .or_else(|| ctx.source.get("year"))
         .or_else(|| ctx.source.get("originalyear"))
@@ -56,7 +60,7 @@ fn resolve_date(ctx: &AlbumContext) -> String {
         .to_string()
 }
 
-fn resolve_original_yyyy_mm(ctx: &AlbumContext) -> String {
+pub fn resolve_original_yyyy_mm(ctx: &AlbumContext) -> String {
     if let Some(v) = ctx.source.get("original_yyyy_mm").or_else(|| ctx.source.get("originalyearmonth")).and_then(|v| v.as_str()) {
         return v.to_string();
     }
@@ -64,7 +68,7 @@ fn resolve_original_yyyy_mm(ctx: &AlbumContext) -> String {
     if d.len() >= 4 { format!("{}-00", &d[0..4]) } else { "0000-00".to_string() }
 }
 
-fn resolve_release_yyyy_mm(ctx: &AlbumContext) -> String {
+pub fn resolve_release_yyyy_mm(ctx: &AlbumContext) -> String {
     if let Some(v) = ctx.source.get("release_yyyy_mm").and_then(|v| v.as_str()) { return v.to_string(); }
     let d = resolve_date(ctx);
     if d.len() >= 4 { format!("{}-00", &d[0..4]) } else { "0000-00".to_string() }
@@ -76,7 +80,7 @@ fn resolve_custom_albumartist(ctx: &AlbumContext) -> String {
     "Unknown".to_string()
 }
 
-fn resolve_comment(ctx: &AlbumContext) -> String {
+pub fn resolve_comment(ctx: &AlbumContext) -> String {
     if let Some(v) = ctx.source.get("comment").and_then(|s| s.as_str()) {
         if !v.is_empty() { return v.to_string(); }
     }

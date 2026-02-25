@@ -33,8 +33,15 @@ pub fn resolve_album_key(key: &str, ctx: &AlbumContext) -> Option<Value> {
     match key {
         "album" => Some(json!(get_raw(ctx.source, "album", "Unknown Album"))),
         "albumartist" => Some(json!(get_raw(ctx.source, "albumartist", "Unknown Artist"))),
-        "original_date" => Some(json!(format_human_date(&native_extensions::resolve_album_key("original_yyyy_mm", ctx)?.as_str()?))),
-        "release_date" => Some(json!(format_human_date(&native_extensions::resolve_album_key("release_yyyy_mm", ctx)?.as_str()?))),
+        "date" => Some(json!(native_extensions::resolve_date(ctx))),
+        "genre" => Some(json!(native_extensions::resolve_genre(ctx))),
+        "comment" => Some(json!(native_extensions::resolve_comment(ctx))),
+        "original_yyyy_mm" => Some(json!(native_extensions::resolve_original_yyyy_mm(ctx))),
+        "original_year" => Some(json!(native_extensions::resolve_original_yyyy_mm(ctx)[0..4])),
+        "original_date" => Some(json!(format_human_date(&native_extensions::resolve_original_yyyy_mm(ctx)))),
+        "release_yyyy_mm" => Some(json!(native_extensions::resolve_release_yyyy_mm(ctx))),
+        "release_year" => Some(json!(native_extensions::resolve_release_yyyy_mm(ctx)[0..4])),
+        "release_date" => Some(json!(format_human_date(&native_extensions::resolve_release_yyyy_mm(ctx)))),
         _ => native_extensions::resolve_album_key(key, ctx),
     }
 }
@@ -90,7 +97,7 @@ pub fn format_ms(ms: u64) -> String {
 pub fn calculate_total_discs(tracks: &[Value]) -> u32 {
     let mut discs = HashSet::new();
     for t in tracks {
-        if let Some(d) = t.get("discnumber").and_then(|v| v.as_str()) {
+        if let Some(d) = t.get("DISCNUMBER").and_then(|v| v.as_str()) {
             if let Ok(n) = d.parse::<u64>() { discs.insert(n); }
         }
     }

@@ -6,46 +6,58 @@ pub fn calculate_file_tag_subset_match(enriched: &Value, harvest: &[Value], regi
     let Some(tracks_arr) = enriched.get("tracks").and_then(|v| v.as_array()) else { return false; };
     if tracks_arr.len() != harvest.len() { return false; }
 
-    let mut album_sync_keys = vec![
-        "ALBUM".to_string(),
-        "ALBUMARTIST".to_string(),
-        "DATE".to_string()
+    let album_core_keys = [
+        "ALBUM",
+        "ALBUMARTIST",
+        "DATE",
+        "GENRE",
+        "COMMENT",
+        "ORIGINAL_DATE",
+        "RELEASE_DATE"
     ];
 
-    let mut track_sync_keys = vec![
-        "TITLE".to_string(),
-        "ARTIST".to_string(),
-        "TRACKNUMBER".to_string(),
-        "DISCNUMBER".to_string()
+    let track_core_keys = [
+        "TITLE",
+        "ARTIST",
+        "TRACKNUMBER",
+        "DISCNUMBER"
     ];
-
-    album_sync_keys.extend(
-        registry.iter()
-            .filter(|(_, m)| m.get("level").and_then(|l| l.as_str()) == Some("album") && m.get("sync").and_then(|s| s.as_bool()).unwrap_or(true))
-            .map(|(k, _)| k.to_uppercase())
-    );
-
-    track_sync_keys.extend(
-        registry.iter()
-            .filter(|(_, m)| m.get("level").and_then(|l| l.as_str()) == Some("tracks") && m.get("sync").and_then(|s| s.as_bool()).unwrap_or(true))
-            .map(|(k, _)| k.to_uppercase())
-    );
 
     for (idx, compiled_track) in tracks_arr.iter().enumerate() {
         let Some(t_obj) = compiled_track.as_object() else { return false; };
         let Some(p_tags) = harvest[idx].get("tags").and_then(|v| v.as_object()) else { return false; };
 
-        for k in &album_sync_keys {
-            if let Some(v) = album_obj.get(k) {
+        for k in &album_core_keys {
+            if let Some(v) = album_obj.get(*k) {
                 let p_val = p_tags.get(&k.to_uppercase()).and_then(|v| v.as_str()).unwrap_or("");
                 if !compare_values(k, v, p_val) { return false; }
             }
         }
 
-        for k in &track_sync_keys {
-            if let Some(v) = t_obj.get(k) {
+        for k in &track_core_keys {
+            if let Some(v) = t_obj.get(*k) {
                 let p_val = p_tags.get(&k.to_uppercase()).and_then(|v| v.as_str()).unwrap_or("");
                 if !compare_values(k, v, p_val) { return false; }
+            }
+        }
+
+        if let Some(a_tags) = album_obj.get("tags").and_then(|v| v.as_object()) {
+            for (key, meta) in registry {
+                if meta.get("level").and_then(|v| v.as_str()) != Some("album") || meta.get("sync").and_then(|s| s.as_bool()) == Some(false) { continue; }
+                if let Some(v) = a_tags.get(&key.to_uppercase()) {
+                    let p_val = p_tags.get(&key.to_uppercase()).and_then(|v| v.as_str()).unwrap_or("");
+                    if !compare_values(key, v, p_val) { return false; }
+                }
+            }
+        }
+
+        if let Some(t_tags) = t_obj.get("tags").and_then(|v| v.as_object()) {
+            for (key, meta) in registry {
+                if meta.get("level").and_then(|v| v.as_str()) != Some("tracks") || meta.get("sync").and_then(|s| s.as_bool()) == Some(false) { continue; }
+                if let Some(v) = t_tags.get(&key.to_uppercase()) {
+                    let p_val = p_tags.get(&key.to_uppercase()).and_then(|v| v.as_str()).unwrap_or("");
+                    if !compare_values(key, v, p_val) { return false; }
+                }
             }
         }
     }
@@ -59,6 +71,7 @@ fn compare_values(key: &str, compiled: &Value, physical: &str) -> bool {
             .map(|v| v.as_str().unwrap_or("").trim())
             .filter(|s| !s.is_empty())
             .collect::<Vec<_>>().join("; "),
+        Value::Null => return physical.is_empty(),
         _ => compiled.to_string().replace('"', ""),
     };
     let (s_c, s_p) = (s_comp.trim(), physical.trim());
