@@ -22,12 +22,12 @@ impl Library {
         }
     }
 
-    fn normalize_path(&self, path: &str) -> String {
+    fn normalize_path(path: &str) -> String {
         path.trim_start_matches('/').to_string()
     }
 
-    pub async fn scan(&mut self) {
-        log::info!("Scanning Library at {:?}", self.root);
+    pub fn scan(&mut self) {
+        log::info!("Scanning Library at {}", self.root.display());
         
         let mut albums = Vec::new();
         let mut album_map = HashMap::new();
@@ -36,7 +36,7 @@ impl Library {
 
         let entries: Vec<PathBuf> = WalkDir::new(&self.root)
             .into_iter()
-            .filter_map(|e| e.ok())
+            .filter_map(Result::ok)
             .filter(|e| e.file_name() == "metadata.lock.json")
             .map(|e| e.path().to_path_buf())
             .collect();
@@ -64,17 +64,17 @@ impl Library {
                                 track_map.insert(t_id, abs_path);
                                 
                                 let full_rel_path = Path::new(&alb_id).join(&track.info.track_path);
-                                let normalized = self.normalize_path(full_rel_path.to_str().unwrap_or(""));
+                                let normalized = Self::normalize_path(full_rel_path.to_str().unwrap_or(""));
                                 path_lookup.insert(normalized, alb_id.clone());
                             }
                         }
                         Err(e) => {
-                            log::error!("Schema Mismatch at {:?}: {}", lock_path, e);
+                            log::error!("Schema Mismatch at {lock_path:?}: {e}");
                         }
                     }
                 }
                 Err(e) => {
-                    log::error!("Failed to read lock file at {:?}: {}", lock_path, e);
+                    log::error!("Failed to read lock file at {lock_path:?}: {e}");
                 }
             }
         }
@@ -116,13 +116,13 @@ impl Library {
                         self.track_map.insert(t_id, abs_path);
 
                         let full_rel_path = Path::new(&alb_id).join(&track.info.track_path);
-                        let normalized = self.normalize_path(full_rel_path.to_str().unwrap_or(""));
+                        let normalized = Self::normalize_path(full_rel_path.to_str().unwrap_or(""));
                         self.path_lookup.insert(normalized, alb_id.clone());
                     }
                     return Some(view);
                 }
                 Err(e) => {
-                    log::error!("Schema Mismatch during update at {:?}: {}", lock_path, e);
+                    log::error!("Schema Mismatch during update at {lock_path:?}: {e}");
                 }
             }
         }

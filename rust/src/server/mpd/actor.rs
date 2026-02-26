@@ -38,7 +38,7 @@ pub fn start_actor(
 
     let mpd_host = std::env::var("MPD_HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
     let mpd_port = std::env::var("MPD_PORT").unwrap_or_else(|_| "6600".to_string());
-    let addr = format!("{}:{}", mpd_host, mpd_port);
+    let addr = format!("{mpd_host}:{mpd_port}");
 
     std::thread::spawn(move || {
         loop {
@@ -49,9 +49,9 @@ pub fn start_actor(
                     }
 
                     if let Ok(mut client) = Client::new(stream) {
-                        log::info!("MPD Connected: {}", addr);
+                        log::info!("MPD Connected: {addr}");
                         loop {
-                            if let Err(_) = broadcast_status(&mut client, &broadcast_tx, &library) { break; }
+                            if broadcast_status(&mut client, &broadcast_tx, &library).is_err() { break; }
                             let _ = client.wait(&[Subsystem::Player, Subsystem::Playlist, Subsystem::Options]);
                             while let Ok(cmd) = rx.try_recv() {
                                 match &cmd {
@@ -66,13 +66,13 @@ pub fn start_actor(
                                 }
                                 
                                 if let Err(e) = handle_command(&mut client, cmd) {
-                                    log::error!("MPD Execution Error: {}", e);
+                                    log::error!("MPD Execution Error: {e}");
                                 }
                             }
                         }
                     }
                 }
-                Err(e) => { log::error!("MPD Connection Failed: {}", e); }
+                Err(e) => { log::error!("MPD Connection Failed: {e}"); }
             }
             *interrupt_stream.lock() = None;
             std::thread::sleep(std::time::Duration::from_secs(2));

@@ -32,7 +32,7 @@ pub struct PhysicsData {
     pub format: String,
 }
 
-pub fn run(roots: Vec<PathBuf>, pretty: bool) -> Result<()> {
+pub fn run(roots: Vec<PathBuf>, pretty: bool) {
     let extensions = [
         "flac",
         "mp3",
@@ -48,7 +48,7 @@ pub fn run(roots: Vec<PathBuf>, pretty: bool) -> Result<()> {
     }
 
     if files.is_empty() {
-        return Ok(());
+        return;
     }
 
     let (tx, rx) = mpsc::channel::<String>();
@@ -57,7 +57,7 @@ pub fn run(roots: Vec<PathBuf>, pretty: bool) -> Result<()> {
         let stdout = io::stdout();
         let mut handle = io::BufWriter::new(stdout.lock());
         for line in rx {
-            writeln!(handle, "{}", line).ok();
+            writeln!(handle, "{line}").ok();
         }
     });
 
@@ -76,8 +76,6 @@ pub fn run(roots: Vec<PathBuf>, pretty: bool) -> Result<()> {
     });
 
     printer_handle.join().unwrap();
-
-    Ok(())
 }
 
 fn scan_files(root: &Path, extensions: &[&str]) -> Vec<PathBuf> {
@@ -88,14 +86,13 @@ fn scan_files(root: &Path, extensions: &[&str]) -> Vec<PathBuf> {
     WalkDir::new(root)
         .follow_links(true)
         .into_iter()
-        .filter_map(|e| e.ok())
+        .filter_map(Result::ok)
         .filter(|e| e.file_type().is_file())
         .map(|e| e.path().to_path_buf())
         .filter(|p| {
             p.extension()
                 .and_then(|ext| ext.to_str())
-                .map(|ext| extensions.contains(&ext.to_lowercase().as_str()))
-                .unwrap_or(false)
+                .is_some_and(|ext| extensions.contains(&ext.to_lowercase().as_str()))
         })
         .collect()
 }
@@ -119,7 +116,7 @@ pub fn harvest_file(path: &Path) -> Result<TrackJson> {
     let physics = PhysicsData {
         file_size,
         mtime,
-        duration_ms: properties.duration().as_millis() as u64,
+        duration_ms: u64::try_from(properties.duration().as_millis()).unwrap_or(u64::MAX),
         sample_rate: properties.sample_rate().unwrap_or(0),
         bit_depth: properties.bit_depth(),
         channels: properties.channels().unwrap_or(0),
@@ -136,15 +133,13 @@ pub fn harvest_file(path: &Path) -> Result<TrackJson> {
         for item in tag.items() {
             let key = item.key()
                 .map_key(tag_type)
-                .map(str::to_string)
+                .map(ToString::to_string)
                 .unwrap_or_else(|| {
                     let k = format!("{:?}", item.key());
-                    if let Some(start) = k.find('"') {
-                        if let Some(end) = k.rfind('"') {
-                            if start < end {
+                    if let Some(start) = k.find('"') 
+                        && let Some(end) = k.rfind('"') 
+                        && start < end {
                                 return k[start + 1..end].to_string();
-                            }
-                        }
                     }
                     k
                 })
