@@ -23,17 +23,8 @@ pub struct StreamContext {
 }
 
 pub async fn run(child: Option<Child>, ctx: StreamContext) -> Result<()> {
-    let (kernel_tx, mut kernel_rx) = mpsc::channel::<String>(32);
+    let (kernel_tx, kernel_rx) = mpsc::channel::<String>(32);
     let (direct_tx, mut direct_rx) = mpsc::channel::<Value>(512);
-
-    let albums_clone = ctx.albums.clone();
-    let config_clone = Arc::clone(&ctx.config);
-    let project_root_clone = Arc::clone(&ctx.project_root);
-    let gen_cfg_clone = Arc::clone(&ctx.gen_cfg);
-    let active_flags_clone = Arc::clone(&ctx.active_flags);
-    let notify_tx_arc = ctx.notify_tx.map(Arc::new);
-    let jobs = ctx.jobs;
-    let no_ext = ctx.no_extensions;
 
     let registry = ctx
         .config
@@ -42,51 +33,18 @@ pub async fn run(child: Option<Child>, ctx: StreamContext) -> Result<()> {
         .map(|v| v.clone().into_iter().collect::<HashMap<String, Value>>())
         .unwrap_or_default();
     let registry_arc = Arc::new(registry);
+    let notify_tx_arc = ctx.notify_tx.clone().map(Arc::new);
 
-    let blocking_handle = tokio::task::spawn_blocking(move || {
-        let default_parallelism = std::thread::available_parallelism()
-            .map(std::num::NonZero::get)
-            .unwrap_or(1);
+    let blocking_handle = spawn_manifest_builders(&ctx, kernel_tx, direct_tx);
 
-        let pool = rayon::ThreadPoolBuilder::new()
-            .num_threads(jobs.unwrap_or(default_parallelism))
-            .build()
-            .unwrap();
-
-        pool.install(|| {
-            albums_clone.par_iter().for_each(|album_root| {
-                match manifest::build(
-                    album_root,
-                    &project_root_clone,
-                    &config_clone,
-                    &gen_cfg_clone,
-                    &active_flags_clone,
-                    no_ext,
-                ) {
-                    Ok((man, needs_external)) => {
-                        if !needs_external || no_ext {
-                            let _ = direct_tx.blocking_send(man);
-                        } else if let Ok(line) = serde_json::to_string(&man) {
-                            let _ = kernel_tx.blocking_send(line);
-                        }
-                    }
-                    Err(e) => {
-                        log::error!("Manifest Build Failed for {}: {e}", album_root.display());
-                    }
-                }
-            });
-        });
-    });
-
-    let notify_tx_for_direct = notify_tx_arc.clone();
+    let notify_for_direct = notify_tx_arc.clone();
     let registry_for_direct = Arc::clone(&registry_arc);
     let target = ctx.target;
 
     let direct_consumer_handle = tokio::spawn(async move {
         while let Some(enriched) = direct_rx.recv().await {
-            let notify = notify_tx_for_direct.as_ref().map(Arc::clone);
+            let notify = notify_for_direct.as_ref().map(Arc::clone);
             let reg = registry_for_direct.clone();
-
             tokio::task::spawn_blocking(move || {
                 let _ = finalize_and_write(enriched, target, notify, &reg);
             });
@@ -94,52 +52,91 @@ pub async fn run(child: Option<Child>, ctx: StreamContext) -> Result<()> {
     });
 
     if let Some(mut child_proc) = child {
-        let mut stdin = child_proc
-            .stdin
-            .take()
-            .context("Failed to open Kernel stdin")?;
-        let stdout = child_proc
-            .stdout
-            .take()
-            .context("Failed to open Kernel stdout")?;
-
-        let notify_tx_for_receiver = notify_tx_arc.clone();
-        let registry_for_receiver = Arc::clone(&registry_arc);
-
-        let sender_handle = tokio::spawn(async move {
-            while let Some(line) = kernel_rx.recv().await {
-                let _ = stdin.write_all(line.as_bytes()).await;
-                let _ = stdin.write_u8(b'\n').await;
-            }
-            drop(stdin);
-        });
-
-        let receiver_handle = tokio::spawn(async move {
-            let reader = BufReader::new(stdout);
-            let mut lines = reader.lines();
-            while let Ok(Some(line)) = lines.next_line().await {
-                if line.trim().is_empty() {
-                    continue;
-                }
-                if let Ok(enriched) = serde_json::from_str(&line) {
-                    let notify = notify_tx_for_receiver.as_ref().map(Arc::clone);
-                    let reg = registry_for_receiver.clone();
-
-                    tokio::task::spawn_blocking(move || {
-                        let _ = finalize_and_write(enriched, target, notify, &reg);
-                    });
-                }
-            }
-        });
-
-        let _ = sender_handle.await;
-        let _ = receiver_handle.await;
-        let _ = child_proc.wait().await;
+        run_kernel_bridge(&mut child_proc, kernel_rx, notify_tx_arc, registry_arc, target).await?;
     }
 
     let _ = blocking_handle.await;
     let _ = direct_consumer_handle.await;
+    Ok(())
+}
 
+fn spawn_manifest_builders(
+    ctx: &StreamContext,
+    kernel_tx: mpsc::Sender<String>,
+    direct_tx: mpsc::Sender<Value>,
+) -> tokio::task::JoinHandle<()> {
+    let albums = ctx.albums.clone();
+    let config = Arc::clone(&ctx.config);
+    let project_root = Arc::clone(&ctx.project_root);
+    let gen_cfg = Arc::clone(&ctx.gen_cfg);
+    let active_flags = Arc::clone(&ctx.active_flags);
+    let jobs = ctx.jobs;
+    let no_ext = ctx.no_extensions;
+
+    tokio::task::spawn_blocking(move || {
+        let threads = jobs.unwrap_or_else(|| {
+            std::thread::available_parallelism()
+                .map(std::num::NonZero::get)
+                .unwrap_or(1)
+        });
+        let pool = rayon::ThreadPoolBuilder::new()
+            .num_threads(threads)
+            .build()
+            .unwrap();
+        pool.install(|| {
+            albums.par_iter().for_each(|album_root| {
+                if let Ok((man, needs_ext)) = manifest::build(
+                    album_root,
+                    &project_root,
+                    &config,
+                    &gen_cfg,
+                    &active_flags,
+                    no_ext,
+                ) {
+                    if !needs_ext || no_ext {
+                        let _ = direct_tx.blocking_send(man);
+                    } else if let Ok(line) = serde_json::to_string(&man) {
+                        let _ = kernel_tx.blocking_send(line);
+                    }
+                }
+            });
+        });
+    })
+}
+
+async fn run_kernel_bridge(
+    child: &mut Child,
+    mut kernel_rx: mpsc::Receiver<String>,
+    notify_tx: Option<Arc<mpsc::Sender<PathBuf>>>,
+    registry: Arc<HashMap<String, Value>>,
+    target: ExportTarget,
+) -> Result<()> {
+    let mut stdin = child.stdin.take().context("No kernel stdin")?;
+    let stdout = child.stdout.take().context("No kernel stdout")?;
+
+    let sender_handle = tokio::spawn(async move {
+        while let Some(line) = kernel_rx.recv().await {
+            let _ = stdin.write_all(line.as_bytes()).await;
+            let _ = stdin.write_u8(b'\n').await;
+        }
+    });
+
+    let receiver_handle = tokio::spawn(async move {
+        let mut lines = BufReader::new(stdout).lines();
+        while let Ok(Some(line)) = lines.next_line().await {
+            if let Ok(enriched) = serde_json::from_str(&line) {
+                let notify = notify_tx.as_ref().map(Arc::clone);
+                let reg = registry.clone();
+                tokio::task::spawn_blocking(move || {
+                    let _ = finalize_and_write(enriched, target, notify, &reg);
+                });
+            }
+        }
+    });
+
+    let _ = sender_handle.await;
+    let _ = receiver_handle.await;
+    let _ = child.wait().await;
     Ok(())
 }
 

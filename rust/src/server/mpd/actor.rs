@@ -62,10 +62,10 @@ pub fn start_actor(
                             while let Ok(cmd) = rx.try_recv() {
                                 match &cmd {
                                     MpdCommand::Play { tracks, .. } => {
-                                        log::info!("Playing album ({} tracks)", tracks.len())
+                                        log::info!("Playing album ({} tracks)", tracks.len());
                                     }
                                     MpdCommand::Queue { tracks } => {
-                                        log::info!("Enqueuing {} tracks", tracks.len())
+                                        log::info!("Enqueuing {} tracks", tracks.len());
                                     }
                                     MpdCommand::Next => log::info!("Skip next"),
                                     MpdCommand::Prev => log::info!("Skip previous"),
