@@ -114,8 +114,8 @@ pub async fn run(
         jobs,
         notify_tx: Some(notify_tx.clone()),
         compile_flags: compile::CompileFlags {
-            stdout_output: false,
-            intermediary: false,
+            mode: compile::CompileMode::Standard,
+            target: compile::ExportTarget::File,
             pretty: false,
             no_extensions,
         }

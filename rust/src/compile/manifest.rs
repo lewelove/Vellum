@@ -30,7 +30,7 @@ pub fn build(
     let metadata_json = normalize_json_keys(serde_json::to_value(metadata_toml)?);
 
     let (cover_path, cover_hash, cover_mtime, cover_byte_size) = resolve_cover_info(album_root);
-    let loaded_image = load_or_create_thumbnail(config, album_root, &cover_path, &cover_hash);
+    let loaded_image = load_or_create_thumbnail(config, album_root, cover_path.as_deref(), &cover_hash);
 
     let exts = get_supported_extensions(gen_cfg);
     let audio_files = scan::scan_audio_files(album_root, &exts);
@@ -50,7 +50,7 @@ pub fn build(
     let empty_album_source = json!({});
     let album_source_data = metadata_json.get("album").unwrap_or(&empty_album_source);
 
-    let (final_tracks, harvested_cache, requires_external) = process_tracks(
+    let (final_tracks, harvested_cache, mut requires_external) = process_tracks(
         album_root,
         library_root,
         &audio_files,
@@ -62,30 +62,24 @@ pub fn build(
     let album_ctx = AlbumContext {
         source: album_source_data,
         tracks: &final_tracks,
-        _album_root: album_root,
-        _library_root: library_root,
-        _meta_hash: &metadata_hash,
-        _meta_mtime: metadata_mtime,
-        _cover_hash: &cover_hash,
-        _cover_path: cover_path.as_deref(),
-        _cover_mtime: cover_mtime,
-        _cover_byte_size: cover_byte_size,
+        album_root,
+        library_root,
+        meta_hash: &metadata_hash,
+        meta_mtime: metadata_mtime,
+        cover_hash: &cover_hash,
+        cover_path: cover_path.as_deref(),
+        cover_mtime,
+        cover_byte_size,
         cover_image: loaded_image.as_ref(),
     };
 
-    let album_obj = build_album_object(
+    let (album_obj, album_requires_external) = build_album_object(
         &album_ctx,
-        album_root,
-        library_root,
-        &metadata_hash,
-        metadata_mtime,
-        &cover_path,
-        &cover_hash,
-        cover_mtime,
-        cover_byte_size,
         registry,
         requires_external,
     );
+    
+    requires_external = album_requires_external;
 
     let final_json = json!({
         "album": album_obj,
@@ -121,10 +115,10 @@ fn get_supported_extensions(gen_cfg: &Value) -> Vec<&str> {
         .map_or_else(|| vec![".flac"], |arr| arr.iter().filter_map(Value::as_str).collect())
 }
 
-fn load_or_create_thumbnail(config: &Value, album_root: &Path, cover_path: &Option<String>, cover_hash: &str) -> Option<DynamicImage> {
+fn load_or_create_thumbnail(config: &Value, album_root: &Path, cover_path: Option<&str>, cover_hash: &str) -> Option<DynamicImage> {
     let storage = config.get("storage")?;
     let dir_str = storage.get("thumbnail_cache_folder").and_then(Value::as_str)?;
-    let cp = cover_path.as_ref()?;
+    let cp = cover_path?;
     if cover_hash.is_empty() { return None; }
 
     let thumb_dir = expand_path(dir_str);
@@ -248,32 +242,24 @@ fn process_tracks(
 
 fn build_album_object(
     ctx: &AlbumContext,
-    album_root: &Path,
-    library_root: &Path,
-    metadata_hash: &str,
-    metadata_mtime: u64,
-    cover_path: &Option<String>,
-    cover_hash: &str,
-    cover_mtime: u64,
-    cover_byte_size: u64,
     registry: &serde_json::Map<String, Value>,
     ext_flag: bool,
-) -> Value {
+) -> (Value, bool) {
     let mut album_obj = serde_json::Map::new();
     let mut album_info = serde_json::Map::new();
-    album_info.insert("album_path".to_string(), json!(resolve::rel_path(album_root, library_root)));
+    album_info.insert("album_path".to_string(), json!(resolve::rel_path(ctx.album_root, ctx.library_root)));
     album_info.insert("unix_added".to_string(), json!(resolve::resolve_album_info_unix_added(ctx)));
     album_info.insert("album_duration".to_string(), json!(resolve::resolve_album_info_duration_ms(ctx)));
     album_info.insert("album_duration_time".to_string(), json!(resolve::format_ms(resolve::resolve_album_info_duration_ms(ctx))));
     album_info.insert("total_discs".to_string(), json!(resolve::calculate_total_discs(ctx.tracks)));
     album_info.insert("total_tracks".to_string(), json!(ctx.tracks.len()));
-    album_info.insert("metadata_toml_hash".to_string(), json!(metadata_hash));
-    album_info.insert("metadata_toml_mtime".to_string(), json!(metadata_mtime));
+    album_info.insert("metadata_toml_hash".to_string(), json!(ctx.meta_hash));
+    album_info.insert("metadata_toml_mtime".to_string(), json!(ctx.meta_mtime));
     album_info.insert("file_tag_subset_match".to_string(), json!(false));
-    album_info.insert("cover_path".to_string(), json!(cover_path.clone().unwrap_or_else(|| "default_cover.png".to_string())));
-    album_info.insert("cover_hash".to_string(), json!(cover_hash));
-    album_info.insert("cover_mtime".to_string(), json!(cover_mtime));
-    album_info.insert("cover_byte_size".to_string(), json!(cover_byte_size));
+    album_info.insert("cover_path".to_string(), json!(ctx.cover_path.unwrap_or("default_cover.png")));
+    album_info.insert("cover_hash".to_string(), json!(ctx.cover_hash));
+    album_info.insert("cover_mtime".to_string(), json!(ctx.cover_mtime));
+    album_info.insert("cover_byte_size".to_string(), json!(ctx.cover_byte_size));
 
     album_obj.insert("info".to_string(), Value::Object(album_info));
     album_obj.insert("ALBUM".to_string(), ctx.source.get("album").cloned().unwrap_or_else(|| resolve::resolve_album_key("album", ctx).unwrap_or(Value::Null)));
@@ -299,7 +285,7 @@ fn build_album_object(
         album_tags.insert(key.to_uppercase(), val);
     }
     album_obj.insert("tags".to_string(), Value::Object(album_tags));
-    Value::Object(album_obj)
+    (Value::Object(album_obj), ext_needed)
 }
 
 fn normalize_json_keys(v: Value) -> Value {

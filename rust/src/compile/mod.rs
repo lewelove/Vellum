@@ -2,7 +2,7 @@ use anyhow::{
     Context,
     Result,
 };
-use serde_json::json;
+use serde_json::{json, Value};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::mpsc;
@@ -20,9 +20,21 @@ pub mod scan;
 pub mod stream;
 pub mod verify;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CompileMode {
+    Standard,
+    Intermediary,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExportTarget {
+    File,
+    Stdout,
+}
+
 pub struct CompileFlags {
-    pub stdout_output: bool,
-    pub intermediary: bool,
+    pub mode: CompileMode,
+    pub target: ExportTarget,
     pub pretty: bool,
     pub no_extensions: bool,
 }
@@ -70,7 +82,7 @@ pub async fn run(
     let gen_cfg = config_json.get("generate").cloned().unwrap_or_else(|| json!({}));
     let active_flags = Arc::new(options.flags);
 
-    if options.compile_flags.intermediary {
+    if options.compile_flags.mode == CompileMode::Intermediary {
         for album_root in albums {
             let (man, _) = manifest::build(
                 &album_root,
@@ -89,9 +101,9 @@ pub async fn run(
         return Ok(());
     }
 
-    let registry = config_json.get("compiler_registry").and_then(serde_json::Value::as_object);
+    let registry = config_json.get("compiler_registry").and_then(Value::as_object);
     let has_extensions = registry.is_some_and(|r| {
-        r.values().any(|v| v.get("provider").and_then(serde_json::Value::as_str) == Some("extension"))
+        r.values().any(|v| v.get("provider").and_then(Value::as_str) == Some("extension"))
     });
 
     let effective_no_extensions = options.compile_flags.no_extensions || !has_extensions;
@@ -102,7 +114,7 @@ pub async fn run(
         project_root: Arc::new(project_root.clone()),
         gen_cfg: Arc::new(gen_cfg),
         active_flags,
-        stdout_output: options.compile_flags.stdout_output,
+        target: options.compile_flags.target,
         jobs: options.jobs,
         no_extensions: effective_no_extensions,
         notify_tx: options.notify_tx,

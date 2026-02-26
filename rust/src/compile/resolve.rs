@@ -8,14 +8,14 @@ use image::DynamicImage;
 pub struct AlbumContext<'a> {
     pub source: &'a Value,
     pub tracks: &'a [Value],
-    pub _album_root: &'a Path,
-    pub _library_root: &'a Path,
-    pub _meta_hash: &'a str,
-    pub _meta_mtime: u64,
-    pub _cover_hash: &'a str,
-    pub _cover_path: Option<&'a str>,
-    pub _cover_mtime: u64,
-    pub _cover_byte_size: u64,
+    pub album_root: &'a Path,
+    pub library_root: &'a Path,
+    pub meta_hash: &'a str,
+    pub meta_mtime: u64,
+    pub cover_hash: &'a str,
+    pub cover_path: Option<&'a str>,
+    pub cover_mtime: u64,
+    pub cover_byte_size: u64,
     pub cover_image: Option<&'a DynamicImage>,
 }
 

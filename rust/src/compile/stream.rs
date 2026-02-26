@@ -8,7 +8,7 @@ use tokio::process::Child;
 use tokio::sync::mpsc;
 use std::collections::HashMap;
 
-use crate::compile::{manifest, verify};
+use crate::compile::{manifest, verify, ExportTarget};
 
 pub struct StreamContext {
     pub albums: Vec<PathBuf>,
@@ -16,7 +16,7 @@ pub struct StreamContext {
     pub project_root: Arc<PathBuf>,
     pub gen_cfg: Arc<Value>,
     pub active_flags: Arc<Vec<String>>,
-    pub stdout_output: bool,
+    pub target: ExportTarget,
     pub jobs: Option<usize>,
     pub no_extensions: bool,
     pub notify_tx: Option<mpsc::Sender<PathBuf>>,
@@ -74,7 +74,7 @@ pub async fn run(
 
     let notify_tx_for_direct = notify_tx_arc.clone();
     let registry_for_direct = Arc::clone(&registry_arc);
-    let stdout_output = ctx.stdout_output;
+    let target = ctx.target;
 
     let direct_consumer_handle = tokio::spawn(async move {
         while let Some(enriched) = direct_rx.recv().await {
@@ -82,7 +82,7 @@ pub async fn run(
             let reg = registry_for_direct.clone();
             
             tokio::task::spawn_blocking(move || {
-                let _ = finalize_and_write(enriched, stdout_output, notify, &reg);
+                let _ = finalize_and_write(enriched, target, notify, &reg);
             });
         }
     });
@@ -112,7 +112,7 @@ pub async fn run(
                     let reg = registry_for_receiver.clone();
                     
                     tokio::task::spawn_blocking(move || {
-                        let _ = finalize_and_write(enriched, stdout_output, notify, &reg);
+                        let _ = finalize_and_write(enriched, target, notify, &reg);
                     });
                 }
             }
@@ -152,7 +152,7 @@ fn strip_empty_values(value: &mut Value) {
     }
 }
 
-fn finalize_and_write(mut enriched: Value, stdout_output: bool, notify_tx: Option<Arc<mpsc::Sender<PathBuf>>>, registry: &HashMap<String, Value>) -> Result<()> {
+fn finalize_and_write(mut enriched: Value, target: ExportTarget, notify_tx: Option<Arc<mpsc::Sender<PathBuf>>>, registry: &HashMap<String, Value>) -> Result<()> {
     let ctx = enriched.as_object_mut().map_or_else(|| json!({}), |obj| obj.remove("ctx").unwrap_or_else(|| json!({})));
 
     let harvest = ctx.get("harvest").cloned().unwrap_or_else(|| json!([]));
@@ -171,7 +171,7 @@ fn finalize_and_write(mut enriched: Value, stdout_output: bool, notify_tx: Optio
         let album_root = Path::new(path);
         let dest = album_root.join("metadata.lock.json");
         let content = serde_json::to_string_pretty(&enriched)?;
-        if stdout_output {
+        if target == ExportTarget::Stdout {
             println!("{content}");
         } else {
             std::fs::write(dest, content)?;

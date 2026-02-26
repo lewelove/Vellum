@@ -34,15 +34,18 @@ pub async fn trigger_full_reset(State(state): State<Arc<AppState>>) -> Response 
         lib.scan();
     }
     
-    let payload = {
+    // Extract data first to ensure locks are dropped immediately
+    let (albums, ui_state) = {
         let lib_guard = state.library.read().await;
         let ui_guard = state.ui_state.read().await;
-        json!({
-            "type": "INIT",
-            "data": lib_guard.albums.clone(),
-            "ui_state": ui_guard.clone()
-        }).to_string()
+        (lib_guard.albums.clone(), ui_guard.clone())
     };
+
+    let payload = json!({
+        "type": "INIT",
+        "data": albums,
+        "ui_state": ui_state
+    }).to_string();
 
     let _ = state.tx.send(payload);
     Json(json!({"status": "ok"})).into_response()

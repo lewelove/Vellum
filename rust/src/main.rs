@@ -136,8 +136,8 @@ async fn main() -> Result<()> {
                 jobs: None,
                 notify_tx: None,
                 compile_flags: compile::CompileFlags {
-                    stdout_output: stdout,
-                    intermediary,
+                    mode: if intermediary { compile::CompileMode::Intermediary } else { compile::CompileMode::Standard },
+                    target: if stdout { compile::ExportTarget::Stdout } else { compile::ExportTarget::File },
                     pretty,
                     no_extensions,
                 },
