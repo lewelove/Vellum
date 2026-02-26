@@ -1,0 +1,16 @@
+# Max line width for better readability in LLM contexts
+max_width = 100
+
+# Group imports into: std, external crates, and local modules
+group_imports = "StdExternalCrate"
+imports_granularity = "Crate"
+
+# Deterministic ordering
+reorder_modules = true
+reorder_impl_items = true
+
+# Use field shorthand where possible (e.g., Point { x, y })
+use_field_init_shorthand = true
+
+# Clean up whitespace
+trim_trailing_whitespaces = true

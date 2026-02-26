@@ -27,6 +27,9 @@
             pkgs.bun
             pkgs.cargo 
             pkgs.rustc 
+            pkgs.clippy
+            pkgs.rustfmt
+            pkgs.cargo-deny
             pkgs.pkg-config 
             pkgs.openssl 
             pkgs.nix
@@ -55,25 +58,37 @@
               harvest)
                 cd "$ROOT/rust" && cargo run --release -- harvest "$@"
                 ;;
-              export)
-                cd "$ROOT" && python -m python.export "$@"
-                ;;
               write)
                 cd "$ROOT" && python -m python.write "$@"
                 ;;
               report)
                 cd "$ROOT" && python -m python.report "$@"
                 ;;
+              test)
+                cd "$ROOT/rust"
+                TEST_ARGS=()
+                for arg in "$@"; do
+                  case "$arg" in
+                    --lint) cargo clippy --all-targets --all-features -- -D warnings ;;
+                    --fmt)  cargo fmt --all -- --check ;;
+                    --deny) cargo deny check ;;
+                    *)      TEST_ARGS+=("$arg") ;;
+                  esac
+                done
+                cargo test "''${TEST_ARGS[@]}"
+                ;;
               help|--help|-h)
                 echo "Vellum CLI Commands:"
-                echo "  ui          : Start Svelte UI Dev Server"
-                echo "  server      : Start Backend Rust Server"
-                echo "  compile     : Compile metadata.toml to lock"
-                echo "  update      : Update library"
-                echo "  generate    : Initialize metadata from files"
-                echo "  harvest     : Harvest raw metadata to JSON"
-                echo "  export      : Export snapshot"
-                echo "  report      : Generate listening report"
+                echo "  ui              : Start Svelte UI Dev Server"
+                echo "  server          : Start Backend Rust Server"
+                echo "  test [flags]    : Run tests"
+                echo "    --lint        : Run clippy with -D warnings"
+                echo "    --fmt         : Run fmt check"
+                echo "    --deny        : Run cargo-deny check"
+                echo "  update          : Update library"
+                echo "  generate        : Initialize metadata from files"
+                echo "  harvest         : Harvest raw metadata to JSON"
+                echo "  write           : Sync metadata to audio tags"
                 ;;
               *)
                 echo "Error: Unknown command '$COMMAND'"
@@ -92,6 +107,9 @@
           cargo
           rustc
           rust-analyzer
+          clippy
+          rustfmt
+          cargo-deny
         ];
       in
       {

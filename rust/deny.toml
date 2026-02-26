@@ -1,0 +1,24 @@
+[graph]
+# Terminate if there are multiple versions of the same crate
+targets = []
+
+[advisories]
+db-path = "~/.cargo/advisory-db"
+db-urls = ["https://github.com/rustsec/advisory-db"]
+vulnerability = "deny"
+unmaintained = "warn"
+yanked = "deny"
+notice = "warn"
+
+[licenses]
+unlicensed = "deny"
+# Only allow common open source licenses
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "BSD-3-Clause",
+]
+copyleft = "deny"
+
+[bans]
+multiple-versions = "deny"
