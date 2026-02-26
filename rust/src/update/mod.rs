@@ -59,7 +59,7 @@ pub async fn run(
         .as_ref()
         .and_then(|c| c.scan_depth)
         .unwrap_or(4);
-    let all_albums = compile::scan::find_target_albums(&scan_root, scan_depth);
+    let all_albums = compile::builder::scan::find_target_albums(&scan_root, scan_depth);
 
     log::info!("Verifying {} albums...", all_albums.len());
 

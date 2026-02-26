@@ -1,21 +1,14 @@
+pub mod builder;
+pub mod engine;
+pub mod resolvers;
+pub mod runtime;
+
+use crate::config::AppConfig;
 use anyhow::{Context, Result};
 use serde_json::{Value, json};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::mpsc;
-
-use crate::compile::nix::get_nix_env;
-use crate::compile::stream::StreamContext;
-use crate::config::AppConfig;
-
-pub mod kernel;
-pub mod manifest;
-pub mod native_extensions;
-pub mod nix;
-pub mod resolve;
-pub mod scan;
-pub mod stream;
-pub mod verify;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CompileMode {
@@ -46,35 +39,22 @@ pub struct CompileOptions {
 }
 
 pub async fn run(mut options: CompileOptions) -> Result<()> {
-    let (config, raw_toml, config_path) =
-        AppConfig::load().context("Failed to load application configuration")?;
-
-    let project_root = config_path
-        .parent()
-        .context("Failed to determine project root from config path")?
-        .to_path_buf();
-
+    let (config, raw, path) = AppConfig::load().context("Config failed")?;
+    let project_root = path.parent().unwrap().to_path_buf();
     if !options.flags.contains(&"default".to_string()) {
         options.flags.push("default".to_string());
     }
 
-    let albums = if let Some(list) = options.specific_albums {
-        list
+    let albums = if let Some(l) = options.specific_albums {
+        l
     } else {
-        let scan_depth = config
-            .compiler
-            .as_ref()
-            .and_then(|c| c.scan_depth)
-            .unwrap_or(4);
-        scan::find_target_albums(&options.target_path, scan_depth)
+        builder::scan::find_target_albums(&options.target_path, 4)
     };
 
     if albums.is_empty() {
-        log::info!("No target albums for compilation.");
         return Ok(());
     }
-
-    let config_json = serde_json::to_value(&raw_toml)?;
+    let config_json = serde_json::to_value(&raw)?;
     let gen_cfg = config_json
         .get("generate")
         .cloned()
@@ -82,9 +62,9 @@ pub async fn run(mut options: CompileOptions) -> Result<()> {
     let active_flags = Arc::new(options.flags);
 
     if options.compile_flags.mode == CompileMode::Intermediary {
-        for album_root in albums {
-            let (man, _) = manifest::build(
-                &album_root,
+        for root in albums {
+            let (m, _) = builder::build(
+                &root,
                 &project_root,
                 &config_json,
                 &gen_cfg,
@@ -92,25 +72,25 @@ pub async fn run(mut options: CompileOptions) -> Result<()> {
                 options.compile_flags.no_extensions,
             )?;
             if options.compile_flags.pretty {
-                println!("{}", serde_json::to_string_pretty(&man)?);
+                println!("{}", serde_json::to_string_pretty(&m)?);
             } else {
-                println!("{}", serde_json::to_string(&man)?);
+                println!("{}", serde_json::to_string(&m)?);
             }
         }
         return Ok(());
     }
 
-    let registry = config_json
+    let has_ext = config_json
         .get("compiler_registry")
-        .and_then(Value::as_object);
-    let has_extensions = registry.is_some_and(|r| {
-        r.values()
-            .any(|v| v.get("provider").and_then(Value::as_str) == Some("extension"))
-    });
+        .and_then(Value::as_object)
+        .is_some_and(|r| {
+            r.values()
+                .any(|v| v.get("provider").and_then(Value::as_str) == Some("extension"))
+        });
 
-    let effective_no_extensions = options.compile_flags.no_extensions || !has_extensions;
+    let eff_no_ext = options.compile_flags.no_extensions || !has_ext;
 
-    let stream_ctx = StreamContext {
+    let ctx = engine::stream::StreamContext {
         albums: albums.clone(),
         config: Arc::new(config_json.clone()),
         project_root: Arc::new(project_root.clone()),
@@ -118,32 +98,28 @@ pub async fn run(mut options: CompileOptions) -> Result<()> {
         active_flags,
         target: options.compile_flags.target,
         jobs: options.jobs,
-        no_extensions: effective_no_extensions,
+        no_extensions: eff_no_ext,
         notify_tx: options.notify_tx,
     };
 
-    if effective_no_extensions {
-        log::info!("Compiling {} albums (Native Only)...", albums.len());
-        return stream::run(None, stream_ctx).await;
+    if eff_no_ext {
+        return engine::stream::run(None, ctx).await;
     }
 
-    let home = dirs::home_dir().context("No home dir")?;
-
-    let explicit_flake = config
+    let flake = config
         .extensions
         .as_ref()
         .map(|ext| PathBuf::from(&ext.folder).join(&ext.flake));
+    let mut env = runtime::nix::get_nix_env(&project_root, flake)?;
+    env.insert(
+        "HOME".to_string(),
+        dirs::home_dir().unwrap().to_string_lossy().to_string(),
+    );
 
-    let mut nix_env = get_nix_env(&project_root, explicit_flake)?;
-    nix_env.insert("HOME".to_string(), home.to_string_lossy().to_string());
-
-    log::info!("Compiling {} albums...", albums.len());
-
-    let child = kernel::spawn(
+    let child = runtime::kernel::spawn(
         &serde_json::from_value(config_json.clone())?,
         &project_root,
-        &nix_env,
+        &env,
     )?;
-
-    stream::run(Some(child), stream_ctx).await
+    engine::stream::run(Some(child), ctx).await
 }
