@@ -22,7 +22,12 @@ pub async fn run(
     no_extensions: bool,
     notify_tx: Option<mpsc::Sender<PathBuf>>,
 ) -> Result<()> {
-    let (tx, mut rx) = mpsc::channel::<String>(32);
+    // Channel for Kernel Processing (Legacy Pipeline)
+    let (kernel_tx, mut kernel_rx) = mpsc::channel::<String>(32);
+    
+    // Channel for Direct Processing (New Native Pipeline)
+    // Buffered to prevent Rayon threads from blocking on I/O
+    let (direct_tx, mut direct_rx) = mpsc::channel::<Value>(512);
 
     let albums_clone = albums.clone();
     let config_clone = Arc::clone(&config);
@@ -36,9 +41,8 @@ pub async fn run(
         .map(|v| v.clone().into_iter().collect::<HashMap<String, Value>>())
         .unwrap_or_default();
     let registry_arc = Arc::new(registry);
-
-    let notify_tx_for_blocking = notify_tx_arc.clone();
-    let registry_for_blocking = Arc::clone(&registry_arc);
+    
+    // 1. PRODUCER: Rayon Thread Pool
     let blocking_handle = tokio::task::spawn_blocking(move || {
         let default_parallelism = std::thread::available_parallelism()
             .map(|n| n.get())
@@ -54,9 +58,11 @@ pub async fn run(
                 match manifest::build(album_root, &project_root_clone, &config_clone, &gen_cfg_clone, &active_flags_clone, no_extensions) {
                     Ok((man, needs_external)) => {
                         if !needs_external || no_extensions {
-                            let _ = finalize_and_write(man, stdout_output, notify_tx_for_blocking.as_ref().map(|a| Arc::clone(a)), &registry_for_blocking);
+                            // Direct path: Send JSON object to direct consumer
+                            let _ = direct_tx.blocking_send(man);
                         } else if let Ok(line) = serde_json::to_string(&man) {
-                            let _ = tx.blocking_send(line);
+                            // Kernel path: Send JSON string to kernel stdin
+                            let _ = kernel_tx.blocking_send(line);
                         }
                     }
                     Err(e) => {
@@ -67,27 +73,54 @@ pub async fn run(
         });
     });
 
+    let notify_tx_for_direct = notify_tx_arc.clone();
+    let registry_for_direct = Arc::clone(&registry_arc);
+
+    // 2. CONSUMER A: Direct Path (Native I/O Writer)
+    let direct_consumer_handle = tokio::spawn(async move {
+        while let Some(enriched) = direct_rx.recv().await {
+            let notify = notify_tx_for_direct.as_ref().map(|a| Arc::clone(a));
+            let reg = registry_for_direct.clone();
+            
+            // Offload disk I/O to a blocking thread to avoid stalling the async runtime
+            // Do NOT await here; allow parallelism for disk operations.
+            tokio::task::spawn_blocking(move || {
+                let _ = finalize_and_write(enriched, stdout_output, notify, &reg);
+            });
+        }
+    });
+
+    // 3. CONSUMER B: Kernel Path (External Process)
     if let Some(mut child_proc) = child {
         let mut stdin = child_proc.stdin.take().context("Failed to open Kernel stdin")?;
         let stdout = child_proc.stdout.take().context("Failed to open Kernel stdout")?;
 
         let notify_tx_for_receiver = notify_tx_arc.clone();
         let registry_for_receiver = Arc::clone(&registry_arc);
+        
+        // Feed stdin
         let sender_handle = tokio::spawn(async move {
-            while let Some(line) = rx.recv().await {
+            while let Some(line) = kernel_rx.recv().await {
                 let _ = stdin.write_all(line.as_bytes()).await;
                 let _ = stdin.write_u8(b'\n').await;
             }
             drop(stdin);
         });
 
+        // Read stdout
         let receiver_handle = tokio::spawn(async move {
             let reader = BufReader::new(stdout);
             let mut lines = reader.lines();
             while let Ok(Some(line)) = lines.next_line().await {
                 if line.trim().is_empty() { continue; }
                 if let Ok(enriched) = serde_json::from_str(&line) {
-                    let _ = finalize_and_write(enriched, stdout_output, notify_tx_for_receiver.as_ref().map(|a| Arc::clone(a)), &registry_for_receiver);
+                    let notify = notify_tx_for_receiver.as_ref().map(|a| Arc::clone(a));
+                    let reg = registry_for_receiver.clone();
+                    
+                    // Do NOT await here either.
+                    tokio::task::spawn_blocking(move || {
+                        let _ = finalize_and_write(enriched, stdout_output, notify, &reg);
+                    });
                 }
             }
         });
@@ -98,6 +131,8 @@ pub async fn run(
     }
 
     let _ = blocking_handle.await;
+    let _ = direct_consumer_handle.await;
+    
     Ok(())
 }
 
@@ -152,8 +187,13 @@ fn finalize_and_write(mut enriched: Value, stdout_output: bool, notify_tx: Optio
             println!("{}", content);
         } else {
             std::fs::write(dest, content)?;
-            if let Some(tx) = notify_tx {
-                let _ = tx.blocking_send(album_root);
+            
+            if let Some(tx_arc) = notify_tx {
+                let root_clone = album_root.clone();
+                let tx = (*tx_arc).clone();
+                tokio::spawn(async move {
+                    let _ = tx.send(root_clone).await;
+                });
             }
         }
     }
