@@ -30,7 +30,10 @@ fn resolve_command(config: &Value) -> (String, Vec<String>) {
             let kernel_script = "extensions/javascript/compiler_kernel.js";
             (
                 "bun".to_string(),
-                vec!["run".to_string(), kernel_script.to_string()],
+                vec![
+                    "run".to_string(),
+                    kernel_script.to_string(),
+                ],
             )
         },
         |cmd| {

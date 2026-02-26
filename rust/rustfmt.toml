@@ -4,6 +4,7 @@ max_width = 100
 
 use_field_init_shorthand = true
 use_small_heuristics = "Default"
+array_width = 4
 
 reorder_modules = true
-newline_style = "Unix"
+# newline_style = "Unix"

@@ -97,7 +97,11 @@ pub fn resolve_release_yyyy_mm(ctx: &AlbumContext) -> String {
 }
 
 fn resolve_custom_albumartist(ctx: &AlbumContext) -> String {
-    let keys = ["custom_albumartist", "artistartist", "albumartist"];
+    let keys = [
+        "custom_albumartist",
+        "artistartist",
+        "albumartist",
+    ];
     for k in keys {
         if let Some(v) = ctx.source.get(k).and_then(Value::as_str) {
             return v.to_string();
@@ -125,12 +129,14 @@ pub fn resolve_comment(ctx: &AlbumContext) -> String {
     } else {
         ""
     };
-    [year, &country, &label, &cat]
-        .iter()
-        .filter(|s| !s.is_empty())
-        .copied()
-        .collect::<Vec<_>>()
-        .join(" ")
+    [
+        year, &country, &label, &cat,
+    ]
+    .iter()
+    .filter(|s| !s.is_empty())
+    .copied()
+    .collect::<Vec<_>>()
+    .join(" ")
 }
 
 #[allow(clippy::similar_names)]

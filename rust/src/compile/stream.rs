@@ -52,7 +52,14 @@ pub async fn run(child: Option<Child>, ctx: StreamContext) -> Result<()> {
     });
 
     if let Some(mut child_proc) = child {
-        run_kernel_bridge(&mut child_proc, kernel_rx, notify_tx_arc, registry_arc, target).await?;
+        run_kernel_bridge(
+            &mut child_proc,
+            kernel_rx,
+            notify_tx_arc,
+            registry_arc,
+            target,
+        )
+        .await?;
     }
 
     let _ = blocking_handle.await;

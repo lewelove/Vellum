@@ -16,9 +16,20 @@ pub fn calculate_file_tag_subset_match(
         return false;
     }
 
-    let album_core_keys = ["ALBUM", "ALBUMARTIST", "DATE", "GENRE", "COMMENT"];
+    let album_core_keys = [
+        "ALBUM",
+        "ALBUMARTIST",
+        "DATE",
+        "GENRE",
+        "COMMENT",
+    ];
 
-    let track_core_keys = ["TITLE", "ARTIST", "TRACKNUMBER", "DISCNUMBER"];
+    let track_core_keys = [
+        "TITLE",
+        "ARTIST",
+        "TRACKNUMBER",
+        "DISCNUMBER",
+    ];
 
     for (idx, compiled_track) in tracks_arr.iter().enumerate() {
         let Some(t_obj) = compiled_track.as_object() else {

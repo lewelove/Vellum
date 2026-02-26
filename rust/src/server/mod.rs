@@ -71,7 +71,12 @@ pub async fn run(port: u16) -> Result<()> {
 
     let app = api::router(Arc::clone(&app_state)).layer(cors);
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], port));
+    let addr = SocketAddr::from((
+        [
+            127, 0, 0, 1,
+        ],
+        port,
+    ));
     log::info!("Vellum Server listening on http://{addr}");
     axum::serve(tokio::net::TcpListener::bind(addr).await?, app).await?;
 
