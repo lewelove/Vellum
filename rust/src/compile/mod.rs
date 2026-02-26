@@ -19,16 +19,20 @@ pub mod scan;
 pub mod stream;
 pub mod verify;
 
+pub struct CompileOptions {
+    pub target_path: PathBuf,
+    pub stdout_output: bool,
+    pub intermediary: bool,
+    pub pretty: bool,
+    pub flags: Vec<String>,
+    pub specific_albums: Option<Vec<PathBuf>>,
+    pub jobs: Option<usize>,
+    pub no_extensions: bool,
+    pub notify_tx: Option<mpsc::Sender<PathBuf>>,
+}
+
 pub async fn run(
-    target_path: PathBuf,
-    stdout_output: bool,
-    intermediary: bool,
-    pretty: bool,
-    mut flags: Vec<String>,
-    specific_albums: Option<Vec<PathBuf>>,
-    jobs: Option<usize>,
-    no_extensions: bool,
-    notify_tx: Option<mpsc::Sender<PathBuf>>,
+    mut options: CompileOptions
 ) -> Result<()> {
     let (config, raw_toml, config_path) = AppConfig::load()
         .context("Failed to load application configuration")?;
@@ -37,19 +41,19 @@ pub async fn run(
         .context("Failed to determine project root from config path")?
         .to_path_buf();
 
-    if !flags.contains(&"default".to_string()) {
-        flags.push(
+    if !options.flags.contains(&"default".to_string()) {
+        options.flags.push(
             "default".to_string()
         );
     }
 
-    let albums = if let Some(list) = specific_albums {
+    let albums = if let Some(list) = options.specific_albums {
         list
     } else {
         let scan_depth = config.compiler.as_ref()
             .and_then(|c| c.scan_depth)
             .unwrap_or(4);
-        scan::find_target_albums(&target_path, scan_depth)?
+        scan::find_target_albums(&options.target_path, scan_depth)
     };
 
     if albums.is_empty() {
@@ -58,10 +62,10 @@ pub async fn run(
     }
 
     let config_json = serde_json::to_value(&raw_toml)?;
-    let gen_cfg = config_json.get("generate").cloned().unwrap_or(json!({}));
-    let active_flags = Arc::new(flags);
+    let gen_cfg = config_json.get("generate").cloned().unwrap_or_else(|| json!({}));
+    let active_flags = Arc::new(options.flags);
 
-    if intermediary {
+    if options.intermediary {
         for album_root in albums {
             let (man, _) = manifest::build(
                 &album_root,
@@ -69,9 +73,9 @@ pub async fn run(
                 &config_json,
                 &gen_cfg,
                 &active_flags,
-                no_extensions,
+                options.no_extensions,
             )?;
-            if pretty {
+            if options.pretty {
                 println!("{}", serde_json::to_string_pretty(&man)?);
             } else {
                 println!("{}", serde_json::to_string(&man)?);
@@ -80,12 +84,12 @@ pub async fn run(
         return Ok(());
     }
 
-    let registry = config_json.get("compiler_registry").and_then(|v| v.as_object());
-    let has_extensions = registry.map(|r| {
-        r.values().any(|v| v.get("provider").and_then(|s| s.as_str()) == Some("extension"))
-    }).unwrap_or(false);
+    let registry = config_json.get("compiler_registry").and_then(serde_json::Value::as_object);
+    let has_extensions = registry.is_some_and(|r| {
+        r.values().any(|v| v.get("provider").and_then(serde_json::Value::as_str) == Some("extension"))
+    });
 
-    let effective_no_extensions = no_extensions || !has_extensions;
+    let effective_no_extensions = options.no_extensions || !has_extensions;
 
     if effective_no_extensions {
         log::info!("Compiling {} albums (Native Only)...", albums.len());
@@ -96,10 +100,10 @@ pub async fn run(
             Arc::new(project_root),
             Arc::new(gen_cfg),
             active_flags,
-            stdout_output,
-            jobs,
+            options.stdout_output,
+            options.jobs,
             true,
-            notify_tx,
+            options.notify_tx,
         ).await;
     }
 
@@ -130,9 +134,9 @@ pub async fn run(
         Arc::new(project_root),
         Arc::new(gen_cfg),
         active_flags,
-        stdout_output,
-        jobs,
+        options.stdout_output,
+        options.jobs,
         false,
-        notify_tx,
+        options.notify_tx,
     ).await
 }

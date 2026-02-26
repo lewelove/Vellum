@@ -69,12 +69,12 @@ impl Library {
                             }
                         }
                         Err(e) => {
-                            log::error!("Schema Mismatch at {lock_path:?}: {e}");
+                            log::error!("Schema Mismatch at {}: {e}", lock_path.display());
                         }
                     }
                 }
                 Err(e) => {
-                    log::error!("Failed to read lock file at {lock_path:?}: {e}");
+                    log::error!("Failed to read lock file at {}: {e}", lock_path.display());
                 }
             }
         }
@@ -122,7 +122,7 @@ impl Library {
                     return Some(view);
                 }
                 Err(e) => {
-                    log::error!("Schema Mismatch during update at {lock_path:?}: {e}");
+                    log::error!("Schema Mismatch during update at {}: {e}", lock_path.display());
                 }
             }
         }

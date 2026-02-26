@@ -18,12 +18,14 @@ async fn handle_socket(mut socket: WebSocket, state: Arc<AppState>) {
     log::info!("Client connected");
 
     let init_payload = {
-        let lib = state.library.read().await;
-        let ui = state.ui_state.read().await;
+        let lib_guard = state.library.read().await;
+        let ui_guard = state.ui_state.read().await;
+        let lib_data = lib_guard.albums.clone();
+        let ui_data = (*ui_guard).clone();
         json!({
             "type": "INIT",
-            "data": lib.albums,
-            "ui_state": *ui
+            "data": lib_data,
+            "ui_state": ui_data
         }).to_string()
     };
     

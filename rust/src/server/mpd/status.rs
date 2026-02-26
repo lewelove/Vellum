@@ -46,8 +46,8 @@ pub fn broadcast_status(
         "state": format!("{:?}", status.state).to_lowercase(),
         "file": file_path,
         "album_id": album_id,
-        "elapsed": status.elapsed.map(|t| t.as_secs_f64()).unwrap_or(0.0),
-        "duration": status.duration.map(|t| t.as_secs_f64()).unwrap_or(0.0),
+        "elapsed": status.elapsed.map_or(0.0, |t| t.as_secs_f64()),
+        "duration": status.duration.map_or(0.0, |t| t.as_secs_f64()),
         "title": title,
         "artist": artist,
         "queue": queue_json

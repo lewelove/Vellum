@@ -67,14 +67,13 @@ enum Commands {
 
 #[must_use]
 pub fn expand_path(path_str: &str) -> PathBuf {
-    if path_str.starts_with('~') {
-        if let Some(home) = dirs::home_dir() {
-            if path_str == "~" {
-                return home;
-            }
-            if let Some(stripped) = path_str.strip_prefix("~/") {
-                return home.join(stripped);
-            }
+    if path_str.starts_with('~')
+        && let Some(home) = dirs::home_dir() {
+        if path_str == "~" {
+            return home;
+        }
+        if let Some(stripped) = path_str.strip_prefix("~/") {
+            return home.join(stripped);
         }
     }
     PathBuf::from(path_str)
@@ -130,17 +129,18 @@ async fn main() -> Result<()> {
             no_extensions,
         } => {
             let expanded = expand_path(&path);
-            compile::run(
-                expanded,
-                stdout,
+            let options = compile::CompileOptions {
+                target_path: expanded,
+                stdout_output: stdout,
                 intermediary,
                 pretty,
                 flags,
-                None,
-                None,
+                specific_albums: None,
+                jobs: None,
                 no_extensions,
-                None,
-            ).await
+                notify_tx: None,
+            };
+            compile::run(options).await
         },
         Commands::Update {
             path,

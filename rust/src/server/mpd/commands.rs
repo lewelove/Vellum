@@ -23,7 +23,7 @@ pub fn handle_command(client: &mut Client<TcpStream>, cmd: MpdCommand) -> Result
                     ..Default::default()
                 })?;
             }
-            client.switch(offset as u32)?;
+            client.switch(u32::try_from(offset)?)?;
         }
         MpdCommand::Queue { tracks } => {
             for track in tracks {

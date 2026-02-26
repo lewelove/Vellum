@@ -6,15 +6,11 @@ use std::process::Command;
 use std::time::SystemTime;
 
 pub fn get_nix_env(project_root: &Path, explicit_flake: Option<PathBuf>) -> Result<HashMap<String, String>> {
-    let target_flake_dir = if let Some(flake_path) = explicit_flake {
-        if flake_path.exists() {
-            flake_path.parent().unwrap_or(project_root).to_path_buf()
-        } else {
-            project_root.to_path_buf()
-        }
+    let target_flake_dir = explicit_flake.map_or_else(|| project_root.to_path_buf(), |flake_path| if flake_path.exists() {
+        flake_path.parent().unwrap_or(project_root).to_path_buf()
     } else {
         project_root.to_path_buf()
-    };
+    });
 
     let flake_file = target_flake_dir.join("flake.nix");
     if !flake_file.exists() {
@@ -28,21 +24,19 @@ pub fn get_nix_env(project_root: &Path, explicit_flake: Option<PathBuf>) -> Resu
     let cache_key = format!("{:?}", mtime.duration_since(SystemTime::UNIX_EPOCH)?.as_secs());
     let cache_file = cache_dir.join("nix_env.json");
 
-    if let Ok(content) = fs::read_to_string(&cache_file) {
-        if let Ok(cache) = serde_json::from_str::<serde_json::Value>(&content) {
-            if cache.get("key").and_then(|k| k.as_str()) == Some(&cache_key) {
-                let mut env_map = HashMap::new();
-                if let Some(vars) = cache.get("variables").and_then(|v| v.as_object()) {
-                    for (k, v) in vars {
-                        if let Some(s) = v.as_str() { env_map.insert(k.clone(), s.to_string()); }
-                    }
-                }
-                return Ok(env_map);
+    if let Ok(content) = fs::read_to_string(&cache_file)
+        && let Ok(cache) = serde_json::from_str::<serde_json::Value>(&content)
+        && cache.get("key").and_then(serde_json::Value::as_str) == Some(&cache_key) {
+        let mut env_map = HashMap::new();
+        if let Some(vars) = cache.get("variables").and_then(serde_json::Value::as_object) {
+            for (k, v) in vars {
+                if let Some(s) = v.as_str() { env_map.insert(k.clone(), s.to_string()); }
             }
         }
+        return Ok(env_map);
     }
 
-    log::info!("Resolving Nix environment from {:?}", target_flake_dir);
+    log::info!("Resolving Nix environment from {target_flake_dir:?}");
 
     let output = Command::new("nix")
         .args([
@@ -60,15 +54,13 @@ pub fn get_nix_env(project_root: &Path, explicit_flake: Option<PathBuf>) -> Resu
     let mut env_map = HashMap::new();
     let mut cache_map = serde_json::Map::new();
 
-    if output.status.success() {
-        if let Ok(val) = serde_json::from_slice::<serde_json::Value>(&output.stdout) {
-            if let Some(variables) = val.get("variables").and_then(|v| v.as_object()) {
-                for (k, v) in variables {
-                    if let Some(val_str) = v.get("value").and_then(|s| s.as_str()) {
-                        env_map.insert(k.clone(), val_str.to_string());
-                        cache_map.insert(k.clone(), serde_json::Value::String(val_str.to_string()));
-                    }
-                }
+    if output.status.success()
+        && let Ok(val) = serde_json::from_slice::<serde_json::Value>(&output.stdout)
+        && let Some(variables) = val.get("variables").and_then(serde_json::Value::as_object) {
+        for (k, v) in variables {
+            if let Some(val_str) = v.get("value").and_then(serde_json::Value::as_str) {
+                env_map.insert(k.clone(), val_str.to_string());
+                cache_map.insert(k.clone(), serde_json::Value::String(val_str.to_string()));
             }
         }
     } else {

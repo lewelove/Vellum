@@ -73,7 +73,7 @@ impl AppConfig {
         let mut visited = std::collections::HashSet::new();
         let raw_value = Self::load_recursive(&config_path, &mut visited)?;
         
-        let config: AppConfig = Value::try_into(raw_value.clone())?;
+        let config: Self = Value::try_into(raw_value.clone())?;
         Ok((
             config,
             raw_value,
@@ -89,10 +89,9 @@ impl AppConfig {
             }
         }
 
-        if let Some(home_config) = dirs::home_dir().map(|h| h.join(".config/vellum/config.toml")) {
-            if home_config.exists() {
-                return Some(home_config);
-            }
+        if let Some(home_config) = dirs::home_dir().map(|h| h.join(".config/vellum/config.toml"))
+            && home_config.exists() {
+            return Some(home_config);
         }
 
         let mut curr = std::env::current_dir().ok()?;
@@ -119,12 +118,12 @@ impl AppConfig {
 
     fn load_recursive(path: &Path, visited: &mut std::collections::HashSet<PathBuf>) -> Result<Value> {
         let canon_path = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
-        if !visited.insert(canon_path.clone()) {
-            return Err(anyhow::anyhow!("Circular import detected: {:?}", path));
+        if !visited.insert(canon_path) {
+            return Err(anyhow::anyhow!("Circular import detected: {path:?}"));
         }
 
         let content = fs::read_to_string(path)
-            .with_context(|| format!("Failed to read config file: {:?}", path))?;
+            .with_context(|| format!("Failed to read config file: {path:?}"))?;
         
         let mut current_value: Value = toml::from_str(&content)?;
         
@@ -133,7 +132,7 @@ impl AppConfig {
                 Value::String(s) => vec![
                     s.clone()
                 ],
-                Value::Array(arr) => arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect(),
+                Value::Array(arr) => arr.iter().filter_map(|v| v.as_str().map(ToString::to_string)).collect(),
                 _ => vec![],
             };
 

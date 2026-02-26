@@ -133,31 +133,28 @@ pub fn harvest_file(path: &Path) -> Result<TrackJson> {
         for item in tag.items() {
             let key = item.key()
                 .map_key(tag_type)
-                .map(ToString::to_string)
-                .unwrap_or_else(|| {
-                    let k = format!("{:?}", item.key());
+                .map_or_else(|| {
+                    let k = format!("{item:?}");
                     if let Some(start) = k.find('"') 
                         && let Some(end) = k.rfind('"') 
                         && start < end {
                                 return k[start + 1..end].to_string();
                     }
                     k
-                })
+                }, ToString::to_string)
                 .to_uppercase();
 
-            let value = match item.value().text() {
-                Some(v) => v.trim().to_string(),
-                None => continue,
-            };
+            let Some(value) = item.value().text() else { continue };
+            let value = value.trim();
 
             if key.is_empty() || value.is_empty() { continue; }
                 
             tags.entry(key)
                 .and_modify(|existing: &mut String| {
                     existing.push_str("; ");
-                    existing.push_str(&value);
+                    existing.push_str(value);
                 })
-                .or_insert(value);
+                .or_insert_with(|| value.to_string());
         }
     }
 

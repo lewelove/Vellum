@@ -43,7 +43,7 @@ pub async fn run(port: u16) -> Result<()> {
     let state_file = expand_path("~/.vellum/state.json");
     let ui_state_val = if state_file.exists() {
         let data = std::fs::read_to_string(&state_file).unwrap_or_default();
-        serde_json::from_str(&data).unwrap_or(serde_json::json!({}))
+        serde_json::from_str(&data).unwrap_or_else(|_| serde_json::json!({}))
     } else {
         serde_json::json!({
             "activeTab": "home",

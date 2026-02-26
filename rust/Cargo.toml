@@ -2,6 +2,12 @@
 name = "vellum"
 version = "0.1.0"
 edition = "2024"
+description = "Web-based MPD client and library manager that treats albums as compiled data objects"
+license = "AGPL-3.0"
+repository = "https://github.com/lewelove/vellum"
+readme = "../README.md"
+keywords = ["mpd", "music", "metadata", "audio", "server"]
+categories = ["multimedia::audio"]
 
 [dependencies]
 clap = { version = "4.4", features = ["derive"] }

@@ -29,16 +29,16 @@ fn resolve_command(config: &Value) -> (String, Vec<String>) {
         .and_then(|c| c.get("kernel_command"))
         .and_then(Value::as_str);
 
-    if let Some(cmd) = kernel_cmd_config {
-        let mut parts = cmd.split_whitespace();
-        let p = parts.next().unwrap_or("bun").to_string();
-        let a = parts.map(ToString::to_string).collect();
-        (p, a)
-    } else {
+    kernel_cmd_config.map_or_else(|| {
         let kernel_script = "extensions/javascript/compiler_kernel.js";
         (
             "bun".to_string(),
             vec!["run".to_string(), kernel_script.to_string()],
         )
-    }
+    }, |cmd| {
+        let mut parts = cmd.split_whitespace();
+        let p = parts.next().unwrap_or("bun").to_string();
+        let a = parts.map(ToString::to_string).collect();
+        (p, a)
+    })
 }

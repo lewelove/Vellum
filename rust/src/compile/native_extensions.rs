@@ -80,9 +80,9 @@ fn resolve_custom_albumartist(ctx: &AlbumContext) -> String {
 }
 
 pub fn resolve_comment(ctx: &AlbumContext) -> String {
-    if let Some(v) = ctx.source.get("comment").and_then(Value::as_str) {
-        if !v.is_empty() { return v.to_string(); }
-    }
+    if let Some(v) = ctx.source.get("comment").and_then(Value::as_str)
+        && !v.is_empty() { return v.to_string(); }
+    
     let country = get_str(ctx.source, "country");
     let label = get_str(ctx.source, "label");
     let cat = get_str(ctx.source, "catalognumber");

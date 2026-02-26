@@ -42,9 +42,9 @@ pub fn build(
     let mut loaded_image: Option<DynamicImage> = None;
 
     let storage = config.get("storage").ok_or_else(|| anyhow!("Missing [storage]"))?;
-    if let (Some(dir_str), Some(cp), false) = (storage.get("thumbnail_cache_folder").and_then(|v| v.as_str()), &cover_path, cover_hash.is_empty()) {
+    if let (Some(dir_str), Some(cp), false) = (storage.get("thumbnail_cache_folder").and_then(Value::as_str), &cover_path, cover_hash.is_empty()) {
         let thumb_dir = expand_path(dir_str);
-        let thumb_path = thumb_dir.join(format!("{}.png", cover_hash));
+        let thumb_path = thumb_dir.join(format!("{cover_hash}.png"));
         if !thumb_path.exists() {
             if let Ok(img) = image::open(album_root.join(cp)) {
                 let (w, h) = img.dimensions();
@@ -60,21 +60,21 @@ pub fn build(
         }
     }
 
-    let exts_raw = gen_cfg.get("supported_extensions").and_then(|v| v.as_array());
-    let exts: Vec<&str> = exts_raw.map(|arr| arr.iter().filter_map(|v| v.as_str()).collect()).unwrap_or_else(|| vec![".flac"]);
+    let exts_raw = gen_cfg.get("supported_extensions").and_then(Value::as_array);
+    let exts: Vec<&str> = exts_raw.map_or_else(|| vec![".flac"], |arr| arr.iter().filter_map(Value::as_str).collect());
     let audio_files = scan::scan_audio_files(album_root, &exts);
 
-    let track_entries = metadata_json.get("tracks").and_then(|v| v.as_array())
+    let track_entries = metadata_json.get("tracks").and_then(Value::as_array)
         .ok_or_else(|| anyhow!("Missing [[tracks]] in metadata.toml"))?;
 
     if audio_files.len() != track_entries.len() {
         return Err(anyhow!("Manifest Mismatch: {} files vs {} entries", audio_files.len(), track_entries.len()));
     }
 
-    let registry = config.get("compiler_registry").and_then(|v| v.as_object())
+    let registry = config.get("compiler_registry").and_then(Value::as_object)
         .ok_or_else(|| anyhow!("Missing [compiler_registry]"))?;
 
-    let library_root = Path::new(storage.get("library_root").and_then(|v| v.as_str()).unwrap_or("."));
+    let library_root = Path::new(storage.get("library_root").and_then(Value::as_str).unwrap_or("."));
 
     let mut harvested_spine = Vec::new();
     for path in &audio_files {
@@ -103,7 +103,7 @@ pub fn build(
 
     let to_strict_u32 = |v: Option<&Value>| -> u32 {
         match v {
-            Some(Value::Number(n)) => n.as_u64().unwrap_or(0) as u32,
+            Some(Value::Number(n)) => u32::try_from(n.as_u64().unwrap_or(0)).unwrap_or(0),
             Some(Value::String(s)) => s.split('/').next().unwrap_or("0").parse().unwrap_or(0),
             _ => 0,
         }
@@ -111,12 +111,12 @@ pub fn build(
 
     for (idx, h_data) in harvested_spine.into_iter().enumerate() {
         let p_disc = parse_tag_int(h_data.tags.get("DISCNUMBER"));
-        if Some(p_disc) != current_physical_disc {
+        if Some(p_disc) == current_physical_disc {
+            o_track += 1;
+        } else {
             current_physical_disc = Some(p_disc);
             o_disc += 1;
             o_track = 1;
-        } else {
-            o_track += 1;
         }
 
         let track_entries_source = &track_entries[idx];
@@ -145,8 +145,8 @@ pub fn build(
         track_info.insert("lyrics_path".to_string(), json!("")); 
 
         track_obj.insert("info".to_string(), Value::Object(track_info));
-        track_obj.insert("TITLE".to_string(), track_entries_source.get("title").cloned().unwrap_or_else(|| resolve::resolve_track_key("title", &track_ctx).unwrap_or(json!(null))));
-        track_obj.insert("ARTIST".to_string(), track_entries_source.get("artist").cloned().unwrap_or_else(|| resolve::resolve_track_key("artist", &track_ctx).unwrap_or(json!(null))));
+        track_obj.insert("TITLE".to_string(), track_entries_source.get("title").cloned().unwrap_or_else(|| resolve::resolve_track_key("title", &track_ctx).unwrap_or_else(|| json!(null))));
+        track_obj.insert("ARTIST".to_string(), track_entries_source.get("artist").cloned().unwrap_or_else(|| resolve::resolve_track_key("artist", &track_ctx).unwrap_or_else(|| json!(null))));
         
         let t_num = to_strict_u32(track_entries_source.get("tracknumber"))
             .max(to_strict_u32(resolve::resolve_track_key("tracknumber", &track_ctx).as_ref()));
@@ -158,16 +158,14 @@ pub fn build(
 
         let mut track_tags = serde_json::Map::new();
         for (key, meta) in registry {
-            if meta.get("level").and_then(|v| v.as_str()) != Some("tracks") { continue; }
+            if meta.get("level").and_then(Value::as_str) != Some("tracks") { continue; }
             
-            let val = if let Some(user_val) = track_entries_source.get(key) {
-                user_val.clone()
-            } else if meta.get("provider").and_then(|v| v.as_str()) == Some("extension") {
+            let val = track_entries_source.get(key).map_or_else(|| if meta.get("provider").and_then(Value::as_str) == Some("extension") {
                 requires_external = true;
                 json!(null)
             } else {
-                resolve::resolve_track_key(key, &track_ctx).unwrap_or(json!(null))
-            };
+                resolve::resolve_track_key(key, &track_ctx).unwrap_or_else(|| json!(null))
+            }, Clone::clone);
             
             track_tags.insert(key.to_uppercase(), val);
         }
@@ -210,26 +208,24 @@ pub fn build(
     album_info.insert("cover_byte_size".to_string(), json!(cover_byte_size));
 
     album_obj.insert("info".to_string(), Value::Object(album_info));
-    album_obj.insert("ALBUM".to_string(), metadata_album_source.get("album").cloned().unwrap_or_else(|| resolve::resolve_album_key("album", &album_ctx).unwrap_or(json!(null))));
-    album_obj.insert("ALBUMARTIST".to_string(), metadata_album_source.get("albumartist").cloned().unwrap_or_else(|| resolve::resolve_album_key("albumartist", &album_ctx).unwrap_or(json!(null))));
-    album_obj.insert("DATE".to_string(), metadata_album_source.get("date").cloned().unwrap_or_else(|| resolve::resolve_album_key("date", &album_ctx).unwrap_or(json!(null))));
-    album_obj.insert("GENRE".to_string(), metadata_album_source.get("genre").cloned().unwrap_or_else(|| resolve::resolve_album_key("genre", &album_ctx).unwrap_or(json!(null))));
-    album_obj.insert("COMMENT".to_string(), metadata_album_source.get("comment").cloned().unwrap_or_else(|| resolve::resolve_album_key("comment", &album_ctx).unwrap_or(json!(null))));
-    album_obj.insert("ORIGINAL_YYYY_MM".to_string(), metadata_album_source.get("original_yyyy_mm").cloned().unwrap_or_else(|| resolve::resolve_album_key("original_yyyy_mm", &album_ctx).unwrap_or(json!(null))));
-    album_obj.insert("RELEASE_YYYY_MM".to_string(), metadata_album_source.get("release_yyyy_mm").cloned().unwrap_or_else(|| resolve::resolve_album_key("release_yyyy_mm", &album_ctx).unwrap_or(json!(null))));
+    album_obj.insert("ALBUM".to_string(), metadata_album_source.get("album").cloned().unwrap_or_else(|| resolve::resolve_album_key("album", &album_ctx).unwrap_or_else(|| json!(null))));
+    album_obj.insert("ALBUMARTIST".to_string(), metadata_album_source.get("albumartist").cloned().unwrap_or_else(|| resolve::resolve_album_key("albumartist", &album_ctx).unwrap_or_else(|| json!(null))));
+    album_obj.insert("DATE".to_string(), metadata_album_source.get("date").cloned().unwrap_or_else(|| resolve::resolve_album_key("date", &album_ctx).unwrap_or_else(|| json!(null))));
+    album_obj.insert("GENRE".to_string(), metadata_album_source.get("genre").cloned().unwrap_or_else(|| resolve::resolve_album_key("genre", &album_ctx).unwrap_or_else(|| json!(null))));
+    album_obj.insert("COMMENT".to_string(), metadata_album_source.get("comment").cloned().unwrap_or_else(|| resolve::resolve_album_key("comment", &album_ctx).unwrap_or_else(|| json!(null))));
+    album_obj.insert("ORIGINAL_YYYY_MM".to_string(), metadata_album_source.get("original_yyyy_mm").cloned().unwrap_or_else(|| resolve::resolve_album_key("original_yyyy_mm", &album_ctx).unwrap_or_else(|| json!(null))));
+    album_obj.insert("RELEASE_YYYY_MM".to_string(), metadata_album_source.get("release_yyyy_mm").cloned().unwrap_or_else(|| resolve::resolve_album_key("release_yyyy_mm", &album_ctx).unwrap_or_else(|| json!(null))));
 
     let mut album_tags = serde_json::Map::new();
     for (key, meta) in registry {
-        if meta.get("level").and_then(|v| v.as_str()) != Some("album") { continue; }
+        if meta.get("level").and_then(Value::as_str) != Some("album") { continue; }
         
-        let val = if let Some(user_val) = metadata_album_source.get(key) {
-            user_val.clone()
-        } else if meta.get("provider").and_then(|v| v.as_str()) == Some("extension") {
+        let val = metadata_album_source.get(key).map_or_else(|| if meta.get("provider").and_then(Value::as_str) == Some("extension") {
             requires_external = true;
             json!(null)
         } else {
-            resolve::resolve_album_key(key, &album_ctx).unwrap_or(json!(null))
-        };
+            resolve::resolve_album_key(key, &album_ctx).unwrap_or_else(|| json!(null))
+        }, Clone::clone);
         
         album_tags.insert(key.to_uppercase(), val);
     }

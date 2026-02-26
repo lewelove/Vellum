@@ -87,17 +87,17 @@ pub async fn run(
         let _ = trigger_server_reset().await;
     }
 
-    let cache_file = base_cache_dir.join(format!("{}.json", lib_hash));
+    let cache_file = base_cache_dir.join(format!("{lib_hash}.json"));
     let mut cache = load_cache(&cache_file);
     
     let scan_root = target_path.unwrap_or_else(|| library_root.clone());
     let scan_depth = config.compiler.as_ref().and_then(|c| c.scan_depth).unwrap_or(4);
-    let all_albums = compile::scan::find_target_albums(&scan_root, scan_depth)?;
+    let all_albums = compile::scan::find_target_albums(&scan_root, scan_depth);
 
     log::info!("Verifying {} albums...", all_albums.len());
 
     let default_parallelism = std::thread::available_parallelism()
-        .map(|n| n.get())
+        .map(std::num::NonZero::get)
         .unwrap_or(1);
 
     let pool = rayon::ThreadPoolBuilder::new()
@@ -116,11 +116,9 @@ pub async fn run(
                     return (album_root, mtime_sum, true);
                 }
 
-                let cached = cache.get(&album_path_str);
-                if let Some(entry) = cached {
-                    if entry.mtime_sum == mtime_sum && mtime_sum != 0 {
-                        return (album_root, mtime_sum, false);
-                    }
+                if let Some(entry) = cache.get(&album_path_str)
+                    && entry.mtime_sum == mtime_sum && mtime_sum != 0 {
+                    return (album_root, mtime_sum, false);
                 }
 
                 let trust = verify_trust(&album_root);
@@ -148,7 +146,7 @@ pub async fn run(
     }
 
     if work_queue.is_empty() {
-        log::info!("Library is up to date ({} albums trusted).", trusted_count);
+        log::info!("Library is up to date ({trusted_count} albums trusted).");
         save_cache(&cache, &cache_file)?;
         return Ok(());
     }
@@ -179,17 +177,19 @@ pub async fn run(
         }
     });
 
-    compile::run(
-        scan_root,
-        false,
-        false,
-        false,
-        vec!["default".to_string()],
-        Some(work_queue),
+    let compile_options = compile::CompileOptions {
+        target_path: scan_root,
+        stdout_output: false,
+        intermediary: false,
+        pretty: false,
+        flags: vec!["default".to_string()],
+        specific_albums: Some(work_queue),
         jobs,
         no_extensions,
-        Some(notify_tx.clone()),
-    ).await?;
+        notify_tx: Some(notify_tx.clone()),
+    };
+
+    compile::run(compile_options).await?;
 
     drop(notify_tx);
     let _ = notification_task.await;
@@ -243,22 +243,16 @@ fn verify_trust(album_root: &Path) -> TrustState {
     let lock_path = album_root.join("metadata.lock.json");
     if !lock_path.exists() { return TrustState::Missing; }
 
-    let lock_content = match fs::read_to_string(&lock_path) {
-        Ok(c) => c,
-        Err(_) => return TrustState::Missing,
-    };
+    let Ok(lock_content) = fs::read_to_string(&lock_path) else { return TrustState::Missing };
 
     let lock_json: serde_json::Value = match serde_json::from_str(&lock_content) {
         Ok(j) => j,
         Err(_) => return TrustState::Missing,
     };
 
-    let album_data = match lock_json.get("album") {
-        Some(a) => a,
-        None => return TrustState::Missing,
-    };
+    let Some(album_data) = lock_json.get("album") else { return TrustState::Missing };
 
-    let lock_mtime = album_data.get("metadata_toml_mtime").and_then(|v| v.as_u64()).unwrap_or(0);
+    let lock_mtime = album_data.get("metadata_toml_mtime").and_then(serde_json::Value::as_u64).unwrap_or(0);
     let metadata_path = album_root.join("metadata.toml");
     let current_mtime = fs::metadata(&metadata_path)
         .and_then(|m| m.modified())
@@ -269,12 +263,12 @@ fn verify_trust(album_root: &Path) -> TrustState {
         return TrustState::BrokenIntent;
     }
 
-    let lock_cover_path = album_data.get("cover_path").and_then(|v| v.as_str()).unwrap_or("");
+    let lock_cover_path = album_data.get("cover_path").and_then(serde_json::Value::as_str).unwrap_or("");
     if !lock_cover_path.is_empty() && lock_cover_path != "default_cover.png" {
         let abs_cover = album_root.join(lock_cover_path);
         if !abs_cover.exists() { return TrustState::BrokenAssets; }
         
-        let lock_cover_size = album_data.get("cover_byte_size").and_then(|v| v.as_u64()).unwrap_or(0);
+        let lock_cover_size = album_data.get("cover_byte_size").and_then(serde_json::Value::as_u64).unwrap_or(0);
         let current_cover_size = fs::metadata(&abs_cover).map(|m| m.len()).unwrap_or(0);
         
         if lock_cover_size != current_cover_size {
@@ -282,19 +276,16 @@ fn verify_trust(album_root: &Path) -> TrustState {
         }
     }
 
-    if let Some(tracks) = lock_json.get("tracks").and_then(|v| v.as_array()) {
+    if let Some(tracks) = lock_json.get("tracks").and_then(serde_json::Value::as_array) {
         for track in tracks {
-            let rel_path = track.get("track_path").and_then(|v| v.as_str()).unwrap_or("");
+            let rel_path = track.get("track_path").and_then(serde_json::Value::as_str).unwrap_or("");
             if rel_path.is_empty() { return TrustState::BrokenPhysics; }
             
             let abs_path = album_root.join(rel_path);
-            let meta = match fs::metadata(&abs_path) {
-                Ok(m) => m,
-                Err(_) => return TrustState::BrokenPhysics,
-            };
+            let Ok(meta) = fs::metadata(&abs_path) else { return TrustState::BrokenPhysics };
 
-            let lock_track_mtime = track.get("track_mtime").and_then(|v| v.as_u64()).unwrap_or(0);
-            let lock_track_size = track.get("track_size").and_then(|v| v.as_u64()).unwrap_or(0);
+            let lock_track_mtime = track.get("track_mtime").and_then(serde_json::Value::as_u64).unwrap_or(0);
+            let lock_track_size = track.get("track_size").and_then(serde_json::Value::as_u64).unwrap_or(0);
             
             let current_track_mtime = meta.modified()
                 .map(|t| t.duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_secs())
@@ -311,10 +302,9 @@ fn verify_trust(album_root: &Path) -> TrustState {
 }
 
 fn load_cache(path: &Path) -> HashMap<String, AlbumCacheEntry> {
-    if let Ok(content) = fs::read_to_string(path) {
-        if let Ok(cache) = serde_json::from_str::<HashMap<String, AlbumCacheEntry>>(&content) {
-            return cache;
-        }
+    if let Ok(content) = fs::read_to_string(path)
+        && let Ok(cache) = serde_json::from_str::<HashMap<String, AlbumCacheEntry>>(&content) {
+        return cache;
     }
     HashMap::new()
 }

@@ -12,7 +12,7 @@ pub async fn get_cover_thumbnail(
     State(state): State<Arc<AppState>>,
 ) -> Response {
     if let Some(root) = &state.config.thumbnail_root {
-        let path = root.join(format!("{}.png", hash));
+        let path = root.join(format!("{hash}.png"));
         return serve_image(path).await;
     }
     StatusCode::NOT_FOUND.into_response()
@@ -24,9 +24,9 @@ pub async fn get_album_cover(
 ) -> Response {
     let path_opt = {
         let lib = state.library.read().await;
-        lib.album_map.get(&id).and_then(|a| {
+        lib.album_map.get(&id).map(|a| {
             let cp = &a.album_data.info.cover_path;
-            Some(state.config.library_root.join(&id).join(cp))
+            state.config.library_root.join(&id).join(cp)
         })
     };
 
@@ -40,7 +40,7 @@ async fn serve_image(path: PathBuf) -> Response {
     if let Ok(mut file) = File::open(&path).await {
         let mut buf = Vec::new();
         if file.read_to_end(&mut buf).await.is_ok() {
-            let mime = if path.extension().map_or(false, |e| e == "png") { "image/png" } else { "image/jpeg" };
+            let mime = if path.extension().is_some_and(|e| e == "png") { "image/png" } else { "image/jpeg" };
             return (
                 [(header::CONTENT_TYPE, mime), (header::CACHE_CONTROL, "public, max-age=31536000, immutable")],
                 buf
