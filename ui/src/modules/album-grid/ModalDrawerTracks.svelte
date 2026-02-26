@@ -1,5 +1,11 @@
 <script>
-  let { tracks = [], totalDiscs = "1", onplay, onplaydisc } = $props();
+  let { 
+    tracks = [], 
+    totalDiscs = "1", 
+    albumArtist = "",
+    onplay, 
+    onplaydisc 
+  } = $props();
 
   let selectedIndex = $state(-1);
   let multiDisc = $derived(parseInt(totalDiscs) > 1);
@@ -103,7 +109,9 @@
       <span class="track-index">{track.TRACKNUMBER}</span>
       <div class="track-body">
         <span class="track-title">{track.TITLE}</span>
-        <span class="track-artist">{track.ARTIST === track.ALBUMARTIST ? '' : track.ARTIST}</span>
+        {#if track.ARTIST && albumArtist && track.ARTIST.toLowerCase() !== albumArtist.toLowerCase()}
+          <span class="track-artist">{track.ARTIST}</span>
+        {/if}
       </div>
       <span class="track-meta">{formatDuration(track.track_duration_time)}</span>
     </div>

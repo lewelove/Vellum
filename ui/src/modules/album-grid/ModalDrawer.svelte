@@ -122,6 +122,7 @@
           <ModalDrawerTracks 
             tracks={album.tracks} 
             totalDiscs={album.total_discs} 
+            albumArtist={album.artist}
             onplay={handlePlayTrack} 
             onplaydisc={handlePlayDisc}
           />
