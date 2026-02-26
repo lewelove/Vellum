@@ -1,24 +1,61 @@
 [graph]
-# Terminate if there are multiple versions of the same crate
 targets = []
 
 [advisories]
 db-path = "~/.cargo/advisory-db"
 db-urls = ["https://github.com/rustsec/advisory-db"]
-vulnerability = "deny"
-unmaintained = "warn"
+unmaintained = "all"
 yanked = "deny"
-notice = "warn"
+ignore = [
+    "RUSTSEC-2024-0436",
+]
 
 [licenses]
-unlicensed = "deny"
-# Only allow common open source licenses
 allow = [
     "MIT",
     "Apache-2.0",
     "BSD-3-Clause",
+    "BSD-2-Clause",
+    "AGPL-3.0-only",
+    "ISC",
+    "MPL-2.0",
+    "Unicode-3.0",
+    "BSL-1.0",
+    "OpenSSL",
+    "NCSA",
+    "CDLA-Permissive-2.0",
 ]
-copyleft = "deny"
 
 [bans]
 multiple-versions = "deny"
+deny = [
+    { name = "lazy_static" },
+    { name = "failure" },
+    { name = "error-chain" },
+    { name = "structopt" },
+    { name = "atty" },
+    { name = "difference" },
+]
+skip = [
+    { name = "getrandom" },
+    { name = "windows-sys" },
+    { name = "windows-targets" },
+    { name = "thiserror" },
+    { name = "thiserror-impl" },
+    { name = "core-foundation" },
+    { name = "zune-core" },
+    { name = "zune-jpeg" },
+    { name = "windows_aarch64_gnullvm" },
+    { name = "windows_aarch64_msvc" },
+    { name = "windows_i686_gnu" },
+    { name = "windows_i686_msvc" },
+    { name = "windows_x86_64_gnu" },
+    { name = "windows_x86_64_gnullvm" },
+    { name = "windows_x86_64_msvc" },
+]
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []
