@@ -1,13 +1,21 @@
-pub mod standard;
 pub mod native;
+pub mod standard;
 
 use crate::compile::builder::context::{AlbumContext, TrackContext};
 use serde_json::{Value, json};
 
 pub fn resolve_album_key(key: &str, ctx: &AlbumContext) -> Option<Value> {
     match key {
-        "album" => Some(json!(standard::get_raw(ctx.source, "album", "Unknown Album"))),
-        "albumartist" => Some(json!(standard::get_raw(ctx.source, "albumartist", "Unknown Artist"))),
+        "album" => Some(json!(standard::get_raw(
+            ctx.source,
+            "album",
+            "Unknown Album"
+        ))),
+        "albumartist" => Some(json!(standard::get_raw(
+            ctx.source,
+            "albumartist",
+            "Unknown Artist"
+        ))),
         "date" => Some(json!(native::resolve_date(ctx))),
         "genre" => Some(json!(native::resolve_genre(ctx))),
         "comment" => Some(json!(native::resolve_comment(ctx))),

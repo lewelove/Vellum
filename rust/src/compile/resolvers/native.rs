@@ -1,8 +1,8 @@
 use crate::compile::builder::context::AlbumContext;
 use crate::compile::resolvers::standard;
+use image::GenericImageView;
 use serde_json::{Value, json};
 use std::collections::HashSet;
-use image::GenericImageView;
 use std::path::Path;
 
 pub fn resolve_date(ctx: &AlbumContext) -> String {
@@ -52,7 +52,10 @@ pub fn resolve_genre(ctx: &AlbumContext) -> Vec<String> {
         parts.push("Unknown".to_string());
     }
     let mut seen = HashSet::new();
-    parts.into_iter().filter(|p| seen.insert(p.clone())).collect()
+    parts
+        .into_iter()
+        .filter(|p| seen.insert(p.clone()))
+        .collect()
 }
 
 pub fn calculate_total_discs(tracks: &[Value]) -> u32 {
@@ -72,7 +75,11 @@ pub fn calculate_total_discs(tracks: &[Value]) -> u32 {
             discs.insert(val);
         }
     }
-    if discs.is_empty() { 1 } else { u32::try_from(discs.len()).unwrap_or(u32::MAX) }
+    if discs.is_empty() {
+        1
+    } else {
+        u32::try_from(discs.len()).unwrap_or(u32::MAX)
+    }
 }
 
 pub fn resolve_album_info_unix_added(ctx: &AlbumContext) -> u64 {
@@ -88,7 +95,8 @@ pub fn resolve_album_info_unix_added(ctx: &AlbumContext) -> u64 {
     ];
     for key in keys {
         if let Some(val) = ctx.source.get(key).and_then(Value::as_str)
-            && let Ok(ts) = val.parse::<u64>() {
+            && let Ok(ts) = val.parse::<u64>()
+        {
             return ts;
         }
     }
@@ -122,7 +130,9 @@ pub fn resolve_cover_chroma(ctx: &AlbumContext) -> Option<Value> {
     let img = ctx.cover_image?;
     let (width, height) = img.dimensions();
     let total = f64::from(width * height);
-    if total == 0.0 { return Some(json!(0.0)); }
+    if total == 0.0 {
+        return Some(json!(0.0));
+    }
 
     let mut sum_rg = 0.0;
     let mut sum_yb = 0.0;
@@ -162,18 +172,29 @@ pub fn resolve_cover_entropy(ctx: &AlbumContext) -> Option<Value> {
 
 pub fn resolve_comment(ctx: &AlbumContext) -> String {
     if let Some(v) = ctx.source.get("comment").and_then(Value::as_str)
-        && !v.is_empty() { return v.to_string(); }
+        && !v.is_empty()
+    {
+        return v.to_string();
+    }
 
     let country = standard::get_raw(ctx.source, "country", "");
     let label = standard::get_raw(ctx.source, "label", "");
     let cat = standard::get_raw(ctx.source, "catalognumber", "");
-    if country.is_empty() && label.is_empty() && cat.is_empty() { return String::new(); }
+    if country.is_empty() && label.is_empty() && cat.is_empty() {
+        return String::new();
+    }
     let yyyy_mm = resolve_yyyy_mm(ctx, "release_yyyy_mm");
-    let year = if yyyy_mm.len() >= 4 { &yyyy_mm[0..4] } else { "" };
-    [year, &country, &label, &cat]
-        .iter()
-        .filter(|s| !s.is_empty())
-        .copied()
-        .collect::<Vec<_>>()
-        .join(" ")
+    let year = if yyyy_mm.len() >= 4 {
+        &yyyy_mm[0..4]
+    } else {
+        ""
+    };
+    [
+        year, &country, &label, &cat,
+    ]
+    .iter()
+    .filter(|s| !s.is_empty())
+    .copied()
+    .collect::<Vec<_>>()
+    .join(" ")
 }
