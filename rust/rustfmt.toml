@@ -1,28 +1,17 @@
-# Use the modern formatting engine version
 version = "Two"
 edition = "2024"
 
-# Standard Library Width
 max_width = 100
 
-# Import Management (The "Standard" way)
-# Groups imports into: std, external crates, and local modules
 group_imports = "StdExternalCrate"
-# Merges imports from the same crate into a single line/block
 imports_granularity = "Crate"
 
-# LLM Logic Clamping
-# Forces the LLM to use shorthand: Point { x, y } instead of Point { x: x, y: y }
 use_field_init_shorthand = true
-# Combines small functions/blocks onto one line if they fit
 use_small_heuristics = "Max"
 
-# Structural Cleanup
 reorder_modules = true
 reorder_impl_items = true
 trim_trailing_whitespaces = true
 newline_style = "Unix"
 
-# Vertical alignment settings
-# This ensures that multiline arrays and structs look uniform
 indent_style = "Block"
