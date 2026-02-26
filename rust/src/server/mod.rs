@@ -58,7 +58,7 @@ pub async fn run(port: u16) -> Result<()> {
     };
 
     let mut library = library::Library::new(library_root);
-    library.scan().await;
+    library.scan();
     let library_arc = Arc::new(RwLock::new(library));
     let (tx, _) = broadcast::channel(100);
 

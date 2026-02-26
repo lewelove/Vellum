@@ -121,7 +121,7 @@ pub async fn run(
         &serde_json::from_value(config_json.clone())?,
         &project_root,
         &nix_env,
-    ).await?;
+    )?;
 
     stream::run(
         Some(child),

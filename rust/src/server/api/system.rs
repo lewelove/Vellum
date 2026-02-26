@@ -31,7 +31,7 @@ pub async fn trigger_full_reset(State(state): State<Arc<AppState>>) -> Response 
     log::info!("Full library reset triggered");
     {
         let mut lib = state.library.write().await;
-        lib.scan().await;
+        lib.scan();
     }
     
     let payload = {
