@@ -11,6 +11,28 @@
       let
         pkgs = import nixpkgs { inherit system; };
 
+        lyricsgenius = ps: ps.buildPythonPackage rec {
+          pname = "lyricsgenius";
+          version = "3.7.6";
+          pyproject = true;
+          
+          src = ps.fetchPypi {
+            inherit pname version;
+            hash = "sha256-zQGrgZEz4o9RSYWmGXH8TcNXUcRSfmF+xJCROQ3cPJ4=";
+          };
+
+          nativeBuildInputs = [
+            ps.hatchling
+          ];
+
+          propagatedBuildInputs = [
+            ps.requests
+            ps.beautifulsoup4
+          ];
+
+          doCheck = false;
+        };
+
         pythonEnv = pkgs.python3.withPackages (ps: with ps; [
           mutagen
           tqdm
@@ -18,6 +40,7 @@
           numpy
           xxhash
           httpx
+          (lyricsgenius ps)
         ]);
 
         vellum-cli = pkgs.writeShellApplication {

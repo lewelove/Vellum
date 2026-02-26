@@ -67,6 +67,22 @@ pub fn build(
     let default_source = json!({});
     let album_source = metadata_json.get("album").unwrap_or(&default_source);
 
+    let mut harvested_spine = Vec::new();
+    for path in audio_files {
+        harvested_spine.push(harvest::harvest_file(&path)?);
+    }
+    harvested_spine.sort_by(sort_harvest);
+
+    let mut disc_set = std::collections::HashSet::new();
+    for h in &harvested_spine {
+        let d = h.tags.get("DISCNUMBER")
+            .and_then(|s| s.split('/').next())
+            .and_then(|s| s.parse::<u32>().ok())
+            .unwrap_or(1);
+        disc_set.insert(d);
+    }
+    let total_discs = disc_set.len() as u32;
+
     let mut requires_ext = false;
     let mut final_tracks = Vec::new();
     let mut harvested_cache = Vec::new();
@@ -74,19 +90,14 @@ pub fn build(
     let mut o_track = 0;
     let mut last_p_disc = None;
 
-    let mut harvested_spine = Vec::new();
-    for path in audio_files {
-        harvested_spine.push(harvest::harvest_file(&path)?);
-    }
-    harvested_spine.sort_by(sort_harvest);
-
     for (idx, h_data) in harvested_spine.into_iter().enumerate() {
         let p_disc = h_data
             .tags
             .get("DISCNUMBER")
             .and_then(|s| s.split('/').next())
             .and_then(|s| s.parse().ok())
-            .unwrap_or(0);
+            .unwrap_or(1);
+        
         if Some(p_disc) == last_p_disc {
             o_track += 1;
         } else {
@@ -105,7 +116,7 @@ pub fn build(
             library_root: &library_root,
         };
 
-        let (t_obj, t_ext) = build_track(&t_ctx, registry, no_extensions);
+        let (t_obj, t_ext) = build_track(&t_ctx, total_discs, registry, no_extensions);
         if t_ext {
             requires_ext = true;
         }
@@ -184,11 +195,26 @@ fn sort_harvest(a: &harvest::TrackJson, b: &harvest::TrackJson) -> std::cmp::Ord
 
 fn build_track(
     ctx: &TrackContext,
+    total_discs: u32,
     registry: &serde_json::Map<String, Value>,
     no_ext: bool,
 ) -> (Value, bool) {
     let mut obj = serde_json::Map::new();
     let mut info = serde_json::Map::new();
+
+    let lyrics_path = ctx
+        .source
+        .get("lyrics_path")
+        .and_then(Value::as_str)
+        .map(ToString::to_string)
+        .or_else(|| {
+            resolvers::native::resolve_lyrics_path(
+                ctx.album_root,
+                ctx.ordinal_track_number,
+                ctx.ordinal_disc_number,
+                total_discs,
+            )
+        });
 
     info.insert(
         "track_path".to_string(),
@@ -229,6 +255,7 @@ fn build_track(
         "track_byte_size".to_string(),
         json!(ctx.harvest.physics.file_size),
     );
+    info.insert("lyrics_path".to_string(), json!(lyrics_path.unwrap_or_default()));
 
     obj.insert("info".to_string(), Value::Object(info));
     obj.insert(
