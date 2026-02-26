@@ -1,9 +1,9 @@
+use crate::server::library::Library;
 use anyhow::{Context, Result};
 use mpd::Client;
 use std::net::TcpStream;
 use std::sync::Arc;
-use tokio::sync::{broadcast, RwLock};
-use crate::server::library::Library;
+use tokio::sync::{RwLock, broadcast};
 
 pub fn broadcast_status(
     client: &mut Client<TcpStream>,
@@ -58,8 +58,5 @@ pub fn broadcast_status(
 }
 
 fn get_tag(song: &mpd::song::Song, key: &str) -> Option<String> {
-    song.tags
-        .iter()
-        .find(|(k, _)| k.eq_ignore_ascii_case(key))
-        .map(|(_, v)| v.clone())
+    song.tags.iter().find(|(k, _)| k.eq_ignore_ascii_case(key)).map(|(_, v)| v.clone())
 }

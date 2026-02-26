@@ -1,17 +1,8 @@
-use serde::{
-    Deserialize,
-    Serialize,
-};
+use anyhow::{Context, Result};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::path::{
-    Path,
-    PathBuf,
-};
 use std::fs;
-use anyhow::{
-    Context,
-    Result,
-};
+use std::path::{Path, PathBuf};
 use toml::Value;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -69,16 +60,12 @@ impl AppConfig {
     pub fn load() -> Result<(Self, Value, PathBuf)> {
         let config_path = Self::resolve_config_path()
             .context("Could not locate config.toml in home directory or project hierarchy")?;
-        
+
         let mut visited = std::collections::HashSet::new();
         let raw_value = Self::load_recursive(&config_path, &mut visited)?;
-        
+
         let config: Self = Value::try_into(raw_value.clone())?;
-        Ok((
-            config,
-            raw_value,
-            config_path
-        ))
+        Ok((config, raw_value, config_path))
     }
 
     fn resolve_config_path() -> Option<PathBuf> {
@@ -90,7 +77,8 @@ impl AppConfig {
         }
 
         if let Some(home_config) = dirs::home_dir().map(|h| h.join(".config/vellum/config.toml"))
-            && home_config.exists() {
+            && home_config.exists()
+        {
             return Some(home_config);
         }
 
@@ -116,7 +104,10 @@ impl AppConfig {
         None
     }
 
-    fn load_recursive(path: &Path, visited: &mut std::collections::HashSet<PathBuf>) -> Result<Value> {
+    fn load_recursive(
+        path: &Path,
+        visited: &mut std::collections::HashSet<PathBuf>,
+    ) -> Result<Value> {
         let canon_path = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
         if !visited.insert(canon_path) {
             return Err(anyhow::anyhow!("Circular import detected: {}", path.display()));
@@ -124,15 +115,15 @@ impl AppConfig {
 
         let content = fs::read_to_string(path)
             .with_context(|| format!("Failed to read config file: {}", path.display()))?;
-        
+
         let mut current_value: Value = toml::from_str(&content)?;
-        
+
         if let Some(imports) = current_value.get("import") {
             let import_paths = match imports {
-                Value::String(s) => vec![
-                    s.clone()
-                ],
-                Value::Array(arr) => arr.iter().filter_map(|v| v.as_str().map(ToString::to_string)).collect(),
+                Value::String(s) => vec![s.clone()],
+                Value::Array(arr) => {
+                    arr.iter().filter_map(|v| v.as_str().map(ToString::to_string)).collect()
+                }
                 _ => vec![],
             };
 

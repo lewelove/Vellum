@@ -1,10 +1,10 @@
-use axum::extract::{State, Query, Path};
-use axum::response::{IntoResponse, Response};
+use crate::server::state::AppState;
 use axum::Json;
+use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
+use axum::response::{IntoResponse, Response};
 use serde_json::json;
 use std::sync::Arc;
-use crate::server::state::AppState;
 
 pub async fn update_state(
     State(state): State<Arc<AppState>>,
@@ -13,8 +13,11 @@ pub async fn update_state(
     let content = {
         let mut ui = state.ui_state.write().await;
         if let Some(obj) = payload.as_object()
-            && let Some(ui_obj) = ui.as_object_mut() {
-            for (k, v) in obj { ui_obj.insert(k.clone(), v.clone()); }
+            && let Some(ui_obj) = ui.as_object_mut()
+        {
+            for (k, v) in obj {
+                ui_obj.insert(k.clone(), v.clone());
+            }
         }
         serde_json::to_string_pretty(&*ui).ok()
     };
@@ -33,7 +36,7 @@ pub async fn trigger_full_reset(State(state): State<Arc<AppState>>) -> Response 
         let mut lib = state.library.write().await;
         lib.scan();
     }
-    
+
     // Extract data first to ensure locks are dropped immediately
     let (albums, ui_state) = {
         let lib_guard = state.library.read().await;
@@ -45,7 +48,8 @@ pub async fn trigger_full_reset(State(state): State<Arc<AppState>>) -> Response 
         "type": "INIT",
         "data": albums,
         "ui_state": ui_state
-    }).to_string();
+    })
+    .to_string();
 
     let _ = state.tx.send(payload);
     Json(json!({"status": "ok"})).into_response()
@@ -59,14 +63,17 @@ pub async fn trigger_reload(
         let mut lib = state.library.write().await;
         if let Some(updated) = lib.update_album(path) {
             let album_name = &updated.album_data.album;
-            
+
             log::info!("Updated: {album_name}");
 
-            let _ = state.tx.send(json!({
-                "type": "UPDATE",
-                "id": updated.id,
-                "payload": updated
-            }).to_string());
+            let _ = state.tx.send(
+                json!({
+                    "type": "UPDATE",
+                    "id": updated.id,
+                    "payload": updated
+                })
+                .to_string(),
+            );
             return Json(json!({"status": "ok"})).into_response();
         }
     }

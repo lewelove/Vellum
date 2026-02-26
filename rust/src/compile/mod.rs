@@ -1,15 +1,12 @@
-use anyhow::{
-    Context,
-    Result,
-};
-use serde_json::{json, Value};
+use anyhow::{Context, Result};
+use serde_json::{Value, json};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 
-use crate::config::AppConfig;
 use crate::compile::nix::get_nix_env;
 use crate::compile::stream::StreamContext;
+use crate::config::AppConfig;
 
 pub mod kernel;
 pub mod manifest;
@@ -48,28 +45,23 @@ pub struct CompileOptions {
     pub compile_flags: CompileFlags,
 }
 
-pub async fn run(
-    mut options: CompileOptions
-) -> Result<()> {
-    let (config, raw_toml, config_path) = AppConfig::load()
-        .context("Failed to load application configuration")?;
+pub async fn run(mut options: CompileOptions) -> Result<()> {
+    let (config, raw_toml, config_path) =
+        AppConfig::load().context("Failed to load application configuration")?;
 
-    let project_root = config_path.parent()
+    let project_root = config_path
+        .parent()
         .context("Failed to determine project root from config path")?
         .to_path_buf();
 
     if !options.flags.contains(&"default".to_string()) {
-        options.flags.push(
-            "default".to_string()
-        );
+        options.flags.push("default".to_string());
     }
 
     let albums = if let Some(list) = options.specific_albums {
         list
     } else {
-        let scan_depth = config.compiler.as_ref()
-            .and_then(|c| c.scan_depth)
-            .unwrap_or(4);
+        let scan_depth = config.compiler.as_ref().and_then(|c| c.scan_depth).unwrap_or(4);
         scan::find_target_albums(&options.target_path, scan_depth)
     };
 
@@ -126,24 +118,17 @@ pub async fn run(
     }
 
     let home = dirs::home_dir().context("No home dir")?;
-    
-    let explicit_flake = config.extensions.as_ref().map(|ext| {
-        PathBuf::from(&ext.folder).join(&ext.flake)
-    });
+
+    let explicit_flake =
+        config.extensions.as_ref().map(|ext| PathBuf::from(&ext.folder).join(&ext.flake));
 
     let mut nix_env = get_nix_env(&project_root, explicit_flake)?;
-    nix_env.insert(
-        "HOME".to_string(),
-        home.to_string_lossy().to_string()
-    );
+    nix_env.insert("HOME".to_string(), home.to_string_lossy().to_string());
 
     log::info!("Compiling {} albums...", albums.len());
 
-    let child = kernel::spawn(
-        &serde_json::from_value(config_json.clone())?,
-        &project_root,
-        &nix_env,
-    )?;
+    let child =
+        kernel::spawn(&serde_json::from_value(config_json.clone())?, &project_root, &nix_env)?;
 
     stream::run(Some(child), stream_ctx).await
 }

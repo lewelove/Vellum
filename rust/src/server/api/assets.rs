@@ -1,11 +1,11 @@
+use crate::server::state::AppState;
 use axum::extract::{Path, State};
-use axum::response::{IntoResponse, Response};
 use axum::http::{StatusCode, header};
-use tokio::fs::File;
-use tokio::io::AsyncReadExt;
+use axum::response::{IntoResponse, Response};
 use std::path::PathBuf;
 use std::sync::Arc;
-use crate::server::state::AppState;
+use tokio::fs::File;
+use tokio::io::AsyncReadExt;
 
 pub async fn get_cover_thumbnail(
     Path(hash): Path<String>,
@@ -40,11 +40,19 @@ async fn serve_image(path: PathBuf) -> Response {
     if let Ok(mut file) = File::open(&path).await {
         let mut buf = Vec::new();
         if file.read_to_end(&mut buf).await.is_ok() {
-            let mime = if path.extension().is_some_and(|e| e == "png") { "image/png" } else { "image/jpeg" };
+            let mime = if path.extension().is_some_and(|e| e == "png") {
+                "image/png"
+            } else {
+                "image/jpeg"
+            };
             return (
-                [(header::CONTENT_TYPE, mime), (header::CACHE_CONTROL, "public, max-age=31536000, immutable")],
-                buf
-            ).into_response();
+                [
+                    (header::CONTENT_TYPE, mime),
+                    (header::CACHE_CONTROL, "public, max-age=31536000, immutable"),
+                ],
+                buf,
+            )
+                .into_response();
         }
     }
     StatusCode::NOT_FOUND.into_response()

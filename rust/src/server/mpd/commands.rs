@@ -18,19 +18,13 @@ pub fn handle_command(client: &mut Client<TcpStream>, cmd: MpdCommand) -> Result
         MpdCommand::Play { tracks, offset } => {
             client.clear()?;
             for track in tracks {
-                client.push(mpd::song::Song {
-                    file: track,
-                    ..Default::default()
-                })?;
+                client.push(mpd::song::Song { file: track, ..Default::default() })?;
             }
             client.switch(u32::try_from(offset)?)?;
         }
         MpdCommand::Queue { tracks } => {
             for track in tracks {
-                client.push(mpd::song::Song {
-                    file: track,
-                    ..Default::default()
-                })?;
+                client.push(mpd::song::Song { file: track, ..Default::default() })?;
             }
         }
         MpdCommand::Clear => client.clear()?,
@@ -45,7 +39,7 @@ pub fn handle_command(client: &mut Client<TcpStream>, cmd: MpdCommand) -> Result
                 mpd::status::State::Stop => client.play()?,
             }
         }
-        MpdCommand::Refresh => {} 
+        MpdCommand::Refresh => {}
     }
     Ok(())
 }

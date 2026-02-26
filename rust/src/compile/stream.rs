@@ -1,14 +1,14 @@
 use anyhow::{Context, Result};
 use rayon::prelude::*;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::Child;
 use tokio::sync::mpsc;
-use std::collections::HashMap;
 
-use crate::compile::{manifest, verify, ExportTarget};
+use crate::compile::{ExportTarget, manifest, verify};
 
 pub struct StreamContext {
     pub albums: Vec<PathBuf>,
@@ -22,10 +22,7 @@ pub struct StreamContext {
     pub notify_tx: Option<mpsc::Sender<PathBuf>>,
 }
 
-pub async fn run(
-    child: Option<Child>,
-    ctx: StreamContext,
-) -> Result<()> {
+pub async fn run(child: Option<Child>, ctx: StreamContext) -> Result<()> {
     let (kernel_tx, mut kernel_rx) = mpsc::channel::<String>(32);
     let (direct_tx, mut direct_rx) = mpsc::channel::<Value>(512);
 
@@ -38,16 +35,17 @@ pub async fn run(
     let jobs = ctx.jobs;
     let no_ext = ctx.no_extensions;
 
-    let registry = ctx.config.get("compiler_registry")
+    let registry = ctx
+        .config
+        .get("compiler_registry")
         .and_then(Value::as_object)
         .map(|v| v.clone().into_iter().collect::<HashMap<String, Value>>())
         .unwrap_or_default();
     let registry_arc = Arc::new(registry);
-    
+
     let blocking_handle = tokio::task::spawn_blocking(move || {
-        let default_parallelism = std::thread::available_parallelism()
-            .map(std::num::NonZero::get)
-            .unwrap_or(1);
+        let default_parallelism =
+            std::thread::available_parallelism().map(std::num::NonZero::get).unwrap_or(1);
 
         let pool = rayon::ThreadPoolBuilder::new()
             .num_threads(jobs.unwrap_or(default_parallelism))
@@ -56,7 +54,14 @@ pub async fn run(
 
         pool.install(|| {
             albums_clone.par_iter().for_each(|album_root| {
-                match manifest::build(album_root, &project_root_clone, &config_clone, &gen_cfg_clone, &active_flags_clone, no_ext) {
+                match manifest::build(
+                    album_root,
+                    &project_root_clone,
+                    &config_clone,
+                    &gen_cfg_clone,
+                    &active_flags_clone,
+                    no_ext,
+                ) {
                     Ok((man, needs_external)) => {
                         if !needs_external || no_ext {
                             let _ = direct_tx.blocking_send(man);
@@ -80,7 +85,7 @@ pub async fn run(
         while let Some(enriched) = direct_rx.recv().await {
             let notify = notify_tx_for_direct.as_ref().map(Arc::clone);
             let reg = registry_for_direct.clone();
-            
+
             tokio::task::spawn_blocking(move || {
                 let _ = finalize_and_write(enriched, target, notify, &reg);
             });
@@ -93,7 +98,7 @@ pub async fn run(
 
         let notify_tx_for_receiver = notify_tx_arc.clone();
         let registry_for_receiver = Arc::clone(&registry_arc);
-        
+
         let sender_handle = tokio::spawn(async move {
             while let Some(line) = kernel_rx.recv().await {
                 let _ = stdin.write_all(line.as_bytes()).await;
@@ -106,11 +111,13 @@ pub async fn run(
             let reader = BufReader::new(stdout);
             let mut lines = reader.lines();
             while let Ok(Some(line)) = lines.next_line().await {
-                if line.trim().is_empty() { continue; }
+                if line.trim().is_empty() {
+                    continue;
+                }
                 if let Ok(enriched) = serde_json::from_str(&line) {
                     let notify = notify_tx_for_receiver.as_ref().map(Arc::clone);
                     let reg = registry_for_receiver.clone();
-                    
+
                     tokio::task::spawn_blocking(move || {
                         let _ = finalize_and_write(enriched, target, notify, &reg);
                     });
@@ -125,19 +132,17 @@ pub async fn run(
 
     let _ = blocking_handle.await;
     let _ = direct_consumer_handle.await;
-    
+
     Ok(())
 }
 
 fn strip_empty_values(value: &mut Value) {
     match value {
         Value::Object(map) => {
-            map.retain(|_, v| {
-                match v {
-                    Value::String(s) => !s.is_empty(),
-                    Value::Null => false,
-                    _ => true,
-                }
+            map.retain(|_, v| match v {
+                Value::String(s) => !s.is_empty(),
+                Value::Null => false,
+                _ => true,
             });
             for v in map.values_mut() {
                 strip_empty_values(v);
@@ -152,15 +157,23 @@ fn strip_empty_values(value: &mut Value) {
     }
 }
 
-fn finalize_and_write(mut enriched: Value, target: ExportTarget, notify_tx: Option<Arc<mpsc::Sender<PathBuf>>>, registry: &HashMap<String, Value>) -> Result<()> {
-    let ctx = enriched.as_object_mut().map_or_else(|| json!({}), |obj| obj.remove("ctx").unwrap_or_else(|| json!({})));
+fn finalize_and_write(
+    mut enriched: Value,
+    target: ExportTarget,
+    notify_tx: Option<Arc<mpsc::Sender<PathBuf>>>,
+    registry: &HashMap<String, Value>,
+) -> Result<()> {
+    let ctx = enriched
+        .as_object_mut()
+        .map_or_else(|| json!({}), |obj| obj.remove("ctx").unwrap_or_else(|| json!({})));
 
     let harvest = ctx.get("harvest").cloned().unwrap_or_else(|| json!([]));
     let h_arr = harvest.as_array().map_or(&[][..], Vec::as_slice);
     let is_match = verify::calculate_file_tag_subset_match(&enriched, h_arr, registry);
-    
+
     if let Some(a) = enriched.get_mut("album").and_then(Value::as_object_mut)
-        && let Some(info) = a.get_mut("info").and_then(Value::as_object_mut) {
+        && let Some(info) = a.get_mut("info").and_then(Value::as_object_mut)
+    {
         info.insert("file_tag_subset_match".to_string(), json!(is_match));
     }
 
@@ -175,7 +188,7 @@ fn finalize_and_write(mut enriched: Value, target: ExportTarget, notify_tx: Opti
             println!("{content}");
         } else {
             std::fs::write(dest, content)?;
-            
+
             if let Some(tx_arc) = notify_tx {
                 let root_clone = album_root.to_path_buf();
                 let tx = (*tx_arc).clone();

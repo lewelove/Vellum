@@ -1,8 +1,8 @@
-use std::path::PathBuf;
-use std::sync::Arc;
-use tokio::sync::{broadcast, RwLock};
 use crate::server::library::Library;
 use crate::server::mpd::MpdEngine;
+use std::path::PathBuf;
+use std::sync::Arc;
+use tokio::sync::{RwLock, broadcast};
 
 pub struct AppState {
     pub library: Arc<RwLock<Library>>,

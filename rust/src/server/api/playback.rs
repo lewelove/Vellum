@@ -1,10 +1,10 @@
-use axum::extract::{Path, State, Query};
-use axum::response::{IntoResponse, Response};
+use crate::server::mpd::MpdCommand;
+use crate::server::state::AppState;
 use axum::Json;
+use axum::extract::{Path, Query, State};
+use axum::response::{IntoResponse, Response};
 use serde_json::json;
 use std::sync::Arc;
-use crate::server::state::AppState;
-use crate::server::mpd::MpdCommand;
 
 pub async fn play_album(
     Path(id): Path<String>,
@@ -28,10 +28,7 @@ pub async fn play_disc(
     Json(json!({"status": "ok"})).into_response()
 }
 
-pub async fn queue_album(
-    Path(id): Path<String>,
-    State(state): State<Arc<AppState>>,
-) -> Response {
+pub async fn queue_album(Path(id): Path<String>, State(state): State<Arc<AppState>>) -> Response {
     let tracks = get_tracks_internal(&id, &state, None).await;
     state.mpd_engine.send(MpdCommand::Queue { tracks }).await;
     Json(json!({"status": "ok"})).into_response()
@@ -62,22 +59,30 @@ pub async fn toggle_pause(State(state): State<Arc<AppState>>) -> Response {
     Json(json!({"status": "ok"})).into_response()
 }
 
-async fn get_tracks_internal(id: &str, state: &Arc<AppState>, disc_filter: Option<String>) -> Vec<String> {
+async fn get_tracks_internal(
+    id: &str,
+    state: &Arc<AppState>,
+    disc_filter: Option<String>,
+) -> Vec<String> {
     let lib = state.library.read().await;
     let mut paths = Vec::new();
-    
+
     let target_disc = disc_filter.and_then(|s| s.parse::<u32>().ok());
 
     if let Some(album) = lib.album_map.get(id) {
         for track in &album.tracks {
             if let Some(td) = target_disc
-                && track.discnumber != td { continue; }
-            
+                && track.discnumber != td
+            {
+                continue;
+            }
+
             let tp = &track.info.track_library_path;
             if let Some(abs) = lib.track_map.get(tp)
                 && let Ok(rel) = abs.strip_prefix(&state.config.library_root)
-                && let Some(s) = rel.to_str() { 
-                paths.push(s.to_string()); 
+                && let Some(s) = rel.to_str()
+            {
+                paths.push(s.to_string());
             }
         }
     }

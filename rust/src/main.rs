@@ -2,21 +2,15 @@
 #![allow(clippy::module_name_repetitions)]
 #![allow(clippy::multiple_crate_versions)]
 
+mod compile;
+mod config;
 mod harvest;
 mod server;
-mod config;
-mod compile;
 mod update;
 
-use clap::{
-    Parser,
-    Subcommand,
-};
+use anyhow::{Context, Result};
+use clap::{Parser, Subcommand};
 use std::path::PathBuf;
-use anyhow::{
-    Context,
-    Result,
-};
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -62,13 +56,14 @@ enum Commands {
         jobs: Option<usize>,
         #[arg(long)]
         no_extensions: bool,
-    }
+    },
 }
 
 #[must_use]
 pub fn expand_path(path_str: &str) -> PathBuf {
     if path_str.starts_with('~')
-        && let Some(home) = dirs::home_dir() {
+        && let Some(home) = dirs::home_dir()
+    {
         if path_str == "~" {
             return home;
         }
@@ -81,20 +76,12 @@ pub fn expand_path(path_str: &str) -> PathBuf {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    simple_logger::SimpleLogger::new()
-        .with_level(log::LevelFilter::Info)
-        .env()
-        .init()
-        .ok();
+    simple_logger::SimpleLogger::new().with_level(log::LevelFilter::Info).env().init().ok();
 
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Harvest {
-            paths,
-            pretty,
-            jobs,
-        } => {
+        Commands::Harvest { paths, pretty, jobs } => {
             if let Some(j) = jobs {
                 rayon::ThreadPoolBuilder::new()
                     .num_threads(j)
@@ -111,23 +98,12 @@ async fn main() -> Result<()> {
                     targets.push(expanded);
                 }
             }
-                
+
             harvest::run(targets, pretty);
             Ok(())
-        },
-        Commands::Server {
-            port,
-        } => {
-            server::run(port).await
-        },
-        Commands::Compile {
-            path,
-            stdout,
-            intermediary,
-            pretty,
-            flags,
-            no_extensions,
-        } => {
+        }
+        Commands::Server { port } => server::run(port).await,
+        Commands::Compile { path, stdout, intermediary, pretty, flags, no_extensions } => {
             let expanded = expand_path(&path);
             let options = compile::CompileOptions {
                 target_path: expanded,
@@ -136,20 +112,23 @@ async fn main() -> Result<()> {
                 jobs: None,
                 notify_tx: None,
                 compile_flags: compile::CompileFlags {
-                    mode: if intermediary { compile::CompileMode::Intermediary } else { compile::CompileMode::Standard },
-                    target: if stdout { compile::ExportTarget::Stdout } else { compile::ExportTarget::File },
+                    mode: if intermediary {
+                        compile::CompileMode::Intermediary
+                    } else {
+                        compile::CompileMode::Standard
+                    },
+                    target: if stdout {
+                        compile::ExportTarget::Stdout
+                    } else {
+                        compile::ExportTarget::File
+                    },
                     pretty,
                     no_extensions,
                 },
             };
             compile::run(options).await
-        },
-        Commands::Update {
-            path,
-            force,
-            jobs,
-            no_extensions,
-        } => {
+        }
+        Commands::Update { path, force, jobs, no_extensions } => {
             let expanded = path.map(|p| expand_path(&p));
             update::run(expanded, force, jobs, no_extensions).await
         }

@@ -1,7 +1,7 @@
+use crate::server::library::models::{AlbumView, LockFile};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
-use crate::server::library::models::{LockFile, AlbumView};
 
 pub struct Library {
     pub root: PathBuf,
@@ -28,7 +28,7 @@ impl Library {
 
     pub fn scan(&mut self) {
         log::info!("Scanning Library at {}", self.root.display());
-        
+
         let mut albums = Vec::new();
         let mut album_map = HashMap::new();
         let mut track_map = HashMap::new();
@@ -43,36 +43,35 @@ impl Library {
 
         for lock_path in entries {
             match std::fs::read_to_string(&lock_path) {
-                Ok(content) => {
-                    match serde_json::from_str::<LockFile>(&content) {
-                        Ok(lock_data) => {
-                            let alb_id = lock_data.album.info.album_path.clone();
-                            let album_dir = lock_path.parent().unwrap_or(&self.root);
-                            
-                            let view = AlbumView {
-                                id: alb_id.clone(),
-                                album_data: lock_data.album.clone(),
-                                tracks: lock_data.tracks.clone(),
-                            };
+                Ok(content) => match serde_json::from_str::<LockFile>(&content) {
+                    Ok(lock_data) => {
+                        let alb_id = lock_data.album.info.album_path.clone();
+                        let album_dir = lock_path.parent().unwrap_or(&self.root);
 
-                            albums.push(view.clone());
-                            album_map.insert(alb_id.clone(), view);
+                        let view = AlbumView {
+                            id: alb_id.clone(),
+                            album_data: lock_data.album.clone(),
+                            tracks: lock_data.tracks.clone(),
+                        };
 
-                            for track in &lock_data.tracks {
-                                let t_id = track.info.track_library_path.clone();
-                                let abs_path = album_dir.join(&track.info.track_path);
-                                track_map.insert(t_id, abs_path);
-                                
-                                let full_rel_path = Path::new(&alb_id).join(&track.info.track_path);
-                                let normalized = Self::normalize_path(full_rel_path.to_str().unwrap_or(""));
-                                path_lookup.insert(normalized, alb_id.clone());
-                            }
-                        }
-                        Err(e) => {
-                            log::error!("Schema Mismatch at {}: {e}", lock_path.display());
+                        albums.push(view.clone());
+                        album_map.insert(alb_id.clone(), view);
+
+                        for track in &lock_data.tracks {
+                            let t_id = track.info.track_library_path.clone();
+                            let abs_path = album_dir.join(&track.info.track_path);
+                            track_map.insert(t_id, abs_path);
+
+                            let full_rel_path = Path::new(&alb_id).join(&track.info.track_path);
+                            let normalized =
+                                Self::normalize_path(full_rel_path.to_str().unwrap_or(""));
+                            path_lookup.insert(normalized, alb_id.clone());
                         }
                     }
-                }
+                    Err(e) => {
+                        log::error!("Schema Mismatch at {}: {e}", lock_path.display());
+                    }
+                },
                 Err(e) => {
                     log::error!("Failed to read lock file at {}: {e}", lock_path.display());
                 }

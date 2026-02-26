@@ -33,16 +33,9 @@ pub struct PhysicsData {
 }
 
 pub fn run(roots: Vec<PathBuf>, pretty: bool) {
-    let extensions = [
-        "flac",
-        "mp3",
-        "m4a",
-        "ogg",
-        "wav",
-        "opus"
-    ];
+    let extensions = ["flac", "mp3", "m4a", "ogg", "wav", "opus"];
     let mut files = Vec::new();
-    
+
     for root in roots {
         files.extend(scan_files(&root, &extensions));
     }
@@ -100,10 +93,7 @@ fn scan_files(root: &Path, extensions: &[&str]) -> Vec<PathBuf> {
 pub fn harvest_file(path: &Path) -> Result<TrackJson> {
     let metadata = fs::metadata(path)?;
     let file_size = metadata.len();
-    let mtime = metadata
-        .modified()?
-        .duration_since(std::time::UNIX_EPOCH)?
-        .as_secs();
+    let mtime = metadata.modified()?.duration_since(std::time::UNIX_EPOCH)?.as_secs();
 
     let tagged_file = Probe::open(path)
         .context("Open failed")?
@@ -112,7 +102,7 @@ pub fn harvest_file(path: &Path) -> Result<TrackJson> {
         .context("Read failed")?;
 
     let properties = tagged_file.properties();
-    
+
     let physics = PhysicsData {
         file_size,
         mtime,
@@ -126,29 +116,36 @@ pub fn harvest_file(path: &Path) -> Result<TrackJson> {
     };
 
     let mut tags = HashMap::new();
-    
+
     if let Some(tag) = tagged_file.primary_tag().or_else(|| tagged_file.first_tag()) {
         let tag_type = tag.tag_type();
 
         for item in tag.items() {
-            let key = item.key()
+            let key = item
+                .key()
                 .map_key(tag_type)
-                .map_or_else(|| {
-                    let k = format!("{item:?}");
-                    if let Some(start) = k.find('"') 
-                        && let Some(end) = k.rfind('"') 
-                        && start < end {
-                                return k[start + 1..end].to_string();
-                    }
-                    k
-                }, ToString::to_string)
+                .map_or_else(
+                    || {
+                        let k = format!("{item:?}");
+                        if let Some(start) = k.find('"')
+                            && let Some(end) = k.rfind('"')
+                            && start < end
+                        {
+                            return k[start + 1..end].to_string();
+                        }
+                        k
+                    },
+                    ToString::to_string,
+                )
                 .to_uppercase();
 
             let Some(value) = item.value().text() else { continue };
             let value = value.trim();
 
-            if key.is_empty() || value.is_empty() { continue; }
-                
+            if key.is_empty() || value.is_empty() {
+                continue;
+            }
+
             tags.entry(key)
                 .and_modify(|existing: &mut String| {
                     existing.push_str("; ");
@@ -158,9 +155,5 @@ pub fn harvest_file(path: &Path) -> Result<TrackJson> {
         }
     }
 
-    Ok(TrackJson {
-        path: path.to_path_buf(),
-        tags,
-        physics,
-    })
+    Ok(TrackJson { path: path.to_path_buf(), tags, physics })
 }
