@@ -60,32 +60,7 @@ pub async fn run(
     let base_cache_dir = expand_path("~/.vellum/libraries_cache");
     fs::create_dir_all(&base_cache_dir)?;
 
-    let current_json_path = base_cache_dir.join("current.json");
-    let mut needs_reset = false;
-
-    if current_json_path.exists() {
-        let content = fs::read_to_string(&current_json_path).unwrap_or_default();
-        if let Ok(state) = serde_json::from_str::<CurrentState>(&content) {
-            if state.hash != lib_hash {
-                needs_reset = true;
-            }
-        } else {
-            needs_reset = true;
-        }
-    } else {
-        needs_reset = true;
-    }
-
-    if needs_reset {
-        log::info!("Library root changed. Triggering server reset.");
-        let _ = fs::write(
-            &current_json_path,
-            serde_json::to_string(&CurrentState {
-                hash: lib_hash.clone(),
-            })?,
-        );
-        let _ = trigger_server_reset().await;
-    }
+    validate_library_root(&base_cache_dir, &lib_hash).await?;
 
     let cache_file = base_cache_dir.join(format!("{lib_hash}.json"));
     let mut cache = load_cache(&cache_file);
@@ -96,39 +71,7 @@ pub async fn run(
 
     log::info!("Verifying {} albums...", all_albums.len());
 
-    let default_parallelism = std::thread::available_parallelism()
-        .map(std::num::NonZero::get)
-        .unwrap_or(1);
-
-    let pool = rayon::ThreadPoolBuilder::new()
-        .num_threads(jobs.unwrap_or(default_parallelism))
-        .build()?;
-
-    let results: Vec<(PathBuf, u64, bool)> = pool.install(|| {
-        all_albums
-            .into_par_iter()
-            .map(|album_root| {
-                let album_path_str = album_root.to_string_lossy().to_string();
-                let metadata_path = album_root.join("metadata.toml");
-                let mtime_sum = get_mtime_sum(&album_root, &metadata_path);
-
-                if force {
-                    return (album_root, mtime_sum, true);
-                }
-
-                if let Some(entry) = cache.get(&album_path_str)
-                    && entry.mtime_sum == mtime_sum && mtime_sum != 0 {
-                    return (album_root, mtime_sum, false);
-                }
-
-                let trust = verify_trust(&album_root);
-                match trust {
-                    TrustState::Valid => (album_root, mtime_sum, false),
-                    _ => (album_root, mtime_sum, true),
-                }
-            })
-            .collect()
-    });
+    let results = verify_albums_parallel(all_albums, &cache, force, jobs)?;
 
     let mut work_queue = Vec::new();
     let mut trusted_count = 0;
@@ -160,33 +103,22 @@ pub async fn run(
     let notification_task = tokio::spawn(async move {
         let client = reqwest::Client::new();
         while let Some(album_root) = notify_rx.recv().await {
-            let album_path_str = album_root.to_string_lossy().to_string();
-            let metadata_path = album_root.join("metadata.toml");
-            let mtime_sum = get_mtime_sum(&album_root, &metadata_path);
-            
-            let params = [("path", album_path_str.clone())];
-            let _ = client
-                .post("http://127.0.0.1:8000/api/internal/reload")
-                .query(&params)
-                .timeout(std::time::Duration::from_millis(1000))
-                .send()
-                .await;
-            
-            let mut c = cache_for_task.lock().await;
-            c.insert(album_path_str, AlbumCacheEntry { mtime_sum });
+            handle_album_reload(&client, &album_root, &cache_for_task).await;
         }
     });
 
     let compile_options = compile::CompileOptions {
         target_path: scan_root,
-        stdout_output: false,
-        intermediary: false,
-        pretty: false,
         flags: vec!["default".to_string()],
         specific_albums: Some(work_queue),
         jobs,
-        no_extensions,
         notify_tx: Some(notify_tx.clone()),
+        compile_flags: compile::CompileFlags {
+            stdout_output: false,
+            intermediary: false,
+            pretty: false,
+            no_extensions,
+        }
     };
 
     compile::run(compile_options).await?;
@@ -198,6 +130,80 @@ pub async fn run(
     save_cache(&final_cache, &cache_file)?;
 
     Ok(())
+}
+
+async fn validate_library_root(cache_dir: &Path, current_hash: &str) -> Result<()> {
+    let current_json_path = cache_dir.join("current.json");
+    let mut needs_reset = false;
+
+    if current_json_path.exists() {
+        let content = fs::read_to_string(&current_json_path).unwrap_or_default();
+        if let Ok(state) = serde_json::from_str::<CurrentState>(&content) {
+            if state.hash != current_hash {
+                needs_reset = true;
+            }
+        } else {
+            needs_reset = true;
+        }
+    } else {
+        needs_reset = true;
+    }
+
+    if needs_reset {
+        log::info!("Library root changed. Triggering server reset.");
+        let _ = fs::write(
+            &current_json_path,
+            serde_json::to_string(&CurrentState {
+                hash: current_hash.to_string(),
+            })?,
+        );
+        let _ = trigger_server_reset().await;
+    }
+    Ok(())
+}
+
+fn verify_albums_parallel(albums: Vec<PathBuf>, cache: &HashMap<String, AlbumCacheEntry>, force: bool, jobs: Option<usize>) -> Result<Vec<(PathBuf, u64, bool)>> {
+    let default_parallelism = std::thread::available_parallelism().map(std::num::NonZero::get).unwrap_or(1);
+    let pool = rayon::ThreadPoolBuilder::new().num_threads(jobs.unwrap_or(default_parallelism)).build()?;
+
+    Ok(pool.install(|| {
+        albums.into_par_iter().map(|album_root| {
+            let album_path_str = album_root.to_string_lossy().to_string();
+            let metadata_path = album_root.join("metadata.toml");
+            let mtime_sum = get_mtime_sum(&album_root, &metadata_path);
+
+            if force {
+                return (album_root, mtime_sum, true);
+            }
+
+            if let Some(entry) = cache.get(&album_path_str)
+                && entry.mtime_sum == mtime_sum && mtime_sum != 0 {
+                return (album_root, mtime_sum, false);
+            }
+
+            match verify_trust(&album_root) {
+                TrustState::Valid => (album_root, mtime_sum, false),
+                _ => (album_root, mtime_sum, true),
+            }
+        }).collect()
+    }))
+}
+
+async fn handle_album_reload(client: &reqwest::Client, album_root: &Path, cache: &Arc<Mutex<HashMap<String, AlbumCacheEntry>>>) {
+    let album_path_str = album_root.to_string_lossy().to_string();
+    let metadata_path = album_root.join("metadata.toml");
+    let mtime_sum = get_mtime_sum(album_root, &metadata_path);
+    
+    let params = [("path", album_path_str.clone())];
+    let _ = client
+        .post("http://127.0.0.1:8000/api/internal/reload")
+        .query(&params)
+        .timeout(std::time::Duration::from_millis(1000))
+        .send()
+        .await;
+    
+    let mut c = cache.lock().await;
+    c.insert(album_path_str, AlbumCacheEntry { mtime_sum });
 }
 
 fn calculate_hash(data: &str) -> String {

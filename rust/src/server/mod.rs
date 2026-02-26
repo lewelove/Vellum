@@ -87,7 +87,7 @@ pub async fn run(port: u16) -> Result<()> {
         [127, 0, 0, 1],
         port
     ));
-    log::info!("Vellum Server listening on http://{}", addr);
+    log::info!("Vellum Server listening on http://{addr}");
     axum::serve(tokio::net::TcpListener::bind(addr).await?, app).await?;
 
     Ok(())

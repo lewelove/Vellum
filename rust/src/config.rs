@@ -119,11 +119,11 @@ impl AppConfig {
     fn load_recursive(path: &Path, visited: &mut std::collections::HashSet<PathBuf>) -> Result<Value> {
         let canon_path = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
         if !visited.insert(canon_path) {
-            return Err(anyhow::anyhow!("Circular import detected: {path:?}"));
+            return Err(anyhow::anyhow!("Circular import detected: {}", path.display()));
         }
 
         let content = fs::read_to_string(path)
-            .with_context(|| format!("Failed to read config file: {path:?}"))?;
+            .with_context(|| format!("Failed to read config file: {}", path.display()))?;
         
         let mut current_value: Value = toml::from_str(&content)?;
         

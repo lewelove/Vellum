@@ -10,29 +10,35 @@ use std::collections::HashMap;
 
 use crate::compile::{manifest, verify};
 
+pub struct StreamContext {
+    pub albums: Vec<PathBuf>,
+    pub config: Arc<Value>,
+    pub project_root: Arc<PathBuf>,
+    pub gen_cfg: Arc<Value>,
+    pub active_flags: Arc<Vec<String>>,
+    pub stdout_output: bool,
+    pub jobs: Option<usize>,
+    pub no_extensions: bool,
+    pub notify_tx: Option<mpsc::Sender<PathBuf>>,
+}
+
 pub async fn run(
     child: Option<Child>,
-    albums: Vec<PathBuf>,
-    config: Arc<Value>,
-    project_root: Arc<PathBuf>,
-    gen_cfg: Arc<Value>,
-    active_flags: Arc<Vec<String>>,
-    stdout_output: bool,
-    jobs: Option<usize>,
-    no_extensions: bool,
-    notify_tx: Option<mpsc::Sender<PathBuf>>,
+    ctx: StreamContext,
 ) -> Result<()> {
     let (kernel_tx, mut kernel_rx) = mpsc::channel::<String>(32);
     let (direct_tx, mut direct_rx) = mpsc::channel::<Value>(512);
 
-    let albums_clone = albums.clone();
-    let config_clone = Arc::clone(&config);
-    let project_root_clone = Arc::clone(&project_root);
-    let gen_cfg_clone = Arc::clone(&gen_cfg);
-    let active_flags_clone = Arc::clone(&active_flags);
-    let notify_tx_arc = notify_tx.map(Arc::new);
+    let albums_clone = ctx.albums.clone();
+    let config_clone = Arc::clone(&ctx.config);
+    let project_root_clone = Arc::clone(&ctx.project_root);
+    let gen_cfg_clone = Arc::clone(&ctx.gen_cfg);
+    let active_flags_clone = Arc::clone(&ctx.active_flags);
+    let notify_tx_arc = ctx.notify_tx.map(Arc::new);
+    let jobs = ctx.jobs;
+    let no_ext = ctx.no_extensions;
 
-    let registry = config.get("compiler_registry")
+    let registry = ctx.config.get("compiler_registry")
         .and_then(Value::as_object)
         .map(|v| v.clone().into_iter().collect::<HashMap<String, Value>>())
         .unwrap_or_default();
@@ -50,16 +56,16 @@ pub async fn run(
 
         pool.install(|| {
             albums_clone.par_iter().for_each(|album_root| {
-                match manifest::build(album_root, &project_root_clone, &config_clone, &gen_cfg_clone, &active_flags_clone, no_extensions) {
+                match manifest::build(album_root, &project_root_clone, &config_clone, &gen_cfg_clone, &active_flags_clone, no_ext) {
                     Ok((man, needs_external)) => {
-                        if !needs_external || no_extensions {
+                        if !needs_external || no_ext {
                             let _ = direct_tx.blocking_send(man);
                         } else if let Ok(line) = serde_json::to_string(&man) {
                             let _ = kernel_tx.blocking_send(line);
                         }
                     }
                     Err(e) => {
-                        log::error!("Manifest Build Failed for {album_root:?}: {e}");
+                        log::error!("Manifest Build Failed for {}: {e}", album_root.display());
                     }
                 }
             });
@@ -68,6 +74,7 @@ pub async fn run(
 
     let notify_tx_for_direct = notify_tx_arc.clone();
     let registry_for_direct = Arc::clone(&registry_arc);
+    let stdout_output = ctx.stdout_output;
 
     let direct_consumer_handle = tokio::spawn(async move {
         while let Some(enriched) = direct_rx.recv().await {

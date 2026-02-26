@@ -10,18 +10,18 @@ pub async fn update_state(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<serde_json::Value>,
 ) -> Response {
-    {
+    let content = {
         let mut ui = state.ui_state.write().await;
         if let Some(obj) = payload.as_object()
             && let Some(ui_obj) = ui.as_object_mut() {
             for (k, v) in obj { ui_obj.insert(k.clone(), v.clone()); }
         }
-    }
+        serde_json::to_string_pretty(&*ui).ok()
+    };
 
-    let state_file = crate::expand_path("~/.vellum/state.json");
-    let state_json = state.ui_state.read().await;
-    if let Ok(content) = serde_json::to_string_pretty(&*state_json) {
-        let _ = tokio::fs::write(state_file, content).await;
+    if let Some(data) = content {
+        let state_file = crate::expand_path("~/.vellum/state.json");
+        let _ = tokio::fs::write(state_file, data).await;
     }
 
     Json(json!({"status": "saved"})).into_response()
@@ -37,12 +37,10 @@ pub async fn trigger_full_reset(State(state): State<Arc<AppState>>) -> Response 
     let payload = {
         let lib_guard = state.library.read().await;
         let ui_guard = state.ui_state.read().await;
-        let lib_data = lib_guard.albums.clone();
-        let ui_data = (*ui_guard).clone();
         json!({
             "type": "INIT",
-            "data": lib_data,
-            "ui_state": ui_data
+            "data": lib_guard.albums.clone(),
+            "ui_state": ui_guard.clone()
         }).to_string()
     };
 

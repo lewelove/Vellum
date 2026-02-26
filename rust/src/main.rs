@@ -131,14 +131,16 @@ async fn main() -> Result<()> {
             let expanded = expand_path(&path);
             let options = compile::CompileOptions {
                 target_path: expanded,
-                stdout_output: stdout,
-                intermediary,
-                pretty,
                 flags,
                 specific_albums: None,
                 jobs: None,
-                no_extensions,
                 notify_tx: None,
+                compile_flags: compile::CompileFlags {
+                    stdout_output: stdout,
+                    intermediary,
+                    pretty,
+                    no_extensions,
+                },
             };
             compile::run(options).await
         },

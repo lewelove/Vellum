@@ -9,6 +9,7 @@ use tokio::sync::mpsc;
 
 use crate::config::AppConfig;
 use crate::compile::nix::get_nix_env;
+use crate::compile::stream::StreamContext;
 
 pub mod kernel;
 pub mod manifest;
@@ -19,16 +20,20 @@ pub mod scan;
 pub mod stream;
 pub mod verify;
 
-pub struct CompileOptions {
-    pub target_path: PathBuf,
+pub struct CompileFlags {
     pub stdout_output: bool,
     pub intermediary: bool,
     pub pretty: bool,
+    pub no_extensions: bool,
+}
+
+pub struct CompileOptions {
+    pub target_path: PathBuf,
     pub flags: Vec<String>,
     pub specific_albums: Option<Vec<PathBuf>>,
     pub jobs: Option<usize>,
-    pub no_extensions: bool,
     pub notify_tx: Option<mpsc::Sender<PathBuf>>,
+    pub compile_flags: CompileFlags,
 }
 
 pub async fn run(
@@ -65,7 +70,7 @@ pub async fn run(
     let gen_cfg = config_json.get("generate").cloned().unwrap_or_else(|| json!({}));
     let active_flags = Arc::new(options.flags);
 
-    if options.intermediary {
+    if options.compile_flags.intermediary {
         for album_root in albums {
             let (man, _) = manifest::build(
                 &album_root,
@@ -73,9 +78,9 @@ pub async fn run(
                 &config_json,
                 &gen_cfg,
                 &active_flags,
-                options.no_extensions,
+                options.compile_flags.no_extensions,
             )?;
-            if options.pretty {
+            if options.compile_flags.pretty {
                 println!("{}", serde_json::to_string_pretty(&man)?);
             } else {
                 println!("{}", serde_json::to_string(&man)?);
@@ -89,22 +94,23 @@ pub async fn run(
         r.values().any(|v| v.get("provider").and_then(serde_json::Value::as_str) == Some("extension"))
     });
 
-    let effective_no_extensions = options.no_extensions || !has_extensions;
+    let effective_no_extensions = options.compile_flags.no_extensions || !has_extensions;
+
+    let stream_ctx = StreamContext {
+        albums: albums.clone(),
+        config: Arc::new(config_json.clone()),
+        project_root: Arc::new(project_root.clone()),
+        gen_cfg: Arc::new(gen_cfg),
+        active_flags,
+        stdout_output: options.compile_flags.stdout_output,
+        jobs: options.jobs,
+        no_extensions: effective_no_extensions,
+        notify_tx: options.notify_tx,
+    };
 
     if effective_no_extensions {
         log::info!("Compiling {} albums (Native Only)...", albums.len());
-        return stream::run(
-            None,
-            albums,
-            Arc::new(config_json),
-            Arc::new(project_root),
-            Arc::new(gen_cfg),
-            active_flags,
-            options.stdout_output,
-            options.jobs,
-            true,
-            options.notify_tx,
-        ).await;
+        return stream::run(None, stream_ctx).await;
     }
 
     let home = dirs::home_dir().context("No home dir")?;
@@ -127,16 +133,5 @@ pub async fn run(
         &nix_env,
     )?;
 
-    stream::run(
-        Some(child),
-        albums,
-        Arc::new(config_json),
-        Arc::new(project_root),
-        Arc::new(gen_cfg),
-        active_flags,
-        options.stdout_output,
-        options.jobs,
-        false,
-        options.notify_tx,
-    ).await
+    stream::run(Some(child), stream_ctx).await
 }

@@ -36,7 +36,7 @@ pub fn get_nix_env(project_root: &Path, explicit_flake: Option<PathBuf>) -> Resu
         return Ok(env_map);
     }
 
-    log::info!("Resolving Nix environment from {target_flake_dir:?}");
+    log::info!("Resolving Nix environment from {}", target_flake_dir.display());
 
     let output = Command::new("nix")
         .args([
@@ -67,7 +67,6 @@ pub fn get_nix_env(project_root: &Path, explicit_flake: Option<PathBuf>) -> Resu
         log::warn!("Nix resolution failed. Falling back to system environment. (Result cached)");
     }
 
-    // Cache the result (even if empty) to prevent repeated 4s resolution attempts
     let _ = fs::write(cache_file, serde_json::to_string(&serde_json::json!({ 
         "key": cache_key, 
         "variables": cache_map 
