@@ -44,8 +44,9 @@ pub async fn run(child: Option<Child>, ctx: StreamContext) -> Result<()> {
     let registry_arc = Arc::new(registry);
 
     let blocking_handle = tokio::task::spawn_blocking(move || {
-        let default_parallelism =
-            std::thread::available_parallelism().map(std::num::NonZero::get).unwrap_or(1);
+        let default_parallelism = std::thread::available_parallelism()
+            .map(std::num::NonZero::get)
+            .unwrap_or(1);
 
         let pool = rayon::ThreadPoolBuilder::new()
             .num_threads(jobs.unwrap_or(default_parallelism))
@@ -93,8 +94,14 @@ pub async fn run(child: Option<Child>, ctx: StreamContext) -> Result<()> {
     });
 
     if let Some(mut child_proc) = child {
-        let mut stdin = child_proc.stdin.take().context("Failed to open Kernel stdin")?;
-        let stdout = child_proc.stdout.take().context("Failed to open Kernel stdout")?;
+        let mut stdin = child_proc
+            .stdin
+            .take()
+            .context("Failed to open Kernel stdin")?;
+        let stdout = child_proc
+            .stdout
+            .take()
+            .context("Failed to open Kernel stdout")?;
 
         let notify_tx_for_receiver = notify_tx_arc.clone();
         let registry_for_receiver = Arc::clone(&registry_arc);
@@ -163,9 +170,10 @@ fn finalize_and_write(
     notify_tx: Option<Arc<mpsc::Sender<PathBuf>>>,
     registry: &HashMap<String, Value>,
 ) -> Result<()> {
-    let ctx = enriched
-        .as_object_mut()
-        .map_or_else(|| json!({}), |obj| obj.remove("ctx").unwrap_or_else(|| json!({})));
+    let ctx = enriched.as_object_mut().map_or_else(
+        || json!({}),
+        |obj| obj.remove("ctx").unwrap_or_else(|| json!({})),
+    );
 
     let harvest = ctx.get("harvest").cloned().unwrap_or_else(|| json!([]));
     let h_arr = harvest.as_array().map_or(&[][..], Vec::as_slice);
@@ -179,7 +187,10 @@ fn finalize_and_write(
 
     strip_empty_values(&mut enriched);
 
-    let album_root_str = ctx.get("paths").and_then(|p| p.get("album_root")).and_then(Value::as_str);
+    let album_root_str = ctx
+        .get("paths")
+        .and_then(|p| p.get("album_root"))
+        .and_then(Value::as_str);
     if let Some(path) = album_root_str {
         let album_root = Path::new(path);
         let dest = album_root.join("metadata.lock.json");

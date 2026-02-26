@@ -40,8 +40,9 @@ pub async fn run(
     no_extensions: bool,
 ) -> Result<()> {
     let (config, _, _) = AppConfig::load().context("Failed to load config")?;
-    let library_root =
-        expand_path(&config.storage.library_root).canonicalize().context("Invalid library_root")?;
+    let library_root = expand_path(&config.storage.library_root)
+        .canonicalize()
+        .context("Invalid library_root")?;
 
     let lib_hash = calculate_hash(&library_root.to_string_lossy());
     let base_cache_dir = expand_path("~/.vellum/libraries_cache");
@@ -53,7 +54,11 @@ pub async fn run(
     let mut cache = load_cache(&cache_file);
 
     let scan_root = target_path.unwrap_or_else(|| library_root.clone());
-    let scan_depth = config.compiler.as_ref().and_then(|c| c.scan_depth).unwrap_or(4);
+    let scan_depth = config
+        .compiler
+        .as_ref()
+        .and_then(|c| c.scan_depth)
+        .unwrap_or(4);
     let all_albums = compile::scan::find_target_albums(&scan_root, scan_depth);
 
     log::info!("Verifying {} albums...", all_albums.len());
@@ -67,7 +72,10 @@ pub async fn run(
         if is_dirty {
             work_queue.push(path);
         } else {
-            cache.insert(path.to_string_lossy().to_string(), AlbumCacheEntry { mtime_sum: mtime });
+            cache.insert(
+                path.to_string_lossy().to_string(),
+                AlbumCacheEntry { mtime_sum: mtime },
+            );
             trusted_count += 1;
         }
     }
@@ -78,7 +86,11 @@ pub async fn run(
         return Ok(());
     }
 
-    log::info!("Processing {} dirty albums ({} trusted).", work_queue.len(), trusted_count);
+    log::info!(
+        "Processing {} dirty albums ({} trusted).",
+        work_queue.len(),
+        trusted_count
+    );
 
     let (notify_tx, mut notify_rx) = mpsc::channel::<PathBuf>(100);
     let cache_arc = Arc::new(Mutex::new(cache));
@@ -137,7 +149,9 @@ async fn validate_library_root(cache_dir: &Path, current_hash: &str) -> Result<(
         log::info!("Library root changed. Triggering server reset.");
         let _ = fs::write(
             &current_json_path,
-            serde_json::to_string(&CurrentState { hash: current_hash.to_string() })?,
+            serde_json::to_string(&CurrentState {
+                hash: current_hash.to_string(),
+            })?,
         );
         let _ = trigger_server_reset().await;
     }
@@ -150,10 +164,12 @@ fn verify_albums_parallel(
     force: bool,
     jobs: Option<usize>,
 ) -> Result<Vec<(PathBuf, u64, bool)>> {
-    let default_parallelism =
-        std::thread::available_parallelism().map(std::num::NonZero::get).unwrap_or(1);
-    let pool =
-        rayon::ThreadPoolBuilder::new().num_threads(jobs.unwrap_or(default_parallelism)).build()?;
+    let default_parallelism = std::thread::available_parallelism()
+        .map(std::num::NonZero::get)
+        .unwrap_or(1);
+    let pool = rayon::ThreadPoolBuilder::new()
+        .num_threads(jobs.unwrap_or(default_parallelism))
+        .build()?;
 
     Ok(pool.install(|| {
         albums
@@ -213,12 +229,20 @@ fn calculate_hash(data: &str) -> String {
 fn get_mtime_sum(dir: &Path, meta: &Path) -> u64 {
     let d_mtime = fs::metadata(dir)
         .and_then(|m| m.modified())
-        .map(|t| t.duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_secs())
+        .map(|t| {
+            t.duration_since(SystemTime::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs()
+        })
         .unwrap_or(0);
 
     let m_mtime = fs::metadata(meta)
         .and_then(|m| m.modified())
-        .map(|t| t.duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_secs())
+        .map(|t| {
+            t.duration_since(SystemTime::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs()
+        })
         .unwrap_or(0);
 
     let mut c_mtime = 0;
@@ -229,7 +253,11 @@ fn get_mtime_sum(dir: &Path, meta: &Path) -> u64 {
         if cp.exists() {
             c_mtime = fs::metadata(cp)
                 .and_then(|m| m.modified())
-                .map(|t| t.duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_secs())
+                .map(|t| {
+                    t.duration_since(SystemTime::UNIX_EPOCH)
+                        .unwrap_or_default()
+                        .as_secs()
+                })
                 .unwrap_or(0);
             break;
         }
@@ -244,37 +272,51 @@ fn verify_trust(album_root: &Path) -> TrustState {
         return TrustState::Missing;
     }
 
-    let Ok(lock_content) = fs::read_to_string(&lock_path) else { return TrustState::Missing };
+    let Ok(lock_content) = fs::read_to_string(&lock_path) else {
+        return TrustState::Missing;
+    };
 
     let lock_json: serde_json::Value = match serde_json::from_str(&lock_content) {
         Ok(j) => j,
         Err(_) => return TrustState::Missing,
     };
 
-    let Some(album_data) = lock_json.get("album") else { return TrustState::Missing };
+    let Some(album_data) = lock_json.get("album") else {
+        return TrustState::Missing;
+    };
 
-    let lock_mtime =
-        album_data.get("metadata_toml_mtime").and_then(serde_json::Value::as_u64).unwrap_or(0);
+    let lock_mtime = album_data
+        .get("metadata_toml_mtime")
+        .and_then(serde_json::Value::as_u64)
+        .unwrap_or(0);
     let metadata_path = album_root.join("metadata.toml");
     let current_mtime = fs::metadata(&metadata_path)
         .and_then(|m| m.modified())
-        .map(|t| t.duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_secs())
+        .map(|t| {
+            t.duration_since(SystemTime::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs()
+        })
         .unwrap_or(0);
 
     if current_mtime != lock_mtime && lock_mtime != 0 {
         return TrustState::BrokenIntent;
     }
 
-    let lock_cover_path =
-        album_data.get("cover_path").and_then(serde_json::Value::as_str).unwrap_or("");
+    let lock_cover_path = album_data
+        .get("cover_path")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("");
     if !lock_cover_path.is_empty() && lock_cover_path != "default_cover.png" {
         let abs_cover = album_root.join(lock_cover_path);
         if !abs_cover.exists() {
             return TrustState::BrokenAssets;
         }
 
-        let lock_cover_size =
-            album_data.get("cover_byte_size").and_then(serde_json::Value::as_u64).unwrap_or(0);
+        let lock_cover_size = album_data
+            .get("cover_byte_size")
+            .and_then(serde_json::Value::as_u64)
+            .unwrap_or(0);
         let current_cover_size = fs::metadata(&abs_cover).map(|m| m.len()).unwrap_or(0);
 
         if lock_cover_size != current_cover_size {
@@ -282,25 +324,40 @@ fn verify_trust(album_root: &Path) -> TrustState {
         }
     }
 
-    if let Some(tracks) = lock_json.get("tracks").and_then(serde_json::Value::as_array) {
+    if let Some(tracks) = lock_json
+        .get("tracks")
+        .and_then(serde_json::Value::as_array)
+    {
         for track in tracks {
-            let rel_path =
-                track.get("track_path").and_then(serde_json::Value::as_str).unwrap_or("");
+            let rel_path = track
+                .get("track_path")
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or("");
             if rel_path.is_empty() {
                 return TrustState::BrokenPhysics;
             }
 
             let abs_path = album_root.join(rel_path);
-            let Ok(meta) = fs::metadata(&abs_path) else { return TrustState::BrokenPhysics };
+            let Ok(meta) = fs::metadata(&abs_path) else {
+                return TrustState::BrokenPhysics;
+            };
 
-            let lock_track_mtime =
-                track.get("track_mtime").and_then(serde_json::Value::as_u64).unwrap_or(0);
-            let lock_track_size =
-                track.get("track_size").and_then(serde_json::Value::as_u64).unwrap_or(0);
+            let lock_track_mtime = track
+                .get("track_mtime")
+                .and_then(serde_json::Value::as_u64)
+                .unwrap_or(0);
+            let lock_track_size = track
+                .get("track_size")
+                .and_then(serde_json::Value::as_u64)
+                .unwrap_or(0);
 
             let current_track_mtime = meta
                 .modified()
-                .map(|t| t.duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_secs())
+                .map(|t| {
+                    t.duration_since(SystemTime::UNIX_EPOCH)
+                        .unwrap_or_default()
+                        .as_secs()
+                })
                 .unwrap_or(0);
             let current_track_size = meta.len();
 

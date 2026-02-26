@@ -81,7 +81,11 @@ pub struct AlbumLock {
     pub albumartist: String,
     #[serde(rename = "DATE")]
     pub date: String,
-    #[serde(rename = "GENRE", default, deserialize_with = "deserialize_vec_or_string")]
+    #[serde(
+        rename = "GENRE",
+        default,
+        deserialize_with = "deserialize_vec_or_string"
+    )]
     pub genre: Vec<String>,
     #[serde(rename = "COMMENT", default)]
     pub comment: String,

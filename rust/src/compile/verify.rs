@@ -30,7 +30,10 @@ pub fn calculate_file_tag_subset_match(
 
         for k in &album_core_keys {
             if let Some(v) = album_obj.get(*k) {
-                let p_val = p_tags.get(&k.to_uppercase()).and_then(Value::as_str).unwrap_or("");
+                let p_val = p_tags
+                    .get(&k.to_uppercase())
+                    .and_then(Value::as_str)
+                    .unwrap_or("");
                 if !compare_values(k, v, p_val) {
                     return false;
                 }
@@ -39,7 +42,10 @@ pub fn calculate_file_tag_subset_match(
 
         for k in &track_core_keys {
             if let Some(v) = t_obj.get(*k) {
-                let p_val = p_tags.get(&k.to_uppercase()).and_then(Value::as_str).unwrap_or("");
+                let p_val = p_tags
+                    .get(&k.to_uppercase())
+                    .and_then(Value::as_str)
+                    .unwrap_or("");
                 if !compare_values(k, v, p_val) {
                     return false;
                 }
@@ -54,8 +60,10 @@ pub fn calculate_file_tag_subset_match(
                     continue;
                 }
                 if let Some(v) = a_tags.get(&key.to_uppercase()) {
-                    let p_val =
-                        p_tags.get(&key.to_uppercase()).and_then(Value::as_str).unwrap_or("");
+                    let p_val = p_tags
+                        .get(&key.to_uppercase())
+                        .and_then(Value::as_str)
+                        .unwrap_or("");
                     if !compare_values(key, v, p_val) {
                         return false;
                     }
@@ -71,8 +79,10 @@ pub fn calculate_file_tag_subset_match(
                     continue;
                 }
                 if let Some(v) = t_tags.get(&key.to_uppercase()) {
-                    let p_val =
-                        p_tags.get(&key.to_uppercase()).and_then(Value::as_str).unwrap_or("");
+                    let p_val = p_tags
+                        .get(&key.to_uppercase())
+                        .and_then(Value::as_str)
+                        .unwrap_or("");
                     if !compare_values(key, v, p_val) {
                         return false;
                     }
@@ -98,7 +108,13 @@ fn compare_values(key: &str, compiled: &Value, physical: &str) -> bool {
     let (s_c, s_p) = (s_comp.trim(), physical.trim());
     let k_lower = key.to_lowercase();
     if k_lower == "tracknumber" || k_lower == "discnumber" {
-        let parse = |s: &str| s.split('/').next().unwrap_or("0").parse::<u64>().unwrap_or(0);
+        let parse = |s: &str| {
+            s.split('/')
+                .next()
+                .unwrap_or("0")
+                .parse::<u64>()
+                .unwrap_or(0)
+        };
         return parse(s_c) == parse(s_p);
     }
     s_c == s_p

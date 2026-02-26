@@ -25,11 +25,16 @@ pub fn get_nix_env(
         return Ok(HashMap::new());
     }
 
-    let cache_dir = dirs::home_dir().context("No home dir")?.join(".vellum/cache");
+    let cache_dir = dirs::home_dir()
+        .context("No home dir")?
+        .join(".vellum/cache");
     fs::create_dir_all(&cache_dir)?;
 
     let mtime = fs::metadata(&flake_file)?.modified()?;
-    let cache_key = format!("{:?}", mtime.duration_since(SystemTime::UNIX_EPOCH)?.as_secs());
+    let cache_key = format!(
+        "{:?}",
+        mtime.duration_since(SystemTime::UNIX_EPOCH)?.as_secs()
+    );
     let cache_file = cache_dir.join("nix_env.json");
 
     if let Ok(content) = fs::read_to_string(&cache_file)
@@ -37,7 +42,10 @@ pub fn get_nix_env(
         && cache.get("key").and_then(serde_json::Value::as_str) == Some(&cache_key)
     {
         let mut env_map = HashMap::new();
-        if let Some(vars) = cache.get("variables").and_then(serde_json::Value::as_object) {
+        if let Some(vars) = cache
+            .get("variables")
+            .and_then(serde_json::Value::as_object)
+        {
             for (k, v) in vars {
                 if let Some(s) = v.as_str() {
                     env_map.insert(k.clone(), s.to_string());
@@ -47,7 +55,10 @@ pub fn get_nix_env(
         return Ok(env_map);
     }
 
-    log::info!("Resolving Nix environment from {}", target_flake_dir.display());
+    log::info!(
+        "Resolving Nix environment from {}",
+        target_flake_dir.display()
+    );
 
     let output = Command::new("nix")
         .args([

@@ -114,7 +114,10 @@ pub fn build(
 
 fn get_file_stats(path: &Path) -> Result<(u64, String)> {
     let meta = std::fs::metadata(path)?;
-    let mtime = meta.modified()?.duration_since(SystemTime::UNIX_EPOCH)?.as_secs();
+    let mtime = meta
+        .modified()?
+        .duration_since(SystemTime::UNIX_EPOCH)?
+        .as_secs();
     let file = File::open(path)?;
     let mut reader = BufReader::new(file);
     let mut hasher = Sha256::new();
@@ -126,7 +129,10 @@ fn get_supported_extensions(gen_cfg: &Value) -> Vec<&str> {
     gen_cfg
         .get("supported_extensions")
         .and_then(Value::as_array)
-        .map_or_else(|| vec![".flac"], |arr| arr.iter().filter_map(Value::as_str).collect())
+        .map_or_else(
+            || vec![".flac"],
+            |arr| arr.iter().filter_map(Value::as_str).collect(),
+        )
 }
 
 fn load_or_create_thumbnail(
@@ -136,7 +142,9 @@ fn load_or_create_thumbnail(
     cover_hash: &str,
 ) -> Option<DynamicImage> {
     let storage = config.get("storage")?;
-    let dir_str = storage.get("thumbnail_cache_folder").and_then(Value::as_str)?;
+    let dir_str = storage
+        .get("thumbnail_cache_folder")
+        .and_then(Value::as_str)?;
     let cp = cover_path?;
     if cover_hash.is_empty() {
         return None;
@@ -218,44 +226,62 @@ fn process_tracks(
 
         let mut track_obj = serde_json::Map::new();
         let mut track_info = serde_json::Map::new();
-        track_info
-            .insert("track_path".to_string(), json!(resolve::rel_path(&h_data.path, album_root)));
+        track_info.insert(
+            "track_path".to_string(),
+            json!(resolve::rel_path(&h_data.path, album_root)),
+        );
         track_info.insert(
             "track_library_path".to_string(),
             json!(resolve::rel_path(&h_data.path, library_root)),
         );
-        track_info.insert("track_duration".to_string(), json!(h_data.physics.duration_ms));
+        track_info.insert(
+            "track_duration".to_string(),
+            json!(h_data.physics.duration_ms),
+        );
         track_info.insert(
             "track_duration_time".to_string(),
             json!(resolve::format_ms(h_data.physics.duration_ms)),
         );
         track_info.insert("encoding".to_string(), json!(h_data.physics.format));
         track_info.insert("sample_rate".to_string(), json!(h_data.physics.sample_rate));
-        track_info
-            .insert("bits_per_sample".to_string(), json!(h_data.physics.bit_depth.unwrap_or(0)));
+        track_info.insert(
+            "bits_per_sample".to_string(),
+            json!(h_data.physics.bit_depth.unwrap_or(0)),
+        );
         track_info.insert("channels".to_string(), json!(h_data.physics.channels));
         track_info.insert("track_mtime".to_string(), json!(h_data.physics.mtime));
-        track_info.insert("track_byte_size".to_string(), json!(h_data.physics.file_size));
+        track_info.insert(
+            "track_byte_size".to_string(),
+            json!(h_data.physics.file_size),
+        );
         track_info.insert("lyrics_path".to_string(), json!(""));
 
         track_obj.insert("info".to_string(), Value::Object(track_info));
         track_obj.insert(
             "TITLE".to_string(),
-            track_entries_source.get("title").cloned().unwrap_or_else(|| {
-                resolve::resolve_track_key("title", &track_ctx).unwrap_or(Value::Null)
-            }),
+            track_entries_source
+                .get("title")
+                .cloned()
+                .unwrap_or_else(|| {
+                    resolve::resolve_track_key("title", &track_ctx).unwrap_or(Value::Null)
+                }),
         );
         track_obj.insert(
             "ARTIST".to_string(),
-            track_entries_source.get("artist").cloned().unwrap_or_else(|| {
-                resolve::resolve_track_key("artist", &track_ctx).unwrap_or(Value::Null)
-            }),
+            track_entries_source
+                .get("artist")
+                .cloned()
+                .unwrap_or_else(|| {
+                    resolve::resolve_track_key("artist", &track_ctx).unwrap_or(Value::Null)
+                }),
         );
 
-        let t_num = to_strict_u32(track_entries_source.get("tracknumber"))
-            .max(to_strict_u32(resolve::resolve_track_key("tracknumber", &track_ctx).as_ref()));
-        let d_num = to_strict_u32(track_entries_source.get("discnumber"))
-            .max(to_strict_u32(resolve::resolve_track_key("discnumber", &track_ctx).as_ref()));
+        let t_num = to_strict_u32(track_entries_source.get("tracknumber")).max(to_strict_u32(
+            resolve::resolve_track_key("tracknumber", &track_ctx).as_ref(),
+        ));
+        let d_num = to_strict_u32(track_entries_source.get("discnumber")).max(to_strict_u32(
+            resolve::resolve_track_key("discnumber", &track_ctx).as_ref(),
+        ));
 
         track_obj.insert("TRACKNUMBER".to_string(), json!(t_num));
         track_obj.insert("DISCNUMBER".to_string(), json!(d_num));
@@ -301,20 +327,32 @@ fn build_album_object(
         "album_path".to_string(),
         json!(resolve::rel_path(ctx.album_root, ctx.library_root)),
     );
-    album_info.insert("unix_added".to_string(), json!(resolve::resolve_album_info_unix_added(ctx)));
-    album_info
-        .insert("album_duration".to_string(), json!(resolve::resolve_album_info_duration_ms(ctx)));
+    album_info.insert(
+        "unix_added".to_string(),
+        json!(resolve::resolve_album_info_unix_added(ctx)),
+    );
+    album_info.insert(
+        "album_duration".to_string(),
+        json!(resolve::resolve_album_info_duration_ms(ctx)),
+    );
     album_info.insert(
         "album_duration_time".to_string(),
-        json!(resolve::format_ms(resolve::resolve_album_info_duration_ms(ctx))),
+        json!(resolve::format_ms(resolve::resolve_album_info_duration_ms(
+            ctx
+        ))),
     );
-    album_info.insert("total_discs".to_string(), json!(resolve::calculate_total_discs(ctx.tracks)));
+    album_info.insert(
+        "total_discs".to_string(),
+        json!(resolve::calculate_total_discs(ctx.tracks)),
+    );
     album_info.insert("total_tracks".to_string(), json!(ctx.tracks.len()));
     album_info.insert("metadata_toml_hash".to_string(), json!(ctx.meta_hash));
     album_info.insert("metadata_toml_mtime".to_string(), json!(ctx.meta_mtime));
     album_info.insert("file_tag_subset_match".to_string(), json!(false));
-    album_info
-        .insert("cover_path".to_string(), json!(ctx.cover_path.unwrap_or("default_cover.png")));
+    album_info.insert(
+        "cover_path".to_string(),
+        json!(ctx.cover_path.unwrap_or("default_cover.png")),
+    );
     album_info.insert("cover_hash".to_string(), json!(ctx.cover_hash));
     album_info.insert("cover_mtime".to_string(), json!(ctx.cover_mtime));
     album_info.insert("cover_byte_size".to_string(), json!(ctx.cover_byte_size));
@@ -356,15 +394,21 @@ fn build_album_object(
     );
     album_obj.insert(
         "ORIGINAL_YYYY_MM".to_string(),
-        ctx.source.get("original_yyyy_mm").cloned().unwrap_or_else(|| {
-            resolve::resolve_album_key("original_yyyy_mm", ctx).unwrap_or(Value::Null)
-        }),
+        ctx.source
+            .get("original_yyyy_mm")
+            .cloned()
+            .unwrap_or_else(|| {
+                resolve::resolve_album_key("original_yyyy_mm", ctx).unwrap_or(Value::Null)
+            }),
     );
     album_obj.insert(
         "RELEASE_YYYY_MM".to_string(),
-        ctx.source.get("release_yyyy_mm").cloned().unwrap_or_else(|| {
-            resolve::resolve_album_key("release_yyyy_mm", ctx).unwrap_or(Value::Null)
-        }),
+        ctx.source
+            .get("release_yyyy_mm")
+            .cloned()
+            .unwrap_or_else(|| {
+                resolve::resolve_album_key("release_yyyy_mm", ctx).unwrap_or(Value::Null)
+            }),
     );
 
     let mut album_tags = serde_json::Map::new();
@@ -407,7 +451,9 @@ fn normalize_json_keys(v: Value) -> Value {
 }
 
 fn parse_tag_int(val: Option<&String>) -> u32 {
-    val.and_then(|s| s.split('/').next()).and_then(|s| s.parse().ok()).unwrap_or(0)
+    val.and_then(|s| s.split('/').next())
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(0)
 }
 
 fn to_strict_u32(v: Option<&Value>) -> u32 {
@@ -423,13 +469,22 @@ fn resolve_cover_info(root: &Path) -> (Option<String>, String, u64, u64) {
     for c in candidates {
         let p = root.join(c);
         if let Ok(m) = std::fs::metadata(&p) {
-            let mtime =
-                m.modified().unwrap().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs();
+            let mtime = m
+                .modified()
+                .unwrap()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .unwrap()
+                .as_secs();
             let size = m.len();
             let mut h = sha2::Sha256::new();
             h.update(mtime.to_be_bytes());
             h.update(size.to_be_bytes());
-            return (Some(c.to_string()), URL_SAFE_NO_PAD.encode(&h.finalize()[..8]), mtime, size);
+            return (
+                Some(c.to_string()),
+                URL_SAFE_NO_PAD.encode(&h.finalize()[..8]),
+                mtime,
+                size,
+            );
         }
     }
     (None, String::new(), 0, 0)

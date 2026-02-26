@@ -62,7 +62,9 @@ pub fn resolve_album_info_duration_ms(ctx: &AlbumContext) -> u64 {
     ctx.tracks
         .iter()
         .filter_map(|t| {
-            t.get("info").and_then(|i| i.get("track_duration")).and_then(serde_json::Value::as_u64)
+            t.get("info")
+                .and_then(|i| i.get("track_duration"))
+                .and_then(serde_json::Value::as_u64)
         })
         .sum()
 }
@@ -89,7 +91,11 @@ pub fn resolve_album_info_unix_added(ctx: &AlbumContext) -> u64 {
 }
 
 pub fn get_raw(source: &Value, key: &str, default: &str) -> String {
-    source.get(key).and_then(Value::as_str).unwrap_or(default).to_string()
+    source
+        .get(key)
+        .and_then(Value::as_str)
+        .unwrap_or(default)
+        .to_string()
 }
 
 pub fn get_raw_with_fallback(
@@ -111,7 +117,11 @@ pub fn format_ms(ms: u64) -> String {
     let s = (ms / 1000) % 60;
     let m = (ms / (1000 * 60)) % 60;
     let h = ms / (1000 * 60 * 60);
-    if h > 0 { format!("{h}:{m:02}:{s:02}") } else { format!("{m}:{s:02}") }
+    if h > 0 {
+        format!("{h}:{m:02}:{s:02}")
+    } else {
+        format!("{m}:{s:02}")
+    }
 }
 
 pub fn calculate_total_discs(tracks: &[Value]) -> u32 {
@@ -119,20 +129,28 @@ pub fn calculate_total_discs(tracks: &[Value]) -> u32 {
     for t in tracks {
         let val = match t.get("DISCNUMBER") {
             Some(Value::Number(n)) => n.as_u64().unwrap_or(0),
-            Some(Value::String(s)) => {
-                s.split('/').next().unwrap_or("0").parse::<u64>().unwrap_or(0)
-            }
+            Some(Value::String(s)) => s
+                .split('/')
+                .next()
+                .unwrap_or("0")
+                .parse::<u64>()
+                .unwrap_or(0),
             _ => 0,
         };
         if val > 0 {
             discs.insert(val);
         }
     }
-    if discs.is_empty() { 1 } else { u32::try_from(discs.len()).unwrap_or(u32::MAX) }
+    if discs.is_empty() {
+        1
+    } else {
+        u32::try_from(discs.len()).unwrap_or(u32::MAX)
+    }
 }
 
 pub fn rel_path(target: &Path, base: &Path) -> String {
-    target
-        .strip_prefix(base)
-        .map_or_else(|_| target.to_string_lossy().to_string(), |p| p.to_string_lossy().to_string())
+    target.strip_prefix(base).map_or_else(
+        |_| target.to_string_lossy().to_string(),
+        |p| p.to_string_lossy().to_string(),
+    )
 }

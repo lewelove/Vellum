@@ -17,7 +17,11 @@ pub const fn resolve_track_key(_key: &str, _ctx: &TrackContext) -> Option<Value>
 }
 
 fn get_str(source: &Value, key: &str) -> String {
-    source.get(key).and_then(Value::as_str).unwrap_or("").to_string()
+    source
+        .get(key)
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_string()
 }
 
 pub fn resolve_genre(ctx: &AlbumContext) -> Vec<String> {
@@ -47,7 +51,10 @@ pub fn resolve_genre(ctx: &AlbumContext) -> Vec<String> {
     }
 
     let mut seen = HashSet::new();
-    parts.into_iter().filter(|p| seen.insert(p.clone())).collect()
+    parts
+        .into_iter()
+        .filter(|p| seen.insert(p.clone()))
+        .collect()
 }
 
 pub fn resolve_date(ctx: &AlbumContext) -> String {
@@ -70,7 +77,11 @@ pub fn resolve_original_yyyy_mm(ctx: &AlbumContext) -> String {
         return v.to_string();
     }
     let d = resolve_date(ctx);
-    if d.len() >= 4 { format!("{}-00", &d[0..4]) } else { "0000-00".to_string() }
+    if d.len() >= 4 {
+        format!("{}-00", &d[0..4])
+    } else {
+        "0000-00".to_string()
+    }
 }
 
 pub fn resolve_release_yyyy_mm(ctx: &AlbumContext) -> String {
@@ -78,7 +89,11 @@ pub fn resolve_release_yyyy_mm(ctx: &AlbumContext) -> String {
         return v.to_string();
     }
     let d = resolve_date(ctx);
-    if d.len() >= 4 { format!("{}-00", &d[0..4]) } else { "0000-00".to_string() }
+    if d.len() >= 4 {
+        format!("{}-00", &d[0..4])
+    } else {
+        "0000-00".to_string()
+    }
 }
 
 fn resolve_custom_albumartist(ctx: &AlbumContext) -> String {
@@ -105,7 +120,11 @@ pub fn resolve_comment(ctx: &AlbumContext) -> String {
         return String::new();
     }
     let yyyy_mm = resolve_release_yyyy_mm(ctx);
-    let year = if yyyy_mm.len() >= 4 { &yyyy_mm[0..4] } else { "" };
+    let year = if yyyy_mm.len() >= 4 {
+        &yyyy_mm[0..4]
+    } else {
+        ""
+    };
     [year, &country, &label, &cat]
         .iter()
         .filter(|s| !s.is_empty())

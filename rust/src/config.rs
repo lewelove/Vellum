@@ -110,7 +110,10 @@ impl AppConfig {
     ) -> Result<Value> {
         let canon_path = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
         if !visited.insert(canon_path) {
-            return Err(anyhow::anyhow!("Circular import detected: {}", path.display()));
+            return Err(anyhow::anyhow!(
+                "Circular import detected: {}",
+                path.display()
+            ));
         }
 
         let content = fs::read_to_string(path)
@@ -121,9 +124,10 @@ impl AppConfig {
         if let Some(imports) = current_value.get("import") {
             let import_paths = match imports {
                 Value::String(s) => vec![s.clone()],
-                Value::Array(arr) => {
-                    arr.iter().filter_map(|v| v.as_str().map(ToString::to_string)).collect()
-                }
+                Value::Array(arr) => arr
+                    .iter()
+                    .filter_map(|v| v.as_str().map(ToString::to_string))
+                    .collect(),
                 _ => vec![],
             };
 

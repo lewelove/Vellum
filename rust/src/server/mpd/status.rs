@@ -58,5 +58,8 @@ pub fn broadcast_status(
 }
 
 fn get_tag(song: &mpd::song::Song, key: &str) -> Option<String> {
-    song.tags.iter().find(|(k, _)| k.eq_ignore_ascii_case(key)).map(|(_, v)| v.clone())
+    song.tags
+        .iter()
+        .find(|(k, _)| k.eq_ignore_ascii_case(key))
+        .map(|(_, v)| v.clone())
 }

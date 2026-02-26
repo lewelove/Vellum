@@ -1,17 +1,9 @@
-version = "Two"
 edition = "2024"
 
 max_width = 100
 
-group_imports = "StdExternalCrate"
-imports_granularity = "Crate"
-
 use_field_init_shorthand = true
-use_small_heuristics = "Max"
+use_small_heuristics = "Default"
 
 reorder_modules = true
-reorder_impl_items = true
-trim_trailing_whitespaces = true
 newline_style = "Unix"
-
-indent_style = "Block"

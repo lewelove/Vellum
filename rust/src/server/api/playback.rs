@@ -11,9 +11,15 @@ pub async fn play_album(
     State(state): State<Arc<AppState>>,
     Query(params): Query<std::collections::HashMap<String, String>>,
 ) -> Response {
-    let offset = params.get("offset").and_then(|s| s.parse().ok()).unwrap_or(0);
+    let offset = params
+        .get("offset")
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(0);
     let tracks = get_tracks_internal(&id, &state, None).await;
-    state.mpd_engine.send(MpdCommand::Play { tracks, offset }).await;
+    state
+        .mpd_engine
+        .send(MpdCommand::Play { tracks, offset })
+        .await;
     Json(json!({"status": "ok"})).into_response()
 }
 
@@ -24,7 +30,10 @@ pub async fn play_disc(
 ) -> Response {
     let disc = params.get("disc").cloned();
     let tracks = get_tracks_internal(&id, &state, disc).await;
-    state.mpd_engine.send(MpdCommand::Play { tracks, offset: 0 }).await;
+    state
+        .mpd_engine
+        .send(MpdCommand::Play { tracks, offset: 0 })
+        .await;
     Json(json!({"status": "ok"})).into_response()
 }
 

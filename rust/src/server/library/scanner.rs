@@ -121,7 +121,10 @@ impl Library {
                     return Some(view);
                 }
                 Err(e) => {
-                    log::error!("Schema Mismatch during update at {}: {e}", lock_path.display());
+                    log::error!(
+                        "Schema Mismatch during update at {}: {e}",
+                        lock_path.display()
+                    );
                 }
             }
         }

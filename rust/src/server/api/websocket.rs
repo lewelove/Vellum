@@ -25,7 +25,11 @@ async fn handle_socket(mut socket: WebSocket, state: Arc<AppState>) {
         .to_string()
     };
 
-    if socket.send(ax_ws::Message::Text(init_payload.into())).await.is_err() {
+    if socket
+        .send(ax_ws::Message::Text(init_payload.into()))
+        .await
+        .is_err()
+    {
         return;
     }
 

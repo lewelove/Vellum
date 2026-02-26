@@ -19,8 +19,9 @@ pub async fn run(port: u16) -> Result<()> {
     let lib_root_str = &config.storage.library_root;
     let thumb_root_str = config.storage.thumbnail_cache_folder.as_deref();
 
-    let library_root =
-        expand_path(lib_root_str).canonicalize().context("Invalid library_root path")?;
+    let library_root = expand_path(lib_root_str)
+        .canonicalize()
+        .context("Invalid library_root path")?;
 
     let server_config = Arc::new(ServerConfig {
         library_root: library_root.clone(),
@@ -49,8 +50,11 @@ pub async fn run(port: u16) -> Result<()> {
     let library_arc = Arc::new(RwLock::new(library));
     let (tx, _) = broadcast::channel(100);
 
-    let mpd_engine =
-        mpd::start_actor(tx.clone(), Arc::clone(&library_arc), Arc::clone(&server_config));
+    let mpd_engine = mpd::start_actor(
+        tx.clone(),
+        Arc::clone(&library_arc),
+        Arc::clone(&server_config),
+    );
 
     let app_state = Arc::new(AppState {
         library: library_arc,
@@ -60,7 +64,10 @@ pub async fn run(port: u16) -> Result<()> {
         mpd_engine,
     });
 
-    let cors = CorsLayer::new().allow_origin(Any).allow_methods(Any).allow_headers(Any);
+    let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods(Any)
+        .allow_headers(Any);
 
     let app = api::router(Arc::clone(&app_state)).layer(cors);
 

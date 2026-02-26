@@ -93,7 +93,10 @@ fn scan_files(root: &Path, extensions: &[&str]) -> Vec<PathBuf> {
 pub fn harvest_file(path: &Path) -> Result<TrackJson> {
     let metadata = fs::metadata(path)?;
     let file_size = metadata.len();
-    let mtime = metadata.modified()?.duration_since(std::time::UNIX_EPOCH)?.as_secs();
+    let mtime = metadata
+        .modified()?
+        .duration_since(std::time::UNIX_EPOCH)?
+        .as_secs();
 
     let tagged_file = Probe::open(path)
         .context("Open failed")?
@@ -117,7 +120,10 @@ pub fn harvest_file(path: &Path) -> Result<TrackJson> {
 
     let mut tags = HashMap::new();
 
-    if let Some(tag) = tagged_file.primary_tag().or_else(|| tagged_file.first_tag()) {
+    if let Some(tag) = tagged_file
+        .primary_tag()
+        .or_else(|| tagged_file.first_tag())
+    {
         let tag_type = tag.tag_type();
 
         for item in tag.items() {
@@ -139,7 +145,9 @@ pub fn harvest_file(path: &Path) -> Result<TrackJson> {
                 )
                 .to_uppercase();
 
-            let Some(value) = item.value().text() else { continue };
+            let Some(value) = item.value().text() else {
+                continue;
+            };
             let value = value.trim();
 
             if key.is_empty() || value.is_empty() {
@@ -155,5 +163,9 @@ pub fn harvest_file(path: &Path) -> Result<TrackJson> {
         }
     }
 
-    Ok(TrackJson { path: path.to_path_buf(), tags, physics })
+    Ok(TrackJson {
+        path: path.to_path_buf(),
+        tags,
+        physics,
+    })
 }

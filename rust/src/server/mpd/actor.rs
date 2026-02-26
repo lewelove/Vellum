@@ -31,7 +31,10 @@ pub fn start_actor(
 ) -> MpdEngine {
     let (tx, mut rx) = mpsc::channel::<MpdCommand>(32);
     let interrupt_stream = Arc::new(parking_lot::Mutex::new(None));
-    let engine_handle = MpdEngine { tx, interrupt_stream: Arc::clone(&interrupt_stream) };
+    let engine_handle = MpdEngine {
+        tx,
+        interrupt_stream: Arc::clone(&interrupt_stream),
+    };
 
     let mpd_host = std::env::var("MPD_HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
     let mpd_port = std::env::var("MPD_PORT").unwrap_or_else(|_| "6600".to_string());

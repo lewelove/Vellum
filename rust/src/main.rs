@@ -76,12 +76,20 @@ pub fn expand_path(path_str: &str) -> PathBuf {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    simple_logger::SimpleLogger::new().with_level(log::LevelFilter::Info).env().init().ok();
+    simple_logger::SimpleLogger::new()
+        .with_level(log::LevelFilter::Info)
+        .env()
+        .init()
+        .ok();
 
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Harvest { paths, pretty, jobs } => {
+        Commands::Harvest {
+            paths,
+            pretty,
+            jobs,
+        } => {
             if let Some(j) = jobs {
                 rayon::ThreadPoolBuilder::new()
                     .num_threads(j)
@@ -103,7 +111,14 @@ async fn main() -> Result<()> {
             Ok(())
         }
         Commands::Server { port } => server::run(port).await,
-        Commands::Compile { path, stdout, intermediary, pretty, flags, no_extensions } => {
+        Commands::Compile {
+            path,
+            stdout,
+            intermediary,
+            pretty,
+            flags,
+            no_extensions,
+        } => {
             let expanded = expand_path(&path);
             let options = compile::CompileOptions {
                 target_path: expanded,
@@ -128,7 +143,12 @@ async fn main() -> Result<()> {
             };
             compile::run(options).await
         }
-        Commands::Update { path, force, jobs, no_extensions } => {
+        Commands::Update {
+            path,
+            force,
+            jobs,
+            no_extensions,
+        } => {
             let expanded = path.map(|p| expand_path(&p));
             update::run(expanded, force, jobs, no_extensions).await
         }
