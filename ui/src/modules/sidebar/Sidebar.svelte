@@ -211,10 +211,10 @@
 
   .sidebar-btn {
     width: 100%;
-    height: 36px;
+    height: 32px;
     background-color: rgba(255, 255, 255, 0.01);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    padding: 0 8px 0 10px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 0 8px;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -230,7 +230,7 @@
   }
 
   .sidebar-btn.square {
-    width: 36px;
+    width: 40px;
     padding: 0;
     justify-content: center;
     flex-shrink: 0;

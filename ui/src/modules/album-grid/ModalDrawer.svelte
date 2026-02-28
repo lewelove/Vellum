@@ -104,16 +104,16 @@
         <div class="button-bar">
           <div class="bar-group">
             <button class="icon-btn" onclick={handleOpenFolder} title="Open Local Folder">
-              <img src="/material/folder_FFFFFF.svg" alt="Open"/>
+              <img src="/icons/24px/folder.svg" alt="Open"/>
             </button>
           </div>
 
           <div class="bar-group right">
-            <button class="icon-btn" onclick={handleQueue} title="Add Album to Queue">
-              <img src="/material/playlist_add_FFFFFF.svg" alt="" />
-            </button>
+            <!-- <button class="icon-btn" onclick={handleQueue} title="Add Album to Queue"> -->
+            <!--   <img src="/material/playlist_add_FFFFFF.svg" alt="" /> -->
+            <!-- </button> -->
             <button class="icon-btn" onclick={handlePlay} title="Play Album">
-              <img src="/material/play_circle_24dp_FFFFFF.svg" alt="" />
+              <img src="/icons/24px/play_circle.svg" alt="" />
             </button>
           </div>
         </div>
@@ -277,9 +277,9 @@
 
   .icon-btn {
     width: 36px;
-    height: 36px;
+    height: 32px;
     background-color: rgba(255, 255, 255, 0.01);
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
     padding: 0;
     display: flex;
     align-items: center;
@@ -291,7 +291,7 @@
   }
 
   .icon-btn:hover {
-    background-color: rgba(255, 255, 255, 0.05);
+    background-color: rgba(255, 255, 255, 0.03);
     border-color: rgba(255, 255, 255, 0.1);
   }
 
