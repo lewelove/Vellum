@@ -72,8 +72,7 @@
     justify-content: flex-end;
     padding: 0 16px;
     flex-shrink: 0;
-    box-shadow: var(--panel-shadow);
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
   }
 
   .vga-readout {
