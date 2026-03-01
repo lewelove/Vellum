@@ -44,7 +44,7 @@
   function getDiscDuration(discNumber) {
     const totalMs = tracks
       .filter(t => t.DISCNUMBER === discNumber)
-      .reduce((acc, t) => acc + (parseInt(t.track_duration_in_ms) || 0), 0);
+      .reduce((acc, t) => acc + (parseInt(t.track_duration) || 0), 0);
     return formatMs(totalMs);
   }
 

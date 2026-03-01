@@ -34,6 +34,7 @@ self.onmessage = (e) => {
           if (a.tracks) {
             a.tracks.forEach(t => {
                 if (t.info) Object.assign(t, t.info);
+                t.albumId = a.id;
             });
           }
         });
@@ -73,6 +74,7 @@ self.onmessage = (e) => {
         if (albumData.tracks) {
             albumData.tracks.forEach(t => {
                 if (t.info) Object.assign(t, t.info);
+                t.albumId = albumData.id;
             });
         }
 

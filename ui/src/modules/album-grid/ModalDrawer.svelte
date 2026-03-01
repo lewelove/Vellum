@@ -104,7 +104,7 @@
         <div class="button-bar">
           <div class="bar-group">
             <button class="icon-btn" onclick={handleOpenFolder} title="Open Local Folder">
-              <img src="/icons/24px/folder.svg" alt="Open"/>
+              <img src="/icons/20px/folder.svg" alt="Open"/>
             </button>
           </div>
 
@@ -113,7 +113,7 @@
             <!--   <img src="/material/playlist_add_FFFFFF.svg" alt="" /> -->
             <!-- </button> -->
             <button class="icon-btn" onclick={handlePlay} title="Play Album">
-              <img src="/icons/24px/play_circle.svg" alt="" />
+              <img src="/icons/20px/play_circle.svg" alt="" />
             </button>
           </div>
         </div>
@@ -296,8 +296,8 @@
   }
 
   .icon-btn img {
-    width: 24px;
-    height: 24px;
+    /* width: 24px; */
+    /* height: 24px; */
     opacity: 0.7;
     pointer-events: none;
     transition: opacity 0.1s;

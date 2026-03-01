@@ -41,7 +41,7 @@
       .filter(t => t.discNo === discNumber)
       .reduce((acc, t) => {
         const meta = library.getTrackByPath(t.file);
-        return acc + (parseInt(meta?.track_duration_in_ms) || 0);
+        return acc + (parseInt(meta?.track_duration) || 0);
       }, 0);
     return formatMs(totalMs);
   }
@@ -63,15 +63,10 @@
 
   let mappedTracks = $derived(player.queue.map(item => {
     const meta = library.getTrackByPath(item.file);
-    const albumId = meta?.album_id || null;
+    const albumId = meta?.albumId || null;
     
     const title = meta ? meta.TITLE : (item.title || item.file);
     const artist = meta ? meta.ARTIST : (item.artist || "");
-    const albumArtist = meta ? meta.ALBUMARTIST : (item.albumartist || "");
-
-    const showArtist = artist && 
-                       albumArtist && 
-                       artist.toLowerCase() !== albumArtist.toLowerCase();
 
     return {
       id: item.id,
@@ -82,9 +77,7 @@
       duration: meta ? meta.track_duration_time : "",
       title,
       artist,
-      showArtist,
-      albumId,
-      albumArtist
+      albumId
     };
   }));
 
@@ -158,7 +151,7 @@
           <span class="track-index">{track.trackNo}</span>
           <div class="track-body">
             <span class="track-title">{track.title}</span>
-            {#if track.showArtist}
+            {#if track.artist && group.albumMeta && track.artist.toLowerCase() !== group.albumMeta.ALBUMARTIST.toLowerCase()}
               <span class="track-artist">{track.artist}</span>
             {/if}
           </div>
