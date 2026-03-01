@@ -291,8 +291,8 @@
   .track-row {
     position: relative;
     display: flex;
-    align-items: center;
-    padding: 6px 0px;
+    align-items: flex-start;
+    padding: 8px 0px;
     font-size: 14px;
     color: #ffffff;
     cursor: default;
@@ -334,6 +334,7 @@
     text-align: center;
     color: #888888;
     font-size: 12px;
+    line-height: 18px;
   }
 
   .track-body {
@@ -344,23 +345,24 @@
     flex-direction: column;
     overflow: hidden;
     margin-right: 16px;
+    min-width: 0;
   }
 
   .track-title {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
     font-size: 14px;
     color: #ffffff;
+    line-height: 18px;
+    word-break: keep-all;
+    overflow-wrap: break-word;
   }
 
   .track-artist {
     font-size: 13px;
     color: #999999;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    margin-top: 2px;
+    margin-top: 4px;
+    line-height: 16px;
+    word-break: keep-all;
+    overflow-wrap: break-word;
   }
 
   .track-meta {
@@ -372,5 +374,6 @@
     font-feature-settings: "tnum";
     padding-right: 18px;
     min-width: 44px;
+    line-height: 18px;
   }
 </style>
