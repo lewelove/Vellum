@@ -1,7 +1,9 @@
 <script>
   import QueueHudTopLeft from "./QueueHudTopLeft.svelte";
+  import QueueHudTopCenter from "./QueueHudTopCenter.svelte";
   import QueueHudTopRight from "./QueueHudTopRight.svelte";
   import QueueHudBottomLeft from "./QueueHudBottomLeft.svelte";
+  import QueueHudBottomCenter from "./QueueHudBottomCenter.svelte";
   import QueueHudBottomRight from "./QueueHudBottomRight.svelte";
 
   let { children } = $props();
@@ -9,10 +11,13 @@
 
 <div class="queue-hud">
   <header class="hud-bar top">
-    <div class="corner">
+    <div class="corner left">
       <QueueHudTopLeft />
     </div>
-    <div class="corner">
+    <div class="center">
+      <QueueHudTopCenter />
+    </div>
+    <div class="corner right">
       <QueueHudTopRight />
     </div>
   </header>
@@ -22,10 +27,13 @@
   </main>
 
   <footer class="hud-bar bottom">
-    <div class="corner">
+    <div class="corner left">
       <QueueHudBottomLeft />
     </div>
-    <div class="corner">
+    <div class="center">
+      <QueueHudBottomCenter />
+    </div>
+    <div class="corner right">
       <QueueHudBottomRight />
     </div>
   </footer>
@@ -66,6 +74,25 @@
     display: flex;
     align-items: center;
     pointer-events: auto;
+    min-width: 200px;
+  }
+
+  .left {
+    justify-content: flex-start;
+  }
+
+  .right {
+    justify-content: flex-end;
+  }
+
+  .center {
+    flex: 1;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: auto;
+    min-width: 0;
   }
 
   .hud-main {
