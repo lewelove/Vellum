@@ -55,7 +55,8 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background-color: transparent;
+    /* Updated background color */
+    background-color: #242424;
     pointer-events: none;
     box-sizing: border-box;
     flex-shrink: 0;

@@ -13,18 +13,12 @@
   // -- Dimensions & Layout Logic --
   let innerHeight = $state(0);
   
-  // HUD bars are 48px each
   const HUD_HEIGHT = 96; 
   const PADDING = 32;
   const MARGIN = 32;
 
-  // Vertical space available between top and bottom HUD bars
   let availableHeight = $derived(Math.max(0, innerHeight - HUD_HEIGHT));
-  
-  // Square module size matches the available height exactly
   let squareModuleSize = $derived(availableHeight);
-  
-  // Actual cover size: Module size minus the 32px internal padding
   let coverSize = $derived(Math.max(0, squareModuleSize - (PADDING * 2)));
 
   // -- Canvas / Pica Logic --
@@ -73,7 +67,6 @@
   <QueueHud>
     <div class="main-panel-layout" style="margin: 0 {MARGIN}px;">
       
-      <!-- Left Square Module (Cover Area) -->
       <div 
         class="module-left" 
         style="
@@ -104,7 +97,6 @@
         </div>
       </div>
 
-      <!-- Right Column: Tracks List -->
       <div 
         class="module-right"
         style="
@@ -137,7 +129,6 @@
     box-sizing: border-box;
   }
 
-  /* --- LEFT SQUARE MODULE --- */
   .module-left {
     flex-shrink: 0;
     box-sizing: border-box;
@@ -149,8 +140,11 @@
   .cover-container {
     position: relative;
     background-color: #000;
-    /* Elevated high-end shadow */
-    box-shadow: 0 30px 60px rgba(0,0,0,0.5);
+    /* Updated Centered Triple-Layer Shadow */
+    box-shadow: 
+      0 0 24px rgba(0, 0, 0, 0.3), 
+      0 0 16px rgba(0, 0, 0, 0.3), 
+      0 0 8px rgba(0, 0, 0, 0.3);
     flex-shrink: 0;
   }
 
@@ -184,7 +178,6 @@
     font-size: 12px;
   }
 
-  /* --- RIGHT COLUMN --- */
   .module-right {
     flex: 1;
     display: flex;
