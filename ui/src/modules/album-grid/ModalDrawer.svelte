@@ -277,7 +277,7 @@
 
   .icon-btn {
     width: 36px;
-    height: 32px;
+    height: 36px;
     background-color: rgba(255, 255, 255, 0.01);
     border: 1px solid rgba(255, 255, 255, 0.08);
     padding: 0;
@@ -296,8 +296,8 @@
   }
 
   .icon-btn img {
-    /* width: 24px; */
-    /* height: 24px; */
+    width: 20px;
+    height: 20px;
     opacity: 0.7;
     pointer-events: none;
     transition: opacity 0.1s;

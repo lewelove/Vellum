@@ -16,9 +16,9 @@
 
 <style>
   .nav-button {
-    width: 36px;
-    height: 36px;
-    background-color: rgba(255, 255, 255, 0.03);
+    width: 40px;
+    height: 40px;
+    background-color: rgba(255, 255, 255, 0.01);
     border: 1px solid rgba(255, 255, 255, 0.08);
     cursor: pointer;
     display: flex;
@@ -32,13 +32,13 @@
   }
 
   .nav-button:hover {
-    background-color: rgba(255, 255, 255, 0.08);
-    border-color: rgba(255, 255, 255, 0.15);
+    background-color: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.1);
   }
 
   .nav-button.active {
     background-color: rgba(255, 255, 255, 0.1);
-    border-color: rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.1);
     box-shadow: var(--button-shadow);
   }
 
