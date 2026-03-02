@@ -3,7 +3,6 @@
   import { GROUPER_LABELS } from "../../logic/groupers.js";
   import { SORTER_LABELS } from "../../logic/sorters.js";
   import SidebarItem from "./SidebarItem.svelte";
-  import NavTabs from "../navigation/NavTabs.svelte";
 
   let isSortMenuOpen = $state(false);
   let isGroupMenuOpen = $state(false);
@@ -136,10 +135,6 @@
     {/each}
     <div class="scroll-spacer"></div>
     <div class="scroll-fade-overlay-bottom"></div>
-  </div>
-
-  <div class="sidebar-footer">
-    <NavTabs />
   </div>
 </div>
 
@@ -373,12 +368,5 @@
   .scroll-spacer {
     height: 12px;
     flex-shrink: 0;
-  }
-
-  .sidebar-footer {
-    padding: 12px 12px 4px 12px;
-    flex-shrink: 0;
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
-    margin-top: auto;
   }
 </style>

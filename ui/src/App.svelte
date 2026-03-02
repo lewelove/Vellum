@@ -8,6 +8,7 @@
   import Sidebar from "./modules/sidebar/Sidebar.svelte";
   import QueueView from "./modules/queue/QueueView.svelte";
   import ModalDrawer from "./modules/album-grid/ModalDrawer.svelte";
+  import NavBar from "./modules/navigation/NavBar.svelte";
 
   let themeStyles = $derived(getThemeVariables());
   
@@ -68,41 +69,45 @@
 
 <main style="{themeStyles} --sidebar-width: {sidebarWidth}px;">
   
-  <section 
-    class="plane home-layer"
-    class:offset-layout={sidebarMode === 'static'}
-    class:resizing={isResizingLeft}
-    aria-hidden={isQueueVisible}
-  >
-    <AlbumGrid />
-  </section>
+  <div class="workspace">
+    <section 
+      class="plane home-layer"
+      class:offset-layout={sidebarMode === 'static'}
+      class:resizing={isResizingLeft}
+      aria-hidden={isQueueVisible}
+    >
+      <AlbumGrid />
+    </section>
 
-  <aside 
-    class="sidebar-shell left" 
-    class:static={sidebarMode === 'static'} 
-    class:dynamic={sidebarMode === 'dynamic'}
-    class:dormant={isQueueVisible || isModalVisible}
-  >
-    <div class="sidebar-trigger"></div>
-    <div class="sidebar-panel">
-      <div class="sidebar-inner"><Sidebar /></div>
-      <div class="sidebar-resizer" onmousedown={startResizingLeft}></div>
-    </div>
-  </aside>
+    <aside 
+      class="sidebar-shell left" 
+      class:static={sidebarMode === 'static'} 
+      class:dynamic={sidebarMode === 'dynamic'}
+      class:dormant={isQueueVisible || isModalVisible}
+    >
+      <div class="sidebar-trigger"></div>
+      <div class="sidebar-panel">
+        <div class="sidebar-inner"><Sidebar /></div>
+        <div class="sidebar-resizer" onmousedown={startResizingLeft}></div>
+      </div>
+    </aside>
 
-  {#if isModalVisible}
-    <div class="modal-layer">
-        <ModalDrawer album={library.focusedAlbum} onclose={() => library.closeFocus()} />
-    </div>
-  {/if}
+    {#if isModalVisible}
+      <div class="modal-layer">
+          <ModalDrawer album={library.focusedAlbum} onclose={() => library.closeFocus()} />
+      </div>
+    {/if}
 
-  <section 
-    class="plane queue-layer"
-    class:visible={isQueueVisible}
-    aria-hidden={!isQueueVisible}
-  >
-    <QueueView />
-  </section>
+    <section 
+      class="plane queue-layer"
+      class:visible={isQueueVisible}
+      aria-hidden={!isQueueVisible}
+    >
+      <QueueView />
+    </section>
+  </div>
+
+  <NavBar />
 
 </main>
 
@@ -118,6 +123,16 @@
     height: 100%;
     overflow: hidden;
     background-color: var(--background-main);
+    display: flex;
+    flex-direction: column; /* Vertical layout */
+  }
+
+  .workspace {
+    flex: 1;
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+    min-height: 0;
   }
 
   .plane {
@@ -166,7 +181,7 @@
   }
 
   .sidebar-shell {
-    position: fixed;
+    position: absolute; /* Changed from fixed to absolute to stay within workspace */
     top: 0;
     bottom: 0;
     z-index: 100;
