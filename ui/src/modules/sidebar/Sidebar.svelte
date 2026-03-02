@@ -187,7 +187,7 @@
   .sidebar-controls {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
     padding-bottom: 12px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
     margin-bottom: 0px;
@@ -196,7 +196,7 @@
 
   .control-row {
     display: flex;
-    gap: 10px;
+    gap: 8px;
     width: 100%;
   }
 
@@ -230,7 +230,7 @@
   }
 
   .sidebar-btn.square {
-    width: 40px;
+    width: 32px;
     padding: 0;
     justify-content: center;
     flex-shrink: 0;

@@ -5,8 +5,7 @@
   import { nav } from "../../navigation.svelte.js";
   import { pica } from "../../pica.js";
   import QueueTracks from "./QueueTracks.svelte";
-  import QueueRowTop from "./QueueRowTop.svelte";
-  import QueueRowBottom from "./QueueRowBottom.svelte";
+  import QueueHud from "./QueueHud.svelte";
 
   let activeId = $derived(player.currentAlbumId);
   let coverUrl = $derived(
@@ -23,14 +22,15 @@
   let lastRenderKey = "";
   let lastRenderUrl = "";
 
-  const coverMargin = 20;
+  const barHeight = 48;
+  const padding = 24;
 
   let boxSize = $derived(
-    Math.max(0, Math.min(innerWidth - (coverMargin * 2), innerHeight - (coverMargin * 2)))
+    Math.max(0, Math.min(innerWidth - (padding * 2), innerHeight - (barHeight * 2) - (padding * 2)))
   );
 
   let boxX = $derived(Math.floor((innerWidth - boxSize) / 2));
-  let boxY = $derived(Math.floor((innerHeight - boxSize) / 2));
+  let boxY = $derived(Math.floor((innerHeight - (barHeight * 2) - boxSize) / 2));
   
   let sidebarWidth = $derived(Math.max(0, (innerWidth - boxSize) / 2));
   let isQueueVisible = $derived(nav.activeTab === "queue");
@@ -71,7 +71,11 @@
         quality: 3,
         alpha: false,
         unsharpAmount: 0,
-        features: ['js', 'wasm', 'ww']
+        features: [
+          'js',
+          'wasm',
+          'ww'
+        ]
       });
 
       isCanvasReady = true;
@@ -100,68 +104,64 @@
 </svg>
 
 <div class="queue-layout">
-  <div class="ui-layer">
-    <div class="row-top-wrapper">
-      <QueueRowTop />
-    </div>
+  
+  <QueueHud>
+    <div class="hud-internal-layout">
+      <div class="queue-stage">
+        {#if coverUrl && boxSize > 0}
+          <div 
+            class="pixel-stage" 
+            style="
+              width: {boxSize}px; 
+              height: {boxSize}px; 
+              left: {boxX}px;
+              top: {boxY}px;
+            "
+          >
+            <div class="hard-shadow" class:visible={isAlbumVisible} aria-hidden="true">
+              <img src={coverUrl} alt="" style="width: 100%; height: 100%;" />
+            </div>
 
-    {#if sidebarWidth > 0}
-      <div 
-        class="tracks-overlay" 
-        style="
-          width: {sidebarWidth}px; 
-          visibility: {isQueueVisible ? 'visible' : 'hidden'};
-          pointer-events: {isQueueVisible ? 'auto' : 'none'};
-        "
-      >
-        <QueueTracks />
+            <img 
+                src={coverUrl} 
+                class="backing-image" 
+                class:visible={isAlbumVisible}
+                alt="" 
+            />
+
+            <canvas 
+              bind:this={canvasEl}
+              class="raw-canvas"
+              class:visible={isCanvasReady}
+              style="width: {boxSize}px; height: {boxSize}px;"
+            ></canvas>
+          </div>
+        {:else if player.state !== 'stop' && library.isLoading}
+          <div class="empty-state">
+            <span>Syncing Library...</span>
+          </div>
+        {:else if !activeId || player.state === 'stop'}
+          <div class="empty-state">
+            <span>Not Playing</span>
+          </div>
+        {/if}
       </div>
-    {/if}
 
-    <div class="row-bottom-wrapper">
-      <QueueRowBottom />
-    </div>
-  </div>
-
-  <div class="queue-stage">
-    {#if coverUrl && boxSize > 0}
-      <div 
-        class="pixel-stage" 
-        style="
-          width: {boxSize}px; 
-          height: {boxSize}px; 
-          left: {boxX}px;
-          top: {boxY}px;
-        "
-      >
-        <div class="hard-shadow" class:visible={isAlbumVisible} aria-hidden="true">
-          <img src={coverUrl} alt="" style="width: 100%; height: 100%;" />
+      {#if sidebarWidth > 0}
+        <div 
+          class="tracks-sidebar" 
+          style="
+            width: {sidebarWidth}px; 
+            visibility: {isQueueVisible ? 'visible' : 'hidden'};
+            pointer-events: {isQueueVisible ? 'auto' : 'none'};
+          "
+        >
+          <QueueTracks />
         </div>
+      {/if}
+    </div>
+  </QueueHud>
 
-        <img 
-            src={coverUrl} 
-            class="backing-image" 
-            class:visible={isAlbumVisible}
-            alt="" 
-        />
-
-        <canvas 
-          bind:this={canvasEl}
-          class="raw-canvas"
-          class:visible={isCanvasReady}
-          style="width: {boxSize}px; height: {boxSize}px;"
-        ></canvas>
-      </div>
-    {:else if player.state !== 'stop' && library.isLoading}
-      <div class="empty-state">
-        <span>Syncing Library...</span>
-      </div>
-    {:else if !activeId || player.state === 'stop'}
-      <div class="empty-state">
-        <span>Not Playing</span>
-      </div>
-    {/if}
-  </div>
 </div>
 
 <style>
@@ -174,34 +174,28 @@
     contain: paint;
   }
 
-  .ui-layer {
-    position: absolute;
-    inset: 0;
-    z-index: 10;
+  .hud-internal-layout {
+    width: 100%;
+    height: 100%;
     display: flex;
-    flex-direction: column;
+    justify-content: flex-end;
     pointer-events: none;
+    position: relative;
   }
 
-  .row-top-wrapper, .row-bottom-wrapper {
-    pointer-events: auto;
-    flex-shrink: 0;
-  }
-
-  .tracks-overlay {
-    flex: 1;
-    min-height: 0;
+  .tracks-sidebar {
+    height: 100%;
     display: flex;
     flex-direction: column;
-    align-self: flex-end;
     pointer-events: auto;
     background-color: transparent;
+    z-index: 10;
   }
 
   .queue-stage {
     position: absolute;
     inset: 0;
-    z-index: 20;
+    z-index: 5;
     pointer-events: none;
   }
 
@@ -259,8 +253,8 @@
     align-items: center;
     justify-content: center;
     color: var(--text-muted);
-    font-size: 18px;
-    letter-spacing: 0.3em;
+    font-size: 14px;
+    letter-spacing: 0.4em;
     text-transform: uppercase;
     pointer-events: none;
   }
