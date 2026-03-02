@@ -13,13 +13,13 @@
   .nav-bar {
     height: 100%;
     background-color: var(--background-drawer);
-    border-right: 1px solid rgba(255, 255, 255, 0.05); /* Changed from border-left */
+    box-shadow: var(--album-cover-shadow);
     display: flex;
     flex-direction: column;
     align-items: center;
     padding: 12px;
     box-sizing: border-box;
-    z-index: 300;
+    z-index: 100;
     flex-shrink: 0;
   }
   
