@@ -12,62 +12,62 @@
   onclick={() => setTab(tab)}
   title={tab}
 >
-  <img src="/icons/{icon}" alt={tab} class="nav-icon" />
+  <img src="/icons/{icon}.svg" alt={tab} class="nav-icon" />
 </button>
 
 <style>
   .nav-button {
-    width: 48px;
-    height: 48px;
-    background-color: var(--background-drawer);
-    border: none;
+    width: 36px;
+    height: 36px;
+    background-color: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: background-color 0.2s, transform 0.1s, box-shadow 0.2s;
+    transition: 
+      background-color 0.2s, 
+      border-color 0.2s,
+      transform 0.1s;
     pointer-events: auto;
-    border-radius: 12px;
-  }
-
-  .nav-button.queue-mode {
-    background-color: transparent;
-    box-shadow: none;
+    border-radius: 10px;
+    box-shadow: var(--button-shadow-lesser);
+    flex-shrink: 0;
   }
 
   .nav-button:hover {
-    background-color: var(--palette-300);
-  }
-
-  .nav-button.queue-mode:hover {
-    background-color: rgba(255, 255, 255, 0.1);
+    background-color: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.15);
   }
 
   .nav-button.active {
     background-color: var(--text-main);
-  }
-
-  .nav-button.queue-mode.active {
-    background-color: rgba(255, 255, 255, 0.2);
+    border-color: var(--text-main);
   }
 
   .nav-icon {
-    width: 22px;
-    height: 22px;
+    width: 24px;
+    height: 24px;
     filter: invert(0.8);
     transition: filter 0.2s;
   }
 
   .nav-button.active .nav-icon {
-    filter: invert(0.1);
+    filter: invert(0);
   }
 
-  .nav-button.queue-mode .nav-icon {
-    filter: invert(1);
-    opacity: 0.8;
+  .nav-button.queue-mode:not(.active) {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .nav-button.queue-mode.active {
+    background-color: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.3);
   }
 
   .nav-button.queue-mode.active .nav-icon {
+    filter: invert(1);
     opacity: 1;
   }
 </style>

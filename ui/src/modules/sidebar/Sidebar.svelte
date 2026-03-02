@@ -3,6 +3,7 @@
   import { GROUPER_LABELS } from "../../logic/groupers.js";
   import { SORTER_LABELS } from "../../logic/sorters.js";
   import SidebarItem from "./SidebarItem.svelte";
+  import NavTabs from "../navigation/NavTabs.svelte";
 
   let isSortMenuOpen = $state(false);
   let isGroupMenuOpen = $state(false);
@@ -58,7 +59,6 @@
   </div>
 
   <div class="sidebar-controls">
-    
     <div class="control-row">
       <div class="button-wrapper flex-grow">
         <button class="sidebar-btn" onclick={toggleSortMenu} class:active={isSortMenuOpen} title="Sort By">
@@ -122,12 +122,10 @@
         {/if}
       </div>
     </div>
-
   </div>
 
   <div class="sidebar-scroll">
     <div class="scroll-fade-overlay-top"></div>
-    
     {#each items as item}
       <SidebarItem 
         label={item.label} 
@@ -136,9 +134,12 @@
         onclick={() => library.applyFilter(item.filterTarget, item.value)}
       />
     {/each}
-
     <div class="scroll-spacer"></div>
     <div class="scroll-fade-overlay-bottom"></div>
+  </div>
+
+  <div class="sidebar-footer">
+    <NavTabs />
   </div>
 </div>
 
@@ -372,5 +373,12 @@
   .scroll-spacer {
     height: 12px;
     flex-shrink: 0;
+  }
+
+  .sidebar-footer {
+    padding: 12px 12px 4px 12px;
+    flex-shrink: 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    margin-top: auto;
   }
 </style>

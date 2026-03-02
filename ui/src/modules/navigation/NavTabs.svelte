@@ -3,20 +3,18 @@
 </script>
 
 <div class="nav-tabs-container">
-  <NavButton icon="house.svg" tab="home" />
-  <NavButton icon="queue.svg" tab="queue" />
+  <NavButton icon="icons/24px/home.svg" tab="home" />
+  <NavButton icon="icons/24px/queue_music.svg" tab="queue" />
 </div>
 
 <style>
   .nav-tabs-container {
     display: flex;
     flex-direction: row;
-    justify-content: center;
+    justify-content: flex-start;
     align-items: center;
-    gap: 12px;
-    width: 100%;
-    height: 100%;
+    gap: 8px;
     box-sizing: border-box;
-    pointer-events: none;
+    pointer-events: auto;
   }
 </style>
