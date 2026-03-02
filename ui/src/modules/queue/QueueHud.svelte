@@ -55,19 +55,10 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    /* Updated background color */
-    background-color: #242424;
+    background-color: transparent;
     pointer-events: none;
     box-sizing: border-box;
     flex-shrink: 0;
-  }
-
-  .top {
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  }
-
-  .bottom {
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
   }
 
   .corner {

@@ -11,14 +11,13 @@
 
 <style>
   .nav-bar {
-    width: 52px;
     height: 100%;
     background-color: var(--background-drawer);
     border-left: 1px solid rgba(255, 255, 255, 0.05);
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 12px 0;
+    padding: 12px;
     box-sizing: border-box;
     z-index: 300;
     flex-shrink: 0;
