@@ -181,6 +181,10 @@
     min-height: 0;
   }
 
+  .tracks-list::-webkit-scrollbar {
+    width: 0px;
+  }
+
   .album-group-header {
     padding: 12px 20px 12px 20px;
     display: flex;

@@ -207,7 +207,7 @@
 
   .track-row {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     padding: 6px 0px;
     font-size: 14px;
     color: #ffffff;
@@ -242,9 +242,8 @@
   }
 
   .track-title {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    word-break: keep-all;
+    overflow-wrap: break-word;
   }
 
   .track-artist {
@@ -253,7 +252,7 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    margin-top: 2px;
+    margin-top: 4px;
   }
 
   .track-meta {
