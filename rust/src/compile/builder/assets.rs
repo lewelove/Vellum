@@ -53,7 +53,13 @@ pub fn load_or_create_thumbnail(
         return None;
     }
 
-    let thumb_dir = expand_path(dir_str);
+    let size = config
+        .get("theme")
+        .and_then(|t| t.get("thumbnail_size"))
+        .and_then(Value::as_u64)
+        .unwrap_or(200) as u32;
+
+    let thumb_dir = expand_path(dir_str).join(format!("{size}px"));
     let thumb_path = thumb_dir.join(format!("{cover_hash}.png"));
 
     if !thumb_path.exists() {
@@ -61,7 +67,7 @@ pub fn load_or_create_thumbnail(
             let (w, h) = img.dimensions();
             let side = std::cmp::min(w, h);
             let square = img.crop_imm((w - side) / 2, (h - side) / 2, side, side);
-            let final_thumb = square.resize(200, 200, image::imageops::FilterType::Lanczos3);
+            let final_thumb = square.resize(size, size, image::imageops::FilterType::Lanczos3);
             let _ = std::fs::create_dir_all(&thumb_dir);
             let _ = final_thumb.save(&thumb_path);
             return Some(final_thumb);

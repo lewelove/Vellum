@@ -18,6 +18,7 @@ pub async fn run(port: u16) -> Result<()> {
 
     let lib_root_str = &config.storage.library_root;
     let thumb_root_str = config.storage.thumbnail_cache_folder.as_deref();
+    let thumb_size = config.theme.as_ref().map_or(200, |t| t.thumbnail_size);
 
     let library_root = expand_path(lib_root_str)
         .canonicalize()
@@ -26,6 +27,7 @@ pub async fn run(port: u16) -> Result<()> {
     let server_config = Arc::new(ServerConfig {
         library_root: library_root.clone(),
         thumbnail_root: thumb_root_str.map(expand_path),
+        thumbnail_size: thumb_size,
     });
 
     let state_file = expand_path("~/.vellum/state.json");

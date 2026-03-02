@@ -26,7 +26,6 @@ pub struct StorageConfig {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ThemeConfig {
     pub thumbnail_size: u32,
-    pub thumbnail_resampling: String,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]

@@ -1,6 +1,6 @@
 use crate::server::state::AppState;
 use axum::extract::{Path, State};
-use axum::http::{StatusCode, header};
+use axum::http::{HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -8,14 +8,22 @@ use tokio::fs::File;
 use tokio::io::AsyncReadExt;
 
 pub async fn get_cover_thumbnail(
-    Path(hash): Path<String>,
+    Path((size, hash)): Path<(String, String)>,
     State(state): State<Arc<AppState>>,
 ) -> Response {
     if let Some(root) = &state.config.thumbnail_root {
-        let path = root.join(format!("{hash}.png"));
-        return serve_image(path).await;
+        let path = root.join(&size).join(format!("{}.png", hash));
+        
+        match serve_image(path.clone()).await {
+            resp if resp.status() == StatusCode::OK => resp,
+            _ => {
+                log::error!("FS 404: File not found at -> {}", path.display());
+                StatusCode::NOT_FOUND.into_response()
+            }
+        }
+    } else {
+        StatusCode::NOT_FOUND.into_response()
     }
-    StatusCode::NOT_FOUND.into_response()
 }
 
 pub async fn get_album_cover(
@@ -47,8 +55,12 @@ async fn serve_image(path: PathBuf) -> Response {
             };
             return (
                 [
-                    (header::CONTENT_TYPE, mime),
-                    (header::CACHE_CONTROL, "public, max-age=31536000, immutable"),
+                    (header::CONTENT_TYPE, HeaderValue::from_static(mime)),
+                    (
+                        header::CACHE_CONTROL,
+                        HeaderValue::from_static("public, max-age=31536000, immutable"),
+                    ),
+                    (header::ACCESS_CONTROL_ALLOW_ORIGIN, HeaderValue::from_static("*")),
                 ],
                 buf,
             )

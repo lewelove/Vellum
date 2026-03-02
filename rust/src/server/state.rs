@@ -16,4 +16,5 @@ pub struct AppState {
 pub struct AppConfig {
     pub library_root: PathBuf,
     pub thumbnail_root: Option<PathBuf>,
+    pub thumbnail_size: u32,
 }

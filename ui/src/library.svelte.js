@@ -1,6 +1,7 @@
 import { connectSocket } from "./api.js";
 import { player, updatePlayerState } from "./modules/player.svelte.js";
 import { nav } from "./navigation.svelte.js";
+import { theme } from "./theme.svelte.js";
 import LogicWorker from "./workers/logic.worker.js?worker"; 
 
 class LibraryState {
@@ -115,6 +116,9 @@ class LibraryState {
     if (json.type === "UPDATE") {
       this.worker.postMessage({ type: "UPDATE", payload: json.payload });
     } else if (json.type === "INIT") {
+      if (json.config && json.config.thumbnail_size) {
+        theme.albumGrid["cover-size"] = json.config.thumbnail_size;
+      }
       if (json.ui_state) {
           this.applyPersistedState(json.ui_state);
       }
@@ -214,7 +218,8 @@ class LibraryState {
 
   getThumbnailUrl(album) {
     if (!album || !album.cover_hash) return "";
-    return `/api/covers/${album.cover_hash}`;
+    const size = theme.albumGrid["cover-size"] || 200;
+    return `/api/covers/${size}px/${album.cover_hash}`;
   }
 
   getAlbumCoverUrl(albumId) {

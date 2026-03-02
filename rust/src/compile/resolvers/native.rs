@@ -162,8 +162,7 @@ pub fn resolve_cover_chroma(ctx: &AlbumContext) -> Option<Value> {
 
 pub fn resolve_cover_entropy(ctx: &AlbumContext) -> Option<Value> {
     let img = ctx.cover_image?;
-    let thumb = img.thumbnail(200, 200);
-    let gray = thumb.grayscale();
+    let gray = img.grayscale();
     let mut buf = Vec::new();
     let mut cursor = std::io::Cursor::new(&mut buf);
     gray.write_to(&mut cursor, image::ImageFormat::Png).ok()?;

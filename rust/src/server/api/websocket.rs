@@ -20,7 +20,10 @@ async fn handle_socket(mut socket: WebSocket, state: Arc<AppState>) {
         json!({
             "type": "INIT",
             "data": lib_data,
-            "ui_state": ui_data
+            "ui_state": ui_data,
+            "config": {
+                "thumbnail_size": state.config.thumbnail_size
+            }
         })
         .to_string()
     };

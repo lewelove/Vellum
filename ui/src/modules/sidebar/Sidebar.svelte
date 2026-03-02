@@ -160,7 +160,7 @@
   }
 
   .nav-button {
-    text-align: left;
+    text-align: right;
     background: transparent;
     border: none;
     padding: 6px 12px;

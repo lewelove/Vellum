@@ -6,11 +6,10 @@ import = [
 [storage]
 library_root = "/run/media/lewelove/1000xhome/backup-everything/FB2K/Library Historyfied!/"
 library_export = "~/dev/vellum-test-library/metadata_output"
-thumbnail_cache_folder = "~/.vellum/covers/thumbnails"
+thumbnail_cache_folder = "~/.vellum/thumbnails"
 
 [theme]
 thumbnail_size = 190
-thumbnail_resampling = "LANCZOS"
 
 [generate]
 supported_extensions = [
