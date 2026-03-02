@@ -154,7 +154,6 @@
   }
 
   .home-layer.offset-layout {
-    /* When sidebar is static on right, reduce width from the right side */
     width: calc(100% - (var(--sidebar-width) - 1px));
   }
 
@@ -207,7 +206,7 @@
     background-color: var(--background-drawer);
     pointer-events: auto; 
     display: flex;
-    flex-direction: row; /* Changed to row to accomodate resizer on left */
+    flex-direction: row;
     transition: transform 0.25s cubic-bezier(0.2, 0, 0, 1);
     box-sizing: border-box;
     box-shadow: var(--album-cover-shadow);
@@ -247,7 +246,6 @@
     z-index: 120;
     flex-shrink: 0;
     position: relative;
-    /* Visual hint for resizer could go here */
   }
 
   .sidebar-inner { flex: 1; overflow: hidden; }
