@@ -292,7 +292,7 @@
     position: relative;
     display: flex;
     align-items: flex-start;
-    padding: 8px 0px;
+    padding: 6px 0px;
     font-size: 14px;
     color: #ffffff;
     cursor: default;
