@@ -8,11 +8,10 @@
 <button 
   class="nav-button" 
   class:active={isActive} 
-  class:queue-mode={nav.activeTab === 'queue'}
   onclick={() => setTab(tab)}
   title={tab}
 >
-  <img src="/icons/{icon}.svg" alt={tab} class="nav-icon" />
+  <img src="/{icon}" alt={tab} class="nav-icon" />
 </button>
 
 <style>
@@ -25,10 +24,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: 
-      background-color 0.2s, 
-      border-color 0.2s,
-      transform 0.1s;
+    transition: all 0.2s ease;
     pointer-events: auto;
     border-radius: 10px;
     box-shadow: var(--button-shadow-lesser);
@@ -41,33 +37,18 @@
   }
 
   .nav-button.active {
-    background-color: var(--text-main);
-    border-color: var(--text-main);
+    background-color: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.3);
+    box-shadow: var(--button-shadow);
   }
 
   .nav-icon {
-    width: 24px;
-    height: 24px;
-    filter: invert(0.8);
-    transition: filter 0.2s;
+    opacity: 0.3;
+    transition: opacity 0.2s ease;
   }
 
+  .nav-button:hover .nav-icon,
   .nav-button.active .nav-icon {
-    filter: invert(0);
-  }
-
-  .nav-button.queue-mode:not(.active) {
-    background-color: rgba(255, 255, 255, 0.05);
-    border-color: rgba(255, 255, 255, 0.1);
-  }
-
-  .nav-button.queue-mode.active {
-    background-color: rgba(255, 255, 255, 0.2);
-    border-color: rgba(255, 255, 255, 0.3);
-  }
-
-  .nav-button.queue-mode.active .nav-icon {
-    filter: invert(1);
     opacity: 1;
   }
 </style>
