@@ -15,7 +15,7 @@
 <div class="queue-hud-top-center">
   {#if displayString}
     <div class="metadata-wrapper">
-      <span class="vga-line">{displayString}</span>
+      <span class="hud-text">{displayString}</span>
     </div>
   {/if}
 </div>
@@ -36,8 +36,9 @@
     text-overflow: ellipsis;
   }
 
-  .vga-line {
+  .hud-text {
     color: #fff;
-    font-size: 16px !important;
+    font-size: 16px;
+    font-family: var(--font-mono);
   }
 </style>

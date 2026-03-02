@@ -10,6 +10,16 @@
       : 0
   );
 
+  const formatTime = (totalSeconds) => {
+    const s = Math.floor(totalSeconds || 0);
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const rs = s % 60;
+    const pad = (num) => String(num).padStart(2, '0');
+    if (h > 0) return `${h}:${pad(m)}:${pad(rs)}`;
+    return `${m}:${pad(rs)}`;
+  };
+
   function tick() {
     if (player.state === "play") {
       const delta = (performance.now() - player.lastUpdated) / 1000;
@@ -27,12 +37,22 @@
 </script>
 
 <div class="queue-hud-bottom-center">
-  <div class="progress-track">
-    <div 
-      class="progress-fill" 
-      style:width="{progress}%"
-    ></div>
+  <span class="time-label left">
+    {formatTime(tickingElapsed)}
+  </span>
+
+  <div class="progress-track-wrapper">
+    <div class="progress-track">
+      <div 
+        class="progress-fill" 
+        style:width="{progress}%"
+      ></div>
+    </div>
   </div>
+
+  <span class="time-label right">
+    {formatTime(player.duration)}
+  </span>
 </div>
 
 <style>
@@ -42,8 +62,32 @@
     justify-content: center;
     width: 100%;
     height: 100%;
-    padding: 0 40px;
+    padding: 0 20px;
     box-sizing: border-box;
+    gap: 16px;
+  }
+
+  .time-label {
+    color: #fff;
+    font-size: 13px;
+    min-width: 45px;
+    opacity: 0.8;
+    font-family: var(--font-mono);
+  }
+
+  .left {
+    text-align: right;
+  }
+
+  .right {
+    text-align: left;
+  }
+
+  .progress-track-wrapper {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    min-width: 0;
   }
 
   .progress-track {

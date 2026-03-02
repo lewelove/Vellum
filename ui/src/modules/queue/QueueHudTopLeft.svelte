@@ -4,8 +4,6 @@
 
 <div class="hud-corner-unit">
   <button class="nav-back" onclick={() => setTab('home')}>
-    <img src="/icons/queue.svg" alt="Back" class="icon" />
-    <span class="vga-line">VELLUM://QUEUE</span>
   </button>
 </div>
 
@@ -40,9 +38,10 @@
     transform: rotate(180deg);
   }
 
-  .vga-line {
+  .hud-line {
     color: #fff;
     font-size: 14px;
     letter-spacing: 0.08em;
+    font-family: var(--font-mono);
   }
 </style>
