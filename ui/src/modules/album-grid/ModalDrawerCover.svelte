@@ -61,12 +61,20 @@
 </script>
 
 <div class="modal-drawer-cover-wrapper" style="width: {width}px; height: {height}px;">
-  <canvas 
-    bind:this={canvasEl} 
-    class="output-canvas" 
-    class:visible={isLoaded}
-    style="width: {width}px; height: {height}px;"
-  ></canvas>
+  <div class="cover-block" class:visible={isLoaded}>
+    <!-- Background img layer -->
+    <img
+      {src}
+      class="cover-image"
+      alt=""
+    />
+    <!-- Foreground canvas - pica rendered -->
+    <canvas
+      bind:this={canvasEl}
+      class="output-canvas"
+      style="width: {width}px; height: {height}px;"
+    ></canvas>
+  </div>
 </div>
 
 <style>
@@ -75,18 +83,35 @@
     overflow: visible;
   }
 
-  .output-canvas {
+  .cover-block {
     position: absolute;
-    top: 0;
-    left: 0;
+    inset: 0;
     opacity: 0;
-    background-color: transparent;
     transition: opacity 0.4s;
     will-change: opacity;
   }
 
-  .output-canvas.visible {
+  .cover-block.visible {
     opacity: 1;
+  }
+
+  .cover-image {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .output-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    background-color: transparent;
+  }
+
+  .cover-block.visible .output-canvas {
     box-shadow: 0 0 16px rgba(0, 0, 0, 0.1), 0 0 16px rgba(0, 0, 0, 0.2), 0 0 10px rgba(0, 0, 0, 0.4);
   }
 </style>
