@@ -2,6 +2,9 @@
   import QueueHudTopLeft from "./QueueHudTopLeft.svelte";
   import QueueHudTopCenter from "./QueueHudTopCenter.svelte";
   import QueueHudTopRight from "./QueueHudTopRight.svelte";
+  import QueueHudBottomLeft from "./QueueHudBottomLeft.svelte";
+  import QueueHudBottomCenter from "./QueueHudBottomCenter.svelte";
+  import QueueHudBottomRight from "./QueueHudBottomRight.svelte";
 
   let { children } = $props();
 </script>
@@ -22,8 +25,18 @@
   <main class="hud-main">
     {@render children()}
   </main>
-  
-  <!-- Footer removed: Functionality merged into main NavBar -->
+
+  <footer class="hud-bar bottom">
+    <div class="corner left">
+      <QueueHudBottomLeft />
+    </div>
+    <div class="center">
+      <QueueHudBottomCenter />
+    </div>
+    <div class="corner right">
+      <QueueHudBottomRight />
+    </div>
+  </footer>
 </div>
 
 <style>
@@ -42,6 +55,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    /* Updated background color */
     background-color: #242424;
     pointer-events: none;
     box-sizing: border-box;
@@ -50,6 +64,10 @@
 
   .top {
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  .bottom {
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
   }
 
   .corner {

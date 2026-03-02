@@ -124,15 +124,15 @@
     overflow: hidden;
     background-color: var(--background-main);
     display: flex;
-    flex-direction: column; /* Vertical layout */
+    flex-direction: row;
   }
 
   .workspace {
     flex: 1;
     position: relative;
-    width: 100%;
+    height: 100%;
     overflow: hidden;
-    min-height: 0;
+    min-width: 0;
   }
 
   .plane {
@@ -181,7 +181,7 @@
   }
 
   .sidebar-shell {
-    position: absolute; /* Changed from fixed to absolute to stay within workspace */
+    position: fixed;
     top: 0;
     bottom: 0;
     z-index: 100;

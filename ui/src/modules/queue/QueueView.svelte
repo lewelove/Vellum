@@ -11,15 +11,13 @@
   let coverUrl = $derived(activeId ? library.getAlbumCoverUrl(activeId) : "");
   
   // -- Dimensions & Layout Logic --
-  // We bind to the container's height to calculate layout, rather than window
-  let containerHeight = $state(0);
+  let innerHeight = $state(0);
   
-  // Only the top HUD bar remains inside QueueHud
-  const HUD_HEIGHT = 48; 
+  const HUD_HEIGHT = 96; 
   const PADDING = 32;
   const MARGIN = 32;
 
-  let availableHeight = $derived(Math.max(0, containerHeight - HUD_HEIGHT));
+  let availableHeight = $derived(Math.max(0, innerHeight - HUD_HEIGHT));
   let squareModuleSize = $derived(availableHeight);
   let coverSize = $derived(Math.max(0, squareModuleSize - (PADDING * 2)));
 
@@ -63,7 +61,9 @@
   });
 </script>
 
-<div class="queue-view-container" bind:clientHeight={containerHeight}>
+<svelte:window bind:innerHeight />
+
+<div class="queue-view-container">
   <QueueHud>
     <div class="main-panel-layout" style="margin: 0 {MARGIN}px;">
       
