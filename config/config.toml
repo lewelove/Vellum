@@ -9,7 +9,7 @@ library_export = "~/dev/vellum-test-library/metadata_output"
 thumbnail_cache_folder = "~/.vellum/covers/thumbnails"
 
 [theme]
-thumbnail_size = 200
+thumbnail_size = 190
 thumbnail_resampling = "LANCZOS"
 
 [generate]
