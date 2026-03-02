@@ -27,7 +27,7 @@ export const theme = $state({
     "crease-height": 20,
     "gap-x": 30,
     "gap-y": 16,
-    "cover-size": 200,
+    "cover-size": 190,
     "text-gap-main": 11,
     "text-gap-lesser": 2,
     "font-line-height-title": 16,
