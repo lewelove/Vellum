@@ -27,8 +27,6 @@
     border-radius: 8px;
     box-sizing: border-box;
     user-select: none;
-    contain: layout;
-    -webkit-font-smoothing: subpixel-antialiased;
   }
 
   .sidebar-item:hover {
@@ -54,6 +52,5 @@
     opacity: 0.5;
     font-size: 13px;
     font-feature-settings: "tnum";
-    font-variant-numeric: tabular-nums;
   }
 </style>

@@ -13,7 +13,7 @@
   .nav-bar {
     height: 100%;
     background-color: var(--background-drawer);
-    border-left: 1px solid rgba(255, 255, 255, 0.05);
+    border-right: 1px solid rgba(255, 255, 255, 0.05); /* Changed from border-left */
     display: flex;
     flex-direction: column;
     align-items: center;

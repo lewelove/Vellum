@@ -14,7 +14,7 @@
   
   let sidebarMode = $state("dynamic");
   let sidebarWidth = $state(160);
-  let isResizingLeft = $state(false);
+  let isResizing = $state(false);
 
   let isQueueVisible = $derived(nav.activeTab === "queue");
   let isModalVisible = $derived(!!library.focusedAlbum);
@@ -41,11 +41,14 @@
     if (key === '2' || key === 'l' || key === 'arrowright') setTab('queue');
   }
 
-  function startResizingLeft() {
-    isResizingLeft = true;
-    const move = (e) => { sidebarWidth = Math.max(140, Math.min(e.clientX, 400)); };
+  function startResizing() {
+    isResizing = true;
+    const move = (e) => { 
+      const w = window.innerWidth;
+      sidebarWidth = Math.max(140, Math.min(w - e.clientX, 400)); 
+    };
     const up = () => {
-      isResizingLeft = false;
+      isResizing = false;
       localStorage.setItem("vellum-sidebar-width", sidebarWidth);
       window.removeEventListener("mousemove", move);
       window.removeEventListener("mouseup", up);
@@ -69,26 +72,28 @@
 
 <main style="{themeStyles} --sidebar-width: {sidebarWidth}px;">
   
+  <NavBar />
+
   <div class="workspace">
     <section 
       class="plane home-layer"
       class:offset-layout={sidebarMode === 'static'}
-      class:resizing={isResizingLeft}
+      class:resizing={isResizing}
       aria-hidden={isQueueVisible}
     >
       <AlbumGrid />
     </section>
 
     <aside 
-      class="sidebar-shell left" 
+      class="sidebar-shell right" 
       class:static={sidebarMode === 'static'} 
       class:dynamic={sidebarMode === 'dynamic'}
       class:dormant={isQueueVisible || isModalVisible}
     >
       <div class="sidebar-trigger"></div>
       <div class="sidebar-panel">
+        <div class="sidebar-resizer" onmousedown={startResizing}></div>
         <div class="sidebar-inner"><Sidebar /></div>
-        <div class="sidebar-resizer" onmousedown={startResizingLeft}></div>
       </div>
     </aside>
 
@@ -106,8 +111,6 @@
       <QueueView />
     </section>
   </div>
-
-  <NavBar />
 
 </main>
 
@@ -147,11 +150,11 @@
     z-index: 1;
     left: 0;
     width: 100%;
-    transition: left 0.25s cubic-bezier(0.2, 0, 0, 1), width 0.25s cubic-bezier(0.2, 0, 0, 1);
+    transition: width 0.25s cubic-bezier(0.2, 0, 0, 1);
   }
 
   .home-layer.offset-layout {
-    left: calc(var(--sidebar-width) - 1px);
+    /* When sidebar is static on right, reduce width from the right side */
     width: calc(100% - (var(--sidebar-width) - 1px));
   }
 
@@ -192,8 +195,8 @@
     pointer-events: none !important; 
   }
   
-  .sidebar-shell.left { 
-    left: 0; 
+  .sidebar-shell.right { 
+    right: 0; 
     width: var(--sidebar-width); 
     visibility: visible;
   }
@@ -204,7 +207,7 @@
     background-color: var(--background-drawer);
     pointer-events: auto; 
     display: flex;
-    flex-direction: column;
+    flex-direction: row; /* Changed to row to accomodate resizer on left */
     transition: transform 0.25s cubic-bezier(0.2, 0, 0, 1);
     box-sizing: border-box;
     box-shadow: var(--album-cover-shadow);
@@ -219,15 +222,15 @@
     z-index: 110;
     pointer-events: auto; 
   }
-  .left .sidebar-trigger { left: 0; }
+  .right .sidebar-trigger { right: 0; }
 
-  .sidebar-shell.dynamic.left .sidebar-panel { 
-    transform: translateX(-100%) translateZ(0); 
+  .sidebar-shell.dynamic.right .sidebar-panel { 
+    transform: translateX(100%) translateZ(0); 
     -webkit-backface-visibility: hidden;
     will-change: transform;
   }
   
-  .sidebar-shell.dynamic.left:hover .sidebar-panel { 
+  .sidebar-shell.dynamic.right:hover .sidebar-panel { 
     transform: translateX(0) translateZ(0); 
   }
   
@@ -238,14 +241,14 @@
   }
 
   .sidebar-resizer {
-    position: absolute;
-    top: 0;
-    bottom: 0;
     width: 6px;
+    height: 100%;
     cursor: col-resize;
     z-index: 120;
+    flex-shrink: 0;
+    position: relative;
+    /* Visual hint for resizer could go here */
   }
-  .left .sidebar-resizer { right: -3px; }
 
   .sidebar-inner { flex: 1; overflow: hidden; }
 </style>
