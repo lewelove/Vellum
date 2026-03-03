@@ -42,8 +42,8 @@
   .nav-icon {
     opacity: 0.3;
     transition: opacity 0.2s ease;
-    width: 28px;
-    height: 28px;
+    width: 24px;
+    height: 24px;
   }
 
   .queue-nav-button:hover .nav-icon,

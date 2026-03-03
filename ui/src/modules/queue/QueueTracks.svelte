@@ -217,7 +217,7 @@
   }
 
   .header-album {
-    font-size: 16px;
+    font-size: 18px;
     color: var(--text-main);
     white-space: nowrap;
     overflow: hidden;
@@ -225,7 +225,7 @@
   }
 
   .header-artist {
-    font-size: 14px;
+    font-size: 16px;
     color: var(--text-muted);
     white-space: nowrap;
     overflow: hidden;
@@ -251,7 +251,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0 16px;
+    padding: 0 0px;
     margin-bottom: 8px;
     margin-top: 8px;
   }

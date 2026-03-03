@@ -65,7 +65,7 @@
     height: 100%;
     overflow-y: auto;
     background-color: transparent;
-    padding: 24px;
+    padding: 12px;
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
@@ -79,11 +79,11 @@
     white-space: pre-wrap;
     font-family: var(--font-stack);
     font-size: 16px;
-    line-height: 1.6;
+    line-height: 1.4;
     color: var(--text-main);
-    text-align: center;
+    text-align: left;
     margin: auto;
-    max-width: 600px;
+    max-width: 400px;
   }
 
   .status-msg {
