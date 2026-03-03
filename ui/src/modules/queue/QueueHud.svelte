@@ -55,9 +55,10 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    /* background-color: var(--background-drawer); */
     background-color: transparent;
     pointer-events: none;
-    box-sizing: border-box;
+    /* box-sizing: border-box; */
     flex-shrink: 0;
   }
 

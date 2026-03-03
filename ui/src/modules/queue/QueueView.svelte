@@ -115,7 +115,7 @@
   .queue-view-container {
     width: 100%;
     height: 100%;
-    background-color: #1F1F1F;
+    background-color: var(--background-main);
     position: relative;
     overflow: hidden;
   }
@@ -140,7 +140,6 @@
   .cover-container {
     position: relative;
     background-color: #000;
-    /* Updated Centered Triple-Layer Shadow */
     box-shadow: 
       0 0 24px rgba(0, 0, 0, 0.3), 
       0 0 16px rgba(0, 0, 0, 0.3), 
