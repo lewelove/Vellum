@@ -5,11 +5,15 @@
   
   import QueueTracks from "./QueueTracks.svelte";
   import QueueHud from "./QueueHud.svelte";
+  import QueueBar from "./QueueBar.svelte";
+  import Lyrics from "./Lyrics.svelte";
 
   // -- Data State --
   let activeId = $derived(player.currentAlbumId);
   let coverUrl = $derived(activeId ? library.getAlbumCoverUrl(activeId) : "");
   
+  let activeView = $state("tracks");
+
   // -- Dimensions & Layout Logic --
   let innerHeight = $state(0);
   
@@ -64,51 +68,63 @@
 <svelte:window bind:innerHeight />
 
 <div class="queue-view-container">
-  <QueueHud>
-    <div class="main-panel-layout" style="margin: 0 {MARGIN}px;">
-      
-      <div 
-        class="module-left" 
-        style="
-            width: {squareModuleSize}px; 
-            height: {squareModuleSize}px;
-            padding: {PADDING}px;
-        "
-      >
-        <div class="cover-container" style="width: 100%; height: 100%;">
-          {#if coverUrl}
-            <img 
-              src={coverUrl} 
-              class="backing-img" 
-              class:visible={!isCanvasReady}
-              alt="" 
-            />
-            <canvas 
-              bind:this={canvasEl} 
-              class="pica-canvas"
-              class:visible={isCanvasReady}
-              style="width: 100%; height: 100%;"
-            ></canvas>
-          {:else}
-            <div class="empty-state">
-              <span class="empty-text">NO SIGNAL</span>
-            </div>
+  
+  <div class="view-content-wrapper">
+    <QueueHud>
+      <div class="main-panel-layout">
+        
+        <div 
+          class="module-left" 
+          style="
+              width: {squareModuleSize}px; 
+              height: {squareModuleSize}px;
+              padding: {PADDING}px;
+              margin-left: {MARGIN}px;
+          "
+        >
+          <div class="cover-container" style="width: 100%; height: 100%;">
+            {#if coverUrl}
+              <img 
+                src={coverUrl} 
+                class="backing-img" 
+                class:visible={!isCanvasReady}
+                alt="" 
+              />
+              <canvas 
+                bind:this={canvasEl} 
+                class="pica-canvas"
+                class:visible={isCanvasReady}
+                style="width: 100%; height: 100%;"
+              ></canvas>
+            {:else}
+              <div class="empty-state">
+                <span class="empty-text">NO SIGNAL</span>
+              </div>
+            {/if}
+          </div>
+        </div>
+
+        <div 
+          class="module-right"
+          style="
+              padding: {PADDING}px;
+              height: {availableHeight}px;
+              margin-right: {MARGIN}px;
+          "
+        >
+          {#if activeView === 'tracks'}
+            <QueueTracks />
+          {:else if activeView === 'lyrics'}
+            <Lyrics />
           {/if}
         </div>
-      </div>
 
-      <div 
-        class="module-right"
-        style="
-            padding: {PADDING}px;
-            height: {availableHeight}px;
-        "
-      >
-        <QueueTracks />
       </div>
+    </QueueHud>
+  </div>
 
-    </div>
-  </QueueHud>
+  <QueueBar {activeView} onViewChange={(v) => activeView = v} />
+
 </div>
 
 <style>
@@ -118,6 +134,15 @@
     background-color: var(--background-main);
     position: relative;
     overflow: hidden;
+    display: flex;
+    flex-direction: row;
+  }
+
+  .view-content-wrapper {
+    flex: 1;
+    position: relative;
+    height: 100%;
+    min-width: 0;
   }
 
   .main-panel-layout {
