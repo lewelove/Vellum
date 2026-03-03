@@ -28,7 +28,7 @@
   
   <div class="view-content-wrapper">
     <QueueHud>
-      <div class="console-chassis">
+      <div class="modal-queue-chassis">
         
         <div 
           class="column-left" 
@@ -96,7 +96,7 @@
     min-width: 0;
   }
 
-  .console-chassis {
+  .modal-queue-chassis {
     position: absolute;
     inset: 24px 32px 12px 32px;
     background-color: #242424;
