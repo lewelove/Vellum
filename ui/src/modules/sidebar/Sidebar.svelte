@@ -89,7 +89,7 @@
         <img 
           class="btn-icon no-margin"
           class:mirrored={isReverse}
-          src="/icons/24px/arrow_shape_up_stack.svg" 
+          src="/icons/24px/arrow_shape_up_stack_down.svg" 
           alt="Direction" 
         />
       </button>

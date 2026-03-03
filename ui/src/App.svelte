@@ -85,7 +85,6 @@
 
 <main style="{themeStyles} --sidebar-width: {sidebarWidth}px;">
   
-  <!-- Layer 1: Home View -->
   <div class="view-layer home">
     <NavBar />
     
@@ -113,14 +112,12 @@
     </div>
   </div>
 
-  <!-- Layer 2: Modal Overlay -->
   {#if isModalVisible}
     <div class="modal-layer">
         <ModalDrawer album={library.focusedAlbum} onclose={() => library.closeFocus()} />
     </div>
   {/if}
 
-  <!-- Layer 3: Queue View (Fades in over everything) -->
   <div 
     class="view-layer queue"
     class:visible={isQueueVisible}
@@ -162,7 +159,6 @@
     z-index: 1;
   }
 
-  /* Queue Layer sits above Home (1) and Modal (150) */
   .view-layer.queue {
     z-index: 200;
     background-color: var(--background-main);
@@ -243,7 +239,7 @@
     transition: transform 0.25s cubic-bezier(0.2, 0, 0, 1);
     box-sizing: border-box;
     box-shadow: var(--album-cover-shadow);
-    overflow: hidden;
+    overflow: visible;
   }
 
   .sidebar-trigger {
@@ -273,13 +269,20 @@
   }
 
   .sidebar-resizer {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
     width: 6px;
-    height: 100%;
     cursor: col-resize;
     z-index: 120;
-    flex-shrink: 0;
-    position: relative;
+    transform: translateX(-50%);
+    pointer-events: auto;
+    background: transparent;
   }
 
-  .sidebar-inner { flex: 1; overflow: hidden; }
+  .sidebar-inner { 
+    flex: 1; 
+    overflow: hidden; 
+  }
 </style>
