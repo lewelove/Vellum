@@ -10,17 +10,17 @@
 </script>
 
 <div class="queue-hud">
-  <header class="hud-bar top">
-    <div class="corner left">
-      <QueueHudTopLeft />
-    </div>
-    <div class="center">
-      <QueueHudTopCenter />
-    </div>
-    <div class="corner right">
-      <QueueHudTopRight />
-    </div>
-  </header>
+  <!-- <header class="hud-bar top"> -->
+  <!--   <div class="corner left"> -->
+  <!--     <QueueHudTopLeft /> -->
+  <!--   </div> -->
+  <!--   <div class="center"> -->
+  <!--     <QueueHudTopCenter /> -->
+  <!--   </div> -->
+  <!--   <div class="corner right"> -->
+  <!--     <QueueHudTopRight /> -->
+  <!--   </div> -->
+  <!-- </header> -->
 
   <main class="hud-main">
     {@render children()}

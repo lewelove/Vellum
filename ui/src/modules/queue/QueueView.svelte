@@ -1,122 +1,73 @@
 <script>
   import { player } from "../player.svelte.js";
   import { library } from "../../library.svelte.js";
-  import { pica } from "../../pica.js";
+  import { fade } from "svelte/transition";
   
   import QueueTracks from "./QueueTracks.svelte";
   import QueueHud from "./QueueHud.svelte";
   import QueueBar from "./QueueBar.svelte";
   import Lyrics from "./Lyrics.svelte";
+  import ModalDrawerCover from "../album-grid/ModalDrawerCover.svelte";
 
-  // -- Data State --
   let activeId = $derived(player.currentAlbumId);
   let coverUrl = $derived(activeId ? library.getAlbumCoverUrl(activeId) : "");
-  
+
   let activeView = $state("tracks");
 
-  // -- Dimensions & Layout Logic --
-  let innerHeight = $state(0);
+  let leftColumnWidth = $state(0);
+  let leftColumnHeight = $state(0);
   
-  const HUD_HEIGHT = 96; 
-  const PADDING = 32;
-  const MARGIN = 32;
-
-  let availableHeight = $derived(Math.max(0, innerHeight - HUD_HEIGHT));
-  let squareModuleSize = $derived(availableHeight);
-  let coverSize = $derived(Math.max(0, squareModuleSize - (PADDING * 2)));
-
-  // -- Canvas / Pica Logic --
-  let canvasEl;
-  let isCanvasReady = $state(false);
-  let lastRenderKey = "";
-
-  async function renderCover(url, size) {
-    if (!url || !size || !canvasEl || size <= 0) return;
-
-    const renderKey = `${url}-${size}`;
-    if (renderKey === lastRenderKey) return;
-    lastRenderKey = renderKey;
-    isCanvasReady = false;
-
-    try {
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.src = url;
-      await img.decode();
-
-      const dpr = window.devicePixelRatio || 1;
-      canvasEl.width = size * dpr;
-      canvasEl.height = size * dpr;
-
-      await pica.resize(img, canvasEl, {
-        quality: 3,
-        alpha: false,
-        unsharpAmount: 0, 
-      });
-      isCanvasReady = true;
-    } catch (err) {
-      console.error(err);
-      isCanvasReady = false; 
-    }
-  }
-
-  $effect(() => {
-    renderCover(coverUrl, coverSize);
+  let coverSize = $derived.by(() => {
+    if (leftColumnWidth <= 0 || leftColumnHeight <= 0) return 0;
+    const minDim = Math.min(leftColumnWidth, leftColumnHeight);
+    return minDim - 64; 
   });
 </script>
-
-<svelte:window bind:innerHeight />
 
 <div class="queue-view-container">
   
   <div class="view-content-wrapper">
     <QueueHud>
-      <div class="main-panel-layout">
+      <div class="console-chassis">
         
         <div 
-          class="module-left" 
-          style="
-              width: {squareModuleSize}px; 
-              height: {squareModuleSize}px;
-              padding: {PADDING}px;
-              margin-left: {MARGIN}px;
-          "
+          class="column-left" 
+          bind:clientWidth={leftColumnWidth}
+          bind:clientHeight={leftColumnHeight}
         >
-          <div class="cover-container" style="width: 100%; height: 100%;">
-            {#if coverUrl}
-              <img 
-                src={coverUrl} 
-                class="backing-img" 
-                class:visible={!isCanvasReady}
-                alt="" 
-              />
-              <canvas 
-                bind:this={canvasEl} 
-                class="pica-canvas"
-                class:visible={isCanvasReady}
-                style="width: 100%; height: 100%;"
-              ></canvas>
-            {:else}
-              <div class="empty-state">
-                <span class="empty-text">NO SIGNAL</span>
-              </div>
-            {/if}
-          </div>
+          {#if coverSize > 0}
+            <div class="cover-wrapper" style="width: {coverSize}px; height: {coverSize}px;">
+              {#if coverUrl}
+                <ModalDrawerCover 
+                  src={coverUrl} 
+                  width={coverSize} 
+                  height={coverSize} 
+                />
+              {:else}
+                <div class="empty-cover">
+                  <span>NO SIGNAL</span>
+                </div>
+              {/if}
+            </div>
+          {/if}
         </div>
 
-        <div 
-          class="module-right"
-          style="
-              padding: {PADDING}px;
-              height: {availableHeight}px;
-              margin-right: {MARGIN}px;
-          "
-        >
-          {#if activeView === 'tracks'}
-            <QueueTracks />
-          {:else if activeView === 'lyrics'}
-            <Lyrics />
-          {/if}
+        <div class="column-right">
+          <div class="scroll-area">
+            <div class="scroll-fade-overlay-top"></div>
+            <div class="scroll-content">
+              {#if activeView === 'tracks'}
+                <div class="tracks-wrapper" in:fade={{ duration: 150 }}>
+                  <QueueTracks />
+                </div>
+              {:else if activeView === 'lyrics'}
+                <div class="lyrics-wrapper" in:fade={{ duration: 150 }}>
+                  <Lyrics />
+                </div>
+              {/if}
+            </div>
+            <div class="scroll-fade-overlay-bottom"></div>
+          </div>
         </div>
 
       </div>
@@ -131,7 +82,7 @@
   .queue-view-container {
     width: 100%;
     height: 100%;
-    background-color: #242424;
+    background-color: var(--background-main);
     position: relative;
     overflow: hidden;
     display: flex;
@@ -145,69 +96,113 @@
     min-width: 0;
   }
 
-  .main-panel-layout {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    height: 100%;
+  .console-chassis {
+    position: absolute;
+    inset: 24px 32px 12px 32px;
+    background-color: #242424;
+    border-radius: 12px;
+    overflow: hidden;
+    /* border: 1px solid rgba(255, 255, 255, 0.05); */
+    /* box-shadow: 0px 0px 24px 0px rgba(0,0,0,0.1), 0px 0px 16px 0px rgba(0,0,0,0.4), 0px 0px 8px 0px rgba(0,0,0,0.4); */
     pointer-events: auto;
-    box-sizing: border-box;
+    display: grid;
+    grid-template-columns: 60% 40%;
+    grid-template-rows: 100%;
   }
 
-  .module-left {
-    flex-shrink: 0;
-    box-sizing: border-box;
+  /* --- Left Column --- */
+  .column-left {
     display: flex;
     align-items: center;
     justify-content: center;
+    background-color: #1f1f1f;
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
+    min-width: 0;
+    min-height: 0;
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
   }
 
-  .cover-container {
+  .cover-wrapper {
     position: relative;
-    background-color: #000;
-    box-shadow: 
-      0 0 24px rgba(0, 0, 0, 0.3), 
-      0 0 16px rgba(0, 0, 0, 0.3), 
-      0 0 8px rgba(0, 0, 0, 0.3);
     flex-shrink: 0;
   }
 
-  .backing-img, .pica-canvas {
+  .empty-cover {
+    width: 100%;
+    height: 100%;
+    background-color: #111;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  .empty-cover span {
+    font-family: var(--font-mono);
+    color: #333;
+    font-size: 12px;
+    letter-spacing: 2px;
+  }
+
+  /* --- Right Column --- */
+  .column-right {
+    display: flex;
+    flex-direction: column;
+    padding: 32px;
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+    box-sizing: border-box;
+    background-color: #242424;
+  }
+
+  .scroll-area {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .scroll-content {
+    flex: 1;
+    position: relative;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  .scroll-content::-webkit-scrollbar {
+    width: 0px;
+  }
+
+  .tracks-wrapper, .lyrics-wrapper {
     position: absolute;
     inset: 0;
     width: 100%;
     height: 100%;
-    object-fit: contain;
-    opacity: 0;
-    transition: opacity 0.3s ease;
   }
 
-  .backing-img.visible, .pica-canvas.visible {
-    opacity: 1;
+  .scroll-fade-overlay-top {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 12px;
+    background: linear-gradient(to bottom, #242424 0%, transparent 100%);
+    z-index: 10;
+    pointer-events: none;
   }
 
-  .empty-state {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background-color: #1a1a1a;
-  }
-
-  .empty-text {
-    font-family: var(--font-mono);
-    color: #333;
-    letter-spacing: 2px;
-    font-size: 12px;
-  }
-
-  .module-right {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-    box-sizing: border-box;
-    overflow: hidden; 
+  .scroll-fade-overlay-bottom {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 12px;
+    background: linear-gradient(to top, #242424 0%, transparent 100%);
+    z-index: 10;
+    pointer-events: none;
   }
 </style>
