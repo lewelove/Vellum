@@ -98,19 +98,17 @@
 
   .modal-queue-chassis {
     position: absolute;
-    inset: 24px 32px 12px 32px;
+    inset: 24px 24px 12px 24px;
     background-color: #242424;
     border-radius: 12px;
     overflow: hidden;
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    box-shadow: var(--album-cover-shadow);
+    /* border: 1px solid rgba(255, 255, 255, 0.05); */
+    box-shadow: var(--modal-shadow);
     pointer-events: auto;
-    display: grid;
-    grid-template-columns: 60% 40%;
-    grid-template-rows: 100%;
+    display: flex;
+    flex-direction: row;
   }
 
-  /* --- Left Column --- */
   .column-left {
     display: flex;
     align-items: center;
@@ -119,8 +117,10 @@
     border-right: 1px solid rgba(255, 255, 255, 0.05);
     min-width: 0;
     min-height: 0;
-    width: 100%;
     height: 100%;
+    aspect-ratio: 1 / 1;
+    flex-shrink: 0;
+    max-width: 60%;
     box-sizing: border-box;
   }
 
@@ -146,8 +146,8 @@
     letter-spacing: 2px;
   }
 
-  /* --- Right Column --- */
   .column-right {
+    flex: 1;
     display: flex;
     flex-direction: column;
     padding: 32px;
