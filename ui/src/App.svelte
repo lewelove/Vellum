@@ -37,8 +37,21 @@
       if (key === 's') toggleSidebarMode();
     }
 
-    if (key === '1' || key === 'h' || key === 'arrowleft') setTab('home');
-    if (key === '2' || key === 'l' || key === 'arrowright') setTab('queue');
+    if (
+      key === '1' || 
+      key === 'h' || 
+      key === 'arrowleft'
+    ) {
+      setTab('home');
+    }
+
+    if (
+      key === '2' || 
+      key === 'l' || 
+      key === 'arrowright'
+    ) {
+      setTab('queue');
+    }
   }
 
   function startResizing() {
@@ -72,44 +85,51 @@
 
 <main style="{themeStyles} --sidebar-width: {sidebarWidth}px;">
   
-  <NavBar />
+  <!-- Layer 1: Home View -->
+  <div class="view-layer home">
+    <NavBar />
+    
+    <div class="workspace">
+      <section 
+        class="plane home-grid"
+        class:offset-layout={sidebarMode === 'static'}
+        class:resizing={isResizing}
+      >
+        <AlbumGrid />
+      </section>
 
-  <div class="workspace">
-    <section 
-      class="plane home-layer"
-      class:offset-layout={sidebarMode === 'static'}
-      class:resizing={isResizing}
-      aria-hidden={isQueueVisible}
-    >
-      <AlbumGrid />
-    </section>
+      <aside 
+        class="sidebar-shell right" 
+        class:static={sidebarMode === 'static'} 
+        class:dynamic={sidebarMode === 'dynamic'}
+        class:dormant={isModalVisible}
+      >
+        <div class="sidebar-trigger"></div>
+        <div class="sidebar-panel">
+          <div class="sidebar-resizer" onmousedown={startResizing}></div>
+          <div class="sidebar-inner"><Sidebar /></div>
+        </div>
+      </aside>
+    </div>
+  </div>
 
-    <aside 
-      class="sidebar-shell right" 
-      class:static={sidebarMode === 'static'} 
-      class:dynamic={sidebarMode === 'dynamic'}
-      class:dormant={isQueueVisible || isModalVisible}
-    >
-      <div class="sidebar-trigger"></div>
-      <div class="sidebar-panel">
-        <div class="sidebar-resizer" onmousedown={startResizing}></div>
-        <div class="sidebar-inner"><Sidebar /></div>
-      </div>
-    </aside>
+  <!-- Layer 2: Modal Overlay -->
+  {#if isModalVisible}
+    <div class="modal-layer">
+        <ModalDrawer album={library.focusedAlbum} onclose={() => library.closeFocus()} />
+    </div>
+  {/if}
 
-    {#if isModalVisible}
-      <div class="modal-layer">
-          <ModalDrawer album={library.focusedAlbum} onclose={() => library.closeFocus()} />
-      </div>
-    {/if}
-
-    <section 
-      class="plane queue-layer"
-      class:visible={isQueueVisible}
-      aria-hidden={!isQueueVisible}
-    >
+  <!-- Layer 3: Queue View (Fades in over everything) -->
+  <div 
+    class="view-layer queue"
+    class:visible={isQueueVisible}
+    aria-hidden={!isQueueVisible}
+  >
+    <NavBar />
+    <div class="workspace">
       <QueueView />
-    </section>
+    </div>
   </div>
 
 </main>
@@ -126,8 +146,42 @@
     height: 100%;
     overflow: hidden;
     background-color: var(--background-main);
+  }
+
+  .view-layer {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
     display: flex;
     flex-direction: row;
+    overflow: hidden;
+  }
+
+  .view-layer.home {
+    z-index: 1;
+  }
+
+  /* Queue Layer sits above Home (1) and Modal (150) */
+  .view-layer.queue {
+    z-index: 200;
+    background-color: var(--background-main);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.1s ease-out, visibility 0.1s;
+    pointer-events: none;
+  }
+
+  .view-layer.queue.visible {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+  }
+
+  .modal-layer {
+    position: absolute;
+    inset: 0;
+    z-index: 150;
   }
 
   .workspace {
@@ -146,40 +200,19 @@
     overflow: hidden;
   }
 
-  .home-layer {
+  .home-grid {
     z-index: 1;
     left: 0;
     width: 100%;
     transition: width 0.25s cubic-bezier(0.2, 0, 0, 1);
   }
 
-  .home-layer.offset-layout {
+  .home-grid.offset-layout {
     width: calc(100% - (var(--sidebar-width) - 1px));
   }
 
-  .home-layer.resizing {
+  .home-grid.resizing {
     transition: none;
-  }
-
-  .queue-layer {
-    z-index: 200; 
-    background-color: var(--background-drawer);
-    opacity: 0;
-    visibility: hidden;
-    pointer-events: none;
-    transition: opacity 0.1s ease-out, visibility 0.1s; 
-  }
-
-  .queue-layer.visible {
-    opacity: 1;
-    visibility: visible;
-    pointer-events: auto;
-  }
-
-  .modal-layer {
-    position: absolute;
-    inset: 0;
-    z-index: 150;
   }
 
   .sidebar-shell {
