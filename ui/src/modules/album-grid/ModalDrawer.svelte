@@ -211,7 +211,7 @@
     box-shadow: 0 0 64px rgba(0, 0, 0, 0.1), 0 0 48px rgba(0, 0, 0, 0.3), 0 0 32px rgba(0, 0, 0, 0.5);
     border-radius: 12px;
     overflow: hidden;
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    /* border: 2px solid rgba(255, 255, 255, 0.05); */
   }
 
   .modal-content {
@@ -228,7 +228,6 @@
     flex-direction: column;
     padding: 32px;
     background-color: #1f1f1f;
-    border-right: 1px solid rgba(255, 255, 255, 0.05);
     min-width: 0;
     min-height: 0;
     box-sizing: border-box;
@@ -317,7 +316,7 @@
     width: 36px;
     height: 36px;
     background-color: rgba(255, 255, 255, 0.01);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 2px solid rgba(255, 255, 255, 0.08);
     padding: 0;
     display: flex;
     align-items: center;

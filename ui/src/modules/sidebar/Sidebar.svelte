@@ -209,7 +209,7 @@
     width: 100%;
     height: 32px;
     background-color: rgba(255, 255, 255, 0.01);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 2px solid rgba(255, 255, 255, 0.08);
     padding: 0 8px;
     display: flex;
     align-items: center;
