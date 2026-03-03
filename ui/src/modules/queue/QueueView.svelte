@@ -102,8 +102,8 @@
     background-color: #242424;
     border-radius: 12px;
     overflow: hidden;
-    /* border: 1px solid rgba(255, 255, 255, 0.05); */
-    /* box-shadow: 0px 0px 24px 0px rgba(0,0,0,0.1), 0px 0px 16px 0px rgba(0,0,0,0.4), 0px 0px 8px 0px rgba(0,0,0,0.4); */
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow: var(--album-cover-shadow);
     pointer-events: auto;
     display: grid;
     grid-template-columns: 60% 40%;
