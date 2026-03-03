@@ -135,6 +135,9 @@
       <div class="column-right">
         <div class="button-bar">
           <div class="bar-group">
+            <button class="icon-btn" onclick={handleUpdate} title="Update Album">
+              <img src="/icons/24px/refresh.svg" alt="Update"/>
+            </button>
             <button class="icon-btn" onclick={handleOpenFolder} title="Open Local Folder">
               <img src="/icons/24px/folder.svg" alt="Open"/>
             </button>
@@ -144,14 +147,11 @@
             <button class="icon-btn" onclick={handleOpenLock} title="Open Data Object">
               <img src="/icons/24px/code.svg" alt="Data Object"/>
             </button>
-            <button class="icon-btn" onclick={handleUpdate} title="Update Album">
-              <img src="/icons/24px/refresh.svg" alt="Update"/>
-            </button>
           </div>
 
           <div class="bar-group right">
             <button class="icon-btn" onclick={handlePlay} title="Play Album">
-              <img src="/icons/24px/play_circle.svg" alt="" />
+              <img src="/icons/24px/play_arrow.svg" alt="" />
             </button>
           </div>
         </div>
@@ -209,7 +209,7 @@
     height: 85vh;
     background-color: #242424;
     box-shadow: 0 0 64px rgba(0, 0, 0, 0.1), 0 0 48px rgba(0, 0, 0, 0.3), 0 0 32px rgba(0, 0, 0, 0.5);
-    border-radius: 12px;
+    border-radius: 16px;
     overflow: hidden;
     /* border: 2px solid rgba(255, 255, 255, 0.05); */
   }

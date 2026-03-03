@@ -9,6 +9,7 @@ use crate::harvest;
 use anyhow::{Result, anyhow};
 use serde_json::{Value, json};
 use sha2::Digest;
+use std::collections::HashSet;
 use std::path::Path;
 
 pub fn build(
@@ -40,7 +41,9 @@ pub fn build(
         .get("supported_extensions")
         .and_then(Value::as_array)
         .map_or_else(
-            || vec![".flac"],
+            || vec![
+                ".flac"
+            ],
             |arr| arr.iter().filter_map(Value::as_str).collect(),
         );
 
@@ -49,6 +52,49 @@ pub fn build(
         .get("tracks")
         .and_then(Value::as_array)
         .ok_or_else(|| anyhow!("Missing tracks in metadata.toml"))?;
+
+    if audio_files.len() != track_entries.len() {
+        return Err(anyhow!(
+            "Track count mismatch in {:?}: Found {} files but {} [[tracks]] entries",
+            album_root,
+            audio_files.len(),
+            track_entries.len()
+        ));
+    }
+
+    let mut seen_ids = HashSet::new();
+    for (idx, entry) in track_entries.iter().enumerate() {
+        let t = entry
+            .get("tracknumber")
+            .and_then(|v| {
+                match v {
+                    Value::Number(n) => n.as_u64().map(|i| i as u32),
+                    Value::String(s) => s.parse::<u32>().ok(),
+                    _ => None,
+                }
+            })
+            .unwrap_or((idx + 1) as u32);
+
+        let d = entry
+            .get("discnumber")
+            .and_then(|v| {
+                match v {
+                    Value::Number(n) => n.as_u64().map(|i| i as u32),
+                    Value::String(s) => s.parse::<u32>().ok(),
+                    _ => None,
+                }
+            })
+            .unwrap_or(1);
+
+        if !seen_ids.insert((d, t)) {
+            return Err(anyhow!(
+                "Collision in {:?}: Multiple tracks assigned to Disc {}, Track {}",
+                album_root,
+                d,
+                t
+            ));
+        }
+    }
 
     let lib_root_raw = config
         .get("storage")
@@ -71,44 +117,30 @@ pub fn build(
     for path in audio_files {
         harvested_spine.push(harvest::harvest_file(&path)?);
     }
-    harvested_spine.sort_by(sort_harvest);
 
-    let mut disc_set = std::collections::HashSet::new();
-    for h in &harvested_spine {
-        let d = h.tags.get("DISCNUMBER")
-            .and_then(|s| s.split('/').next())
-            .and_then(|s| s.parse::<u32>().ok())
-            .unwrap_or(1);
-        disc_set.insert(d);
-    }
-    let total_discs = disc_set.len() as u32;
+    let total_discs = track_entries
+        .iter()
+        .filter_map(|t| {
+            t.get("discnumber")
+                .and_then(|v| {
+                    match v {
+                        Value::Number(n) => n.as_u64(),
+                        Value::String(s) => s.parse::<u64>().ok(),
+                        _ => None,
+                    }
+                })
+        })
+        .max()
+        .unwrap_or(1) as u32;
 
     let mut requires_ext = false;
     let mut final_tracks = Vec::new();
     let mut harvested_cache = Vec::new();
-    let mut o_disc = 0;
-    let mut o_track = 0;
-    let mut last_p_disc = None;
 
     for (idx, h_data) in harvested_spine.into_iter().enumerate() {
-        let p_disc = h_data
-            .tags
-            .get("DISCNUMBER")
-            .and_then(|s| s.split('/').next())
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(1);
-        
-        if Some(p_disc) == last_p_disc {
-            o_track += 1;
-        } else {
-            last_p_disc = Some(p_disc);
-            o_disc += 1;
-            o_track = 1;
-        }
-
         let t_ctx = TrackContext {
-            ordinal_track_number: o_track,
-            ordinal_disc_number: o_disc,
+            ordinal_track_number: (idx + 1) as u32,
+            ordinal_disc_number: 1,
             harvest: &h_data,
             source: &track_entries[idx],
             album_source,
@@ -172,27 +204,6 @@ fn normalize_keys(v: Value) -> Value {
     }
 }
 
-fn sort_harvest(a: &harvest::TrackJson, b: &harvest::TrackJson) -> std::cmp::Ordering {
-    let get_num = |t: &harvest::TrackJson, k: &str| {
-        t.tags
-            .get(k)
-            .and_then(|s| s.split('/').next())
-            .and_then(|s| s.parse::<u32>().ok())
-            .unwrap_or(0)
-    };
-    let ad = get_num(a, "DISCNUMBER");
-    let bd = get_num(b, "DISCNUMBER");
-    if ad != bd {
-        return ad.cmp(&bd);
-    }
-    let at = get_num(a, "TRACKNUMBER");
-    let bt = get_num(b, "TRACKNUMBER");
-    if at != bt {
-        return at.cmp(&bt);
-    }
-    a.path.cmp(&b.path)
-}
-
 fn build_track(
     ctx: &TrackContext,
     total_discs: u32,
@@ -202,6 +213,30 @@ fn build_track(
     let mut obj = serde_json::Map::new();
     let mut info = serde_json::Map::new();
 
+    let track_number = ctx
+        .source
+        .get("tracknumber")
+        .and_then(|v| {
+            match v {
+                Value::Number(n) => n.as_u64().map(|i| i as u32),
+                Value::String(s) => s.parse::<u32>().ok(),
+                _ => None,
+            }
+        })
+        .unwrap_or(ctx.ordinal_track_number);
+
+    let disc_number = ctx
+        .source
+        .get("discnumber")
+        .and_then(|v| {
+            match v {
+                Value::Number(n) => n.as_u64().map(|i| i as u32),
+                Value::String(s) => s.parse::<u32>().ok(),
+                _ => None,
+            }
+        })
+        .unwrap_or(ctx.ordinal_disc_number);
+
     let lyrics_path = ctx
         .source
         .get("lyrics_path")
@@ -210,8 +245,8 @@ fn build_track(
         .or_else(|| {
             resolvers::native::resolve_lyrics_path(
                 ctx.album_root,
-                ctx.ordinal_track_number,
-                ctx.ordinal_disc_number,
+                track_number,
+                disc_number,
                 total_discs,
             )
         });
@@ -252,12 +287,13 @@ fn build_track(
     info.insert("channels".to_string(), json!(ctx.harvest.physics.channels));
     info.insert("track_mtime".to_string(), json!(ctx.harvest.physics.mtime));
     info.insert(
-        "track_byte_size".to_string(),
+        "track_size".to_string(),
         json!(ctx.harvest.physics.file_size),
     );
     info.insert("lyrics_path".to_string(), json!(lyrics_path.unwrap_or_default()));
 
     obj.insert("info".to_string(), Value::Object(info));
+
     obj.insert(
         "TITLE".to_string(),
         ctx.source
@@ -265,6 +301,7 @@ fn build_track(
             .cloned()
             .unwrap_or_else(|| resolvers::resolve_track_key("title", ctx).unwrap_or(Value::Null)),
     );
+
     obj.insert(
         "ARTIST".to_string(),
         ctx.source
@@ -272,14 +309,9 @@ fn build_track(
             .cloned()
             .unwrap_or_else(|| resolvers::resolve_track_key("artist", ctx).unwrap_or(Value::Null)),
     );
-    obj.insert(
-        "TRACKNUMBER".to_string(),
-        resolvers::resolve_track_key("tracknumber", ctx).unwrap_or_else(|| json!(0)),
-    );
-    obj.insert(
-        "DISCNUMBER".to_string(),
-        resolvers::resolve_track_key("discnumber", ctx).unwrap_or_else(|| json!(1)),
-    );
+
+    obj.insert("TRACKNUMBER".to_string(), json!(track_number));
+    obj.insert("DISCNUMBER".to_string(), json!(disc_number));
 
     let mut tags = serde_json::Map::new();
     let mut ext = false;

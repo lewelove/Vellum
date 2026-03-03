@@ -56,30 +56,30 @@
             pkgs.pkg-config 
             pkgs.openssl 
             pkgs.nix
+            pkgs.git
           ];
           text = ''
             ROOT=$(git rev-parse --show-toplevel)
+            BIN="$ROOT/rust/target/release/vellum"
             COMMAND=''${1:-"help"}
             if [ "$#" -gt 0 ]; then shift; fi
 
             case "$COMMAND" in
+              build)
+                cd "$ROOT/rust" && cargo build --release
+                ;;
               ui)
                 cd "$ROOT/ui" && bun run dev
                 ;;
-              server)
-                cd "$ROOT/rust" && cargo run --release -- server "$@"
-                ;;
-              compile)
-                cd "$ROOT/rust" && cargo run --release -- compile "$@"
-                ;;
-              update)
-                cd "$ROOT/rust" && cargo run --release -- update "$@"
+              server|compile|update|harvest)
+                if [ ! -f "$BIN" ]; then
+                  echo "Error: vellum binary not found at $BIN. Run 'vellum build' first."
+                  exit 1
+                fi
+                "$BIN" "$COMMAND" "$@"
                 ;;
               generate)
                 cd "$ROOT" && python -m python.generate "$@"
-                ;;
-              harvest)
-                cd "$ROOT/rust" && cargo run --release -- harvest "$@"
                 ;;
               write)
                 cd "$ROOT" && python -m python.write "$@"
@@ -102,16 +102,19 @@
                 ;;
               help|--help|-h)
                 echo "Vellum CLI Commands:"
+                echo "  build           : Build the Rust backend binary"
                 echo "  ui              : Start Svelte UI Dev Server"
                 echo "  server          : Start Backend Rust Server"
-                echo "  test [flags]    : Run tests"
-                echo "    --lint        : Run clippy with -D warnings"
-                echo "    --fmt         : Run fmt check"
-                echo "    --deny        : Run cargo-deny check"
+                echo "  compile         : Compile metadata locks"
                 echo "  update          : Update library"
                 echo "  generate        : Initialize metadata from files"
                 echo "  harvest         : Harvest raw metadata to JSON"
                 echo "  write           : Sync metadata to audio tags"
+                echo "  report          : Generate listening reports"
+                echo "  test [flags]    : Run tests"
+                echo "    --lint        : Run clippy with -D warnings"
+                echo "    --fmt         : Run fmt check"
+                echo "    --deny        : Run cargo-deny check"
                 ;;
               *)
                 echo "Error: Unknown command '$COMMAND'"

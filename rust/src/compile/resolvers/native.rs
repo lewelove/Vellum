@@ -63,12 +63,13 @@ pub fn calculate_total_discs(tracks: &[Value]) -> u32 {
     for t in tracks {
         let val = match t.get("DISCNUMBER") {
             Some(Value::Number(n)) => n.as_u64().unwrap_or(0),
-            Some(Value::String(s)) => s
-                .split('/')
-                .next()
-                .unwrap_or("0")
-                .parse::<u64>()
-                .unwrap_or(0),
+            Some(Value::String(s)) => {
+                s.split('/')
+                    .next()
+                    .unwrap_or("0")
+                    .parse::<u64>()
+                    .unwrap_or(0)
+            }
             _ => 0,
         };
         if val > 0 {
@@ -91,7 +92,7 @@ pub fn resolve_album_info_unix_added(ctx: &AlbumContext) -> u64 {
         "unix_added_youtube",
         "unix_added_applemusic",
         "unix_added_foobar",
-        "unix_added_local",
+        "unix_added_local"
     ];
     for key in keys {
         if let Some(val) = ctx.source.get(key).and_then(Value::as_str)
@@ -107,7 +108,7 @@ pub fn resolve_custom_albumartist(ctx: &AlbumContext) -> String {
     let keys = [
         "custom_albumartist",
         "artistartist",
-        "albumartist",
+        "albumartist"
     ];
     for k in keys {
         if let Some(v) = ctx.source.get(k).and_then(Value::as_str) {
@@ -124,8 +125,6 @@ pub fn rel_path(target: &Path, base: &Path) -> String {
     )
 }
 
-#[allow(clippy::similar_names)]
-#[allow(clippy::suspicious_operation_groupings)]
 pub fn resolve_cover_chroma(ctx: &AlbumContext) -> Option<Value> {
     let img = ctx.cover_image?;
     let (width, height) = img.dimensions();
@@ -189,7 +188,10 @@ pub fn resolve_comment(ctx: &AlbumContext) -> String {
         ""
     };
     [
-        year, &country, &label, &cat,
+        year,
+        &country,
+        &label,
+        &cat
     ]
     .iter()
     .filter(|s| !s.is_empty())
@@ -206,7 +208,7 @@ pub fn resolve_lyrics_path(
 ) -> Option<String> {
     let folders = [
         "lyrics",
-        "Lyrics",
+        "Lyrics"
     ];
     let mut candidates = Vec::new();
 

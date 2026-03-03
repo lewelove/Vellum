@@ -4,7 +4,7 @@
 
 <nav class="nav-bar">
   <div class="nav-group top">
-    <NavButton icon="icons/24px/home.svg" tab="home" />
+    <NavButton icon="icons/24px/house.svg" tab="home" />
     <NavButton icon="icons/24px/queue_music.svg" tab="queue" />
   </div>
 </nav>

@@ -100,9 +100,8 @@
     position: absolute;
     inset: 16px 36px;
     background-color: #242424;
-    border-radius: 12px;
+    border-radius: 16px;
     overflow: hidden;
-    /* border: 1px solid rgba(255, 255, 255, 0.05); */
     box-shadow: var(--modal-shadow);
     pointer-events: auto;
     display: flex;
@@ -114,7 +113,6 @@
     align-items: center;
     justify-content: center;
     background-color: #1f1f1f;
-    border-right: 1px solid rgba(255, 255, 255, 0.05);
     min-width: 0;
     min-height: 0;
     height: 100%;

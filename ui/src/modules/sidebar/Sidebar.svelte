@@ -61,10 +61,10 @@
     <div class="control-row">
       <div class="button-wrapper flex-grow">
         <button class="sidebar-btn" onclick={toggleSortMenu} class:active={isSortMenuOpen} title="Sort By">
-          <img src="/material/swap_vert_20dp_FFFFFF.svg" alt="" class="btn-icon" />
+          <img src="icons/20px/swap_vert.svg" alt="" class="btn-icon" />
           <span class="btn-label">{sortLabel}</span>
           <img 
-            src={isSortMenuOpen ? "/material/arrow_drop_up_24dp_FFFFFF.svg" : "/material/arrow_drop_down_24dp_FFFFFF.svg"} 
+            src={isSortMenuOpen ? "icons/24px/arrow_drop_up.svg" : "icons/24px/arrow_drop_down.svg"} 
             class="chevron" 
             alt="" 
           />
@@ -88,7 +88,8 @@
       <button class="sidebar-btn square" onclick={toggleDirection} title={isReverse ? "Reverse Order" : "Default Order"}>
         <img 
           class="btn-icon no-margin"
-          src={isReverse ? "/material/arrow_upward_20dp_FFFFFF.svg" : "/material/arrow_downward_20dp_FFFFFF.svg"} 
+          class:mirrored={isReverse}
+          src="/icons/24px/arrow_shape_up_stack.svg" 
           alt="Direction" 
         />
       </button>
@@ -97,10 +98,10 @@
     <div class="control-row">
       <div class="button-wrapper flex-grow">
         <button class="sidebar-btn" onclick={toggleGroupMenu} class:active={isGroupMenuOpen} title="Group By">
-          <img src="/material/stack_20dp_FFFFFF.svg" alt="" class="btn-icon" />
+          <img src="icons/20px/stack.svg" alt="" class="btn-icon" />
           <span class="btn-label">{groupLabel}</span>
           <img 
-            src={isGroupMenuOpen ? "/material/arrow_drop_up_24dp_FFFFFF.svg" : "/material/arrow_drop_down_24dp_FFFFFF.svg"} 
+            src={isGroupMenuOpen ? "icons/24px/arrow_drop_up.svg" : "icons/24px/arrow_drop_down.svg"}  
             class="chevron" 
             alt="" 
           />
@@ -207,7 +208,7 @@
 
   .sidebar-btn {
     width: 100%;
-    height: 32px;
+    height: 36px;
     background-color: rgba(255, 255, 255, 0.01);
     border: 2px solid rgba(255, 255, 255, 0.08);
     padding: 0 8px;
@@ -220,13 +221,13 @@
     transition: background-color 0.1s, border-color 0.1s;
     font-family: var(--font-stack);
     color: var(--text-muted);
-    font-size: 13px;
+    font-size: 14px;
     outline: none;
     box-sizing: border-box;
   }
 
   .sidebar-btn.square {
-    width: 32px;
+    width: 36px;
     padding: 0;
     justify-content: center;
     flex-shrink: 0;
@@ -239,8 +240,8 @@
   }
 
   .btn-icon {
-    width: 20px;
-    height: 20px;
+    /* width: 20px; */
+    /* height: 20px; */
     opacity: 0.7;
     margin-right: 8px;
     flex-shrink: 0;
@@ -249,6 +250,10 @@
   
   .btn-icon.no-margin {
     margin-right: 0;
+  }
+
+  .btn-icon.mirrored {
+    transform: scaleY(-1);
   }
 
   .sidebar-btn:hover .btn-icon, .sidebar-btn.active .btn-icon {
@@ -285,7 +290,7 @@
     background-color: var(--background-drawer); 
     z-index: 50;
     box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    border: 2px solid rgba(255, 255, 255, 0.05);
     border-radius: 8px;
     padding: 4px;
     box-sizing: border-box;

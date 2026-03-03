@@ -43,6 +43,8 @@
   }
 
   .nav-icon {
+    width: 28px;
+    height: 28px;
     opacity: 0.3;
     transition: opacity 0.2s ease;
   }

@@ -78,12 +78,16 @@ fn spawn_builders(
             .unwrap();
         pool.install(|| {
             albums.par_iter().for_each(|ar| {
-                if let Ok((man, needs_ext)) = builder::build(ar, &root, &cfg, &gcfg, &flags, no_ext)
-                {
-                    if !needs_ext || no_ext {
-                        let _ = dtx.blocking_send(man);
-                    } else if let Ok(l) = serde_json::to_string(&man) {
-                        let _ = ktx.blocking_send(l);
+                match builder::build(ar, &root, &cfg, &gcfg, &flags, no_ext) {
+                    Ok((man, needs_ext)) => {
+                        if !needs_ext || no_ext {
+                            let _ = dtx.blocking_send(man);
+                        } else if let Ok(l) = serde_json::to_string(&man) {
+                            let _ = ktx.blocking_send(l);
+                        }
+                    }
+                    Err(e) => {
+                        log::error!("Build failed for {:?}: {}", ar, e);
                     }
                 }
             });
