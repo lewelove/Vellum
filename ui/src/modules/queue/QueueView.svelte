@@ -131,7 +131,7 @@
   .queue-view-container {
     width: 100%;
     height: 100%;
-    background-color: var(--background-main);
+    background-color: #242424;
     position: relative;
     overflow: hidden;
     display: flex;

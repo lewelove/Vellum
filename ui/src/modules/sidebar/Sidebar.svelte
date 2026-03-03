@@ -144,7 +144,7 @@
     height: 100%;
     display: flex;
     flex-direction: column;
-    background-color: #242424; 
+    background-color: var(--background-drawer); 
     padding: 12px; 
     box-sizing: border-box;
   }
@@ -282,7 +282,7 @@
     left: 0;
     width: 100%;
     margin-top: 6px;
-    background-color: #242424; 
+    background-color: var(--background-drawer); 
     z-index: 50;
     box-shadow: 0 4px 12px rgba(0,0,0,0.4);
     border: 1px solid rgba(255, 255, 255, 0.05);
@@ -343,7 +343,7 @@
     height: 12px;
     background: linear-gradient(
       to bottom, 
-      #242424 0%, 
+      var(--background-drawer) 0%, 
       transparent 100%
     );
     z-index: 10;
@@ -358,7 +358,7 @@
     height: 12px;
     background: linear-gradient(
       to top, 
-      #242424 0%, 
+      var(--background-drawer) 0%, 
       transparent 100%
     );
     z-index: 10;
