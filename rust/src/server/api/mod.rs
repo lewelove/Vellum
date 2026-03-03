@@ -28,5 +28,8 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/api/clear", post(playback::clear_queue))
         .route("/api/toggle-pause", post(playback::toggle_pause))
         .route("/api/open/{*id}", post(system::open_album_folder))
+        .route("/api/open-lock/{*id}", post(system::open_lock_file))
+        .route("/api/open-manifest/{*id}", post(system::open_manifest_file))
+        .route("/api/update-album/{*id}", post(system::force_update_album))
         .with_state(state)
 }

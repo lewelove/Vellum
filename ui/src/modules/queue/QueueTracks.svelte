@@ -190,6 +190,7 @@
     display: flex;
     align-items: center;
     gap: 12px;
+    /* margin-bottom: 8px; */
     box-sizing: border-box;
   }
 
@@ -216,12 +217,11 @@
   }
 
   .header-album {
-    font-size: 15px;
+    font-size: 16px;
     color: var(--text-main);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    font-weight: 500;
   }
 
   .header-artist {

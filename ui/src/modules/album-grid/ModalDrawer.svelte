@@ -1,6 +1,14 @@
 <script>
   import { fade } from "svelte/transition";
-  import { playAlbum, queueAlbum, openAlbumFolder, playDisc } from "../../api.js";
+  import { 
+    playAlbum, 
+    queueAlbum, 
+    openAlbumFolder, 
+    playDisc,
+    openLockFile,
+    openManifestFile,
+    updateAlbum
+  } from "../../api.js";
   import { library } from "../../library.svelte.js";
   import ModalDrawerCover from "./ModalDrawerCover.svelte";
   import ModalDrawerTracks from "./ModalDrawerTracks.svelte";
@@ -31,6 +39,30 @@
       await openAlbumFolder(album.id);
     } catch (err) {
       console.error("Failed to open folder:", err);
+    }
+  }
+
+  async function handleOpenLock() {
+    try {
+      await openLockFile(album.id);
+    } catch (err) {
+      console.error("Failed to open lock file:", err);
+    }
+  }
+
+  async function handleOpenManifest() {
+    try {
+      await openManifestFile(album.id);
+    } catch (err) {
+      console.error("Failed to open manifest file:", err);
+    }
+  }
+
+  async function handleUpdate() {
+    try {
+      await updateAlbum(album.id);
+    } catch (err) {
+      console.error("Failed to update album:", err);
     }
   }
 
@@ -104,16 +136,22 @@
         <div class="button-bar">
           <div class="bar-group">
             <button class="icon-btn" onclick={handleOpenFolder} title="Open Local Folder">
-              <img src="/icons/20px/folder.svg" alt="Open"/>
+              <img src="/icons/24px/folder.svg" alt="Open"/>
+            </button>
+            <button class="icon-btn" onclick={handleOpenManifest} title="Open Manifest">
+              <img src="/icons/24px/edit_document.svg" alt="Manifest"/>
+            </button>
+            <button class="icon-btn" onclick={handleOpenLock} title="Open Data Object">
+              <img src="/icons/24px/code.svg" alt="Data Object"/>
+            </button>
+            <button class="icon-btn" onclick={handleUpdate} title="Update Album">
+              <img src="/icons/24px/refresh.svg" alt="Update"/>
             </button>
           </div>
 
           <div class="bar-group right">
-            <!-- <button class="icon-btn" onclick={handleQueue} title="Add Album to Queue"> -->
-            <!--   <img src="/material/playlist_add_FFFFFF.svg" alt="" /> -->
-            <!-- </button> -->
             <button class="icon-btn" onclick={handlePlay} title="Play Album">
-              <img src="/icons/20px/play_circle.svg" alt="" />
+              <img src="/icons/24px/play_circle.svg" alt="" />
             </button>
           </div>
         </div>

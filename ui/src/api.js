@@ -1,15 +1,4 @@
-/**
- * WebSocket Connection Logic
- * 
- * Logic Change:
- * The connection URL is modified to bypass the Vite development proxy (port 5173) 
- * and connect directly to the Rust backend (port 8000). This circumvents a 
- * known issue in Bun's Vite proxy implementation where large JSON payloads 
- * (such as a library of ~800+ albums) are truncated or dropped, causing 
- * the UI to fail during the INIT phase.
- */
 export function connectSocket(onOpen, onMessage) {
-  // Direct connection to the backend to ensure payload integrity
   const protocol = 'ws:';
   const host = '127.0.0.1:8000'; 
   const url = `${protocol}//${host}/ws`;
@@ -60,5 +49,23 @@ export async function queueAlbum(id) {
 export async function openAlbumFolder(id) {
   const encodedId = encodeURIComponent(id);
   const response = await fetch(`/api/open/${encodedId}`, { method: "POST" });
+  return await response.json();
+}
+
+export async function openLockFile(id) {
+  const encodedId = encodeURIComponent(id);
+  const response = await fetch(`/api/open-lock/${encodedId}`, { method: "POST" });
+  return await response.json();
+}
+
+export async function openManifestFile(id) {
+  const encodedId = encodeURIComponent(id);
+  const response = await fetch(`/api/open-manifest/${encodedId}`, { method: "POST" });
+  return await response.json();
+}
+
+export async function updateAlbum(id) {
+  const encodedId = encodeURIComponent(id);
+  const response = await fetch(`/api/update-album/${encodedId}`, { method: "POST" });
   return await response.json();
 }
