@@ -1,25 +1,29 @@
 use anyhow::Result;
 use mpd_client::Client;
 use mpd_client::commands::{
-    Add, 
-    Play, 
-    Stop, 
-    Next, 
-    Previous, 
+    Add,
+    Play,
+    Stop,
+    Next,
+    Previous,
     SetPause,
     Status,
     SongPosition,
+    Command,
 };
-use mpd_client::protocol::command::Command as RawCommand;
+use mpd_client::protocol::command::{
+    Command as RawCommand,
+    CommandList as RawCommandList,
+};
 use mpd_client::responses::PlayState;
 
 pub enum MpdCommand {
-    Play { 
-        tracks: Vec<String>, 
-        offset: usize 
+    Play {
+        tracks: Vec<String>,
+        offset: usize
     },
-    Queue { 
-        tracks: Vec<String> 
+    Queue {
+        tracks: Vec<String>
     },
     Clear,
     Stop,
@@ -32,15 +36,20 @@ pub enum MpdCommand {
 pub async fn handle_command(client: &Client, cmd: MpdCommand) -> Result<()> {
     match cmd {
         MpdCommand::Play { tracks, offset } => {
-            client.raw_command(RawCommand::new("clear")).await?;
+            let mut list = RawCommandList::new(RawCommand::new("clear"));
             for track in &tracks {
-                client.command(Add::uri(track)).await?;
+                list.add(Add::uri(track).command());
             }
-            client.command(Play::song(SongPosition(offset))).await?;
+            list.add(Play::song(SongPosition(offset)).command());
+            client.raw_command_list(list).await?;
         }
         MpdCommand::Queue { tracks } => {
-            for track in &tracks {
-                client.command(Add::uri(track)).await?;
+            if let Some((first, rest)) = tracks.split_first() {
+                let mut list = RawCommandList::new(Add::uri(first).command());
+                for track in rest {
+                    list.add(Add::uri(track).command());
+                }
+                client.raw_command_list(list).await?;
             }
         }
         MpdCommand::Clear => {

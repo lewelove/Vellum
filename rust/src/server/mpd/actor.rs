@@ -41,6 +41,7 @@ pub fn start_actor(
                         Ok((client, mut events)) => {
                             log::info!("MPD Connected: {addr}");
                             
+                            let _ = client.command(mpd_client::commands::SetBinaryLimit(131072)).await;
                             let _ = broadcast_status(&client, &broadcast_tx, &library).await;
 
                             loop {

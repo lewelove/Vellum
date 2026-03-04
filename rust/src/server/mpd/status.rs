@@ -11,9 +11,14 @@ pub async fn broadcast_status(
     tx: &broadcast::Sender<String>,
     library: &Arc<RwLock<Library>>,
 ) -> Result<()> {
-    let status = client.command(commands::Status).await.context("Status failed")?;
-    let current_song = client.command(commands::CurrentSong).await.context("Current song failed")?;
-    let queue = client.command(commands::Queue).await.context("Queue failed")?;
+    let (status, current_song, queue) = client
+        .command_list((
+            commands::Status,
+            commands::CurrentSong,
+            commands::Queue,
+        ))
+        .await
+        .context("Batched status update failed")?;
 
     let (file_path, title, artist) = if let Some(s) = current_song {
         let path = s.song.url.clone();
