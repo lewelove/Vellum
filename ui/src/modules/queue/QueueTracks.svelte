@@ -291,7 +291,7 @@
   }
 
   .track-row.active {
-    background-color: rgba(255, 255, 255, 0.04);
+    background-color: rgba(255, 255, 255, 0.03);
   }
 
   .track-index {

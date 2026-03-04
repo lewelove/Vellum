@@ -18,7 +18,7 @@
   let leftColumnWidth = $state(0);
   let coverUrl = $derived(library.getAlbumCoverUrl(album.id));
 
-  let genreString = $derived(Array.isArray(album.GENRE) ? album.GENRE.join("; ") : (album.GENRE || ""));
+  let genreString = $derived(Array.isArray(album.GENRE) ? album.GENRE.join(" ; ") : (album.GENRE || ""));
   let discCount = $derived(parseInt(album.total_discs || "1"));
   let trackCount = $derived(parseInt(album.total_tracks || "0"));
 
@@ -116,21 +116,12 @@
         <div class="meta-container">
           <h2 class="album-title">{album.title}</h2>
           <h3 class="album-artist">{album.artist}</h3>
+
+          {#if album.DATE}
+            <span class="meta-date">{album.DATE}</span>
+          {/if}
           
           <div class="meta-stack">
-            <div class="meta-row">
-              {#if album.DATE}
-                <span class="meta-val">{album.DATE}</span>
-              {/if}
-
-              {#if album.DATE && genreString}
-                <span class="meta-sep">•</span>
-              {/if}
-
-              {#if genreString}
-                <span class="meta-val genre">{genreString}</span>
-              {/if}
-            </div>
 
             <div class="meta-row">
               <span class="meta-val">{album.album_duration_time || "--:--"}</span>
@@ -143,6 +134,17 @@
               <span class="meta-sep">•</span>
               <span class="meta-val">{trackCount} Tracks</span>
             </div>
+
+            <!-- <div class="meta-row"> -->
+
+              <!-- {#if album.DATE && genreString} -->
+              <!--   <span class="meta-sep">•</span> -->
+              <!-- {/if} -->
+              <!---->
+              <!-- {#if genreString} -->
+              <!--   <span class="meta-val genre">{genreString}</span> -->
+              <!-- {/if} -->
+            <!-- </div> -->
           </div>
         </div>
       </div>
@@ -271,10 +273,10 @@
   }
 
   .album-artist {
-    margin: 8px 0 0 0;
+    margin: 5px 0 0 0;
     font-size: 20px;
     font-weight: 400;
-    color: #d3d3d3;
+    color: #CCCCCC;
     word-wrap: break-word;
   }
 
@@ -285,7 +287,7 @@
     gap: 8px;
   }
 
-  .meta-row {
+  .meta-row, .meta-date {
     font-feature-settings: "tnum";
     display: flex;
     align-items: center;
@@ -294,7 +296,14 @@
     gap: 12px;
     white-space: nowrap;
     overflow: hidden;
-    min-height: 20px;
+    /* min-height: 20px; */
+  }
+
+
+  .meta-date {
+    margin: 12px 0 0 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .meta-val {

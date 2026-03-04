@@ -97,7 +97,7 @@
   .queue-control {
     position: relative;
     height: 64px;
-    background-color: var(--background-drawer);
+    background-color: #1F1F1F;
     border-radius: 16px;
     display: flex;
     align-items: center;
@@ -107,7 +107,7 @@
     pointer-events: auto;
     overflow: hidden;
     box-shadow: var(--modal-shadow);
-    margin: 12px 36px 12px 36px;
+    margin: 16px 36px 16px 36px;
     flex-shrink: 0;
     gap: 24px;
   }

@@ -139,7 +139,7 @@
 
   .empty-cover span {
     font-family: var(--font-mono);
-    color: #333;
+    color: #1F1F1F;
     font-size: 12px;
     letter-spacing: 2px;
   }
