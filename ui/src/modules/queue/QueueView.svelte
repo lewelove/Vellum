@@ -97,8 +97,8 @@
   }
 
   .modal-queue-chassis {
-    position: absolute;
-    inset: 16px 36px;
+    width: 100%;
+    height: 100%;
     background-color: #242424;
     border-radius: 16px;
     overflow: hidden;
