@@ -198,7 +198,7 @@
   .disc-play-btn img {
     width: 18px;
     height: 18px;
-    opacity: 0.5;
+    opacity: 0.4;
   }
 
   .disc-play-btn:hover img {

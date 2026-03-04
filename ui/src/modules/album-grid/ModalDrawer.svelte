@@ -241,7 +241,7 @@
   }
 
   .meta-container {
-    margin-top: 24px;
+    margin-top: 16px;
     display: flex;
     flex-direction: column;
     min-width: 0;
@@ -256,7 +256,7 @@
   }
 
   .album-artist {
-    margin: 12px 0 0 0;
+    margin: 8px 0 0 0;
     font-size: 20px;
     font-weight: 400;
     color: #d3d3d3;
@@ -268,7 +268,7 @@
     display: flex;
     align-items: center;
     min-height: 24px;
-    margin-top: 24px;
+    margin-top: 32px;
     font-size: 16px;
     color: #888888;
     gap: 12px;

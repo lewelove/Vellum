@@ -1,7 +1,4 @@
 <script>
-  import QueueHudTopLeft from "./QueueHudTopLeft.svelte";
-  import QueueHudTopCenter from "./QueueHudTopCenter.svelte";
-  import QueueHudTopRight from "./QueueHudTopRight.svelte";
   import QueueHudBottomLeft from "./QueueHudBottomLeft.svelte";
   import QueueHudBottomCenter from "./QueueHudBottomCenter.svelte";
   import QueueHudBottomRight from "./QueueHudBottomRight.svelte";
@@ -10,18 +7,6 @@
 </script>
 
 <div class="queue-hud">
-  <!-- <header class="hud-bar top"> -->
-  <!--   <div class="corner left"> -->
-  <!--     <QueueHudTopLeft /> -->
-  <!--   </div> -->
-  <!--   <div class="center"> -->
-  <!--     <QueueHudTopCenter /> -->
-  <!--   </div> -->
-  <!--   <div class="corner right"> -->
-  <!--     <QueueHudTopRight /> -->
-  <!--   </div> -->
-  <!-- </header> -->
-
   <main class="hud-main">
     {@render children()}
   </main>
@@ -55,10 +40,8 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    /* background-color: var(--background-drawer); */
     background-color: transparent;
     pointer-events: none;
-    /* box-sizing: border-box; */
     flex-shrink: 0;
   }
 
