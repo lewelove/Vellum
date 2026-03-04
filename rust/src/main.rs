@@ -78,6 +78,9 @@ pub fn expand_path(path_str: &str) -> PathBuf {
 async fn main() -> Result<()> {
     simple_logger::SimpleLogger::new()
         .with_level(log::LevelFilter::Info)
+        .with_module_level("mpd_protocol", log::LevelFilter::Warn)
+        .with_module_level("mpd_client", log::LevelFilter::Warn)
+        .with_module_level("tracing", log::LevelFilter::Warn)
         .env()
         .init()
         .ok();
