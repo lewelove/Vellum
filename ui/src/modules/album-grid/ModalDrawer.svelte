@@ -18,6 +18,10 @@
   let leftColumnWidth = $state(0);
   let coverUrl = $derived(library.getAlbumCoverUrl(album.id));
 
+  let genreString = $derived(Array.isArray(album.GENRE) ? album.GENRE.join("; ") : (album.GENRE || ""));
+  let discCount = $derived(parseInt(album.total_discs || "1"));
+  let trackCount = $derived(parseInt(album.total_tracks || "0"));
+
   async function handlePlay() {
     try {
       await playAlbum(album.id);
@@ -112,22 +116,33 @@
         <div class="meta-container">
           <h2 class="album-title">{album.title}</h2>
           <h3 class="album-artist">{album.artist}</h3>
-          <div class="meta-row">
-            {#if album.DATE}
-              <span class="original-date">{album.DATE}</span>
-              <span class="meta-sep">•</span>
-            {/if}
-            <span class="album-duration">{album.album_duration_time || ""}</span>
-            {#if album.MEDIA}
-              <span class="meta-sep">•</span>
-              <span class="media">{album.MEDIA}</span>
-            {/if}
-          </div>
-        </div>
+          
+          <div class="meta-stack">
+            <div class="meta-row">
+              {#if album.DATE}
+                <span class="meta-val">{album.DATE}</span>
+              {/if}
 
-        <div class="footer-container">
-          <div class="footer-line">
-            <p class="album-comment">{album.COMMENT || ""}</p>
+              {#if album.DATE && genreString}
+                <span class="meta-sep">•</span>
+              {/if}
+
+              {#if genreString}
+                <span class="meta-val genre">{genreString}</span>
+              {/if}
+            </div>
+
+            <div class="meta-row">
+              <span class="meta-val">{album.album_duration_time || "--:--"}</span>
+              
+              {#if discCount > 1}
+                <span class="meta-sep">•</span>
+                <span class="meta-val">{discCount} Discs</span>
+              {/if}
+
+              <span class="meta-sep">•</span>
+              <span class="meta-val">{trackCount} Tracks</span>
+            </div>
           </div>
         </div>
       </div>
@@ -211,7 +226,6 @@
     box-shadow: 0 0 64px rgba(0, 0, 0, 0.1), 0 0 48px rgba(0, 0, 0, 0.3), 0 0 32px rgba(0, 0, 0, 0.5);
     border-radius: 16px;
     overflow: hidden;
-    /* border: 2px solid rgba(255, 255, 255, 0.05); */
   }
 
   .modal-content {
@@ -244,6 +258,7 @@
     margin-top: 16px;
     display: flex;
     flex-direction: column;
+    flex: 1;
     min-width: 0;
   }
 
@@ -263,42 +278,33 @@
     word-wrap: break-word;
   }
 
+  .meta-stack {
+    margin-top: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
   .meta-row {
     font-feature-settings: "tnum";
     display: flex;
     align-items: center;
-    min-height: 24px;
-    margin-top: 32px;
     font-size: 16px;
     color: #888888;
     gap: 12px;
     white-space: nowrap;
+    overflow: hidden;
+    min-height: 20px;
+  }
+
+  .meta-val {
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .meta-sep {
-    color: #888888;
-  }
-
-  .footer-container {
-    margin-top: auto;
-    padding-top: 24px;
-    min-width: 0;
-  }
-
-  .footer-line {
-    display: flex;
-    justify-content: space-between;
-    gap: 16px;
-    min-width: 0;
-  }
-
-  .album-comment {
-    margin: 0;
-    font-size: 16px;
-    color: #999999;
-    font-style: italic;
-    word-wrap: break-word;
-    flex: 1;
+    color: #777777;
+    flex-shrink: 0;
   }
 
   .column-right {
