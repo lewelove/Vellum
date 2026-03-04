@@ -1,4 +1,5 @@
 <script>
+  import { onMount, onDestroy } from "svelte";
   import { player } from "../player.svelte.js";
   import { library } from "../../library.svelte.js";
   import { fade } from "svelte/transition";
@@ -22,9 +23,63 @@
     const minDim = Math.min(leftColumnWidth, leftColumnHeight);
     return minDim - 64; 
   });
+
+  let isExpanded = $state(false);
+  let windowWidth = $state(0);
+  let windowHeight = $state(0);
+
+  let expandedSize = $derived.by(() => {
+    if (windowWidth <= 0 || windowHeight <= 0) return 0;
+    return Math.min(windowWidth, windowHeight) - 48; // 24px * 2
+  });
+
+  function toggleExpand() {
+    if (coverUrl) {
+      isExpanded = !isExpanded;
+    }
+  }
+
+  function handleKeydown(e) {
+    if (isExpanded && e.key === "Escape") {
+      isExpanded = false;
+    }
+  }
+
+  onMount(() => {
+    window.addEventListener("keydown", handleKeydown);
+  });
+
+  onDestroy(() => {
+    window.removeEventListener("keydown", handleKeydown);
+  });
 </script>
 
+<svelte:window bind:innerWidth={windowWidth} bind:innerHeight={windowHeight} />
+
 <div class="queue-view-container">
+
+  {#if isExpanded}
+    <div 
+      class="expanded-backdrop" 
+      onclick={toggleExpand}
+      role="button"
+      tabindex="0"
+      onkeydown={(e) => { if(e.key === 'Enter') toggleExpand(); }}
+    >
+      <div 
+        class="expanded-content" 
+        style="width: {expandedSize}px; height: {expandedSize}px;"
+        onclick={(e) => e.stopPropagation()} 
+        role="presentation"
+      >
+        <ModalDrawerCover 
+          src={coverUrl} 
+          width={expandedSize} 
+          height={expandedSize} 
+        />
+      </div>
+    </div>
+  {/if}
   
   <div class="view-content-wrapper">
     <QueueHud>
@@ -36,7 +91,15 @@
           bind:clientHeight={leftColumnHeight}
         >
           {#if coverSize > 0}
-            <div class="cover-wrapper" style="width: {coverSize}px; height: {coverSize}px;">
+            <div 
+              class="cover-wrapper" 
+              class:clickable={!!coverUrl}
+              style="width: {coverSize}px; height: {coverSize}px;"
+              onclick={toggleExpand}
+              role="button"
+              tabindex="0"
+              onkeydown={(e) => { if(e.key === 'Enter') toggleExpand(); }}
+            >
               {#if coverUrl}
                 <ModalDrawerCover 
                   src={coverUrl} 
@@ -125,12 +188,19 @@
   .cover-wrapper {
     position: relative;
     flex-shrink: 0;
+    transition: transform 0.1s ease;
+    outline: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .cover-wrapper.clickable {
+    cursor: pointer;
   }
 
   .empty-cover {
     width: 100%;
     height: 100%;
-    background-color: #111;
+    background-color: transparent;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -202,5 +272,23 @@
     background: linear-gradient(to top, #242424 0%, transparent 100%);
     z-index: 10;
     pointer-events: none;
+  }
+
+  .expanded-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background-color: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(2px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    outline: none;
+  }
+
+  .expanded-content {
+    position: relative;
+    /* box-shadow: 0 0 32px rgba(0,0,0,0.5); */
+    background-color: transparent;
   }
 </style>
