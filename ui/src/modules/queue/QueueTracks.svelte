@@ -191,7 +191,7 @@
   }
 
   .header-album {
-    font-size: 18px;
+    font-size: 16px;
     color: var(--text-main);
     white-space: nowrap;
     overflow: hidden;
@@ -199,7 +199,7 @@
   }
 
   .header-artist {
-    font-size: 16px;
+    font-size: 14px;
     color: var(--text-muted);
     white-space: nowrap;
     overflow: hidden;
