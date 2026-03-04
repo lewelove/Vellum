@@ -304,6 +304,7 @@
 
   .meta-sep {
     color: #777777;
+    font-size: 12px;
     flex-shrink: 0;
   }
 
