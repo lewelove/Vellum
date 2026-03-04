@@ -87,9 +87,9 @@
   <div class="right-group">
     <span class="time">{formatTime(tickingElapsed)} / {formatTime(duration)}</span>
     
-    <button class="tool-btn">
-      <img src="/icons/24px/volume_up.svg" alt="Volume" />
-    </button>
+    <!-- <button class="tool-btn"> -->
+    <!--   <img src="/icons/24px/volume_up.svg" alt="Volume" /> -->
+    <!-- </button> -->
   </div>
 </div>
 

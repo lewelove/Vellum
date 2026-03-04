@@ -1,9 +1,6 @@
 <script>
-  import { onMount } from "svelte";
   import { player } from "../player.svelte.js";
   import { library } from "../../library.svelte.js";
-
-  let tickingElapsed = $state(0);
 
   function formatDuration(str) {
     if (!str) return "0:00";
@@ -46,21 +43,6 @@
     return formatMs(totalMs);
   }
 
-  function tick() {
-    if (player.state === "play") {
-      const delta = (performance.now() - player.lastUpdated) / 1000;
-      tickingElapsed = Math.min(player.elapsed + delta, player.duration);
-    } else {
-      tickingElapsed = player.elapsed;
-    }
-    requestAnimationFrame(tick);
-  }
-
-  onMount(() => {
-    const raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  });
-
   let mappedTracks = $derived(player.queue.map(item => {
     const meta = library.getTrackByPath(item.file);
     const albumId = meta?.albumId || null;
@@ -97,10 +79,6 @@
     });
     return groups;
   });
-
-  let playbackPercent = $derived(
-    player.duration > 0 ? (tickingElapsed / player.duration) * 100 : 0
-  );
 </script>
 
 <div class="tracks-list-container">
@@ -144,10 +122,6 @@
         {/if}
 
         <div class="track-row" class:active={track.isPlaying}>
-          {#if track.isPlaying}
-            <div class="row-progress" style="width: {playbackPercent}%"></div>
-          {/if}
-          
           <span class="track-index">{track.trackNo}</span>
           <div class="track-body">
             <span class="track-title">{track.title}</span>
@@ -318,16 +292,6 @@
 
   .track-row.active {
     background-color: rgba(255, 255, 255, 0.04);
-  }
-
-  .row-progress {
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    background-color: rgba(255, 255, 255, 0.06);
-    z-index: 0;
-    pointer-events: none;
   }
 
   .track-index {
