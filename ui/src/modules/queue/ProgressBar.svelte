@@ -62,14 +62,12 @@
     </button>
   </div>
 
-  <!-- Non-interactive metadata -->
   <div class="metadata-group">
     <span class="artist">{artist}</span>
     <span class="separator">—</span>
     <span class="title">{title}</span>
   </div>
 
-  <!-- Non-interactive visual progress -->
   <div class="slider-group">
     <span class="time">{formatTime(tickingElapsed)}</span>
     <div class="track-container">
@@ -136,7 +134,7 @@
     min-width: 150px;
     max-width: 400px;
     font-size: 14px;
-    pointer-events: none; /* Solely visual */
+    pointer-events: none;
   }
 
   .artist {
@@ -164,7 +162,7 @@
     align-items: center;
     gap: 16px;
     min-width: 0;
-    pointer-events: none; /* Solely visual */
+    pointer-events: none;
   }
 
   .time {
