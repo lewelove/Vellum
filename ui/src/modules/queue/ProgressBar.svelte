@@ -30,17 +30,6 @@
     requestAnimationFrame(tick);
   }
 
-  async function handleSeek(e) {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const p = Math.max(0, Math.min(1, x / rect.width));
-    const seekTime = Math.floor(p * duration);
-    tickingElapsed = seekTime;
-    try {
-      await fetch(`/api/play/${encodeURIComponent(player.currentAlbumId || "")}?offset=${seekTime}`, { method: "POST" });
-    } catch (err) {}
-  }
-
   async function togglePlay() {
     try { await fetch('/api/toggle-pause', { method: 'POST' }); } catch(e) {}
   }
@@ -60,6 +49,7 @@
 </script>
 
 <div class="unified-progress-bar">
+  <!-- Interactive buttons -->
   <div class="transport-group">
     <button class="ctrl-btn" onclick={prev}>
       <img src="/icons/24px/skip_previous.svg" alt="Prev" />
@@ -72,21 +62,17 @@
     </button>
   </div>
 
+  <!-- Non-interactive metadata -->
   <div class="metadata-group">
     <span class="artist">{artist}</span>
     <span class="separator">—</span>
     <span class="title">{title}</span>
   </div>
 
+  <!-- Non-interactive visual progress -->
   <div class="slider-group">
     <span class="time">{formatTime(tickingElapsed)}</span>
-    <div 
-      class="track-container"
-      onclick={handleSeek}
-      role="button"
-      tabindex="0"
-      onkeydown={() => {}}
-    >
+    <div class="track-container">
       <div class="progress-track">
         <div class="progress-fill" style="width: {progress}%"></div>
       </div>
@@ -150,6 +136,7 @@
     min-width: 150px;
     max-width: 400px;
     font-size: 14px;
+    pointer-events: none; /* Solely visual */
   }
 
   .artist {
@@ -177,6 +164,7 @@
     align-items: center;
     gap: 16px;
     min-width: 0;
+    pointer-events: none; /* Solely visual */
   }
 
   .time {
@@ -193,7 +181,6 @@
     height: 32px;
     display: flex;
     align-items: center;
-    cursor: pointer;
   }
 
   .progress-track {
@@ -212,9 +199,5 @@
     height: 100%;
     background-color: var(--text-main);
     border-radius: 2px;
-  }
-
-  .track-container:hover .progress-fill {
-    background-color: #ffffff;
   }
 </style>
