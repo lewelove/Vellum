@@ -181,12 +181,11 @@
 
   .time {
     font-family: var(--font-mono);
-    font-size: 11px;
-    color: var(--text-muted);
+    font-size: 13px;
+    color: #888888;
     font-feature-settings: "tnum";
     min-width: 38px;
     text-align: center;
-    opacity: 0.8;
   }
 
   .track-container {
