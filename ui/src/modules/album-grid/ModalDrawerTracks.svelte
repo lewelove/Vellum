@@ -231,6 +231,7 @@
     text-align: center;
     color: #888888;
     font-size: 12px;
+    line-height: 18px;
   }
 
   .track-body {
@@ -239,6 +240,7 @@
     flex-direction: column;
     overflow: hidden;
     margin-right: 16px;
+    line-height: 18px;
   }
 
   .track-title {

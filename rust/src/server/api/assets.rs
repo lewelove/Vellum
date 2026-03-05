@@ -12,8 +12,8 @@ pub async fn get_cover_thumbnail(
     State(state): State<Arc<AppState>>,
 ) -> Response {
     if let Some(root) = &state.config.thumbnail_root {
-        let path = root.join(&size).join(format!("{}.png", hash));
-        
+        let path = root.join(&size).join(format!("{hash}.png"));
+
         match serve_image(path.clone()).await {
             resp if resp.status() == StatusCode::OK => resp,
             _ => {
@@ -50,25 +50,29 @@ pub async fn get_lyrics(
 ) -> Response {
     // Security/Logic check: ensure we are looking inside the library root
     let full_path = state.config.library_root.join(&id).join(&path);
-    
-    // Simple traversal check could be added here if needed, 
+
+    // Simple traversal check could be added here if needed,
     // but typical usage implies 'path' comes from trusted metadata.
-    if full_path.exists() && full_path.is_file() {
-         if let Ok(mut file) = File::open(&full_path).await {
-            let mut buf = String::new();
-            if file.read_to_string(&mut buf).await.is_ok() {
-                return (
-                    [
-                        (header::CONTENT_TYPE, HeaderValue::from_static("text/plain; charset=utf-8")),
-                        (header::CACHE_CONTROL, HeaderValue::from_static("no-cache")), 
-                    ],
-                    buf,
-                )
-                    .into_response();
-            }
+    if full_path.exists()
+        && full_path.is_file()
+        && let Ok(mut file) = File::open(&full_path).await
+    {
+        let mut buf = String::new();
+        if file.read_to_string(&mut buf).await.is_ok() {
+            return (
+                [
+                    (
+                        header::CONTENT_TYPE,
+                        HeaderValue::from_static("text/plain; charset=utf-8"),
+                    ),
+                    (header::CACHE_CONTROL, HeaderValue::from_static("no-cache")),
+                ],
+                buf,
+            )
+                .into_response();
         }
     }
-    
+
     StatusCode::NOT_FOUND.into_response()
 }
 
@@ -88,7 +92,10 @@ async fn serve_image(path: PathBuf) -> Response {
                         header::CACHE_CONTROL,
                         HeaderValue::from_static("public, max-age=31536000, immutable"),
                     ),
-                    (header::ACCESS_CONTROL_ALLOW_ORIGIN, HeaderValue::from_static("*")),
+                    (
+                        header::ACCESS_CONTROL_ALLOW_ORIGIN,
+                        HeaderValue::from_static("*"),
+                    ),
                 ],
                 buf,
             )

@@ -87,7 +87,7 @@ fn spawn_builders(
                         }
                     }
                     Err(e) => {
-                        log::error!("Build failed for {:?}: {}", ar, e);
+                        log::error!("Build failed for {}: {}", ar.display(), e);
                     }
                 }
             });

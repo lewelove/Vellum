@@ -2,8 +2,8 @@ use crate::server::library::Library;
 use crate::server::mpd::commands::{MpdCommand, handle_command};
 use crate::server::mpd::status::broadcast_status;
 use crate::server::state::AppConfig;
-use mpd_client::client::{ConnectionEvent, Subsystem};
 use mpd_client::Client;
+use mpd_client::client::{ConnectionEvent, Subsystem};
 use std::sync::Arc;
 use tokio::net::TcpStream;
 use tokio::sync::{RwLock, broadcast, mpsc};
@@ -25,9 +25,7 @@ pub fn start_actor(
     _app_config: Arc<AppConfig>,
 ) -> MpdEngine {
     let (tx, mut rx) = mpsc::channel::<MpdCommand>(32);
-    let engine_handle = MpdEngine {
-        tx,
-    };
+    let engine_handle = MpdEngine { tx };
 
     let mpd_host = std::env::var("MPD_HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
     let mpd_port = std::env::var("MPD_PORT").unwrap_or_else(|_| "6600".to_string());
@@ -36,55 +34,52 @@ pub fn start_actor(
     tokio::spawn(async move {
         loop {
             match TcpStream::connect(&addr).await {
-                Ok(stream) => {
-                    match Client::connect(stream).await {
-                        Ok((client, mut events)) => {
-                            log::info!("MPD Connected: {addr}");
-                            
-                            let _ = client.command(mpd_client::commands::SetBinaryLimit(131072)).await;
-                            let _ = broadcast_status(&client, &broadcast_tx, &library).await;
+                Ok(stream) => match Client::connect(stream).await {
+                    Ok((client, mut events)) => {
+                        log::info!("MPD Connected: {addr}");
 
-                            loop {
-                                tokio::select! {
-                                    Some(event) = events.next() => {
-                                        match event {
-                                            ConnectionEvent::SubsystemChange(sub) => {
-                                                if matches!(
-                                                    sub, 
-                                                    Subsystem::Player | 
-                                                    Subsystem::Queue | 
-                                                    Subsystem::Options
-                                                ) {
-                                                    let _ = broadcast_status(&client, &broadcast_tx, &library).await;
-                                                }
+                        let _ = client
+                            .command(mpd_client::commands::SetBinaryLimit(131_072))
+                            .await;
+                        let _ = broadcast_status(&client, &broadcast_tx, &library).await;
+
+                        loop {
+                            tokio::select! {
+                                Some(event) = events.next() => {
+                                    match event {
+                                        ConnectionEvent::SubsystemChange(sub) => {
+                                            if matches!(
+                                                sub,
+                                                Subsystem::Player |
+                                                Subsystem::Queue |
+                                                Subsystem::Options
+                                            ) {
+                                                let _ = broadcast_status(&client, &broadcast_tx, &library).await;
                                             }
-                                            ConnectionEvent::ConnectionClosed(e) => {
-                                                log::warn!("MPD Connection closed: {:?}", e);
-                                                break;
-                                            }
+                                        }
+                                        ConnectionEvent::ConnectionClosed(e) => {
+                                            log::warn!("MPD Connection closed: {e:?}");
+                                            break;
                                         }
                                     }
-                                    Some(cmd) = rx.recv() => {
-                                        match cmd {
-                                            MpdCommand::Refresh => {
-                                                let _ = broadcast_status(&client, &broadcast_tx, &library).await;
-                                            }
-                                            _ => {
-                                                if let Err(e) = handle_command(&client, cmd).await {
-                                                    log::error!("MPD Execution Error: {e}");
-                                                }
-                                                let _ = broadcast_status(&client, &broadcast_tx, &library).await;
-                                            }
+                                }
+                                Some(cmd) = rx.recv() => {
+                                    if matches!(cmd, MpdCommand::Refresh) {
+                                        let _ = broadcast_status(&client, &broadcast_tx, &library).await;
+                                    } else {
+                                        if let Err(e) = handle_command(&client, cmd).await {
+                                            log::error!("MPD Execution Error: {e}");
                                         }
+                                        let _ = broadcast_status(&client, &broadcast_tx, &library).await;
                                     }
                                 }
                             }
                         }
-                        Err(e) => {
-                            log::error!("MPD Handshake Failed: {e}");
-                        }
                     }
-                }
+                    Err(e) => {
+                        log::error!("MPD Handshake Failed: {e}");
+                    }
+                },
                 Err(e) => {
                     log::error!("MPD Connection Failed: {e}");
                 }

@@ -33,9 +33,7 @@ pub struct PhysicsData {
 }
 
 pub fn run(roots: Vec<PathBuf>, pretty: bool) {
-    let extensions = [
-        "flac", "mp3", "m4a", "ogg", "wav", "opus",
-    ];
+    let extensions = ["flac", "mp3", "m4a", "ogg", "wav", "opus"];
     let mut files = Vec::new();
 
     for root in roots {

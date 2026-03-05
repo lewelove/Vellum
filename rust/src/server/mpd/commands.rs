@@ -1,30 +1,14 @@
 use anyhow::Result;
 use mpd_client::Client;
 use mpd_client::commands::{
-    Add,
-    Play,
-    Stop,
-    Next,
-    Previous,
-    SetPause,
-    Status,
-    SongPosition,
-    Command,
+    Add, Command, Next, Play, Previous, SetPause, SongPosition, Status, Stop,
 };
-use mpd_client::protocol::command::{
-    Command as RawCommand,
-    CommandList as RawCommandList,
-};
+use mpd_client::protocol::command::{Command as RawCommand, CommandList as RawCommandList};
 use mpd_client::responses::PlayState;
 
 pub enum MpdCommand {
-    Play {
-        tracks: Vec<String>,
-        offset: usize
-    },
-    Queue {
-        tracks: Vec<String>
-    },
+    Play { tracks: Vec<String>, offset: usize },
+    Queue { tracks: Vec<String> },
     Clear,
     Stop,
     Next,

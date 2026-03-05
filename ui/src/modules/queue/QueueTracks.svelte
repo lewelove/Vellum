@@ -208,8 +208,7 @@
 
   .header-meta {
     font-size: 13px;
-    color: var(--text-muted);
-    opacity: 0.7;
+    color: #888888;
     white-space: nowrap;
     margin-left: 8px;
     font-feature-settings: "tnum";

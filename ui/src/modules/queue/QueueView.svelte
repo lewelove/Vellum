@@ -277,7 +277,7 @@
     position: fixed;
     inset: 0;
     z-index: 9999;
-    background-color: rgba(0, 0, 0, 0.5);
+    background-color: rgba(0, 0, 0, 0.8);
     backdrop-filter: blur(2px);
     display: flex;
     align-items: center;

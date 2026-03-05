@@ -8,12 +8,7 @@ use std::path::Path;
 use std::time::SystemTime;
 
 pub fn resolve_cover_info(root: &Path) -> (Option<String>, String, u64, u64) {
-    let candidates = [
-        "cover.jpg",
-        "cover.png",
-        "folder.jpg",
-        "front.jpg",
-    ];
+    let candidates = ["cover.jpg", "cover.png", "folder.jpg", "front.jpg"];
     for c in candidates {
         let p = root.join(c);
         if let Ok(m) = std::fs::metadata(&p) {
@@ -57,7 +52,7 @@ pub fn load_or_create_thumbnail(
         .get("theme")
         .and_then(|t| t.get("thumbnail_size"))
         .and_then(Value::as_u64)
-        .unwrap_or(200) as u32;
+        .map_or(200, |s| u32::try_from(s).unwrap_or(200));
 
     let thumb_dir = expand_path(dir_str).join(format!("{size}px"));
     let thumb_path = thumb_dir.join(format!("{cover_hash}.png"));
@@ -65,8 +60,13 @@ pub fn load_or_create_thumbnail(
     if !thumb_path.exists() {
         if let Ok(img) = image::open(album_root.join(cp)) {
             let (w, h) = img.dimensions();
-            let side = std::cmp::min(w, h);
-            let square = img.crop_imm((w - side) / 2, (h - side) / 2, side, side);
+            let min_dimension = std::cmp::min(w, h);
+            let square = img.crop_imm(
+                (w - min_dimension) / 2,
+                (h - min_dimension) / 2,
+                min_dimension,
+                min_dimension,
+            );
             let final_thumb = square.resize(size, size, image::imageops::FilterType::Lanczos3);
             let _ = std::fs::create_dir_all(&thumb_dir);
             let _ = final_thumb.save(&thumb_path);

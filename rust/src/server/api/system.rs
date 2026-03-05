@@ -95,7 +95,11 @@ pub async fn open_lock_file(
     Path(id): Path<String>,
     State(state): State<Arc<AppState>>,
 ) -> Response {
-    let path = state.config.library_root.join(id).join("metadata.lock.json");
+    let path = state
+        .config
+        .library_root
+        .join(id)
+        .join("metadata.lock.json");
     if path.exists() {
         let _ = std::process::Command::new("xdg-open").arg(path).spawn();
         return Json(json!({"status": "ok"})).into_response();

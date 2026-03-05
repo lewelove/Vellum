@@ -63,13 +63,12 @@ pub fn calculate_total_discs(tracks: &[Value]) -> u32 {
     for t in tracks {
         let val = match t.get("DISCNUMBER") {
             Some(Value::Number(n)) => n.as_u64().unwrap_or(0),
-            Some(Value::String(s)) => {
-                s.split('/')
-                    .next()
-                    .unwrap_or("0")
-                    .parse::<u64>()
-                    .unwrap_or(0)
-            }
+            Some(Value::String(s)) => s
+                .split('/')
+                .next()
+                .unwrap_or("0")
+                .parse::<u64>()
+                .unwrap_or(0),
             _ => 0,
         };
         if val > 0 {
@@ -92,7 +91,7 @@ pub fn resolve_album_info_unix_added(ctx: &AlbumContext) -> u64 {
         "unix_added_youtube",
         "unix_added_applemusic",
         "unix_added_foobar",
-        "unix_added_local"
+        "unix_added_local",
     ];
     for key in keys {
         if let Some(val) = ctx.source.get(key).and_then(Value::as_str)
@@ -105,11 +104,7 @@ pub fn resolve_album_info_unix_added(ctx: &AlbumContext) -> u64 {
 }
 
 pub fn resolve_custom_albumartist(ctx: &AlbumContext) -> String {
-    let keys = [
-        "custom_albumartist",
-        "artistartist",
-        "albumartist"
-    ];
+    let keys = ["custom_albumartist", "artistartist", "albumartist"];
     for k in keys {
         if let Some(v) = ctx.source.get(k).and_then(Value::as_str) {
             return v.to_string();
@@ -152,8 +147,8 @@ pub fn resolve_cover_chroma(ctx: &AlbumContext) -> Option<Value> {
 
     let m_rg = sum_rg / total;
     let m_yb = sum_yb / total;
-    let v_rg = (sum_sq_rg / total) - (m_rg * m_rg);
-    let v_yb = (sum_sq_yb / total) - (m_yb * m_yb);
+    let v_rg = m_rg.mul_add(-m_rg, sum_sq_rg / total);
+    let v_yb = m_yb.mul_add(-m_yb, sum_sq_yb / total);
     let std_root = (v_rg.max(0.0) + v_yb.max(0.0)).sqrt();
     let mean_root = m_rg.hypot(m_yb);
     Some(json!(0.3f64.mul_add(mean_root, std_root)))
@@ -187,17 +182,12 @@ pub fn resolve_comment(ctx: &AlbumContext) -> String {
     } else {
         ""
     };
-    [
-        year,
-        &country,
-        &label,
-        &cat
-    ]
-    .iter()
-    .filter(|s| !s.is_empty())
-    .copied()
-    .collect::<Vec<_>>()
-    .join(" ")
+    [year, &country, &label, &cat]
+        .iter()
+        .filter(|s| !s.is_empty())
+        .copied()
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 pub fn resolve_lyrics_path(
@@ -206,10 +196,7 @@ pub fn resolve_lyrics_path(
     disc_num: u32,
     total_discs: u32,
 ) -> Option<String> {
-    let folders = [
-        "lyrics",
-        "Lyrics"
-    ];
+    let folders = ["lyrics", "Lyrics"];
     let mut candidates = Vec::new();
 
     for folder in folders {
@@ -224,7 +211,10 @@ pub fn resolve_lyrics_path(
                 continue;
             }
 
-            let Some(ext) = path.extension().and_then(|e| e.to_str()).map(str::to_lowercase)
+            let Some(ext) = path
+                .extension()
+                .and_then(|e| e.to_str())
+                .map(str::to_lowercase)
             else {
                 continue;
             };
@@ -237,26 +227,24 @@ pub fn resolve_lyrics_path(
             };
 
             let is_match = if total_discs > 1 {
-                if let Some(dot_idx) = name.find('.') {
+                name.find('.').is_some_and(|dot_idx| {
                     let disc_part = &name[..dot_idx];
                     let remaining = &name[dot_idx + 1..];
                     let track_part = remaining
                         .chars()
-                        .take_while(|c| c.is_ascii_digit())
+                        .take_while(char::is_ascii_digit)
                         .collect::<String>();
 
-                    let d_match = disc_part.parse::<u32>().map_or(false, |d| d == disc_num);
-                    let t_match = track_part.parse::<u32>().map_or(false, |t| t == track_num);
+                    let d_match = disc_part.parse::<u32>().is_ok_and(|d| d == disc_num);
+                    let t_match = track_part.parse::<u32>().is_ok_and(|t| t == track_num);
                     d_match && t_match
-                } else {
-                    false
-                }
+                })
             } else {
                 let track_part = name
                     .chars()
-                    .take_while(|c| c.is_ascii_digit())
+                    .take_while(char::is_ascii_digit)
                     .collect::<String>();
-                track_part.parse::<u32>().map_or(false, |t| t == track_num)
+                track_part.parse::<u32>().is_ok_and(|t| t == track_num)
             };
 
             if is_match {

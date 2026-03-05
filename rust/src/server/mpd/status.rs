@@ -12,11 +12,7 @@ pub async fn broadcast_status(
     library: &Arc<RwLock<Library>>,
 ) -> Result<()> {
     let (status, current_song, queue) = client
-        .command_list((
-            commands::Status,
-            commands::CurrentSong,
-            commands::Queue,
-        ))
+        .command_list((commands::Status, commands::CurrentSong, commands::Queue))
         .await
         .context("Batched status update failed")?;
 

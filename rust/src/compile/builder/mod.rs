@@ -41,9 +41,7 @@ pub fn build(
         .get("supported_extensions")
         .and_then(Value::as_array)
         .map_or_else(
-            || vec![
-                ".flac"
-            ],
+            || vec![".flac"],
             |arr| arr.iter().filter_map(Value::as_str).collect(),
         );
 
@@ -55,46 +53,14 @@ pub fn build(
 
     if audio_files.len() != track_entries.len() {
         return Err(anyhow!(
-            "Track count mismatch in {:?}: Found {} files but {} [[tracks]] entries",
-            album_root,
+            "Track count mismatch in {}: Found {} files but {} [[tracks]] entries",
+            album_root.display(),
             audio_files.len(),
             track_entries.len()
         ));
     }
 
-    let mut seen_ids = HashSet::new();
-    for (idx, entry) in track_entries.iter().enumerate() {
-        let t = entry
-            .get("tracknumber")
-            .and_then(|v| {
-                match v {
-                    Value::Number(n) => n.as_u64().map(|i| i as u32),
-                    Value::String(s) => s.parse::<u32>().ok(),
-                    _ => None,
-                }
-            })
-            .unwrap_or((idx + 1) as u32);
-
-        let d = entry
-            .get("discnumber")
-            .and_then(|v| {
-                match v {
-                    Value::Number(n) => n.as_u64().map(|i| i as u32),
-                    Value::String(s) => s.parse::<u32>().ok(),
-                    _ => None,
-                }
-            })
-            .unwrap_or(1);
-
-        if !seen_ids.insert((d, t)) {
-            return Err(anyhow!(
-                "Collision in {:?}: Multiple tracks assigned to Disc {}, Track {}",
-                album_root,
-                d,
-                t
-            ));
-        }
-    }
+    validate_track_indices(track_entries, album_root)?;
 
     let lib_root_raw = config
         .get("storage")
@@ -110,51 +76,18 @@ pub fn build(
         .and_then(Value::as_object)
         .ok_or_else(|| anyhow!("Missing registry"))?;
 
-    let default_source = json!({});
-    let album_source = metadata_json.get("album").unwrap_or(&default_source);
+    let empty_obj = json!({});
+    let album_source = metadata_json.get("album").unwrap_or(&empty_obj);
 
-    let mut harvested_spine = Vec::new();
-    for path in audio_files {
-        harvested_spine.push(harvest::harvest_file(&path)?);
-    }
-
-    let total_discs = track_entries
-        .iter()
-        .filter_map(|t| {
-            t.get("discnumber")
-                .and_then(|v| {
-                    match v {
-                        Value::Number(n) => n.as_u64(),
-                        Value::String(s) => s.parse::<u64>().ok(),
-                        _ => None,
-                    }
-                })
-        })
-        .max()
-        .unwrap_or(1) as u32;
-
-    let mut requires_ext = false;
-    let mut final_tracks = Vec::new();
-    let mut harvested_cache = Vec::new();
-
-    for (idx, h_data) in harvested_spine.into_iter().enumerate() {
-        let t_ctx = TrackContext {
-            ordinal_track_number: (idx + 1) as u32,
-            ordinal_disc_number: 1,
-            harvest: &h_data,
-            source: &track_entries[idx],
-            album_source,
-            album_root,
-            library_root: &library_root,
-        };
-
-        let (t_obj, t_ext) = build_track(&t_ctx, total_discs, registry, no_extensions);
-        if t_ext {
-            requires_ext = true;
-        }
-        final_tracks.push(t_obj);
-        harvested_cache.push(serde_json::to_value(h_data)?);
-    }
+    let (final_tracks, harvested_cache, requires_ext) = process_tracks(
+        audio_files,
+        track_entries,
+        album_source,
+        album_root,
+        &library_root,
+        registry,
+        no_extensions,
+    )?;
 
     let album_ctx = AlbumContext {
         source: album_source,
@@ -190,6 +123,94 @@ pub fn build(
     Ok((final_json, a_ext))
 }
 
+fn process_tracks(
+    audio_files: Vec<std::path::PathBuf>,
+    track_entries: &[Value],
+    album_source: &Value,
+    album_root: &Path,
+    library_root: &Path,
+    registry: &serde_json::Map<String, Value>,
+    no_extensions: bool,
+) -> Result<(Vec<Value>, Vec<Value>, bool)> {
+    let mut harvested_spine = Vec::new();
+    for path in audio_files {
+        harvested_spine.push(harvest::harvest_file(&path)?);
+    }
+
+    let total_discs = u32::try_from(
+        track_entries
+            .iter()
+            .filter_map(|t| {
+                t.get("discnumber").and_then(|v| match v {
+                    Value::Number(n) => n.as_u64(),
+                    Value::String(s) => s.parse::<u64>().ok(),
+                    _ => None,
+                })
+            })
+            .max()
+            .unwrap_or(1),
+    )
+    .unwrap_or(u32::MAX);
+
+    let mut requires_ext = false;
+    let mut final_tracks = Vec::new();
+    let mut harvested_cache = Vec::new();
+
+    for (idx, h_data) in harvested_spine.into_iter().enumerate() {
+        let t_ctx = TrackContext {
+            ordinal_track_number: u32::try_from(idx + 1).unwrap_or(u32::MAX),
+            ordinal_disc_number: 1,
+            harvest: &h_data,
+            source: &track_entries[idx],
+            album_source,
+            album_root,
+            library_root,
+        };
+
+        let (t_obj, t_ext) = build_track(&t_ctx, total_discs, registry, no_extensions);
+        if t_ext {
+            requires_ext = true;
+        }
+        final_tracks.push(t_obj);
+        harvested_cache.push(serde_json::to_value(h_data)?);
+    }
+
+    Ok((final_tracks, harvested_cache, requires_ext))
+}
+
+fn validate_track_indices(entries: &[Value], root: &Path) -> Result<()> {
+    let mut seen_ids = HashSet::new();
+    for (idx, entry) in entries.iter().enumerate() {
+        let t = entry
+            .get("tracknumber")
+            .and_then(|v| match v {
+                Value::Number(n) => n.as_u64().and_then(|i| u32::try_from(i).ok()),
+                Value::String(s) => s.parse::<u32>().ok(),
+                _ => None,
+            })
+            .unwrap_or_else(|| u32::try_from(idx + 1).unwrap_or(u32::MAX));
+
+        let d = entry
+            .get("discnumber")
+            .and_then(|v| match v {
+                Value::Number(n) => n.as_u64().and_then(|i| u32::try_from(i).ok()),
+                Value::String(s) => s.parse::<u32>().ok(),
+                _ => None,
+            })
+            .unwrap_or(1);
+
+        if !seen_ids.insert((d, t)) {
+            return Err(anyhow!(
+                "Collision in {}: Multiple tracks assigned to Disc {}, Track {}",
+                root.display(),
+                d,
+                t
+            ));
+        }
+    }
+    Ok(())
+}
+
 fn normalize_keys(v: Value) -> Value {
     match v {
         Value::Object(map) => {
@@ -204,36 +225,26 @@ fn normalize_keys(v: Value) -> Value {
     }
 }
 
-fn build_track(
-    ctx: &TrackContext,
-    total_discs: u32,
-    registry: &serde_json::Map<String, Value>,
-    no_ext: bool,
-) -> (Value, bool) {
-    let mut obj = serde_json::Map::new();
+fn construct_track_info(ctx: &TrackContext, total_discs: u32) -> Value {
     let mut info = serde_json::Map::new();
 
     let track_number = ctx
         .source
         .get("tracknumber")
-        .and_then(|v| {
-            match v {
-                Value::Number(n) => n.as_u64().map(|i| i as u32),
-                Value::String(s) => s.parse::<u32>().ok(),
-                _ => None,
-            }
+        .and_then(|v| match v {
+            Value::Number(n) => n.as_u64().and_then(|i| u32::try_from(i).ok()),
+            Value::String(s) => s.parse::<u32>().ok(),
+            _ => None,
         })
         .unwrap_or(ctx.ordinal_track_number);
 
     let disc_number = ctx
         .source
         .get("discnumber")
-        .and_then(|v| {
-            match v {
-                Value::Number(n) => n.as_u64().map(|i| i as u32),
-                Value::String(s) => s.parse::<u32>().ok(),
-                _ => None,
-            }
+        .and_then(|v| match v {
+            Value::Number(n) => n.as_u64().and_then(|i| u32::try_from(i).ok()),
+            Value::String(s) => s.parse::<u32>().ok(),
+            _ => None,
         })
         .unwrap_or(ctx.ordinal_disc_number);
 
@@ -290,9 +301,43 @@ fn build_track(
         "track_size".to_string(),
         json!(ctx.harvest.physics.file_size),
     );
-    info.insert("lyrics_path".to_string(), json!(lyrics_path.unwrap_or_default()));
+    info.insert(
+        "lyrics_path".to_string(),
+        json!(lyrics_path.unwrap_or_default()),
+    );
 
-    obj.insert("info".to_string(), Value::Object(info));
+    Value::Object(info)
+}
+
+fn build_track(
+    ctx: &TrackContext,
+    total_discs: u32,
+    registry: &serde_json::Map<String, Value>,
+    no_ext: bool,
+) -> (Value, bool) {
+    let mut obj = serde_json::Map::new();
+
+    let track_number = ctx
+        .source
+        .get("tracknumber")
+        .and_then(|v| match v {
+            Value::Number(n) => n.as_u64().and_then(|i| u32::try_from(i).ok()),
+            Value::String(s) => s.parse::<u32>().ok(),
+            _ => None,
+        })
+        .unwrap_or(ctx.ordinal_track_number);
+
+    let disc_number = ctx
+        .source
+        .get("discnumber")
+        .and_then(|v| match v {
+            Value::Number(n) => n.as_u64().and_then(|i| u32::try_from(i).ok()),
+            Value::String(s) => s.parse::<u32>().ok(),
+            _ => None,
+        })
+        .unwrap_or(ctx.ordinal_disc_number);
+
+    obj.insert("info".to_string(), construct_track_info(ctx, total_discs));
 
     obj.insert(
         "TITLE".to_string(),
@@ -333,13 +378,7 @@ fn build_track(
     (Value::Object(obj), ext)
 }
 
-fn build_album(
-    ctx: &AlbumContext,
-    registry: &serde_json::Map<String, Value>,
-    ext_flag: bool,
-    no_ext: bool,
-) -> (Value, bool) {
-    let mut obj = serde_json::Map::new();
+fn construct_album_info(ctx: &AlbumContext) -> Value {
     let mut info = serde_json::Map::new();
     let dur: u64 = ctx
         .tracks
@@ -382,7 +421,18 @@ fn build_album(
     info.insert("cover_mtime".to_string(), json!(ctx.cover_mtime));
     info.insert("cover_byte_size".to_string(), json!(ctx.cover_byte_size));
 
-    obj.insert("info".to_string(), Value::Object(info));
+    Value::Object(info)
+}
+
+fn build_album(
+    ctx: &AlbumContext,
+    registry: &serde_json::Map<String, Value>,
+    ext_flag: bool,
+    no_ext: bool,
+) -> (Value, bool) {
+    let mut obj = serde_json::Map::new();
+
+    obj.insert("info".to_string(), construct_album_info(ctx));
     obj.insert(
         "ALBUM".to_string(),
         ctx.source

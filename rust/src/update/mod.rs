@@ -246,12 +246,7 @@ fn get_mtime_sum(dir: &Path, meta: &Path) -> u64 {
         .unwrap_or(0);
 
     let mut c_mtime = 0;
-    let cover_candidates = [
-        "cover.jpg",
-        "cover.png",
-        "folder.jpg",
-        "front.jpg",
-    ];
+    let cover_candidates = ["cover.jpg", "cover.png", "folder.jpg", "front.jpg"];
 
     for c in cover_candidates {
         let cp = dir.join(c);
