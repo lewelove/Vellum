@@ -2,9 +2,9 @@ extends PanelContainer
 
 signal clicked(data: Dictionary)
 
-@onready var cover_rect := $VBox/CoverContainer/CoverRect
-@onready var title_label := $VBox/TextContainer/TitleLabel
-@onready var artist_label := $VBox/TextContainer/ArtistLabel
+@onready var cover_rect : TextureRect = get_node("VBox/CoverContainer/CoverRect")
+@onready var title_label : Label = get_node("VBox/TextContainer/TitleLabel")
+@onready var artist_label : Label = get_node("VBox/TextContainer/ArtistLabel")
 
 var album_data: Dictionary
 var _is_ready: bool = false
@@ -33,6 +33,8 @@ func _update_ui():
 	
 	if not cover_hash.is_empty():
 		ImageLoader.load_album_cover(cover_hash, 190, cover_rect)
+	else:
+		printerr("AlbumCard: No cover hash found for ", album_data.get("ALBUM"))
 
 func _on_gui_input(event: InputEvent):
 	if event is InputEventMouseButton:
@@ -41,8 +43,18 @@ func _on_gui_input(event: InputEvent):
 
 func _on_mouse_entered():
 	var tween := create_tween()
-	tween.tween_property(self, "modulate", Color(1.2, 1.2, 1.2), 0.1)
+	tween.tween_property(
+		self,
+		"modulate",
+		Color(1.2, 1.2, 1.2),
+		0.1
+	)
 
 func _on_mouse_exited():
 	var tween := create_tween()
-	tween.tween_property(self, "modulate", Color(1, 1, 1), 0.1)
+	tween.tween_property(
+		self,
+		"modulate",
+		Color(1, 1, 1),
+		0.1
+	)
