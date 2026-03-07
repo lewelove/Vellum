@@ -1,7 +1,8 @@
 <script>
   import { onMount, onDestroy } from "svelte";
 
-  let { colors =[], coverSize = 0 } = $props();
+  let { colors = [
+  ], coverSize = 0 } = $props();
 
   let canvasEl;
   let gl;
@@ -28,9 +29,8 @@
 
     out vec4 fragColor;
 
-    const float SPEED = 0.25;
-    const float SHARPNESS = 5.0;
-    const float SATURATION = 1.3;
+    const float SPEED = 0.08;
+    const float SATURATION = 1.0;
     const float GRAIN_AMOUNT = 0.02;
 
     vec3 hexToRgb(int hex) {
@@ -49,41 +49,46 @@
         float aspect = iResolution.x / iResolution.y;
         uv.x *= aspect;
         
+        float t = iTime * SPEED;
+        
+        vec2 center = vec2(0.5 * aspect, 0.5);
+        vec2 diff = uv - center;
+        float dBox = max(abs(diff.x), abs(diff.y));
+        float cRad = (iCoverSize / iResolution.y) * 0.5;
+        
+        float repel = smoothstep(cRad + 0.3, cRad - 0.1, dBox);
+        vec2 normDiff = diff / (length(diff) + 0.0001);
+        vec2 p = uv + normDiff * repel * 0.25;
+        
+        p *= 3.0;
+        
+        for(float i = 1.0; i < 5.0; i++) {
+            vec2 newp = p;
+            newp.x += 0.5 / i * cos(i * 2.5 * p.y + t * 1.2);
+            newp.y += 0.5 / i * sin(i * 1.5 * p.x - t * 1.1);
+            p = newp;
+        }
+        
         vec3 totalColor = vec3(0.0);
         float totalWeight = 0.0;
-        float t = iTime * SPEED;
         
         for (int i = 0; i < 8; i++) {
             if (iRatios[i] <= 0.0) continue;
-
+            
             vec3 color = hexToRgb(iColors[i]);
             float ratio = iRatios[i];
-            float seed = float(i) * 1.618;
             
-            // Smooth wandering angle
-            float t1 = t * 0.4 + seed * 2.1;
-            float t2 = t * 0.3 + seed * 1.7;
-            float angle = t1 + sin(t2) * 1.5;
-            vec2 dir = vec2(cos(angle), sin(angle));
+            float seed = float(i) * 7.312;
             
-            // Calculate strictly excluded box area
-            float coverHalf = (iCoverSize / iResolution.y) * 0.5;
-            float padding = 0.05; 
+            vec2 dir = vec2(cos(seed), sin(seed));
+            float proj = dot(p, dir);
             
-            // Minkowski sum of square + circle forces trajectory to trace an expanded rounded box
-            float boxNorm = max(abs(dir.x), abs(dir.y));
-            float min_r = (coverHalf + padding) / boxNorm;
+            float wave = sin(proj * 1.5 + seed + t);
+            wave = wave * 0.5 + 0.5; 
             
-            // Organic radial distance oscillation outside the boundary
-            float extra_r = (0.3 + 0.5 * sin(t * 0.6 + seed * 1.3)) * 0.4;
+            float sharp = mix(60.0, 1.0, pow(ratio, 0.3));
             
-            vec2 center = vec2(0.5 * aspect, 0.5);
-            vec2 pos = center + dir * (min_r + extra_r);
-            
-            float dist = distance(uv, pos);
-            
-            float radius = mix(0.1, 1.5, sqrt(ratio));
-            float weight = ratio / (pow(dist / radius, SHARPNESS) + 0.001);
+            float weight = pow(wave, sharp) * mix(0.5, 1.5, ratio);
             
             totalColor += color * weight;
             totalWeight += weight;
@@ -94,7 +99,7 @@
         float luminance = dot(finalColor, vec3(0.2126, 0.7152, 0.0722));
         finalColor = mix(vec3(luminance), finalColor, SATURATION);
 
-        float noise = (random(uv + iTime) - 0.5) * GRAIN_AMOUNT;
+        float noise = (random(gl_FragCoord.xy / iResolution.xy + iTime) - 0.5) * GRAIN_AMOUNT;
         finalColor += noise;
 
         fragColor = vec4(finalColor, 1.0);
@@ -106,7 +111,6 @@
     gl.shaderSource(shader, source);
     gl.compileShader(shader);
     if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-      console.error(gl.getShaderInfoLog(shader));
       gl.deleteShader(shader);
       return null;
     }
