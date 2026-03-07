@@ -168,7 +168,7 @@
   .time {
     font-family: var(--font-mono);
     font-size: 13px;
-    color: #888888;
+    color: var(--text-muted);
     font-feature-settings: "tnum";
     min-width: 38px;
     text-align: center;
@@ -195,7 +195,7 @@
     top: 0;
     left: 0;
     height: 100%;
-    background-color: var(--text-main);
+    background-color: var(--text-muted);
     border-radius: 2px;
   }
 </style>
