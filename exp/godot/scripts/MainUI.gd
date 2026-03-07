@@ -9,6 +9,10 @@ func _ready():
 	offset_right = 0
 	offset_bottom = 0
 	
+	# Enables geometric anti-aliasing on all 2D quads.
+	# This fixes the sub-pixel "flickering" on TextureRect edges.
+	get_viewport().msaa_2d = Viewport.MSAA_4X
+	
 	var bg = ColorRect.new()
 	bg.color = Color("#323232")
 	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -73,34 +77,13 @@ func _create_album_card() -> PanelContainer:
 	vbox.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	vbox.add_theme_constant_override("separation", 0)
 	
-	var cover_outer := PanelContainer.new()
+	var cover_outer := Control.new()
 	cover_outer.name = "CoverContainer"
-	cover_outer.clip_contents = false
 	cover_outer.custom_minimum_size = Vector2(190, 190)
-	
-	var cover_style := StyleBoxEmpty.new()
-	cover_outer.add_theme_stylebox_override("panel", cover_style)
-	
-	var shader = Shader.new()
-	shader.code = """
-		shader_type canvas_item;
-		void fragment() {
-			vec4 col = texture(TEXTURE, UV);
-			vec2 unit_pixel = 1.0 / fwidth(UV);
-			vec2 edge = min(UV * unit_pixel, (1.0 - UV) * unit_pixel);
-			float mask = clamp(min(edge.x, edge.y), 0.0, 1.0);
-			COLOR = vec4(col.rgb, col.a * mask);
-		}
-	"""
-	var shader_mat = ShaderMaterial.new()
-	shader_mat.shader = shader
 	
 	var cover_rect := TextureRect.new()
 	cover_rect.name = "CoverRect"
-	cover_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	cover_rect.stretch_mode = TextureRect.STRETCH_SCALE
 	cover_rect.texture_filter = TEXTURE_FILTER_LINEAR
-	cover_rect.material = shader_mat
 	cover_rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	
 	var text_container := VBoxContainer.new()

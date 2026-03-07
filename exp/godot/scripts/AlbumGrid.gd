@@ -3,16 +3,16 @@ extends Control
 var layout = load("res://scripts/LayoutManager.gd").new()
 var scroll = load("res://scripts/ScrollEngine.gd").new()
 
-var albums: Array = []
+var albums: Array =[]
 var rows_pool: Dictionary = {}
 var active_rows: Dictionary = {}
 
-@onready var grid_root = Node2D.new()
+@onready var content_node = Control.new()
 
 func _ready():
-	clip_contents = false
-	grid_root.name = "GridRoot"
-	add_child(grid_root)
+	clip_contents = true
+	content_node.name = "Content"
+	add_child(content_node)
 	set_process_unhandled_input(true)
 	scroll.dpr = DisplayServer.screen_get_max_scale()
 
@@ -20,7 +20,7 @@ func setup(data: Array):
 	albums = data
 	_refresh_grid()
 
-func _process(delta):
+func _process(_delta):
 	if albums.is_empty():
 		return
 		
@@ -28,17 +28,17 @@ func _process(delta):
 	var row_count = int(ceil(float(albums.size()) / layout.cols))
 	var max_slots = max(0.0, float(row_count) - (size.y / layout.row_height))
 	
-	scroll.update(delta, layout.row_height)
+	scroll.update(layout.row_height)
 	
-	var x_offset = (size.x - layout.grid_width) / 2.0
-	grid_root.position = Vector2(x_offset, -scroll.current_y)
+	content_node.position.y = -scroll.current_y
+	content_node.position.x = floor((size.x - layout.grid_width) / 2.0)
 	
 	_update_virtual_rows(row_count)
 
 func _update_virtual_rows(row_count: int):
 	var indices = layout.get_visible_indices(scroll.current_y, size.y, row_count)
 	
-	var needed_indices = []
+	var needed_indices =[]
 	for i in range(indices.start, indices.end + 1):
 		needed_indices.append(i)
 		
@@ -61,9 +61,7 @@ func _get_row_from_pool() -> HBoxContainer:
 	if rows_pool.is_empty():
 		var row = HBoxContainer.new()
 		row.add_theme_constant_override("separation", int(layout.gap_x))
-		row.size = Vector2(layout.grid_width, layout.row_height)
-		row.custom_minimum_size = row.size
-		grid_root.add_child(row)
+		content_node.add_child(row)
 		return row
 	var row = rows_pool.keys()[0]
 	rows_pool.erase(row)
@@ -106,9 +104,9 @@ func _unhandled_input(event):
 		var max_slots = max(0.0, float(row_count) - (size.y / layout.row_height))
 		match event.keycode:
 			KEY_J, KEY_DOWN:
-				scroll.target_slot = clamp(scroll.target_slot + 1.0, 0, max_slots)
+				scroll.target_slot = clamp(scroll.target_slot + 1.0, 0.0, max_slots)
 			KEY_K, KEY_UP:
-				scroll.target_slot = clamp(scroll.target_slot - 1.0, 0, max_slots)
+				scroll.target_slot = clamp(scroll.target_slot - 1.0, 0.0, max_slots)
 
 func _refresh_grid():
 	for idx in active_rows.keys():
