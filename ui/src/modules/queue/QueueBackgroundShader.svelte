@@ -1,7 +1,7 @@
 <script>
   import { onMount, onDestroy } from "svelte";
 
-  let { colors =[] } = $props();
+  let { colors =[], coverSize = 0 } = $props();
 
   let canvasEl;
   let gl;
@@ -22,12 +22,13 @@
 
     uniform float iTime;
     uniform vec2 iResolution;
+    uniform float iCoverSize;
     uniform int iColors[8];
     uniform float iRatios[8];
 
     out vec4 fragColor;
 
-    const float SPEED = 0.05;
+    const float SPEED = 0.25;
     const float SHARPNESS = 5.0;
     const float SATURATION = 1.3;
     const float GRAIN_AMOUNT = 0.02;
@@ -53,27 +54,35 @@
         float t = iTime * SPEED;
         
         for (int i = 0; i < 8; i++) {
-            // Check ratio instead of color to prevent skipping pure black (#000000)
             if (iRatios[i] <= 0.0) continue;
 
             vec3 color = hexToRgb(iColors[i]);
             float ratio = iRatios[i];
             float seed = float(i) * 1.618;
             
-            // Compound trig functions for organic, wandering movement
-            vec2 pos = vec2(
-                0.5 + 0.4 * sin(t + seed) * cos(t * 0.5 + seed * 0.8),
-                0.5 + 0.4 * cos(t * 0.7 + seed) * sin(t * 0.3 + seed * 1.2)
-            );
-            pos.x *= aspect;
+            // Smooth wandering angle
+            float t1 = t * 0.4 + seed * 2.1;
+            float t2 = t * 0.3 + seed * 1.7;
+            float angle = t1 + sin(t2) * 1.5;
+            vec2 dir = vec2(cos(angle), sin(angle));
+            
+            // Calculate strictly excluded box area
+            float coverHalf = (iCoverSize / iResolution.y) * 0.5;
+            float padding = 0.05; 
+            
+            // Minkowski sum of square + circle forces trajectory to trace an expanded rounded box
+            float boxNorm = max(abs(dir.x), abs(dir.y));
+            float min_r = (coverHalf + padding) / boxNorm;
+            
+            // Organic radial distance oscillation outside the boundary
+            float extra_r = (0.3 + 0.5 * sin(t * 0.6 + seed * 1.3)) * 0.4;
+            
+            vec2 center = vec2(0.5 * aspect, 0.5);
+            vec2 pos = center + dir * (min_r + extra_r);
             
             float dist = distance(uv, pos);
             
-            // Map the radius of the blob to the square root of its ratio
-            // This isolates small ratio colors into tight, highly concentrated pockets
             float radius = mix(0.1, 1.5, sqrt(ratio));
-            
-            // Normalize physical distance by the blob's intended radius
             float weight = ratio / (pow(dist / radius, SHARPNESS) + 0.001);
             
             totalColor += color * weight;
@@ -82,11 +91,9 @@
         
         vec3 finalColor = totalColor / (totalWeight + 0.0001);
 
-        // Subtly boost saturation
         float luminance = dot(finalColor, vec3(0.2126, 0.7152, 0.0722));
         finalColor = mix(vec3(luminance), finalColor, SATURATION);
 
-        // Add film grain
         float noise = (random(uv + iTime) - 0.5) * GRAIN_AMOUNT;
         finalColor += noise;
 
@@ -164,6 +171,10 @@
 
     const resLoc = gl.getUniformLocation(program, "iResolution");
     gl.uniform2f(resLoc, canvasEl.width, canvasEl.height);
+    
+    const coverSizeLoc = gl.getUniformLocation(program, "iCoverSize");
+    const dpr = window.devicePixelRatio || 1;
+    gl.uniform1f(coverSizeLoc, coverSize * dpr);
 
     const colorLoc = gl.getUniformLocation(program, "iColors");
     const ratioLoc = gl.getUniformLocation(program, "iRatios");

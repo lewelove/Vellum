@@ -15,7 +15,7 @@
   let activeAlbum = $derived(activeId ? library.albumCache.get(activeId) : null);
   let coverUrl = $derived(activeId ? library.getAlbumCoverUrl(activeId) : "");
   
-  let palette = $derived(activeAlbum?.tags?.COVER_PALETTE || []);
+  let palette = $derived(activeAlbum?.tags?.COVER_PALETTE ||[]);
 
   let activeView = $state("tracks");
 
@@ -78,7 +78,7 @@
       onkeydown={(e) => { if(e.key === 'Enter') toggleExpand(); }}
       transition:fade={{ duration: 300 }}
     >
-      <QueueBackgroundShader colors={palette} />
+      <QueueBackgroundShader colors={palette} coverSize={expandedSize} />
 
       <div 
         class="expanded-content" 
