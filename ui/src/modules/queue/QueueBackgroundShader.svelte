@@ -26,9 +26,10 @@
 
     out vec4 fragColor;
 
-    const float SPEED = 0.3;
-    const float BLUR_INTENSITY = 0.6;
-    const float GRAIN_AMOUNT = 0.06;
+    const float SPEED = 0.05;
+    const float SHARPNESS = 8.0;
+    const float SATURATION = 1.5;
+    const float GRAIN_AMOUNT = 0.02;
 
     vec3 hexToRgb(int hex) {
         float r = float((hex >> 16) & 0xFF) / 255.0;
@@ -43,34 +44,44 @@
 
     void main() {
         vec2 uv = gl_FragCoord.xy / iResolution.xy;
-        uv.x *= iResolution.x / iResolution.y;
+        float aspect = iResolution.x / iResolution.y;
+        uv.x *= aspect;
         
         vec3 totalColor = vec3(0.0);
         float totalWeight = 0.0;
         float t = iTime * SPEED;
         
         for (int i = 0; i < 8; i++) {
+            // Skip black placeholders to keep the palette pure
+            if (iColors[i] == 0) continue;
+
             vec3 color = hexToRgb(iColors[i]);
             float seed = float(i) * 1.618;
             
+            // Movement logic
             vec2 pos = vec2(
-                0.5 + 0.4 * sin(t + seed),
-                0.5 + 0.4 * cos(t * 0.8 + seed)
+                0.5 + 0.35 * sin(t + seed),
+                0.5 + 0.35 * cos(t * 0.7 + seed + 1.5)
             );
+            pos.x *= aspect;
             
-            pos.x *= iResolution.x / iResolution.y;
             float dist = distance(uv, pos);
-            float weight = 1.0 / (pow(dist, 1.8) + 0.01 + (1.0 - BLUR_INTENSITY));
+            
+            // Sharp falloff formula
+            // Reduced epsilon (0.001) makes the center of the blob much brighter/purer
+            float weight = 1.0 / (pow(dist, SHARPNESS) + 0.001);
             
             totalColor += color * weight;
             totalWeight += weight;
         }
         
-        vec3 finalColor = totalColor / totalWeight;
-        float luminance = dot(finalColor, vec3(0.2126, 0.7152, 0.0722));
-        vec3 grey = vec3(luminance);
-        finalColor = mix(grey, finalColor, 1.4);
+        vec3 finalColor = totalColor / (totalWeight + 0.0001);
 
+        // Boost saturation to make colors pop
+        float luminance = dot(finalColor, vec3(0.2126, 0.7152, 0.0722));
+        finalColor = mix(vec3(luminance), finalColor, SATURATION);
+
+        // Subtler grain
         float noise = (random(uv + iTime) - 0.5) * GRAIN_AMOUNT;
         finalColor += noise;
 
@@ -91,7 +102,6 @@
   }
 
   function initGL() {
-    // CRITICAL: Set alpha to false to stabilize the compositor layer
     gl = canvasEl.getContext("webgl2", { 
       alpha: false, 
       antialias: true,
@@ -158,7 +168,6 @@
 
   function handleResize() {
     if (canvasEl) {
-      // CRITICAL: Scale canvas by devicePixelRatio to match screen physical pixels
       const dpr = window.devicePixelRatio || 1;
       canvasEl.width = window.innerWidth * dpr;
       canvasEl.height = window.innerHeight * dpr;
@@ -186,7 +195,6 @@
     height: 100%;
     z-index: -1;
     pointer-events: none;
-    /* Prevent the browser from trying to smooth the canvas element itself */
-    image-rendering: pixelated;
+    image-rendering: auto;
   "
 ></canvas>

@@ -9,9 +9,13 @@
   import Lyrics from "./Lyrics.svelte";
   import ModalDrawerCover from "../album-grid/ModalDrawerCover.svelte";
   import ProgressBar from "./ProgressBar.svelte";
+  import QueueBackgroundShader from "./QueueBackgroundShader.svelte";
 
   let activeId = $derived(player.currentAlbumId);
+  let activeAlbum = $derived(activeId ? library.albumCache.get(activeId) : null);
   let coverUrl = $derived(activeId ? library.getAlbumCoverUrl(activeId) : "");
+  
+  let palette = $derived(activeAlbum?.tags?.COVER_PALETTE || []);
 
   let activeView = $state("tracks");
 
@@ -72,14 +76,17 @@
       role="button"
       tabindex="0"
       onkeydown={(e) => { if(e.key === 'Enter') toggleExpand(); }}
+      transition:fade={{ duration: 300 }}
     >
+      <QueueBackgroundShader colors={palette} />
+
       <div 
         class="expanded-content" 
         style="width: {expandedSize}px; height: {expandedSize}px;"
         onclick={(e) => e.stopPropagation()} 
         role="presentation"
       >
-        <div in:fade={{ duration: 200 }}>
+        <div in:fade={{ duration: 100 }}>
           <ModalDrawerCover 
             src={coverUrl} 
             width={expandedSize} 
@@ -307,10 +314,17 @@
     position: fixed;
     inset: 0;
     z-index: 9999;
-    background-color: rgba(0, 0, 0, 0.8);
-    backdrop-filter: blur(2px);
+    background-color: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(10px);
     display: flex;
     align-items: center;
     justify-content: center;
+    cursor: pointer;
+  }
+
+  .expanded-content {
+    position: relative;
+    z-index: 10000;
+    pointer-events: none;
   }
 </style>

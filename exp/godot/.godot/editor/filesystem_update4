@@ -1,0 +1,4 @@
+res://scripts/AlbumCard.gd
+res://MainUI.tscn
+res://scripts/MainUI.gd
+res://scripts/ImageLoader.gd

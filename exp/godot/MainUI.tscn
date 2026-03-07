@@ -1,0 +1,15 @@
+[gd_scene format=3 uid="uid://dwcmdignqlpwk"]
+
+[ext_resource type="Script" uid="uid://igl80xytyhdm" path="res://scripts/MainUI.gd" id="1_vfs0v"]
+
+[node name="MainUI" type="Control" unique_id=1286479897]
+layout_mode = 3
+anchors_preset = 0
+script = ExtResource("1_vfs0v")
+
+[node name="ScrollContainer" type="ScrollContainer" parent="." unique_id=1512488271]
+layout_mode = 0
+
+[node name="GridContainer" type="GridContainer" parent="ScrollContainer" unique_id=401329959]
+layout_mode = 2
+columns = 7
