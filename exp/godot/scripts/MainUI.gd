@@ -81,11 +81,26 @@ func _create_album_card() -> PanelContainer:
 	var cover_style := StyleBoxEmpty.new()
 	cover_outer.add_theme_stylebox_override("panel", cover_style)
 	
+	var shader = Shader.new()
+	shader.code = """
+		shader_type canvas_item;
+		void fragment() {
+			vec4 col = texture(TEXTURE, UV);
+			vec2 unit_pixel = 1.0 / fwidth(UV);
+			vec2 edge = min(UV * unit_pixel, (1.0 - UV) * unit_pixel);
+			float mask = clamp(min(edge.x, edge.y), 0.0, 1.0);
+			COLOR = vec4(col.rgb, col.a * mask);
+		}
+	"""
+	var shader_mat = ShaderMaterial.new()
+	shader_mat.shader = shader
+	
 	var cover_rect := TextureRect.new()
 	cover_rect.name = "CoverRect"
 	cover_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	cover_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-	cover_rect.texture_filter = TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	cover_rect.stretch_mode = TextureRect.STRETCH_SCALE
+	cover_rect.texture_filter = TEXTURE_FILTER_LINEAR
+	cover_rect.material = shader_mat
 	cover_rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	
 	var text_container := VBoxContainer.new()
