@@ -85,7 +85,7 @@ pub fn calculate_total_discs(tracks: &[Value]) -> u32 {
 }
 
 pub fn resolve_album_info_unix_added(ctx: &AlbumContext) -> u64 {
-    let keys = [
+    let keys =[
         "unix_added_primary",
         "unixtimeyoutube",
         "unixtimeapple",
@@ -106,7 +106,7 @@ pub fn resolve_album_info_unix_added(ctx: &AlbumContext) -> u64 {
 }
 
 pub fn resolve_custom_albumartist(ctx: &AlbumContext) -> String {
-    let keys = [
+    let keys =[
         "custom_albumartist",
         "artistartist",
         "albumartist",
@@ -171,9 +171,9 @@ pub fn resolve_cover_entropy(ctx: &AlbumContext) -> Option<Value> {
 
 pub fn resolve_cover_palette(ctx: &AlbumContext) -> Option<Value> {
     let img = ctx.cover_image?;
-    let k = 8;
+    let k = 16;
     let max_iter = 20;
-    let convergence = 0.1;
+    let convergence = 0.05;
     let seed = 42u64;
 
     let lab_pixels: Vec<Lab> = img
@@ -197,32 +197,90 @@ pub fn resolve_cover_palette(ctx: &AlbumContext) -> Option<Value> {
         seed,
     );
 
-    let mut counts = vec![0usize; k];
-    for &index in &result.indices {
-        counts[index as usize] += 1;
+    let mut buckets = vec![0usize; result.centroids.len()];
+
+    for pixel in &lab_pixels {
+        let mut min_dist = f32::MAX;
+        let mut best_idx = 0;
+
+        for (i, centroid) in result.centroids.iter().enumerate() {
+            let dl = pixel.l - centroid.l;
+            let da = pixel.a - centroid.a;
+            let db = pixel.b - centroid.b;
+            let dist_sq = (dl * dl) + (da * da) + (db * db);
+
+            if dist_sq < min_dist {
+                min_dist = dist_sq;
+                best_idx = i;
+            }
+        }
+
+        buckets[best_idx] += 1;
     }
 
-    let mut combined: Vec<(usize, Lab)> = counts
+    let mut clusters: Vec<(Lab, usize)> = result
+        .centroids
         .into_iter()
-        .zip(result.centroids.into_iter())
+        .zip(buckets.into_iter())
+        .filter(|(_, count)| *count > 0)
         .collect();
 
-    combined.sort_by(|a, b| b.0.cmp(&a.0));
+    clusters.sort_by(|a, b| b.1.cmp(&a.1));
 
-    let hex_palette: Vec<String> = combined
+    let mut merged: Vec<(Lab, usize)> = Vec::new();
+    for (lab, count) in clusters {
+        let mut found = false;
+        for (m_lab, m_count) in &mut merged {
+            let dl = m_lab.l - lab.l;
+            let da = m_lab.a - lab.a;
+            let db = m_lab.b - lab.b;
+            let dist = (dl * dl + da * da + db * db).sqrt();
+
+            if dist < 15.0 {
+                *m_count += count;
+                found = true;
+                break;
+            }
+        }
+        if !found {
+            merged.push((lab, count));
+        }
+    }
+
+    let mut scored: Vec<(f64, Lab)> = merged
         .into_iter()
-        .map(|(_, lab)| {
+        .map(|(lab, count)| {
+            let chroma = (lab.a.powi(2) + lab.b.powi(2)).sqrt() as f64;
+            let score = (count as f64) * (1.0 + chroma * 0.1);
+            (score, lab)
+        })
+        .collect();
+
+    scored.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
+
+    let top: Vec<(f64, Lab)> = scored.into_iter().take(8).collect();
+    let total_score: f64 = top.iter().map(|(score, _)| *score).sum();
+
+    let palette_data: Vec<Value> = top
+        .into_iter()
+        .map(|(score, lab)| {
+            let ratio = if total_score > 0.0 { score / total_score } else { 0.0 };
             let srgb = Srgb::from_color(lab);
-            format!(
+            let hex = format!(
                 "#{:02X}{:02X}{:02X}",
                 (srgb.red.clamp(0.0, 1.0) * 255.0).round() as u8,
                 (srgb.green.clamp(0.0, 1.0) * 255.0).round() as u8,
                 (srgb.blue.clamp(0.0, 1.0) * 255.0).round() as u8
-            )
+            );
+
+            json!({
+                "color": hex,
+                "ratio": ratio
+            })
         })
         .collect();
 
-    Some(json!(hex_palette))
+    Some(json!(palette_data))
 }
 
 pub fn resolve_comment(ctx: &AlbumContext) -> String {
@@ -245,7 +303,7 @@ pub fn resolve_comment(ctx: &AlbumContext) -> String {
         ""
     };
     
-    let parts = [
+    let parts =[
         year,
         &country,
         &label,
@@ -266,7 +324,7 @@ pub fn resolve_lyrics_path(
     disc_num: u32,
     total_discs: u32,
 ) -> Option<String> {
-    let folders = [
+    let folders =[
         "lyrics",
         "Lyrics",
     ];

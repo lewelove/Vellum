@@ -1,7 +1,7 @@
 <script>
   import { onMount, onDestroy } from "svelte";
 
-  let { colors = [] } = $props();
+  let { colors =[] } = $props();
 
   let canvasEl;
   let gl;
@@ -23,12 +23,13 @@
     uniform float iTime;
     uniform vec2 iResolution;
     uniform int iColors[8];
+    uniform float iRatios[8];
 
     out vec4 fragColor;
 
     const float SPEED = 0.05;
-    const float SHARPNESS = 8.0;
-    const float SATURATION = 1.5;
+    const float SHARPNESS = 5.0;
+    const float SATURATION = 1.3;
     const float GRAIN_AMOUNT = 0.02;
 
     vec3 hexToRgb(int hex) {
@@ -52,24 +53,28 @@
         float t = iTime * SPEED;
         
         for (int i = 0; i < 8; i++) {
-            // Skip black placeholders to keep the palette pure
-            if (iColors[i] == 0) continue;
+            // Check ratio instead of color to prevent skipping pure black (#000000)
+            if (iRatios[i] <= 0.0) continue;
 
             vec3 color = hexToRgb(iColors[i]);
+            float ratio = iRatios[i];
             float seed = float(i) * 1.618;
             
-            // Movement logic
+            // Compound trig functions for organic, wandering movement
             vec2 pos = vec2(
-                0.5 + 0.35 * sin(t + seed),
-                0.5 + 0.35 * cos(t * 0.7 + seed + 1.5)
+                0.5 + 0.4 * sin(t + seed) * cos(t * 0.5 + seed * 0.8),
+                0.5 + 0.4 * cos(t * 0.7 + seed) * sin(t * 0.3 + seed * 1.2)
             );
             pos.x *= aspect;
             
             float dist = distance(uv, pos);
             
-            // Sharp falloff formula
-            // Reduced epsilon (0.001) makes the center of the blob much brighter/purer
-            float weight = 1.0 / (pow(dist, SHARPNESS) + 0.001);
+            // Map the radius of the blob to the square root of its ratio
+            // This isolates small ratio colors into tight, highly concentrated pockets
+            float radius = mix(0.1, 1.5, sqrt(ratio));
+            
+            // Normalize physical distance by the blob's intended radius
+            float weight = ratio / (pow(dist / radius, SHARPNESS) + 0.001);
             
             totalColor += color * weight;
             totalWeight += weight;
@@ -77,11 +82,11 @@
         
         vec3 finalColor = totalColor / (totalWeight + 0.0001);
 
-        // Boost saturation to make colors pop
+        // Subtly boost saturation
         float luminance = dot(finalColor, vec3(0.2126, 0.7152, 0.0722));
         finalColor = mix(vec3(luminance), finalColor, SATURATION);
 
-        // Subtler grain
+        // Add film grain
         float noise = (random(uv + iTime) - 0.5) * GRAIN_AMOUNT;
         finalColor += noise;
 
@@ -119,12 +124,18 @@
     gl.linkProgram(program);
 
     const vertices = new Float32Array([
-      -1, -1, 
-       1, -1, 
-      -1,  1, 
-      -1,  1, 
-       1, -1, 
-       1,  1
+      -1,
+      -1,
+      1,
+      -1,
+      -1,
+      1,
+      -1,
+      1,
+      1,
+      -1,
+      1,
+      1
     ]);
 
     const buffer = gl.createBuffer();
@@ -155,12 +166,22 @@
     gl.uniform2f(resLoc, canvasEl.width, canvasEl.height);
 
     const colorLoc = gl.getUniformLocation(program, "iColors");
+    const ratioLoc = gl.getUniformLocation(program, "iRatios");
+    
     const intColors = new Int32Array(8);
+    const floatRatios = new Float32Array(8);
+    
     for (let i = 0; i < 8; i++) {
-      const hex = colors[i] || "#000000";
+      const item = colors[i];
+      const hex = (item && item.color) ? item.color : "#000000";
+      const ratio = (item && item.ratio) ? item.ratio : 0.0;
+      
       intColors[i] = parseInt(hex.replace("#", ""), 16);
+      floatRatios[i] = ratio;
     }
+    
     gl.uniform1iv(colorLoc, intColors);
+    gl.uniform1fv(ratioLoc, floatRatios);
 
     gl.drawArrays(gl.TRIANGLES, 0, 6);
     animationFrame = requestAnimationFrame(render);
