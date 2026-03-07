@@ -163,6 +163,96 @@ pub fn resolve_cover_entropy(ctx: &AlbumContext) -> Option<Value> {
     Some(json!(buf.len()))
 }
 
+pub fn resolve_cover_palette(ctx: &AlbumContext) -> Option<Value> {
+    let img = ctx.cover_image?;
+    let k = 6;
+    let max_iters = 10;
+
+    let small = img.resize_exact(64, 64, image::imageops::FilterType::Nearest);
+
+    let pixels: Vec<[f32; 3]> = small
+        .pixels()
+        .map(|(_, _, p)| [p[0] as f32, p[1] as f32, p[2] as f32])
+        .collect();
+
+    if pixels.is_empty() {
+        return None;
+    }
+
+    let mut centroids = Vec::with_capacity(k);
+    let step = pixels.len() / k.max(1);
+    for i in 0..k {
+        centroids.push(pixels[(i * step).min(pixels.len() - 1)]);
+    }
+
+    let mut assignments = vec![0; pixels.len()];
+    let mut counts = vec![0; k];
+
+    for _ in 0..max_iters {
+        let mut changed = false;
+
+        for (i, p) in pixels.iter().enumerate() {
+            let mut min_dist = f32::MAX;
+            let mut best_k = 0;
+
+            for (j, c) in centroids.iter().enumerate() {
+                let dr = p[0] - c[0];
+                let dg = p[1] - c[1];
+                let db = p[2] - c[2];
+                let dist_sq = dr.mul_add(dr, dg.mul_add(dg, db * db));
+
+                if dist_sq < min_dist {
+                    min_dist = dist_sq;
+                    best_k = j;
+                }
+            }
+
+            if assignments[i] != best_k {
+                assignments[i] = best_k;
+                changed = true;
+            }
+        }
+
+        if !changed {
+            break;
+        }
+
+        let mut new_centroids = vec![[0.0; 3]; k];
+        counts.fill(0);
+
+        for (i, p) in pixels.iter().enumerate() {
+            let cluster = assignments[i];
+            new_centroids[cluster][0] += p[0];
+            new_centroids[cluster][1] += p[1];
+            new_centroids[cluster][2] += p[2];
+            counts[cluster] += 1;
+        }
+
+        for j in 0..k {
+            if counts[j] > 0 {
+                centroids[j][0] = new_centroids[j][0] / counts[j] as f32;
+                centroids[j][1] = new_centroids[j][1] / counts[j] as f32;
+                centroids[j][2] = new_centroids[j][2] / counts[j] as f32;
+            }
+        }
+    }
+
+    let mut cluster_data: Vec<(usize, [f32; 3])> = counts
+        .into_iter()
+        .zip(centroids)
+        .collect();
+
+    cluster_data.sort_by(|a, b| b.0.cmp(&a.0));
+
+    let hex_palette: Vec<String> = cluster_data
+        .into_iter()
+        .filter(|(count, _)| *count > 0)
+        .map(|(_, c)| format!("#{:02X}{:02X}{:02X}", c[0] as u8, c[1] as u8, c[2] as u8))
+        .collect();
+
+    Some(json!(hex_palette))
+}
+
 pub fn resolve_comment(ctx: &AlbumContext) -> String {
     if let Some(v) = ctx.source.get("comment").and_then(Value::as_str)
         && !v.is_empty()
@@ -182,7 +272,15 @@ pub fn resolve_comment(ctx: &AlbumContext) -> String {
     } else {
         ""
     };
-    [year, &country, &label, &cat]
+    
+    let parts = [
+        year,
+        &country,
+        &label,
+        &cat,
+    ];
+
+    parts
         .iter()
         .filter(|s| !s.is_empty())
         .copied()

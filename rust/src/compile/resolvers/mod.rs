@@ -24,6 +24,7 @@ pub fn resolve_album_key(key: &str, ctx: &AlbumContext) -> Option<Value> {
         "custom_albumartist" => Some(json!(native::resolve_custom_albumartist(ctx))),
         "cover_chroma" => native::resolve_cover_chroma(ctx),
         "cover_entropy" => native::resolve_cover_entropy(ctx),
+        "cover_palette" => native::resolve_cover_palette(ctx),
         _ => None,
     }
 }

@@ -40,6 +40,8 @@
           numpy
           xxhash
           httpx
+          opencv4
+          matplotlib
           (lyricsgenius ps)
         ]);
 
@@ -136,12 +138,18 @@
           clippy
           rustfmt
           cargo-deny
+          libGL
+          glib
+          gtk3
+          xorg.libX11
         ];
       in
       {
         devShells.default = pkgs.mkShell {
           buildInputs = devPackages;
           shellHook = ''
+            export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath [ pkgs.libGL pkgs.glib pkgs.gtk3 pkgs.xorg.libX11 ]}:$LD_LIBRARY_PATH"
+
             export PYTHONDONTWRITEBYTECODE=1
             export PATH="$PWD/ui/node_modules/.bin:$PATH"
           '';

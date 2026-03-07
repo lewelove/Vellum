@@ -83,7 +83,7 @@
     color: var(--text-main);
     text-align: left;
     margin: auto;
-    max-width: 600px;
+    max-width: 400px;
   }
 
   .status-msg {

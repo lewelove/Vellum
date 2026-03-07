@@ -22,6 +22,7 @@ musicbrainz_albumartistid = { level = "album" }
 musicbrainz_releasegroupid = { level = "album" }
 cover_chroma = { level = "album", sync = false }
 cover_entropy = { level = "album", sync = false }
+cover_palette = { level = "album", sync = false }
 
 lyrics = { level = "tracks" }
 accuripid = { level = "tracks" }
