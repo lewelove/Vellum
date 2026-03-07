@@ -40,12 +40,7 @@ func _create_detail_overlay():
 	detail_overlay.z_index = 10
 	
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(
-		0.1,
-		0.1,
-		0.1,
-		0.9
-	)
+	style.bg_color = Color(0.1, 0.1, 0.1, 0.9)
 	detail_overlay.add_theme_stylebox_override("panel", style)
 	
 	var vbox := VBoxContainer.new()
@@ -68,10 +63,7 @@ func _create_detail_overlay():
 
 func _create_album_card() -> PanelContainer:
 	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(
-		190,
-		250
-	)
+	panel.custom_minimum_size = Vector2(190, 250)
 	
 	var panel_style := StyleBoxEmpty.new()
 	panel.add_theme_stylebox_override("panel", panel_style)
@@ -84,10 +76,7 @@ func _create_album_card() -> PanelContainer:
 	var cover_outer := PanelContainer.new()
 	cover_outer.name = "CoverContainer"
 	cover_outer.clip_contents = false
-	cover_outer.custom_minimum_size = Vector2(
-		190,
-		190
-	)
+	cover_outer.custom_minimum_size = Vector2(190, 190)
 	
 	var cover_style := StyleBoxEmpty.new()
 	cover_outer.add_theme_stylebox_override("panel", cover_style)
@@ -96,7 +85,7 @@ func _create_album_card() -> PanelContainer:
 	cover_rect.name = "CoverRect"
 	cover_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	cover_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-	cover_rect.texture_filter = TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	cover_rect.texture_filter = TEXTURE_FILTER_LINEAR
 	cover_rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	
 	var text_container := VBoxContainer.new()
@@ -129,5 +118,4 @@ func _create_album_card() -> PanelContainer:
 	panel.add_child(vbox)
 	
 	panel.set_script(load("res://scripts/AlbumCard.gd"))
-	
 	return panel

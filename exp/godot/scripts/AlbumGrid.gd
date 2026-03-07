@@ -7,31 +7,31 @@ var albums: Array = []
 var rows_pool: Dictionary = {}
 var active_rows: Dictionary = {}
 
-@onready var content_node = Control.new()
+@onready var viewport_container = SubViewportContainer.new()
+@onready var viewport = SubViewport.new()
+@onready var grid_root = Control.new()
 
 func _ready():
-	clip_contents = false
-	content_node.name = "Content"
-	content_node.clip_contents = false
-	add_child(content_node)
+	clip_contents = true
+	
+	viewport_container.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	viewport_container.stretch = false
+	viewport_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	viewport_container.texture_filter = TEXTURE_FILTER_LINEAR
+	add_child(viewport_container)
+	
+	viewport.transparent_bg = true
+	viewport.gui_snap_controls_to_pixels = false
+	viewport.msaa_2d = Viewport.MSAA_4X
+	viewport.canvas_item_default_texture_filter = Viewport.DEFAULT_CANVAS_ITEM_TEXTURE_FILTER_LINEAR
+	viewport_container.add_child(viewport)
+	
+	grid_root.name = "GridRoot"
+	grid_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	viewport.add_child(grid_root)
+	
 	set_process_unhandled_input(true)
 	scroll.dpr = DisplayServer.screen_get_max_scale()
-	
-	var shader = Shader.new()
-	shader.code = """
-		shader_type canvas_item;
-		uniform vec4 clip_rect;
-		void fragment() {
-			vec2 pos = FRAGCOORD.xy;
-			if (pos.x < clip_rect.x || pos.y < clip_rect.y || 
-				pos.x > clip_rect.x + clip_rect.z || pos.y > clip_rect.y + clip_rect.w) {
-				discard;
-			}
-		}
-	"""
-	var mat = ShaderMaterial.new()
-	mat.shader = shader
-	content_node.material = mat
 
 func setup(data: Array):
 	albums = data
@@ -41,18 +41,22 @@ func _process(delta):
 	if albums.is_empty():
 		return
 		
+	var dpr = scroll.dpr
+	var target_viewport_size = Vector2i(size * dpr)
+	
+	if viewport.size != target_viewport_size:
+		viewport.size = target_viewport_size
+		viewport_container.scale = Vector2(1.0 / dpr, 1.0 / dpr)
+		
 	layout.container_width = size.x
 	var row_count = int(ceil(float(albums.size()) / layout.cols))
 	var max_slots = max(0.0, float(row_count) - (size.y / layout.row_height))
 	
 	scroll.update(delta, layout.row_height)
 	
-	content_node.position.y = -scroll.current_y
-	content_node.position.x = (size.x - layout.grid_width) / 2.0
-	
-	var g_pos = get_global_position()
-	var g_size = get_size()
-	content_node.material.set_shader_parameter("clip_rect", Vector4(g_pos.x, g_pos.y, g_size.x, g_size.y))
+	var x_offset = (size.x - layout.grid_width) / 2.0
+	var offset = Vector2(x_offset, -scroll.current_y) * dpr
+	viewport.canvas_transform = Transform2D(0.0, Vector2(dpr, dpr), 0.0, offset)
 	
 	_update_virtual_rows(row_count)
 
@@ -81,11 +85,9 @@ func _update_virtual_rows(row_count: int):
 func _get_row_from_pool() -> HBoxContainer:
 	if rows_pool.is_empty():
 		var row = HBoxContainer.new()
-		row.add_theme_constant_override(
-			"separation",
-			int(layout.gap_x)
-		)
-		content_node.add_child(row)
+		row.add_theme_constant_override("separation", int(layout.gap_x))
+		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		grid_root.add_child(row)
 		return row
 	var row = rows_pool.keys()[0]
 	rows_pool.erase(row)
@@ -117,36 +119,20 @@ func _gui_input(event):
 	if event is InputEventMouseButton:
 		var row_count = int(ceil(float(albums.size()) / layout.cols))
 		var max_slots = max(0.0, float(row_count) - (size.y / layout.row_height))
-		
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
-			scroll.handle_wheel(
-				-40.0,
-				max_slots
-			)
+			scroll.handle_wheel(-40.0, max_slots)
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			scroll.handle_wheel(
-				40.0,
-				max_slots
-			)
+			scroll.handle_wheel(40.0, max_slots)
 
 func _unhandled_input(event):
 	if event is InputEventKey and event.pressed:
 		var row_count = int(ceil(float(albums.size()) / layout.cols))
 		var max_slots = max(0.0, float(row_count) - (size.y / layout.row_height))
-		
 		match event.keycode:
 			KEY_J, KEY_DOWN:
-				scroll.target_slot = clamp(
-					scroll.target_slot + 1.0,
-					0,
-					max_slots
-				)
+				scroll.target_slot = clamp(scroll.target_slot + 1.0, 0, max_slots)
 			KEY_K, KEY_UP:
-				scroll.target_slot = clamp(
-					scroll.target_slot - 1.0,
-					0,
-					max_slots
-				)
+				scroll.target_slot = clamp(scroll.target_slot - 1.0, 0, max_slots)
 
 func _refresh_grid():
 	for idx in active_rows.keys():
