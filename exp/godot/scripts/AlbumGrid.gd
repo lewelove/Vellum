@@ -7,29 +7,13 @@ var albums: Array = []
 var rows_pool: Dictionary = {}
 var active_rows: Dictionary = {}
 
-@onready var viewport_container = SubViewportContainer.new()
-@onready var viewport = SubViewport.new()
 @onready var grid_root = Control.new()
 
 func _ready():
-	clip_contents = true
-	
-	viewport_container.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	viewport_container.stretch = false
-	viewport_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	viewport_container.texture_filter = TEXTURE_FILTER_LINEAR
-	add_child(viewport_container)
-	
-	viewport.transparent_bg = true
-	viewport.gui_snap_controls_to_pixels = false
-	viewport.msaa_2d = Viewport.MSAA_4X
-	viewport.canvas_item_default_texture_filter = Viewport.DEFAULT_CANVAS_ITEM_TEXTURE_FILTER_LINEAR
-	viewport_container.add_child(viewport)
-	
+	clip_contents = false
 	grid_root.name = "GridRoot"
-	grid_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	viewport.add_child(grid_root)
-	
+	grid_root.clip_contents = false
+	add_child(grid_root)
 	set_process_unhandled_input(true)
 	scroll.dpr = DisplayServer.screen_get_max_scale()
 
@@ -41,13 +25,6 @@ func _process(delta):
 	if albums.is_empty():
 		return
 		
-	var dpr = scroll.dpr
-	var target_viewport_size = Vector2i(size * dpr)
-	
-	if viewport.size != target_viewport_size:
-		viewport.size = target_viewport_size
-		viewport_container.scale = Vector2(1.0 / dpr, 1.0 / dpr)
-		
 	layout.container_width = size.x
 	var row_count = int(ceil(float(albums.size()) / layout.cols))
 	var max_slots = max(0.0, float(row_count) - (size.y / layout.row_height))
@@ -55,8 +32,7 @@ func _process(delta):
 	scroll.update(delta, layout.row_height)
 	
 	var x_offset = (size.x - layout.grid_width) / 2.0
-	var offset = Vector2(x_offset, -scroll.current_y) * dpr
-	viewport.canvas_transform = Transform2D(0.0, Vector2(dpr, dpr), 0.0, offset)
+	grid_root.position = Vector2(x_offset, -scroll.current_y)
 	
 	_update_virtual_rows(row_count)
 
@@ -86,7 +62,6 @@ func _get_row_from_pool() -> HBoxContainer:
 	if rows_pool.is_empty():
 		var row = HBoxContainer.new()
 		row.add_theme_constant_override("separation", int(layout.gap_x))
-		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		grid_root.add_child(row)
 		return row
 	var row = rows_pool.keys()[0]
@@ -130,9 +105,9 @@ func _unhandled_input(event):
 		var max_slots = max(0.0, float(row_count) - (size.y / layout.row_height))
 		match event.keycode:
 			KEY_J, KEY_DOWN:
-				scroll.target_slot = clamp(scroll.target_slot + 1.0, 0, max_slots)
+				scroll.target_slot = clamp(scroll.target_slot + 1.0, 0.0, max_slots)
 			KEY_K, KEY_UP:
-				scroll.target_slot = clamp(scroll.target_slot - 1.0, 0, max_slots)
+				scroll.target_slot = clamp(scroll.target_slot - 1.0, 0.0, max_slots)
 
 func _refresh_grid():
 	for idx in active_rows.keys():
@@ -140,4 +115,4 @@ func _refresh_grid():
 		row.hide()
 		rows_pool[row] = true
 	active_rows.clear()
-	scroll.sync_to_slot(0)
+	scroll.sync_to_slot(0.0)

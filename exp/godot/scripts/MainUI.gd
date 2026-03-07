@@ -85,7 +85,7 @@ func _create_album_card() -> PanelContainer:
 	cover_rect.name = "CoverRect"
 	cover_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	cover_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-	cover_rect.texture_filter = TEXTURE_FILTER_LINEAR
+	cover_rect.texture_filter = TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	cover_rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	
 	var text_container := VBoxContainer.new()

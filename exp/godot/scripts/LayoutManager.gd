@@ -15,7 +15,7 @@ var row_height: float:
 
 var cols: int:
 	get:
-		return int(max(1, floor((container_width - 40 + gap_x) / (card_size + gap_x))))
+		return int(max(1.0, floor((container_width - 40.0 + gap_x) / (card_size + gap_x))))
 
 var grid_width: float:
 	get:

@@ -23,6 +23,7 @@ func load_album_cover(cover_hash: String, _size: int, target_rect: TextureRect):
 
 	var image = Image.load_from_file(full_path)
 	if image:
+		image.generate_mipmaps()
 		var texture = ImageTexture.create_from_image(image)
 		cache[cover_hash] = texture
 		target_rect.texture = texture

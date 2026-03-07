@@ -32,3 +32,4 @@ common/snap_controls_to_pixels=false
 
 rendering_device/driver.windows="d3d12"
 renderer/rendering_method="mobile"
+textures/default_filters/use_nearest_mipmap_filter=true
