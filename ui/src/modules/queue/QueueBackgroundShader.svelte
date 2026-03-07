@@ -31,9 +31,10 @@
 
     out vec4 fragColor;
 
-    const float SPEED = 0.04;
+    const float SPEED = 0.03;
     const float SATURATION = 1.0;
-    const float GRAIN_AMOUNT = 0.02;
+    const float GRAIN_AMOUNT = 0.015;
+    const float BLEND_SOFTNESS = 0.08;
 
     vec3 hexToRgb(int hex) {
         float r = float((hex >> 16) & 0xFF) / 255.0;
@@ -58,45 +59,46 @@
         float dBox = max(abs(diff.x), abs(diff.y));
         float cRad = (iCoverSize / iResolution.y) * 0.5;
         
-        float repel = smoothstep(cRad + 0.3, cRad - 0.1, dBox);
+        float repel = smoothstep(cRad + 0.4, cRad - 0.2, dBox);
         vec2 normDiff = diff / (length(diff) + 0.0001);
-        vec2 p = uv + normDiff * repel * 0.25;
+        vec2 p = uv + normDiff * repel * 0.35;
         
-        p *= 3.0;
+        p *= 2.2;
         
         for(float i = 1.0; i < 5.0; i++) {
             vec2 newp = p;
-            newp.x += 0.5 / i * cos(i * 2.5 * p.y + t * 1.2);
-            newp.y += 0.5 / i * sin(i * 1.5 * p.x - t * 1.1);
+            newp.x += 0.6 / i * cos(i * 1.8 * p.y + t * 1.5);
+            newp.y += 0.6 / i * sin(i * 1.2 * p.x - t * 1.3);
             p = newp;
         }
-        
-        vec3 totalColor = vec3(0.0);
+
+        float noiseVal = sin(p.x * 0.45 + p.y * 0.35 + t * 0.5) * 0.5 + 0.5;
+
+        float totalRatio = 0.0;
+        for(int i = 0; i < 8; i++) {
+            totalRatio += iRatios[i];
+        }
+
+        vec3 finalColor = vec3(0.0);
+        float currentStart = 0.0;
         float totalWeight = 0.0;
-        
+
         for (int i = 0; i < 8; i++) {
             if (iRatios[i] <= 0.0) continue;
             
-            vec3 color = hexToRgb(iColors[i]);
-            float ratio = iRatios[i];
+            float normRatio = iRatios[i] / totalRatio;
+            float currentEnd = currentStart + normRatio;
             
-            float seed = (float(i) * 7.312) + iRandom;
+            float weight = smoothstep(currentStart - BLEND_SOFTNESS, currentStart + BLEND_SOFTNESS, noiseVal) * 
+                           (1.0 - smoothstep(currentEnd - BLEND_SOFTNESS, currentEnd + BLEND_SOFTNESS, noiseVal));
             
-            vec2 dir = vec2(cos(seed), sin(seed));
-            float proj = dot(p, dir);
-            
-            float wave = sin(proj * 1.5 + seed + t);
-            wave = wave * 0.5 + 0.5; 
-            
-            float sharp = mix(50.0, 1.0, pow(ratio, 0.3));
-            
-            float weight = pow(wave, sharp) * mix(0.5, 1.5, ratio);
-            
-            totalColor += color * weight;
+            finalColor += hexToRgb(iColors[i]) * weight;
             totalWeight += weight;
+            
+            currentStart = currentEnd;
         }
-        
-        vec3 finalColor = totalColor / (totalWeight + 0.0001);
+
+        finalColor /= (totalWeight + 0.00001);
 
         float luminance = dot(finalColor, vec3(0.2126, 0.7152, 0.0722));
         finalColor = mix(vec3(luminance), finalColor, SATURATION);
