@@ -10,11 +10,28 @@ var active_rows: Dictionary = {}
 @onready var content_node = Control.new()
 
 func _ready():
-	clip_contents = true
+	clip_contents = false
 	content_node.name = "Content"
+	content_node.clip_contents = false
 	add_child(content_node)
 	set_process_unhandled_input(true)
 	scroll.dpr = DisplayServer.screen_get_max_scale()
+	
+	var shader = Shader.new()
+	shader.code = """
+		shader_type canvas_item;
+		uniform vec4 clip_rect;
+		void fragment() {
+			vec2 pos = FRAGCOORD.xy;
+			if (pos.x < clip_rect.x || pos.y < clip_rect.y || 
+				pos.x > clip_rect.x + clip_rect.z || pos.y > clip_rect.y + clip_rect.w) {
+				discard;
+			}
+		}
+	"""
+	var mat = ShaderMaterial.new()
+	mat.shader = shader
+	content_node.material = mat
 
 func setup(data: Array):
 	albums = data
@@ -26,15 +43,16 @@ func _process(delta):
 		
 	layout.container_width = size.x
 	var row_count = int(ceil(float(albums.size()) / layout.cols))
-	var max_slots = max(0, row_count - (size.y / layout.row_height))
+	var max_slots = max(0.0, float(row_count) - (size.y / layout.row_height))
 	
 	scroll.update(delta, layout.row_height)
 	
-	var render_y = floor(scroll.current_y * scroll.dpr) / scroll.dpr
-	content_node.position.y = -render_y
+	content_node.position.y = -scroll.current_y
+	content_node.position.x = (size.x - layout.grid_width) / 2.0
 	
-	var render_x = floor(((size.x - layout.grid_width) / 2.0) * scroll.dpr) / scroll.dpr
-	content_node.position.x = render_x
+	var g_pos = get_global_position()
+	var g_size = get_size()
+	content_node.material.set_shader_parameter("clip_rect", Vector4(g_pos.x, g_pos.y, g_size.x, g_size.y))
 	
 	_update_virtual_rows(row_count)
 
@@ -98,34 +116,34 @@ func _create_card_instance() -> PanelContainer:
 func _gui_input(event):
 	if event is InputEventMouseButton:
 		var row_count = int(ceil(float(albums.size()) / layout.cols))
-		var max_slots = max(0, row_count - (size.y / layout.row_height))
+		var max_slots = max(0.0, float(row_count) - (size.y / layout.row_height))
 		
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
 			scroll.handle_wheel(
-				-40,
+				-40.0,
 				max_slots
 			)
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 			scroll.handle_wheel(
-				40,
+				40.0,
 				max_slots
 			)
 
 func _unhandled_input(event):
 	if event is InputEventKey and event.pressed:
 		var row_count = int(ceil(float(albums.size()) / layout.cols))
-		var max_slots = max(0, row_count - (size.y / layout.row_height))
+		var max_slots = max(0.0, float(row_count) - (size.y / layout.row_height))
 		
 		match event.keycode:
 			KEY_J, KEY_DOWN:
 				scroll.target_slot = clamp(
-					scroll.target_slot + 1,
+					scroll.target_slot + 1.0,
 					0,
 					max_slots
 				)
 			KEY_K, KEY_UP:
 				scroll.target_slot = clamp(
-					scroll.target_slot - 1,
+					scroll.target_slot - 1.0,
 					0,
 					max_slots
 				)

@@ -9,7 +9,6 @@ func _ready():
 		home = OS.get_environment("USERPROFILE")
 	
 	thumb_base_dir = home.path_join(".vellum/thumbnails/190px")
-	print("ImageLoader: Base directory set to: ", thumb_base_dir)
 
 func load_album_cover(cover_hash: String, _size: int, target_rect: TextureRect):
 	if cover_hash.is_empty():
@@ -22,15 +21,20 @@ func load_album_cover(cover_hash: String, _size: int, target_rect: TextureRect):
 	var full_path = thumb_base_dir.path_join(cover_hash + ".png")
 
 	if not FileAccess.file_exists(full_path):
-		printerr("ImageLoader: File not found at path: ", full_path)
 		return
 
-	var image = Image.load_from_file(full_path)
+	var raw_image = Image.load_from_file(full_path)
 	
-	if image:
-		var texture = ImageTexture.create_from_image(image)
+	if raw_image:
+		var w = raw_image.get_width()
+		var h = raw_image.get_height()
+		
+		var padded = Image.create(w + 2, h + 2, false, raw_image.get_format())
+		padded.fill(Color(0, 0, 0, 0))
+		padded.blit_rect(raw_image, Rect2i(0, 0, w, h), Vector2i(1, 1))
+		
+		padded.generate_mipmaps()
+		
+		var texture = ImageTexture.create_from_image(padded)
 		cache[cover_hash] = texture
 		target_rect.texture = texture
-		print("ImageLoader: Successfully loaded: ", cover_hash)
-	else:
-		printerr("ImageLoader: Failed to parse image data at: ", full_path)

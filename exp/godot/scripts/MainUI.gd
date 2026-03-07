@@ -83,32 +83,21 @@ func _create_album_card() -> PanelContainer:
 	
 	var cover_outer := PanelContainer.new()
 	cover_outer.name = "CoverContainer"
+	cover_outer.clip_contents = false
 	cover_outer.custom_minimum_size = Vector2(
 		190,
 		190
 	)
 	
-	var cover_style := StyleBoxFlat.new()
-	cover_style.bg_color = Color("#242424")
-	cover_style.shadow_color = Color(
-		0,
-		0,
-		0,
-		0.3
-	)
-	cover_style.shadow_size = 8
-	cover_style.shadow_offset = Vector2(
-		0,
-		4
-	)
+	var cover_style := StyleBoxEmpty.new()
 	cover_outer.add_theme_stylebox_override("panel", cover_style)
 	
 	var cover_rect := TextureRect.new()
 	cover_rect.name = "CoverRect"
 	cover_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	cover_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-	cover_rect.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	cover_rect.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	cover_rect.texture_filter = TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	cover_rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	
 	var text_container := VBoxContainer.new()
 	text_container.name = "TextContainer"

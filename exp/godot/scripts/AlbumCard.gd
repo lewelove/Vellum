@@ -18,8 +18,8 @@ func _ready():
 	_is_ready = true
 	mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	gui_input.connect(_on_gui_input)
-	mouse_entered.connect(_on_mouse_entered)
-	mouse_exited.connect(_on_mouse_exited)
+	# mouse_entered.connect(_on_mouse_entered)
+	# mouse_exited.connect(_on_mouse_exited)
 	
 	if not album_data.is_empty():
 		_update_ui()
@@ -41,20 +41,20 @@ func _on_gui_input(event: InputEvent):
 		if event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
 			clicked.emit(album_data)
 
-func _on_mouse_entered():
-	var tween := create_tween()
-	tween.tween_property(
-		self,
-		"modulate",
-		Color(1.2, 1.2, 1.2),
-		0.1
-	)
+# func _on_mouse_entered():
+# 	var tween := create_tween()
+# 	tween.tween_property(
+# 		self,
+# 		"modulate",
+# 		Color(1.2, 1.2, 1.2),
+# 		0.1
+# 	)
 
-func _on_mouse_exited():
-	var tween := create_tween()
-	tween.tween_property(
-		self,
-		"modulate",
-		Color(1, 1, 1),
-		0.1
-	)
+# func _on_mouse_exited():
+# 	var tween := create_tween()
+# 	tween.tween_property(
+# 		self,
+# 		"modulate",
+# 		Color(1, 1, 1),
+# 		0.1
+# 	)

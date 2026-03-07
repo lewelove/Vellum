@@ -7,16 +7,17 @@ var damping: float = 0.18
 var threshold: float = 40.0
 var dpr: float = 1.0
 
-func update(delta_time: float, row_height: float):
+func update(delta: float, row_height: float):
 	var ideal_target_y = target_slot * row_height
 	var snapped_target_y = round(ideal_target_y * dpr) / dpr
-	var diff = snapped_target_y - current_y
-	var velocity = diff * (1.0 - pow(1.0 - damping, delta_time * 60.0))
 	
-	if abs(diff) < (0.05 / dpr):
+	var weight = 1.0 - pow(1.0 - damping, delta * 60.0)
+	var diff = snapped_target_y - current_y
+	
+	if abs(diff) < 0.0001:
 		current_y = snapped_target_y
 	else:
-		current_y += velocity
+		current_y = lerp(current_y, snapped_target_y, weight)
 
 func handle_wheel(delta_y: float, max_slots: float):
 	wheel_accumulator += delta_y
