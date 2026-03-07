@@ -9,6 +9,7 @@
   let program;
   let animationFrame;
   let startTime;
+  let randomOffset = Math.random() * 1000.0;
 
   const vertexShaderSource = `#version 300 es
     in vec2 position;
@@ -22,6 +23,7 @@
     precision highp int;
 
     uniform float iTime;
+    uniform float iRandom;
     uniform vec2 iResolution;
     uniform float iCoverSize;
     uniform int iColors[8];
@@ -29,7 +31,7 @@
 
     out vec4 fragColor;
 
-    const float SPEED = 0.08;
+    const float SPEED = 0.04;
     const float SATURATION = 1.0;
     const float GRAIN_AMOUNT = 0.02;
 
@@ -49,7 +51,7 @@
         float aspect = iResolution.x / iResolution.y;
         uv.x *= aspect;
         
-        float t = iTime * SPEED;
+        float t = (iTime + iRandom) * SPEED;
         
         vec2 center = vec2(0.5 * aspect, 0.5);
         vec2 diff = uv - center;
@@ -78,7 +80,7 @@
             vec3 color = hexToRgb(iColors[i]);
             float ratio = iRatios[i];
             
-            float seed = float(i) * 7.312;
+            float seed = (float(i) * 7.312) + iRandom;
             
             vec2 dir = vec2(cos(seed), sin(seed));
             float proj = dot(p, dir);
@@ -86,7 +88,7 @@
             float wave = sin(proj * 1.5 + seed + t);
             wave = wave * 0.5 + 0.5; 
             
-            float sharp = mix(60.0, 1.0, pow(ratio, 0.3));
+            float sharp = mix(50.0, 1.0, pow(ratio, 0.3));
             
             float weight = pow(wave, sharp) * mix(0.5, 1.5, ratio);
             
@@ -172,6 +174,9 @@
 
     const timeLoc = gl.getUniformLocation(program, "iTime");
     gl.uniform1f(timeLoc, elapsed);
+
+    const randomLoc = gl.getUniformLocation(program, "iRandom");
+    gl.uniform1f(randomLoc, randomOffset);
 
     const resLoc = gl.getUniformLocation(program, "iResolution");
     gl.uniform2f(resLoc, canvasEl.width, canvasEl.height);
