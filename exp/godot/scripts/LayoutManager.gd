@@ -9,9 +9,9 @@ var line_height_title: float = 16.0
 var line_height_artist: float = 14.0
 var text_gap_lesser: float = 2.0
 
-var row_height: float:
+var row_height: int:
 	get:
-		return gap_y + card_size + text_gap + line_height_title + text_gap_lesser + line_height_artist
+		return int(gap_y + card_size + text_gap + line_height_title + text_gap_lesser + line_height_artist)
 
 var cols: int:
 	get:
@@ -22,7 +22,7 @@ var grid_width: float:
 		return (cols * card_size) + ((cols - 1) * gap_x)
 
 func get_row_y(index: int) -> float:
-	return index * row_height
+	return float(index * row_height)
 
 func get_visible_indices(scroll_y: float, viewport_height: float, row_count: int) -> Dictionary:
 	var buffer = 2

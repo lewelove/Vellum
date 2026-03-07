@@ -14,6 +14,7 @@ func _ready():
 	content_node.name = "Content"
 	add_child(content_node)
 	set_process_unhandled_input(true)
+	scroll.dpr = DisplayServer.screen_get_max_scale()
 
 func setup(data: Array):
 	albums = data
@@ -29,8 +30,11 @@ func _process(delta):
 	
 	scroll.update(delta, layout.row_height)
 	
-	content_node.position.y = -scroll.current_y
-	content_node.position.x = floor((size.x - layout.grid_width) / 2.0)
+	var render_y = floor(scroll.current_y * scroll.dpr) / scroll.dpr
+	content_node.position.y = -render_y
+	
+	var render_x = floor(((size.x - layout.grid_width) / 2.0) * scroll.dpr) / scroll.dpr
+	content_node.position.x = render_x
 	
 	_update_virtual_rows(row_count)
 
