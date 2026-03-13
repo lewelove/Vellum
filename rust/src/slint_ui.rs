@@ -8,14 +8,14 @@ use cosmic_text::{Attrs, Buffer, Family, Metrics, Shaping, Wrap, Weight};
 use tiny_skia::{Pixmap, Color};
 
 slint::slint! {
-    struct Album {
+    export struct Album {
         id: string,
         cover: image,
         text_blob: image,
         active: bool,
     }
 
-    struct AlbumRow {
+    export struct AlbumRow {
         index: int,
         data: [Album],
     }
@@ -206,6 +206,12 @@ fn truncate_with_ellipsis(
     String::new()
 }
 
+fn blend_channel(src_lin: f32, dst_lin: f32, mask: u8) -> u8 {
+    let alpha = mask as f32 / 255.0;
+    let out_lin = src_lin * alpha + dst_lin * (1.0 - alpha);
+    (out_lin.powf(1.0 / 2.2) * 255.0).round() as u8
+}
+
 fn render_text_blob(
     title: &str,
     artist: &str,
@@ -213,14 +219,18 @@ fn render_text_blob(
     swash_cache: &mut cosmic_text::SwashCache,
     scale: f32,
 ) -> Pixmap {
-    let width = (190.0 * scale) as u32;
-    let height = (32.0 * scale) as u32;
+    let width = (190.0 * scale).round() as u32;
+    let height = (32.0 * scale).round() as u32;
     let mut pixmap = Pixmap::new(width, height).unwrap();
     
-    let bg_color = [50.0 / 255.0, 50.0 / 255.0, 50.0 / 255.0];
+    let gamma: f32 = 2.2;
+    let bg_color: [f32; 3] = [50.0 / 255.0, 50.0 / 255.0, 50.0 / 255.0];
+    let bg_lin: [f32; 3] = [bg_color[0].powf(gamma), bg_color[1].powf(gamma), bg_color[2].powf(gamma)];
+    
     pixmap.fill(Color::from_rgba(bg_color[0], bg_color[1], bg_color[2], 1.0).unwrap());
 
     let mut render_line = |text: &str, y_off: f32, size: f32, weight: Weight, color: [f32; 3]| {
+        let src_lin: [f32; 3] = [color[0].powf(gamma), color[1].powf(gamma), color[2].powf(gamma)];
         let attrs = Attrs::new().family(Family::Name("Inter")).weight(weight);
         let metrics = Metrics::new(size * scale, (size + 3.0) * scale);
         
@@ -240,36 +250,33 @@ fn render_text_blob(
                     let y_start = physical_glyph.y - image.placement.top;
 
                     let data = pixmap.data_mut();
-                    let is_subpixel = matches!(image.content, cosmic_text::SwashContent::SubpixelMask);
-
+                    
                     for row in 0..image.placement.height as i32 {
                         for col in 0..image.placement.width as i32 {
                             let px = x_start + col;
                             let py = y_start + row;
                             if px < 0 || px >= width as i32 || py < 0 || py >= height as i32 { continue; }
 
-                            let (mask_r, mask_g, mask_b) = if is_subpixel {
-                                let idx = (row as usize * image.placement.width as usize + col as usize) * 3;
-                                (image.data[idx], image.data[idx+1], image.data[idx+2])
-                            } else {
-                                let idx = row as usize * image.placement.width as usize + col as usize;
-                                let a = image.data[idx];
-                                (a, a, a)
-                            };
-
                             let idx = (py as usize * width as usize + px as usize) * 4;
-                            
-                            let blend = |c_src: f32, c_bg: f32, mask: u8| -> u8 {
-                                let alpha = (mask as f32 / 255.0) * 1.3; 
-                                let alpha = alpha.min(1.0);
-                                let out = c_src.powf(2.2) * alpha + c_bg.powf(2.2) * (1.0 - alpha);
-                                (out.powf(1.0 / 2.2) * 255.0).round() as u8
-                            };
+                            let mask_idx = row as usize * image.placement.width as usize + col as usize;
 
-                            data[idx] = blend(color[0], bg_color[0], mask_r);
-                            data[idx+1] = blend(color[1], bg_color[1], mask_g);
-                            data[idx+2] = blend(color[2], bg_color[2], mask_b);
-                            data[idx+3] = 255;
+                            match image.content {
+                                cosmic_text::SwashContent::SubpixelMask => {
+                                    let m_idx = mask_idx * 3;
+                                    data[idx] = blend_channel(src_lin[0], bg_lin[0], image.data[m_idx]);
+                                    data[idx+1] = blend_channel(src_lin[1], bg_lin[1], image.data[m_idx+1]);
+                                    data[idx+2] = blend_channel(src_lin[2], bg_lin[2], image.data[m_idx+2]);
+                                    data[idx+3] = 255;
+                                }
+                                cosmic_text::SwashContent::Mask => {
+                                    let m = image.data[mask_idx];
+                                    data[idx] = blend_channel(src_lin[0], bg_lin[0], m);
+                                    data[idx+1] = blend_channel(src_lin[1], bg_lin[1], m);
+                                    data[idx+2] = blend_channel(src_lin[2], bg_lin[2], m);
+                                    data[idx+3] = 255;
+                                }
+                                _ => {}
+                            }
                         }
                     }
                 }
@@ -292,11 +299,13 @@ pub fn run() -> anyhow::Result<()> {
     let mut library = Library::new(library_root.clone());
     library.scan();
 
+    let ui = AppWindow::new().unwrap();
+    let scale_factor = ui.window().scale_factor();
+
     let mut root_db = cosmic_text::fontdb::Database::new();
     root_db.load_system_fonts();
-    let scale_factor = 2.0;
 
-    log::info!("Generating Opaque Subpixel AA Text Blobs (DPR: {})...", scale_factor);
+    log::info!("Generating LCD-Optimized Text Blobs (Scale: {})...", scale_factor);
 
     let album_data_vec: Vec<_> = library.albums.par_iter().map_init(
         || {
@@ -325,7 +334,6 @@ pub fn run() -> anyhow::Result<()> {
         Album { id: SharedString::from(&id), cover, text_blob: slint::Image::from_rgba8(buffer), active: false }
     }).collect();
 
-    let ui = AppWindow::new().unwrap();
     const POOL_SIZE: usize = 18;
     let physical_model = Rc::new(VecModel::from((0..POOL_SIZE).map(|_| AlbumRow { index: -1, data: Rc::new(VecModel::default()).into() }).collect::<Vec<_>>()));
     ui.set_virtual_rows(physical_model.clone().into());
