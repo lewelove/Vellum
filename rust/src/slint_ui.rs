@@ -68,14 +68,13 @@ slint::slint! {
                 height: 32px;
                 clip: true;
                 opacity: root.text_opacity;
-                background: #323232;
 
                 Image {
                     source: root.album.text_blob;
                     y: -root.clip-amount;
                     width: 190px;
                     height: 32px;
-                    image-fit: fill;
+                    image-fit: contain;
                 }
             }
         }
@@ -207,10 +206,18 @@ fn truncate_with_ellipsis(
     String::new()
 }
 
-fn blend_channel(src_lin: f32, dst_lin: f32, mask: u8) -> u8 {
+fn srgb_to_linear(c: f32) -> f32 {
+    c.powf(2.2)
+}
+
+fn linear_to_srgb(c: f32) -> f32 {
+    c.powf(1.0 / 2.2)
+}
+
+fn blend_subpixel(src_lin: f32, dst_lin: f32, mask: u8) -> u8 {
     let alpha = mask as f32 / 255.0;
     let out_lin = src_lin * alpha + dst_lin * (1.0 - alpha);
-    (out_lin.powf(1.0 / 2.2) * 255.0).round() as u8
+    (linear_to_srgb(out_lin.clamp(0.0, 1.0)) * 255.0).round() as u8
 }
 
 fn subpixel_bin_to_float(bin: SubpixelBin) -> f32 {
@@ -233,28 +240,35 @@ fn render_text_blob(
     let height = (32.0 * scale).round() as u32;
     let mut pixmap = Pixmap::new(width, height).unwrap();
     
-    let gamma: f32 = 2.2;
-    let bg_color: [f32; 3] = [50.0 / 255.0, 50.0 / 255.0, 50.0 / 255.0];
-    let bg_lin: [f32; 3] = [bg_color[0].powf(gamma), bg_color[1].powf(gamma), bg_color[2].powf(gamma)];
+    let bg_color_srgb: [f32; 3] = [50.0 / 255.0, 50.0 / 255.0, 50.0 / 255.0];
+    let bg_lin: [f32; 3] = [
+        srgb_to_linear(bg_color_srgb[0]),
+        srgb_to_linear(bg_color_srgb[1]),
+        srgb_to_linear(bg_color_srgb[2])
+    ];
     
-    pixmap.fill(Color::from_rgba(bg_color[0], bg_color[1], bg_color[2], 1.0).unwrap());
+    pixmap.fill(Color::from_rgba(bg_color_srgb[0], bg_color_srgb[1], bg_color_srgb[2], 1.0).unwrap());
 
-    let mut render_line = |text: &str, y_off: f32, size: f32, weight: Weight, color: [f32; 3]| {
-        let src_lin: [f32; 3] = [color[0].powf(gamma), color[1].powf(gamma), color[2].powf(gamma)];
+    let mut render_line = |text: &str, baseline_y: f32, size: f32, weight: Weight, color: [f32; 3]| {
+        let src_lin: [f32; 3] = [
+            srgb_to_linear(color[0]),
+            srgb_to_linear(color[1]),
+            srgb_to_linear(color[2])
+        ];
         let attrs = Attrs::new().family(Family::Name("Inter")).weight(weight);
         let metrics = Metrics::new(size * scale, (size + 3.0) * scale);
         
-        let truncated = truncate_with_ellipsis(text, font_system, metrics, width as f32, &attrs);
+        let truncated = truncate_with_ellipsis(text, font_system, metrics, (190.0 * scale) as f32, &attrs);
         
         let mut buffer = Buffer::new(font_system, metrics);
-        buffer.set_size(font_system, Some(width as f32), Some(height as f32));
+        buffer.set_size(font_system, Some((190.0 * scale) as f32), Some((32.0 * scale) as f32));
         buffer.set_wrap(font_system, Wrap::None);
         buffer.set_text(font_system, &truncated, &attrs, Shaping::Advanced, None);
         buffer.shape_until_scroll(font_system, false);
 
         for run in buffer.layout_runs() {
             for glyph in run.glyphs.iter() {
-                let physical_glyph = glyph.physical((0.0, y_off), scale);
+                let physical_glyph = glyph.physical((0.0, baseline_y * scale), scale);
                 let face_id = physical_glyph.cache_key.font_id;
                 
                 font_system.db().with_face_data(face_id, |data, face_index| {
@@ -274,11 +288,12 @@ fn render_text_blob(
                         Source::Outline,
                     ]);
                     
+                    renderer.format(swash::zeno::Format::Subpixel);
                     renderer.offset(swash::zeno::Vector::new(x_fract, y_fract));
 
                     if let Some(image) = renderer.render(&mut scaler, physical_glyph.cache_key.glyph_id) {
                         let x_start = physical_glyph.x + image.placement.left;
-                        let y_start = (run.line_y * scale).round() as i32 + (y_off * scale).round() as i32 - image.placement.top;
+                        let y_start = physical_glyph.y - image.placement.top;
 
                         let data_ptr = pixmap.data_mut();
                         let mask_w = image.placement.width as i32;
@@ -294,27 +309,17 @@ fn render_text_blob(
                                 
                                 match image.content {
                                     Content::SubpixelMask => {
-                                        let filter = |c: i32, channel: usize| -> u8 {
-                                            let get_val = |offset_c: i32| -> u32 {
-                                                let target_col = col + offset_c;
-                                                if target_col < 0 || target_col >= mask_w { return 0; }
-                                                let idx = (row as usize * mask_w as usize + target_col as usize) * 3;
-                                                image.data[idx + channel] as u32
-                                            };
-                                            ((get_val(-1) + 2 * get_val(0) + get_val(1)) / 4) as u8
-                                        };
-
-                                        data_ptr[pixel_idx] = blend_channel(src_lin[0], bg_lin[0], filter(0, 0));
-                                        data_ptr[pixel_idx + 1] = blend_channel(src_lin[1], bg_lin[1], filter(0, 1));
-                                        data_ptr[pixel_idx + 2] = blend_channel(src_lin[2], bg_lin[2], filter(0, 2));
+                                        let mask_idx = (row as usize * mask_w as usize + col as usize) * 3;
+                                        data_ptr[pixel_idx] = blend_subpixel(src_lin[0], bg_lin[0], image.data[mask_idx]);
+                                        data_ptr[pixel_idx + 1] = blend_subpixel(src_lin[1], bg_lin[1], image.data[mask_idx + 1]);
+                                        data_ptr[pixel_idx + 2] = blend_subpixel(src_lin[2], bg_lin[2], image.data[mask_idx + 2]);
                                         data_ptr[pixel_idx + 3] = 255;
                                     }
                                     Content::Mask => {
-                                        let mask_idx = row as usize * mask_w as usize + col as usize;
-                                        let m = image.data[mask_idx];
-                                        data_ptr[pixel_idx] = blend_channel(src_lin[0], bg_lin[0], m);
-                                        data_ptr[pixel_idx + 1] = blend_channel(src_lin[1], bg_lin[1], m);
-                                        data_ptr[pixel_idx + 2] = blend_channel(src_lin[2], bg_lin[2], m);
+                                        let m = image.data[row as usize * mask_w as usize + col as usize];
+                                        data_ptr[pixel_idx] = blend_subpixel(src_lin[0], bg_lin[0], m);
+                                        data_ptr[pixel_idx + 1] = blend_subpixel(src_lin[1], bg_lin[1], m);
+                                        data_ptr[pixel_idx + 2] = blend_subpixel(src_lin[2], bg_lin[2], m);
                                         data_ptr[pixel_idx + 3] = 255;
                                     }
                                     _ => {}
@@ -327,8 +332,8 @@ fn render_text_blob(
         }
     };
 
-    render_line(title, 0.0, 14.0, Weight::MEDIUM, [1.0, 1.0, 1.0]);
-    render_line(artist, 18.0, 12.0, Weight::NORMAL, [204.0/255.0, 204.0/255.0, 204.0/255.0]);
+    render_line(title, 14.0, 14.0, Weight::NORMAL, [1.0, 1.0, 1.0]);
+    render_line(artist, 30.0, 12.0, Weight::NORMAL, [204.0/255.0, 204.0/255.0, 204.0/255.0]);
 
     pixmap
 }
