@@ -4,7 +4,8 @@ use crate::server::library::Library;
 use slint::{Model, SharedString, VecModel, SharedPixelBuffer, Rgba8Pixel};
 use std::rc::Rc;
 use rayon::prelude::*;
-use cosmic_text::{Attrs, Buffer, Family, Metrics, Shaping, Wrap, Weight};
+use cosmic_text::{Attrs, Buffer, Family, Metrics, Shaping, Wrap, Weight, SubpixelBin};
+use swash::scale::{ScaleContext, Render, Source, StrikeWith, image::Content};
 use tiny_skia::{Pixmap, Color};
 
 slint::slint! {
@@ -212,11 +213,20 @@ fn blend_channel(src_lin: f32, dst_lin: f32, mask: u8) -> u8 {
     (out_lin.powf(1.0 / 2.2) * 255.0).round() as u8
 }
 
+fn subpixel_bin_to_float(bin: SubpixelBin) -> f32 {
+    match bin {
+        SubpixelBin::Zero => 0.0,
+        SubpixelBin::One => 0.25,
+        SubpixelBin::Two => 0.5,
+        SubpixelBin::Three => 0.75,
+    }
+}
+
 fn render_text_blob(
     title: &str,
     artist: &str,
     font_system: &mut cosmic_text::FontSystem,
-    swash_cache: &mut cosmic_text::SwashCache,
+    swash_context: &mut ScaleContext,
     scale: f32,
 ) -> Pixmap {
     let width = (190.0 * scale).round() as u32;
@@ -242,50 +252,83 @@ fn render_text_blob(
         buffer.set_text(font_system, &truncated, &attrs, Shaping::Advanced, None);
         buffer.shape_until_scroll(font_system, false);
 
-        if let Some(run) = buffer.layout_runs().next() {
+        for run in buffer.layout_runs() {
             for glyph in run.glyphs.iter() {
-                let physical_glyph = glyph.physical((0.0, (run.line_y + y_off).round()), 1.0);
-                if let Some(image) = swash_cache.get_image(font_system, physical_glyph.cache_key) {
-                    let x_start = physical_glyph.x + image.placement.left;
-                    let y_start = physical_glyph.y - image.placement.top;
+                let physical_glyph = glyph.physical((0.0, y_off), scale);
+                let face_id = physical_glyph.cache_key.font_id;
+                
+                font_system.db().with_face_data(face_id, |data, face_index| {
+                    let font_ref = swash::FontRef::from_index(data, face_index as usize).unwrap();
+                    let font_size = f32::from_bits(physical_glyph.cache_key.font_size_bits);
+                    let x_fract = subpixel_bin_to_float(physical_glyph.cache_key.x_bin);
+                    let y_fract = subpixel_bin_to_float(physical_glyph.cache_key.y_bin);
 
-                    let data = pixmap.data_mut();
+                    let mut scaler = swash_context.builder(font_ref)
+                        .size(font_size)
+                        .hint(true)
+                        .build();
+
+                    let mut renderer = Render::new(&[
+                        Source::ColorOutline(0),
+                        Source::ColorBitmap(StrikeWith::BestFit),
+                        Source::Outline,
+                    ]);
                     
-                    for row in 0..image.placement.height as i32 {
-                        for col in 0..image.placement.width as i32 {
-                            let px = x_start + col;
-                            let py = y_start + row;
-                            if px < 0 || px >= width as i32 || py < 0 || py >= height as i32 { continue; }
+                    renderer.offset(swash::zeno::Vector::new(x_fract, y_fract));
 
-                            let idx = (py as usize * width as usize + px as usize) * 4;
-                            let mask_idx = row as usize * image.placement.width as usize + col as usize;
+                    if let Some(image) = renderer.render(&mut scaler, physical_glyph.cache_key.glyph_id) {
+                        let x_start = physical_glyph.x + image.placement.left;
+                        let y_start = (run.line_y * scale).round() as i32 + (y_off * scale).round() as i32 - image.placement.top;
 
-                            match image.content {
-                                cosmic_text::SwashContent::SubpixelMask => {
-                                    let m_idx = mask_idx * 3;
-                                    data[idx] = blend_channel(src_lin[0], bg_lin[0], image.data[m_idx]);
-                                    data[idx+1] = blend_channel(src_lin[1], bg_lin[1], image.data[m_idx+1]);
-                                    data[idx+2] = blend_channel(src_lin[2], bg_lin[2], image.data[m_idx+2]);
-                                    data[idx+3] = 255;
+                        let data_ptr = pixmap.data_mut();
+                        let mask_w = image.placement.width as i32;
+                        let mask_h = image.placement.height as i32;
+
+                        for row in 0..mask_h {
+                            for col in 0..mask_w {
+                                let px = x_start + col;
+                                let py = y_start + row;
+                                if px < 0 || px >= width as i32 || py < 0 || py >= height as i32 { continue; }
+
+                                let pixel_idx = (py as usize * width as usize + px as usize) * 4;
+                                
+                                match image.content {
+                                    Content::SubpixelMask => {
+                                        let filter = |c: i32, channel: usize| -> u8 {
+                                            let get_val = |offset_c: i32| -> u32 {
+                                                let target_col = col + offset_c;
+                                                if target_col < 0 || target_col >= mask_w { return 0; }
+                                                let idx = (row as usize * mask_w as usize + target_col as usize) * 3;
+                                                image.data[idx + channel] as u32
+                                            };
+                                            ((get_val(-1) + 2 * get_val(0) + get_val(1)) / 4) as u8
+                                        };
+
+                                        data_ptr[pixel_idx] = blend_channel(src_lin[0], bg_lin[0], filter(0, 0));
+                                        data_ptr[pixel_idx + 1] = blend_channel(src_lin[1], bg_lin[1], filter(0, 1));
+                                        data_ptr[pixel_idx + 2] = blend_channel(src_lin[2], bg_lin[2], filter(0, 2));
+                                        data_ptr[pixel_idx + 3] = 255;
+                                    }
+                                    Content::Mask => {
+                                        let mask_idx = row as usize * mask_w as usize + col as usize;
+                                        let m = image.data[mask_idx];
+                                        data_ptr[pixel_idx] = blend_channel(src_lin[0], bg_lin[0], m);
+                                        data_ptr[pixel_idx + 1] = blend_channel(src_lin[1], bg_lin[1], m);
+                                        data_ptr[pixel_idx + 2] = blend_channel(src_lin[2], bg_lin[2], m);
+                                        data_ptr[pixel_idx + 3] = 255;
+                                    }
+                                    _ => {}
                                 }
-                                cosmic_text::SwashContent::Mask => {
-                                    let m = image.data[mask_idx];
-                                    data[idx] = blend_channel(src_lin[0], bg_lin[0], m);
-                                    data[idx+1] = blend_channel(src_lin[1], bg_lin[1], m);
-                                    data[idx+2] = blend_channel(src_lin[2], bg_lin[2], m);
-                                    data[idx+3] = 255;
-                                }
-                                _ => {}
                             }
                         }
                     }
-                }
+                });
             }
         }
     };
 
     render_line(title, 0.0, 14.0, Weight::MEDIUM, [1.0, 1.0, 1.0]);
-    render_line(artist, 18.0 * scale, 12.0, Weight::NORMAL, [204.0/255.0, 204.0/255.0, 204.0/255.0]);
+    render_line(artist, 18.0, 12.0, Weight::NORMAL, [204.0/255.0, 204.0/255.0, 204.0/255.0]);
 
     pixmap
 }
@@ -300,20 +343,20 @@ pub fn run() -> anyhow::Result<()> {
     library.scan();
 
     let ui = AppWindow::new().unwrap();
-    let scale_factor = ui.window().scale_factor();
+    let scale_factor = ui.window().scale_factor() as f32;
 
     let mut root_db = cosmic_text::fontdb::Database::new();
     root_db.load_system_fonts();
 
-    log::info!("Generating LCD-Optimized Text Blobs (Scale: {})...", scale_factor);
+    log::info!("Generating Native LCD Subpixel Text (Scale: {})...", scale_factor);
 
     let album_data_vec: Vec<_> = library.albums.par_iter().map_init(
         || {
             let font_system = cosmic_text::FontSystem::new_with_locale_and_db("en-US".to_string(), root_db.clone());
-            let swash_cache = cosmic_text::SwashCache::new();
-            (font_system, swash_cache)
+            let context = ScaleContext::new();
+            (font_system, context)
         },
-        |(font_system, swash_cache), a| {
+        |(font_system, context), a| {
             let mut target_img = library_root.join(&a.id).join(&a.album_data.info.cover_path);
             if let Some(td) = &thumb_dir {
                 let hash = &a.album_data.info.cover_hash;
@@ -322,7 +365,7 @@ pub fn run() -> anyhow::Result<()> {
                     if cached.exists() { target_img = cached; }
                 }
             }
-            let pixmap = render_text_blob(&a.album_data.album, &a.album_data.albumartist, font_system, swash_cache, scale_factor);
+            let pixmap = render_text_blob(&a.album_data.album, &a.album_data.albumartist, font_system, context, scale_factor);
             (a.id.clone(), target_img, pixmap)
         }
     ).collect();
