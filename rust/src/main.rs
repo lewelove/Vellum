@@ -7,6 +7,7 @@ mod config;
 mod harvest;
 mod server;
 mod update;
+mod slint_ui;
 
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
@@ -21,6 +22,7 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
+    Ui,
     Harvest {
         #[arg(value_name = "PATHS", required = true, num_args = 1..)]
         paths: Vec<String>,
@@ -88,6 +90,10 @@ async fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
+        Commands::Ui => {
+            slint_ui::run()?;
+            Ok(())
+        }
         Commands::Harvest {
             paths,
             pretty,

@@ -21,11 +21,11 @@
             hash = "sha256-zQGrgZEz4o9RSYWmGXH8TcNXUcRSfmF+xJCROQ3cPJ4=";
           };
 
-          nativeBuildInputs = [
+          nativeBuildInputs =[
             ps.hatchling
           ];
 
-          propagatedBuildInputs = [
+          propagatedBuildInputs =[
             ps.requests
             ps.beautifulsoup4
           ];
@@ -33,7 +33,7 @@
           doCheck = false;
         };
 
-        pythonEnv = pkgs.python3.withPackages (ps: with ps; [
+        pythonEnv = pkgs.python3.withPackages (ps: with ps;[
           mutagen
           tqdm
           pillow
@@ -47,7 +47,7 @@
 
         vellum-cli = pkgs.writeShellApplication {
           name = "vellum";
-          runtimeInputs = [ 
+          runtimeInputs =[ 
             pythonEnv 
             pkgs.bun
             pkgs.cargo 
@@ -126,7 +126,7 @@
           '';
         };
 
-        devPackages = with pkgs; [
+        devPackages = with pkgs;[
           pythonEnv
           bun
           pkg-config
@@ -142,13 +142,30 @@
           glib
           gtk3
           xorg.libX11
+          xorg.libXcursor
+          xorg.libXrandr
+          xorg.libXi
+          wayland
+          libxkbcommon
+          fontconfig
         ];
       in
       {
         devShells.default = pkgs.mkShell {
           buildInputs = devPackages;
           shellHook = ''
-            export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath [ pkgs.libGL pkgs.glib pkgs.gtk3 pkgs.xorg.libX11 ]}:$LD_LIBRARY_PATH"
+            export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath[ 
+              pkgs.libGL 
+              pkgs.glib 
+              pkgs.gtk3 
+              pkgs.xorg.libX11 
+              pkgs.xorg.libXcursor 
+              pkgs.xorg.libXrandr 
+              pkgs.xorg.libXi 
+              pkgs.wayland 
+              pkgs.libxkbcommon 
+              pkgs.fontconfig 
+            ]}:$LD_LIBRARY_PATH"
 
             export PYTHONDONTWRITEBYTECODE=1
             export PATH="$PWD/ui/node_modules/.bin:$PATH"
