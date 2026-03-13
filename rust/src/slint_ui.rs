@@ -4,8 +4,8 @@ use crate::server::library::Library;
 use slint::{Model, SharedString, VecModel, SharedPixelBuffer, Rgba8Pixel};
 use std::rc::Rc;
 use rayon::prelude::*;
-use cosmic_text::{Attrs, Buffer, Family, Metrics, Shaping, Wrap};
-use tiny_skia::Pixmap;
+use cosmic_text::{Attrs, Buffer, Family, Metrics, Shaping, Wrap, Weight};
+use tiny_skia::{Pixmap, Color};
 
 slint::slint! {
     struct Album {
@@ -192,18 +192,15 @@ fn truncate_with_ellipsis(
         return text.to_string();
     }
 
-    let mut end = text.len();
-    while end > 0 {
-        end -= 1;
-        while end > 0 && !text.is_char_boundary(end) {
-            end -= 1;
-        }
-        let candidate = format!("{}…", &text[..end]);
-        buffer.set_text(font_system, &candidate, attrs, Shaping::Advanced, None);
+    let mut current_text = text.to_string();
+    while !current_text.is_empty() {
+        current_text.pop();
+        let display = format!("{}…", current_text);
+        buffer.set_text(font_system, &display, attrs, Shaping::Advanced, None);
         buffer.shape_until_scroll(font_system, false);
-        let w = buffer.layout_runs().next().map(|r| r.line_w).unwrap_or(0.0);
+        let w = buffer.layout_runs().next().map_or(0.0, |r| r.line_w);
         if w <= max_width {
-            return candidate;
+            return display;
         }
     }
     String::new()
@@ -216,85 +213,63 @@ fn render_text_blob(
     swash_cache: &mut cosmic_text::SwashCache,
     scale: f32,
 ) -> Pixmap {
-    let logical_w = 190.0;
-    let logical_h = 32.0;
-    let width = (logical_w * scale) as u32;
-    let height = (logical_h * scale) as u32;
-    
+    let width = (190.0 * scale) as u32;
+    let height = (32.0 * scale) as u32;
     let mut pixmap = Pixmap::new(width, height).unwrap();
-    let (bg_r, bg_g, bg_b) = (50.0f32, 50.0f32, 50.0f32);
-    pixmap.fill(tiny_skia::Color::from_rgba8(50, 50, 50, 255));
+    
+    let bg_color = [50.0 / 255.0, 50.0 / 255.0, 50.0 / 255.0];
+    pixmap.fill(Color::from_rgba(bg_color[0], bg_color[1], bg_color[2], 1.0).unwrap());
 
-    let title_attrs = Attrs::new().family(Family::Name("Inter")).weight(cosmic_text::Weight::MEDIUM);
-    let title_metrics = Metrics::new(14.0 * scale, 17.0 * scale);
-    let truncated_title = truncate_with_ellipsis(title, font_system, title_metrics, width as f32, &title_attrs);
+    let mut render_line = |text: &str, y_off: f32, size: f32, weight: Weight, color: [f32; 3]| {
+        let attrs = Attrs::new().family(Family::Name("Inter")).weight(weight);
+        let metrics = Metrics::new(size * scale, (size + 3.0) * scale);
+        
+        let truncated = truncate_with_ellipsis(text, font_system, metrics, width as f32, &attrs);
+        
+        let mut buffer = Buffer::new(font_system, metrics);
+        buffer.set_size(font_system, Some(width as f32), Some(height as f32));
+        buffer.set_wrap(font_system, Wrap::None);
+        buffer.set_text(font_system, &truncated, &attrs, Shaping::Advanced, None);
+        buffer.shape_until_scroll(font_system, false);
 
-    let mut title_buffer = Buffer::new(font_system, title_metrics);
-    title_buffer.set_size(font_system, Some(width as f32), Some(height as f32));
-    title_buffer.set_wrap(font_system, Wrap::None);
-    title_buffer.set_text(font_system, &truncated_title, &title_attrs, Shaping::Advanced, None);
-    title_buffer.shape_until_scroll(font_system, false);
-
-    let artist_attrs = Attrs::new().family(Family::Name("Inter"));
-    let artist_metrics = Metrics::new(12.0 * scale, 15.0 * scale);
-    let truncated_artist = truncate_with_ellipsis(artist, font_system, artist_metrics, width as f32, &artist_attrs);
-
-    let mut artist_buffer = Buffer::new(font_system, artist_metrics);
-    artist_buffer.set_size(font_system, Some(width as f32), Some(height as f32));
-    artist_buffer.set_wrap(font_system, Wrap::None);
-    artist_buffer.set_text(font_system, &truncated_artist, &artist_attrs, Shaping::Advanced, None);
-    artist_buffer.shape_until_scroll(font_system, false);
-
-    let mut draw_rgb_subpixel = |buffer: &mut Buffer, y_start: f32, fg_color: [f32; 3]| {
-        for run in buffer.layout_runs() {
-            let run_y = (run.line_y + y_start).round();
+        if let Some(run) = buffer.layout_runs().next() {
             for glyph in run.glyphs.iter() {
-                let physical_glyph = glyph.physical((0.0, run_y), 1.0);
+                let physical_glyph = glyph.physical((0.0, (run.line_y + y_off).round()), 1.0);
                 if let Some(image) = swash_cache.get_image(font_system, physical_glyph.cache_key) {
-                    if image.placement.width == 0 || image.placement.height == 0 { continue; }
-                    
-                    let x_offset = physical_glyph.x + image.placement.left;
-                    let y_offset = physical_glyph.y - image.placement.top;
+                    let x_start = physical_glyph.x + image.placement.left;
+                    let y_start = physical_glyph.y - image.placement.top;
 
-                    let is_subpixel = matches!(image.content, cosmic_text::SwashContent::SubpixelMask);
                     let data = pixmap.data_mut();
+                    let is_subpixel = matches!(image.content, cosmic_text::SwashContent::SubpixelMask);
 
                     for row in 0..image.placement.height as i32 {
                         for col in 0..image.placement.width as i32 {
-                            let px = x_offset + col;
-                            let py = y_offset + row;
-
+                            let px = x_start + col;
+                            let py = y_start + row;
                             if px < 0 || px >= width as i32 || py < 0 || py >= height as i32 { continue; }
 
-                            let (a_r, a_g, a_b) = if is_subpixel {
-                                let i = (row as usize * image.placement.width as usize + col as usize) * 3;
-                                (
-                                    image.data[i] as f32 / 255.0,
-                                    image.data[i + 1] as f32 / 255.0,
-                                    image.data[i + 2] as f32 / 255.0,
-                                )
+                            let (mask_r, mask_g, mask_b) = if is_subpixel {
+                                let idx = (row as usize * image.placement.width as usize + col as usize) * 3;
+                                (image.data[idx], image.data[idx+1], image.data[idx+2])
                             } else {
-                                let i = row as usize * image.placement.width as usize + col as usize;
-                                let a = image.data[i] as f32 / 255.0;
+                                let idx = row as usize * image.placement.width as usize + col as usize;
+                                let a = image.data[idx];
                                 (a, a, a)
                             };
 
-                            if a_r <= 0.002 && a_g <= 0.002 && a_b <= 0.002 { continue; }
-
                             let idx = (py as usize * width as usize + px as usize) * 4;
-
-                            let blend = |top: f32, bot: f32, alpha: f32| -> u8 {
-                                let weight = (alpha * 1.25).min(1.0); // Stem darkening
-                                let t_lin = (top / 255.0).powf(2.2);
-                                let b_lin = (bot / 255.0).powf(2.2);
-                                let blended = t_lin * weight + b_lin * (1.0 - weight);
-                                (blended.powf(1.0 / 2.2) * 255.0).round() as u8
+                            
+                            let blend = |c_src: f32, c_bg: f32, mask: u8| -> u8 {
+                                let alpha = (mask as f32 / 255.0) * 1.3; 
+                                let alpha = alpha.min(1.0);
+                                let out = c_src.powf(2.2) * alpha + c_bg.powf(2.2) * (1.0 - alpha);
+                                (out.powf(1.0 / 2.2) * 255.0).round() as u8
                             };
 
-                            data[idx] = blend(fg_color[0], bg_r, a_r);
-                            data[idx + 1] = blend(fg_color[1], bg_g, a_g);
-                            data[idx + 2] = blend(fg_color[2], bg_b, a_b);
-                            data[idx + 3] = 255;
+                            data[idx] = blend(color[0], bg_color[0], mask_r);
+                            data[idx+1] = blend(color[1], bg_color[1], mask_g);
+                            data[idx+2] = blend(color[2], bg_color[2], mask_b);
+                            data[idx+3] = 255;
                         }
                     }
                 }
@@ -302,8 +277,8 @@ fn render_text_blob(
         }
     };
 
-    draw_rgb_subpixel(&mut title_buffer, 0.0, [255.0, 255.0, 255.0]);
-    draw_rgb_subpixel(&mut artist_buffer, 18.0 * scale, [204.0, 204.0, 204.0]);
+    render_line(title, 0.0, 14.0, Weight::MEDIUM, [1.0, 1.0, 1.0]);
+    render_line(artist, 18.0 * scale, 12.0, Weight::NORMAL, [204.0/255.0, 204.0/255.0, 204.0/255.0]);
 
     pixmap
 }
@@ -311,7 +286,6 @@ fn render_text_blob(
 pub fn run() -> anyhow::Result<()> {
     let (config, _, _) = AppConfig::load()?;
     let library_root = expand_path(&config.storage.library_root).canonicalize()?;
-    
     let thumb_size = config.theme.as_ref().map_or(190, |t| t.thumbnail_size);
     let thumb_dir = config.storage.thumbnail_cache_folder.clone().map(|p| expand_path(&p).join(format!("{}px", thumb_size)));
 
@@ -320,183 +294,99 @@ pub fn run() -> anyhow::Result<()> {
 
     let mut root_db = cosmic_text::fontdb::Database::new();
     root_db.load_system_fonts();
-    let locale = String::from("en-US");
-
     let scale_factor = 2.0;
 
-    log::info!("Parallel high-fidelity metadata composition (RGB Subpixel AA, Ellipsis)...");
+    log::info!("Generating Opaque Subpixel AA Text Blobs (DPR: {})...", scale_factor);
 
     let album_data_vec: Vec<_> = library.albums.par_iter().map_init(
         || {
-            let font_system = cosmic_text::FontSystem::new_with_locale_and_db(
-                locale.clone(), 
-                root_db.clone()
-            );
+            let font_system = cosmic_text::FontSystem::new_with_locale_and_db("en-US".to_string(), root_db.clone());
             let swash_cache = cosmic_text::SwashCache::new();
             (font_system, swash_cache)
         },
         |(font_system, swash_cache), a| {
             let mut target_img = library_root.join(&a.id).join(&a.album_data.info.cover_path);
-            
             if let Some(td) = &thumb_dir {
                 let hash = &a.album_data.info.cover_hash;
                 if !hash.is_empty() {
                     let cached = td.join(format!("{}.png", hash));
-                    if cached.exists() {
-                        target_img = cached;
-                    }
+                    if cached.exists() { target_img = cached; }
                 }
             }
-
-            let text_blob = render_text_blob(
-                &a.album_data.album,
-                &a.album_data.albumartist,
-                font_system,
-                swash_cache,
-                scale_factor
-            );
-
-            (a.id.clone(), target_img, text_blob)
+            let pixmap = render_text_blob(&a.album_data.album, &a.album_data.albumartist, font_system, swash_cache, scale_factor);
+            (a.id.clone(), target_img, pixmap)
         }
     ).collect();
 
     let library_albums: Vec<Album> = album_data_vec.into_iter().map(|(id, target_img, pixmap)| {
-        let img = if target_img.exists() {
-            slint::Image::load_from_path(&target_img).unwrap_or_default()
-        } else {
-            slint::Image::default()
-        };
-
-        let mut slint_buffer = SharedPixelBuffer::<Rgba8Pixel>::new(pixmap.width(), pixmap.height());
-        slint_buffer.make_mut_bytes().copy_from_slice(pixmap.data());
-        
-        Album {
-            id: SharedString::from(&id),
-            cover: img,
-            text_blob: slint::Image::from_rgba8(slint_buffer),
-            active: false,
-        }
+        let cover = if target_img.exists() { slint::Image::load_from_path(&target_img).unwrap_or_default() } else { slint::Image::default() };
+        let mut buffer = SharedPixelBuffer::<Rgba8Pixel>::new(pixmap.width(), pixmap.height());
+        buffer.make_mut_bytes().copy_from_slice(pixmap.data());
+        Album { id: SharedString::from(&id), cover, text_blob: slint::Image::from_rgba8(buffer), active: false }
     }).collect();
 
     let ui = AppWindow::new().unwrap();
-
     const POOL_SIZE: usize = 18;
-    let physical_rows: Vec<AlbumRow> = (0..POOL_SIZE).map(|_| AlbumRow {
-        index: -1,
-        data: Rc::new(VecModel::default()).into(),
-    }).collect();
-    
-    let physical_model = Rc::new(VecModel::from(physical_rows));
+    let physical_model = Rc::new(VecModel::from((0..POOL_SIZE).map(|_| AlbumRow { index: -1, data: Rc::new(VecModel::default()).into() }).collect::<Vec<_>>()));
     ui.set_virtual_rows(physical_model.clone().into());
 
     let current_y = Rc::new(std::cell::Cell::new(0.0f32));
     let target_slot = Rc::new(std::cell::Cell::new(0));
     let last_time = Rc::new(std::cell::Cell::new(std::time::Instant::now()));
-
-    let last_cols = Rc::new(std::cell::Cell::new(0usize));
     let last_container_width = Rc::new(std::cell::Cell::new(-1.0f32));
-    let logical_rows = Rc::new(std::cell::RefCell::new(Vec::new()));
-
-    let row_height = 249.0;
-    let scroll_speed = 12.0f32;
-    let gap_x = 30.0;
-    let card_size = 190.0;
-
+    let last_cols = Rc::new(std::cell::Cell::new(0usize));
+    let logical_rows: Rc<std::cell::RefCell<Vec<slint::ModelRc<Album>>>> = Rc::new(std::cell::RefCell::new(Vec::new()));
     let mapped_rows = Rc::new(std::cell::RefCell::new(vec![-1i32; POOL_SIZE]));
 
-    let ui_weak = ui.as_weak();
-    
     ui.on_scroll_slot({
         let target_slot = target_slot.clone();
-        move |delta| {
-            let mut slot = target_slot.get() + delta;
-            if slot < 0 { slot = 0; }
-            target_slot.set(slot);
-        }
+        move |delta| { let s = target_slot.get() + delta; target_slot.set(s.max(0)); }
     });
 
-    ui.on_item_clicked(|_id| {});
-
+    let ui_weak = ui.as_weak();
     let _timer = slint::Timer::default();
     _timer.start(slint::TimerMode::Repeated, std::time::Duration::from_millis(16), move || {
         let ui = ui_weak.unwrap();
-        
-        let now = std::time::Instant::now();
-        let dt = now.duration_since(last_time.get()).as_secs_f32().min(0.1);
-        last_time.set(now);
+        let dt = std::time::Instant::now().duration_since(last_time.get()).as_secs_f32().min(0.1);
+        last_time.set(std::time::Instant::now());
 
-        let container_width = ui.get_container_width() as f32;
-        let viewport_height = ui.get_viewport_height() as f32;
-
-        if (container_width - last_container_width.get()).abs() > 0.01 {
-            last_container_width.set(container_width);
-
-            let mut cols = ((container_width - 40.0 + gap_x) / (card_size + gap_x)).floor() as usize;
-            if cols < 1 { cols = 1; }
-
-            let grid_width = (cols as f32 * card_size) + ((cols.saturating_sub(1)) as f32 * gap_x);
-            ui.set_grid_width(grid_width);
-
+        let cw = ui.get_container_width() as f32;
+        if (cw - last_container_width.get()).abs() > 0.01 {
+            last_container_width.set(cw);
+            let cols = ((cw - 40.0 + 30.0) / (190.0 + 30.0)).floor() as usize;
+            let cols = cols.max(1);
+            ui.set_grid_width((cols as f32 * 190.0) + (cols.saturating_sub(1) as f32 * 30.0));
             if cols != last_cols.get() {
-                let chunks: Vec<slint::ModelRc<Album>> = library_albums.chunks(cols).map(|c| {
-                    Rc::new(VecModel::from(c.to_vec())).into()
-                }).collect();
-                *logical_rows.borrow_mut() = chunks;
-                
-                for i in 0..POOL_SIZE {
-                    physical_model.set_row_data(i, AlbumRow {
-                        index: -1,
-                        data: Rc::new(VecModel::default()).into(),
-                    });
-                }
+                *logical_rows.borrow_mut() = library_albums.chunks(cols).map(|c| Rc::new(VecModel::from(c.to_vec())).into()).collect();
                 last_cols.set(cols);
                 mapped_rows.borrow_mut().fill(-1);
             }
         }
 
         let rows = logical_rows.borrow();
-        let total_rows = rows.len();
+        let visible_rows = (ui.get_viewport_height() as f32 / 249.0).ceil() as usize;
+        let max_s = if rows.len() >= visible_rows { (rows.len() - visible_rows + 1) as i32 } else { 0 };
+        let mut slot = target_slot.get();
+        if slot > max_s { slot = max_s; target_slot.set(slot); }
 
-        let visible_rows = (viewport_height / row_height).ceil() as usize;
-        let max_slots = if total_rows >= visible_rows { (total_rows - visible_rows + 1) as i32 } else { 0 };
-
-        let mut current_slot = target_slot.get();
-        if current_slot > max_slots {
-            current_slot = max_slots;
-            target_slot.set(current_slot);
-        }
-
-        let target_y = current_slot as f32 * row_height;
+        let target_y = slot as f32 * 249.0;
         let mut y = current_y.get();
-
         let diff = target_y - y;
-        if diff.abs() > 0.01 {
-            let t = 1.0 - (-scroll_speed * dt).exp();
-            y += diff * t;
-        } else {
-            y = target_y;
-        }
-
+        if diff.abs() > 0.01 { y += diff * (1.0 - (-12.0 * dt).exp()); } else { y = target_y; }
         current_y.set(y);
-        ui.set_render_y(y); 
+        ui.set_render_y(y);
 
-        let buffer = 4;
-        let start_idx = ((y / row_height).floor() as isize - buffer).max(0) as usize;
-        let end_idx = (((y + viewport_height) / row_height).ceil() as isize + buffer).max(0) as usize;
-        let end_idx = end_idx.min(total_rows.saturating_sub(1));
+        let start = ((y / 249.0).floor() as isize - 4).max(0) as usize;
+        let end = (((y + ui.get_viewport_height() as f32) / 249.0).ceil() as isize + 4).max(0) as usize;
+        let end = end.min(rows.len().saturating_sub(1));
 
         let mut cache = mapped_rows.borrow_mut();
-        for i in start_idx..=end_idx {
-            if i < total_rows {
-                let physical_idx = i % POOL_SIZE;
-                let target_index = i as i32;
-                
-                if cache[physical_idx] != target_index {
-                    physical_model.set_row_data(physical_idx, AlbumRow {
-                        index: target_index,
-                        data: rows[i].clone(),
-                    });
-                    cache[physical_idx] = target_index;
+        for i in start..=end {
+            if i < rows.len() {
+                let p_idx = i % POOL_SIZE;
+                if cache[p_idx] != i as i32 {
+                    physical_model.set_row_data(p_idx, AlbumRow { index: i as i32, data: rows[i].clone() });
+                    cache[p_idx] = i as i32;
                 }
             }
         }
