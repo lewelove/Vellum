@@ -1,7 +1,7 @@
 use crate::config::AppConfig;
 use crate::expand_path;
 use crate::server::library::Library;
-use slint::{ModelRc, SharedString, VecModel};
+use slint::{Model, SharedString, VecModel};
 use std::rc::Rc;
 
 slint::slint! {
@@ -15,22 +15,19 @@ slint::slint! {
 
     struct AlbumRow {
         index: int,
-        y: length,
         data: [Album],
     }
 
     component AlbumCard inherits Rectangle {
         in property <Album> album;
-        in property <length> row-y;
-        in property <length> render-y;
+        in property <length> absolute-y;
 
         callback clicked();
 
         width: 190px;
         height: 249px;
 
-        property <length> absolute-y: root.row-y - root.render-y;
-        property <length> metadata-top: root.absolute-y + 217px; // 16px (gap-y) + 190px (cover) + 11px (text-gap)
+        property <length> metadata-top: root.absolute-y + 217px;
         property <float> text-opacity: max(0.0, min(1.0, (root.metadata-top / 1px) / 40.0));
         property <length> clip-amount: max(0.0, -root.metadata-top / 1px) * 1px;
 
@@ -97,20 +94,25 @@ slint::slint! {
     component Row inherits Rectangle {
         in property <AlbumRow> row-data;
         in property <length> render-y;
+        in property <length> grid-width;
+        in property <length> container-width;
         callback item-clicked(string);
 
-        y: root.row-data.y - root.render-y;
+        property <length> absolute-y: (root.row-data.index * 249px) + 4px - root.render-y;
+
+        visible: root.row-data.index >= 0;
+        x: (root.container-width - root.grid-width) / 2;
+        y: root.absolute-y;
         height: 249px;
-        width: 100%;
+        width: root.grid-width;
 
         HorizontalLayout {
             spacing: 30px;
-            alignment: center;
+            alignment: start;
 
             for album in root.row-data.data : AlbumCard {
                 album: album;
-                row-y: root.row-data.y;
-                render-y: root.render-y;
+                absolute-y: root.absolute-y;
                 clicked => { root.item-clicked(album.id); }
             }
         }
@@ -118,12 +120,13 @@ slint::slint! {
 
     export component AppWindow inherits Window {
         background: #111111;
-        width: 1024px;
-        height: 768px;
+        preferred-width: 1024px;
+        preferred-height: 768px;
         title: "Vellum";
 
         in property <[AlbumRow]> virtual-rows;
         in property <length> render-y;
+        in property <length> grid-width;
         out property <length> viewport-height: self.height;
         out property <length> container-width: self.width;
 
@@ -174,20 +177,13 @@ slint::slint! {
                 for row in root.virtual-rows : Row {
                     row-data: row;
                     render-y: root.render-y;
+                    grid-width: root.grid-width;
+                    container-width: root.container-width;
                     item-clicked(id) => { root.item_clicked(id); }
                 }
             }
         }
     }
-}
-
-#[derive(Clone)]
-struct AlbumData {
-    id: String,
-    title: String,
-    artist: String,
-    // [CRITICAL FIX]: Pre-load and store the decoded `slint::Image` to avoid disk I/O and decoding every 16ms
-    cover: slint::Image,
 }
 
 pub fn run() -> anyhow::Result<()> {
@@ -202,7 +198,7 @@ pub fn run() -> anyhow::Result<()> {
 
     log::info!("Pre-loading UI covers into memory to guarantee smooth scrolling...");
 
-    let library_albums: Vec<AlbumData> = library.albums.into_iter().map(|a| {
+    let library_albums: Vec<Album> = library.albums.into_iter().map(|a| {
         let mut target_img = library_root.join(&a.id).join(&a.album_data.info.cover_path);
         
         if let Some(td) = &thumb_dir {
@@ -221,27 +217,35 @@ pub fn run() -> anyhow::Result<()> {
             slint::Image::default()
         };
 
-        AlbumData {
-            id: a.id,
-            title: a.album_data.album,
-            artist: a.album_data.albumartist,
+        Album {
+            id: SharedString::from(&a.id),
+            title: SharedString::from(&a.album_data.album),
+            artist: SharedString::from(&a.album_data.albumartist),
             cover: img,
+            active: false,
         }
     }).collect();
 
     let ui = AppWindow::new().unwrap();
 
+    const POOL_SIZE: usize = 18;
+    let physical_rows: Vec<AlbumRow> = (0..POOL_SIZE).map(|_| AlbumRow {
+        index: -1,
+        data: Rc::new(VecModel::default()).into(),
+    }).collect();
+    
+    let physical_model = Rc::new(VecModel::from(physical_rows));
+    ui.set_virtual_rows(physical_model.clone().into());
+
     let current_y = Rc::new(std::cell::Cell::new(0.0f32));
     let target_slot = Rc::new(std::cell::Cell::new(0));
+    let last_time = Rc::new(std::cell::Cell::new(std::time::Instant::now()));
 
-    // [CRITICAL FIX]: Memoization storage to prevent re-creating the entire virtual DOM tree every frame.
-    // Re-allocating the `virtual_rows` model forces Slint to layout/draw text repeatedly causing massive stutter.
-    let last_bounds = Rc::new(std::cell::Cell::new((usize::MAX, usize::MAX, 0usize)));
-    let cached_rows = Rc::new(std::cell::RefCell::new(Vec::new()));
+    let last_cols = Rc::new(std::cell::Cell::new(0usize));
+    let logical_rows = Rc::new(std::cell::RefCell::new(Vec::new()));
 
     let row_height = 249.0;
-    let damping = 0.18;
-    let top_offset = 4.0;
+    let scroll_speed = 12.0f32;
     let gap_x = 30.0;
     let card_size = 190.0;
 
@@ -256,28 +260,41 @@ pub fn run() -> anyhow::Result<()> {
         }
     });
 
-    ui.on_item_clicked(|id| {
-        log::info!("Album clicked: {}", id);
-    });
+    ui.on_item_clicked(|_id| {});
 
     let _timer = slint::Timer::default();
     _timer.start(slint::TimerMode::Repeated, std::time::Duration::from_millis(16), move || {
         let ui = ui_weak.unwrap();
         
+        let now = std::time::Instant::now();
+        let dt = now.duration_since(last_time.get()).as_secs_f32().min(0.1);
+        last_time.set(now);
+
         let container_width = ui.get_container_width() as f32;
         let viewport_height = ui.get_viewport_height() as f32;
 
         let mut cols = ((container_width - 40.0 + gap_x) / (card_size + gap_x)).floor() as usize;
         if cols < 1 { cols = 1; }
 
-        let bounds = last_bounds.get();
+        let grid_width = (cols as f32 * card_size) + ((cols.saturating_sub(1)) as f32 * gap_x);
+        ui.set_grid_width(grid_width);
 
-        // Only group chunks if window resizes / column counts mutate
-        if cols != bounds.2 {
-            *cached_rows.borrow_mut() = library_albums.chunks(cols).map(|c| c.to_vec()).collect();
+        if cols != last_cols.get() {
+            let chunks: Vec<slint::ModelRc<Album>> = library_albums.chunks(cols).map(|c| {
+                Rc::new(VecModel::from(c.to_vec())).into()
+            }).collect();
+            *logical_rows.borrow_mut() = chunks;
+            
+            for i in 0..POOL_SIZE {
+                physical_model.set_row_data(i, AlbumRow {
+                    index: -1,
+                    data: Rc::new(VecModel::default()).into(),
+                });
+            }
+            last_cols.set(cols);
         }
 
-        let rows = cached_rows.borrow();
+        let rows = logical_rows.borrow();
         let total_rows = rows.len();
 
         let visible_rows = (viewport_height / row_height).ceil() as usize;
@@ -294,14 +311,13 @@ pub fn run() -> anyhow::Result<()> {
 
         let diff = target_y - y;
         if diff.abs() > 0.01 {
-            y += diff * damping;
+            let t = 1.0 - (-scroll_speed * dt).exp();
+            y += diff * t;
         } else {
             y = target_y;
         }
 
         current_y.set(y);
-
-        // Update the raw float to GPU translation binding on EVERY frame
         ui.set_render_y(y); 
 
         let buffer = 4;
@@ -309,34 +325,17 @@ pub fn run() -> anyhow::Result<()> {
         let end_idx = (((y + viewport_height) / row_height).ceil() as isize + buffer).max(0) as usize;
         let end_idx = end_idx.min(total_rows.saturating_sub(1));
 
-        // [CRITICAL FIX]: Only replace Slin's virtual row models when the threshold buffers actually cross boundaries
-        if start_idx != bounds.0 || end_idx != bounds.1 || cols != bounds.2 {
-            let mut virtual_rows = Vec::new();
-            for i in start_idx..=end_idx {
-                if i < rows.len() {
-                    let row_y = (i as f32 * row_height) + top_offset;
-
-                    let mut album_data = Vec::new();
-                    for album in &rows[i] {
-                        album_data.push(Album {
-                            id: SharedString::from(&album.id),
-                            title: SharedString::from(&album.title),
-                            artist: SharedString::from(&album.artist),
-                            cover: album.cover.clone(), // Uses the preloaded memory cache (reference/Arc bound)
-                            active: false,
-                        });
-                    }
-
-                    virtual_rows.push(AlbumRow {
+        for i in start_idx..=end_idx {
+            if i < total_rows {
+                let physical_idx = i % POOL_SIZE;
+                let current = physical_model.row_data(physical_idx).unwrap();
+                if current.index != i as i32 {
+                    physical_model.set_row_data(physical_idx, AlbumRow {
                         index: i as i32,
-                        y: row_y,
-                        data: Rc::new(VecModel::from(album_data)).into(),
+                        data: rows[i].clone(),
                     });
                 }
             }
-
-            ui.set_virtual_rows(Rc::new(VecModel::from(virtual_rows)).into());
-            last_bounds.set((start_idx, end_idx, cols));
         }
     });
 
