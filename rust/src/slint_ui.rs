@@ -242,6 +242,7 @@ pub fn run() -> anyhow::Result<()> {
     let last_time = Rc::new(std::cell::Cell::new(std::time::Instant::now()));
 
     let last_cols = Rc::new(std::cell::Cell::new(0usize));
+    let last_container_width = Rc::new(std::cell::Cell::new(-1.0f32));
     let logical_rows = Rc::new(std::cell::RefCell::new(Vec::new()));
 
     let row_height = 249.0;
@@ -273,25 +274,29 @@ pub fn run() -> anyhow::Result<()> {
         let container_width = ui.get_container_width() as f32;
         let viewport_height = ui.get_viewport_height() as f32;
 
-        let mut cols = ((container_width - 40.0 + gap_x) / (card_size + gap_x)).floor() as usize;
-        if cols < 1 { cols = 1; }
+        if (container_width - last_container_width.get()).abs() > 0.01 {
+            last_container_width.set(container_width);
 
-        let grid_width = (cols as f32 * card_size) + ((cols.saturating_sub(1)) as f32 * gap_x);
-        ui.set_grid_width(grid_width);
+            let mut cols = ((container_width - 40.0 + gap_x) / (card_size + gap_x)).floor() as usize;
+            if cols < 1 { cols = 1; }
 
-        if cols != last_cols.get() {
-            let chunks: Vec<slint::ModelRc<Album>> = library_albums.chunks(cols).map(|c| {
-                Rc::new(VecModel::from(c.to_vec())).into()
-            }).collect();
-            *logical_rows.borrow_mut() = chunks;
-            
-            for i in 0..POOL_SIZE {
-                physical_model.set_row_data(i, AlbumRow {
-                    index: -1,
-                    data: Rc::new(VecModel::default()).into(),
-                });
+            let grid_width = (cols as f32 * card_size) + ((cols.saturating_sub(1)) as f32 * gap_x);
+            ui.set_grid_width(grid_width);
+
+            if cols != last_cols.get() {
+                let chunks: Vec<slint::ModelRc<Album>> = library_albums.chunks(cols).map(|c| {
+                    Rc::new(VecModel::from(c.to_vec())).into()
+                }).collect();
+                *logical_rows.borrow_mut() = chunks;
+                
+                for i in 0..POOL_SIZE {
+                    physical_model.set_row_data(i, AlbumRow {
+                        index: -1,
+                        data: Rc::new(VecModel::default()).into(),
+                    });
+                }
+                last_cols.set(cols);
             }
-            last_cols.set(cols);
         }
 
         let rows = logical_rows.borrow();
