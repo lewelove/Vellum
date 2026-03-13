@@ -250,6 +250,8 @@ pub fn run() -> anyhow::Result<()> {
     let gap_x = 30.0;
     let card_size = 190.0;
 
+    let mapped_rows = Rc::new(std::cell::RefCell::new(vec![-1i32; POOL_SIZE]));
+
     let ui_weak = ui.as_weak();
     
     ui.on_scroll_slot({
@@ -296,6 +298,7 @@ pub fn run() -> anyhow::Result<()> {
                     });
                 }
                 last_cols.set(cols);
+                mapped_rows.borrow_mut().fill(-1);
             }
         }
 
@@ -330,15 +333,18 @@ pub fn run() -> anyhow::Result<()> {
         let end_idx = (((y + viewport_height) / row_height).ceil() as isize + buffer).max(0) as usize;
         let end_idx = end_idx.min(total_rows.saturating_sub(1));
 
+        let mut cache = mapped_rows.borrow_mut();
         for i in start_idx..=end_idx {
             if i < total_rows {
                 let physical_idx = i % POOL_SIZE;
-                let current = physical_model.row_data(physical_idx).unwrap();
-                if current.index != i as i32 {
+                let target_index = i as i32;
+                
+                if cache[physical_idx] != target_index {
                     physical_model.set_row_data(physical_idx, AlbumRow {
-                        index: i as i32,
+                        index: target_index,
                         data: rows[i].clone(),
                     });
+                    cache[physical_idx] = target_index;
                 }
             }
         }
