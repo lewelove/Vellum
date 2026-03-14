@@ -1,12 +1,13 @@
 use crate::config::AppConfig;
 use crate::expand_path;
 use crate::server::library::Library;
-use slint::{Model, SharedString, VecModel, SharedPixelBuffer, Rgba8Pixel};
-use std::rc::Rc;
+use cosmic_text::{Attrs, Buffer, Family, Metrics, Shaping, SubpixelBin, Weight, Wrap};
+use palette::{LinSrgb, Srgb};
 use rayon::prelude::*;
-use cosmic_text::{Attrs, Buffer, Family, Metrics, Shaping, Wrap, Weight, SubpixelBin};
-use swash::scale::{ScaleContext, Render, Source, StrikeWith, image::Content};
-use tiny_skia::{Pixmap, Color};
+use slint::{Model, Rgba8Pixel, SharedPixelBuffer, SharedString, VecModel};
+use std::rc::Rc;
+use swash::scale::{image::Content, Render, ScaleContext, Source, StrikeWith};
+use tiny_skia::{Color, Pixmap};
 
 slint::slint! {
     export struct Album {
@@ -206,18 +207,9 @@ fn truncate_with_ellipsis(
     String::new()
 }
 
-fn srgb_to_linear(c: f32) -> f32 {
-    c.powf(2.2)
-}
-
-fn linear_to_srgb(c: f32) -> f32 {
-    c.powf(1.0 / 2.2)
-}
-
-fn blend_subpixel(src_lin: f32, dst_lin: f32, mask: u8) -> u8 {
+fn blend_channel(src_lin: f32, bg_lin: f32, mask: u8) -> f32 {
     let alpha = mask as f32 / 255.0;
-    let out_lin = src_lin * alpha + dst_lin * (1.0 - alpha);
-    (linear_to_srgb(out_lin.clamp(0.0, 1.0)) * 255.0).round() as u8
+    src_lin * alpha + bg_lin * (1.0 - alpha)
 }
 
 fn subpixel_bin_to_float(bin: SubpixelBin) -> f32 {
@@ -240,21 +232,16 @@ fn render_text_blob(
     let height = (32.0 * scale).round() as u32;
     let mut pixmap = Pixmap::new(width, height).unwrap();
     
-    let bg_color_srgb: [f32; 3] = [50.0 / 255.0, 50.0 / 255.0, 50.0 / 255.0];
-    let bg_lin: [f32; 3] = [
-        srgb_to_linear(bg_color_srgb[0]),
-        srgb_to_linear(bg_color_srgb[1]),
-        srgb_to_linear(bg_color_srgb[2])
-    ];
+    let bg_srgb = Srgb::new(50u8, 50, 50);
+    let bg_lin: LinSrgb<f32> = bg_srgb.into_linear();
     
-    pixmap.fill(Color::from_rgba(bg_color_srgb[0], bg_color_srgb[1], bg_color_srgb[2], 1.0).unwrap());
+    let bg_f32: Srgb<f32> = bg_srgb.into_format();
+    pixmap.fill(Color::from_rgba(bg_f32.red, bg_f32.green, bg_f32.blue, 1.0).unwrap());
 
-    let mut render_line = |text: &str, baseline_y: f32, size: f32, weight: Weight, color: [f32; 3]| {
-        let src_lin: [f32; 3] = [
-            srgb_to_linear(color[0]),
-            srgb_to_linear(color[1]),
-            srgb_to_linear(color[2])
-        ];
+    let mut render_line = |text: &str, baseline_y: f32, size: f32, weight: Weight, color:[f32; 3]| {
+        let text_srgb = Srgb::new(color[0], color[1], color[2]);
+        let src_lin: LinSrgb<f32> = text_srgb.into_linear();
+        
         let attrs = Attrs::new().family(Family::Name("Inter")).weight(weight);
         let metrics = Metrics::new(size * scale, (size + 3.0) * scale);
         
@@ -309,20 +296,55 @@ fn render_text_blob(
                                 
                                 match image.content {
                                     Content::SubpixelMask => {
-                                        let mask_idx = (row as usize * mask_w as usize + col as usize) * 3;
-                                        data_ptr[pixel_idx] = blend_subpixel(src_lin[0], bg_lin[0], image.data[mask_idx]);
-                                        data_ptr[pixel_idx + 1] = blend_subpixel(src_lin[1], bg_lin[1], image.data[mask_idx + 1]);
-                                        data_ptr[pixel_idx + 2] = blend_subpixel(src_lin[2], bg_lin[2], image.data[mask_idx + 2]);
+                                        // Format::Subpixel returns a 32-bit RGBA mask. A is unused.
+                                        let mask_idx = (row as usize * mask_w as usize + col as usize) * 4;
+                                        
+                                        let r_lin = blend_channel(src_lin.red, bg_lin.red, image.data[mask_idx]);
+                                        let g_lin = blend_channel(src_lin.green, bg_lin.green, image.data[mask_idx + 1]);
+                                        let b_lin = blend_channel(src_lin.blue, bg_lin.blue, image.data[mask_idx + 2]);
+
+                                        let out_srgb = Srgb::<u8>::from_linear(LinSrgb::new(r_lin, g_lin, b_lin));
+
+                                        data_ptr[pixel_idx] = out_srgb.red;
+                                        data_ptr[pixel_idx + 1] = out_srgb.green;
+                                        data_ptr[pixel_idx + 2] = out_srgb.blue;
                                         data_ptr[pixel_idx + 3] = 255;
                                     }
                                     Content::Mask => {
                                         let m = image.data[row as usize * mask_w as usize + col as usize];
-                                        data_ptr[pixel_idx] = blend_subpixel(src_lin[0], bg_lin[0], m);
-                                        data_ptr[pixel_idx + 1] = blend_subpixel(src_lin[1], bg_lin[1], m);
-                                        data_ptr[pixel_idx + 2] = blend_subpixel(src_lin[2], bg_lin[2], m);
+                                        
+                                        let r_lin = blend_channel(src_lin.red, bg_lin.red, m);
+                                        let g_lin = blend_channel(src_lin.green, bg_lin.green, m);
+                                        let b_lin = blend_channel(src_lin.blue, bg_lin.blue, m);
+
+                                        let out_srgb = Srgb::<u8>::from_linear(LinSrgb::new(r_lin, g_lin, b_lin));
+
+                                        data_ptr[pixel_idx] = out_srgb.red;
+                                        data_ptr[pixel_idx + 1] = out_srgb.green;
+                                        data_ptr[pixel_idx + 2] = out_srgb.blue;
                                         data_ptr[pixel_idx + 3] = 255;
                                     }
-                                    _ => {}
+                                    Content::Color => {
+                                        let color_idx = (row as usize * mask_w as usize + col as usize) * 4;
+                                        let a = image.data[color_idx + 3] as f32 / 255.0;
+                                        
+                                        let src_r = image.data[color_idx] as f32 / 255.0;
+                                        let src_g = image.data[color_idx + 1] as f32 / 255.0;
+                                        let src_b = image.data[color_idx + 2] as f32 / 255.0;
+                                        
+                                        let emoji_lin: LinSrgb<f32> = Srgb::new(src_r, src_g, src_b).into_linear();
+                                        
+                                        let r_lin = emoji_lin.red * a + bg_lin.red * (1.0 - a);
+                                        let g_lin = emoji_lin.green * a + bg_lin.green * (1.0 - a);
+                                        let b_lin = emoji_lin.blue * a + bg_lin.blue * (1.0 - a);
+                                        
+                                        let out_srgb = Srgb::<u8>::from_linear(LinSrgb::new(r_lin, g_lin, b_lin));
+                                        
+                                        data_ptr[pixel_idx] = out_srgb.red;
+                                        data_ptr[pixel_idx + 1] = out_srgb.green;
+                                        data_ptr[pixel_idx + 2] = out_srgb.blue;
+                                        data_ptr[pixel_idx + 3] = 255;
+                                    }
                                 }
                             }
                         }
@@ -333,7 +355,7 @@ fn render_text_blob(
     };
 
     render_line(title, 14.0, 14.0, Weight::NORMAL, [1.0, 1.0, 1.0]);
-    render_line(artist, 30.0, 12.0, Weight::NORMAL, [204.0/255.0, 204.0/255.0, 204.0/255.0]);
+    render_line(artist, 30.0, 12.0, Weight::NORMAL,[204.0/255.0, 204.0/255.0, 204.0/255.0]);
 
     pixmap
 }
