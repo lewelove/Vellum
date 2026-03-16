@@ -110,8 +110,8 @@ slint::slint! {
 
     export component AppWindow inherits Window {
         background: #111111;
-        preferred-width: 1024px;
-        preferred-height: 768px;
+        preferred-width: 1920px;
+        preferred-height: 1080px;
         title: "Vellum";
 
         in property <[AlbumRow]> virtual-rows;
