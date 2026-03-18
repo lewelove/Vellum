@@ -12,6 +12,7 @@ struct Globals {
 struct AlbumInstance {
     @location(0) position: vec2<f32>,
     @location(1) tex_index: i32,
+    @location(2) is_text: i32,
 };
 
 struct VertexOutput {
@@ -34,7 +35,11 @@ fn vs_main(
         vec2<f32>(1.0, 1.0)
     );
 
-    let size = vec2<f32>(190.0, 190.0);
+    var size = vec2<f32>(190.0, 190.0);
+    if (instance.is_text == 1) {
+        size = vec2<f32>(190.0, 32.0);
+    }
+
     let pos = instance.position + quad_pos[v_idx] * size;
     let scrolled_pos = vec2<f32>(pos.x, pos.y - globals.scroll_y);
     
@@ -53,5 +58,5 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     if (in.tex_idx >= 0) {
         return textureSample(t_diffuse, s_diffuse, in.uv, in.tex_idx);
     }
-    return vec4<f32>(0.2, 0.2, 0.2, 1.0);
+    return vec4<f32>(0.1, 0.1, 0.1, 1.0);
 }

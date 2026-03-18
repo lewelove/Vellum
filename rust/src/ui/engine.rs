@@ -6,7 +6,6 @@ use crate::ui::raster::Rasterizer;
 use crate::server::library::scanner::Library;
 use crate::config::AppConfig;
 use crate::expand_path;
-use rayon::prelude::*;
 
 #[repr(C)]
 #[derive(Copy, Clone, Pod, Zeroable)]
@@ -21,7 +20,7 @@ pub struct Globals {
 pub struct AlbumInstance {
     pub position: [f32; 2],
     pub tex_index: i32,
-    pub _padding: i32,
+    pub is_text: i32,
 }
 
 pub struct State {
@@ -35,13 +34,15 @@ pub struct State {
     pub globals_bind_group: wgpu::BindGroup,
     
     pub grid_pipeline: wgpu::RenderPipeline,
-    pub _text_pipeline: wgpu::RenderPipeline,
     
     pub instance_buffer: wgpu::Buffer,
-    pub num_instances: u32,
+    pub num_covers: u32,
+    pub num_texts: u32,
 
     pub album_tex_bind_group: wgpu::BindGroup,
+    pub text_tex_bind_group: wgpu::BindGroup,
     pub album_id_to_tex: std::collections::HashMap<String, i32>,
+    pub album_id_to_text_tex: std::collections::HashMap<String, i32>,
 
     pub _rasterizer: Rasterizer,
 }
@@ -60,7 +61,7 @@ impl State {
 
         let (device, queue) = adapter.request_device(&wgpu::DeviceDescriptor {
             label: None,
-            required_features: wgpu::Features::DUAL_SOURCE_BLENDING,
+            required_features: wgpu::Features::empty(),
             required_limits: wgpu::Limits::default(),
             ..Default::default()
         }).await.unwrap();
@@ -110,6 +111,7 @@ impl State {
         });
 
         let (album_tex_view, album_id_to_tex) = Self::create_texture_array(&device, &queue, library, app_config);
+        let (text_tex_view, album_id_to_text_tex) = Self::create_text_array(&device, &queue, library);
 
         let tex_bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             entries: &[
@@ -157,16 +159,26 @@ impl State {
             label: Some("Album Texture Bind Group"),
         });
 
+        let text_tex_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &tex_bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(&text_tex_view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(&sampler),
+                },
+            ],
+            label: Some("Text Texture Bind Group"),
+        });
+
         let grid_wgsl = std::fs::read_to_string("rust/src/ui/shaders/grid.wgsl").expect("Missing grid.wgsl");
-        let text_wgsl = std::fs::read_to_string("rust/src/ui/shaders/text.wgsl").expect("Missing text.wgsl");
 
         let grid_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Grid Shader"),
             source: wgpu::ShaderSource::Wgsl(grid_wgsl.into()),
-        });
-        let text_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("Text Shader"),
-            source: wgpu::ShaderSource::Wgsl(text_wgsl.into()),
         });
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -185,7 +197,7 @@ impl State {
                 buffers: &[wgpu::VertexBufferLayout {
                     array_stride: std::mem::size_of::<AlbumInstance>() as u64,
                     step_mode: wgpu::VertexStepMode::Instance,
-                    attributes: &wgpu::vertex_attr_array![0 => Float32x2, 1 => Sint32],
+                    attributes: &wgpu::vertex_attr_array![0 => Float32x2, 1 => Sint32, 2 => Sint32],
                 }],
             },
             fragment: Some(wgpu::FragmentState {
@@ -194,40 +206,7 @@ impl State {
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
                 targets: &[Some(wgpu::ColorTargetState {
                     format: config.format,
-                    blend: Some(wgpu::BlendState::REPLACE),
-                    write_mask: wgpu::ColorWrites::ALL,
-                })],
-            }),
-            primitive: wgpu::PrimitiveState::default(),
-            depth_stencil: None,
-            multisample: wgpu::MultisampleState::default(),
-            multiview: None,
-            cache: None,
-        });
-
-        let text_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("Text Pipeline"),
-            layout: Some(&pipeline_layout),
-            vertex: wgpu::VertexState {
-                module: &text_shader,
-                entry_point: Some("vs_main"),
-                compilation_options: wgpu::PipelineCompilationOptions::default(),
-                buffers: &[],
-            },
-            fragment: Some(wgpu::FragmentState {
-                module: &text_shader,
-                entry_point: Some("fs_main"),
-                compilation_options: wgpu::PipelineCompilationOptions::default(),
-                targets: &[Some(wgpu::ColorTargetState {
-                    format: config.format,
-                    blend: Some(wgpu::BlendState {
-                        color: wgpu::BlendComponent {
-                            src_factor: wgpu::BlendFactor::Src1,
-                            dst_factor: wgpu::BlendFactor::OneMinusSrc1,
-                            operation: wgpu::BlendOperation::Add,
-                        },
-                        alpha: wgpu::BlendComponent::OVER,
-                    }),
+                    blend: Some(wgpu::BlendState::ALPHA_BLENDING),
                     write_mask: wgpu::ColorWrites::ALL,
                 })],
             }),
@@ -240,7 +219,7 @@ impl State {
 
         let instance_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("Instance Buffer"),
-            size: (std::mem::size_of::<AlbumInstance>() as u64) * 5000,
+            size: (std::mem::size_of::<AlbumInstance>() as u64) * 10000,
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
@@ -254,11 +233,13 @@ impl State {
             globals_buffer,
             globals_bind_group,
             grid_pipeline,
-            _text_pipeline: text_pipeline,
             instance_buffer,
-            num_instances: 0,
+            num_covers: 0,
+            num_texts: 0,
             album_tex_bind_group,
+            text_tex_bind_group,
             album_id_to_tex,
+            album_id_to_text_tex,
             _rasterizer: Rasterizer::new(),
         }
     }
@@ -272,8 +253,7 @@ impl State {
         let max_supported = device.limits().max_texture_array_layers;
         let layer_count = (library.albums.len() as u32).min(max_supported).max(1);
         
-        let size = 200;
-        let mip_levels = 4;
+        let size = 190;
         let texture_extent = wgpu::Extent3d { 
             width: size, 
             height: size, 
@@ -283,7 +263,7 @@ impl State {
         let texture = device.create_texture(&wgpu::TextureDescriptor {
             label: Some("Album Texture Array"),
             size: texture_extent,
-            mip_level_count: mip_levels,
+            mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format: wgpu::TextureFormat::Rgba8UnormSrgb,
@@ -292,29 +272,20 @@ impl State {
         });
 
         let thumb_root = app_config.storage.thumbnail_cache_folder.as_deref().map(expand_path).unwrap_or_default();
-        let thumb_dir = thumb_root.join("200px");
-
-        let jobs: Vec<_> = library.albums.iter().take(layer_count as usize).map(|a| {
-            let hash = &a.album_data.info.cover_hash;
-            let id = a.id.clone();
-            let thumb_path = thumb_dir.join(format!("{}.png", hash));
-            let fallback_path = library.root.join(&id).join(&a.album_data.info.cover_path);
-            (id, thumb_path, fallback_path)
-        }).collect();
-
-        let decoded_images: Vec<(String, Option<image::RgbaImage>)> = jobs.into_par_iter().map(|(id, thumb, fallback)| {
-            let path = if thumb.exists() { thumb } else { fallback };
-            let img = image::open(path).ok().map(|i| {
-                i.resize_exact(size, size, image::imageops::FilterType::Lanczos3).to_rgba8()
-            });
-            (id, img)
-        }).collect();
+        let thumb_dir = thumb_root.join("190px");
 
         let mut id_map = std::collections::HashMap::new();
         let mut count = 0;
 
-        for (id, img_opt) in decoded_images {
-            if let Some(rgba) = img_opt {
+        for a in library.albums.iter().take(layer_count as usize) {
+            let hash = &a.album_data.info.cover_hash;
+            let id = a.id.clone();
+            let thumb_path = thumb_dir.join(format!("{}.png", hash));
+            let fallback_path = library.root.join(&id).join(&a.album_data.info.cover_path);
+            
+            let path = if thumb_path.exists() { thumb_path } else { fallback_path };
+            if let Ok(img) = image::open(path) {
+                let rgba = img.resize_exact(size, size, image::imageops::FilterType::Lanczos3).to_rgba8();
                 queue.write_texture(
                     wgpu::TexelCopyTextureInfo {
                         texture: &texture,
@@ -341,6 +312,65 @@ impl State {
         }), id_map)
     }
 
+    fn create_text_array(
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        library: &Library,
+    ) -> (wgpu::TextureView, std::collections::HashMap<String, i32>) {
+        let max_supported = device.limits().max_texture_array_layers;
+        let layer_count = (library.albums.len() as u32).min(max_supported).max(1);
+        let w = 190;
+        let h = 32;
+
+        let texture = device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("Text Texture Array"),
+            size: wgpu::Extent3d { width: w, height: h, depth_or_array_layers: layer_count },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Rgba8UnormSrgb,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            view_formats: &[],
+        });
+
+        let mut id_map = std::collections::HashMap::new();
+        let mut font_system = cosmic_text::FontSystem::new();
+        let mut swash_context = swash::scale::ScaleContext::new();
+
+        for i in 0..layer_count {
+            let album = &library.albums[i as usize];
+            let pixmap = crate::ui::text::render_text_blob(
+                &album.album_data.album,
+                &album.album_data.albumartist,
+                &mut font_system,
+                &mut swash_context,
+                1.0
+            );
+
+            queue.write_texture(
+                wgpu::TexelCopyTextureInfo {
+                    texture: &texture,
+                    mip_level: 0,
+                    origin: wgpu::Origin3d { x: 0, y: 0, z: i },
+                    aspect: wgpu::TextureAspect::All,
+                },
+                pixmap.data(),
+                wgpu::TexelCopyBufferLayout {
+                    offset: 0,
+                    bytes_per_row: Some(4 * w),
+                    rows_per_image: Some(h),
+                },
+                wgpu::Extent3d { width: w, height: h, depth_or_array_layers: 1 },
+            );
+            id_map.insert(album.id.clone(), i as i32);
+        }
+
+        (texture.create_view(&wgpu::TextureViewDescriptor {
+            dimension: Some(wgpu::TextureViewDimension::D2Array),
+            ..Default::default()
+        }), id_map)
+    }
+
     pub fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
         if new_size.width > 0 && new_size.height > 0 {
             self.size = new_size;
@@ -352,21 +382,36 @@ impl State {
 
     pub fn write_instances(&mut self, physics: &PhysicsEngine, library: &Library) {
         let (start, end) = physics.get_visible_range(library.albums.len());
-        let mut instances = Vec::with_capacity(end.saturating_sub(start));
+        let count = end - start;
+        let mut cover_instances = Vec::with_capacity(count);
+        let mut text_instances = Vec::with_capacity(count);
         
         for i in start..end {
             let album = &library.albums[i];
             let tex_idx = self.album_id_to_tex.get(&album.id).copied().unwrap_or(-1);
+            let text_idx = self.album_id_to_text_tex.get(&album.id).copied().unwrap_or(-1);
+            let pos = physics.get_item_pos(i);
             
-            instances.push(AlbumInstance {
-                position: physics.get_item_pos(i),
+            cover_instances.push(AlbumInstance {
+                position: [pos[0], pos[1] + 16.0],
                 tex_index: tex_idx,
-                _padding: 0,
+                is_text: 0,
+            });
+
+            text_instances.push(AlbumInstance {
+                position: [pos[0], pos[1] + 16.0 + 190.0 + 11.0],
+                tex_index: text_idx,
+                is_text: 1,
             });
         }
         
-        self.num_instances = instances.len() as u32;
-        self.queue.write_buffer(&self.instance_buffer, 0, bytemuck::cast_slice(&instances));
+        self.num_covers = cover_instances.len() as u32;
+        self.num_texts = text_instances.len() as u32;
+
+        let mut final_buffer = cover_instances;
+        final_buffer.extend(text_instances);
+        
+        self.queue.write_buffer(&self.instance_buffer, 0, bytemuck::cast_slice(&final_buffer));
     }
 
     pub fn update(&mut self, physics: &PhysicsEngine) {
@@ -400,12 +445,20 @@ impl State {
                 occlusion_query_set: None,
             });
 
-            if self.num_instances > 0 {
+            if self.num_covers > 0 {
                 rp.set_pipeline(&self.grid_pipeline);
                 rp.set_bind_group(0, &self.globals_bind_group, &[]);
+                
+                // Segment 1: Covers
                 rp.set_bind_group(1, &self.album_tex_bind_group, &[]);
                 rp.set_vertex_buffer(0, self.instance_buffer.slice(..));
-                rp.draw(0..6, 0..self.num_instances);
+                rp.draw(0..6, 0..self.num_covers);
+
+                // Segment 2: Text (offset by size of num_covers in the vertex buffer)
+                let text_offset = (self.num_covers as u64) * (std::mem::size_of::<AlbumInstance>() as u64);
+                rp.set_bind_group(1, &self.text_tex_bind_group, &[]);
+                rp.set_vertex_buffer(0, self.instance_buffer.slice(text_offset..));
+                rp.draw(0..6, 0..self.num_texts);
             }
         }
 

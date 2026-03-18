@@ -1,13 +1,14 @@
 pub mod engine;
 pub mod physics;
 pub mod raster;
+pub mod text;
 
 use anyhow::Result;
+use std::sync::Arc;
 use winit::application::ApplicationHandler;
 use winit::event::WindowEvent;
 use winit::event_loop::{ActiveEventLoop, EventLoop};
 use winit::window::{Window, WindowId};
-use std::sync::Arc;
 
 use crate::config::AppConfig;
 use crate::expand_path;
