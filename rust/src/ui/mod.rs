@@ -46,7 +46,7 @@ impl ApplicationHandler for App {
         let window = Arc::new(event_loop.create_window(window_attrs).unwrap());
         self.window = Some(window.clone());
 
-        let state = pollster::block_on(engine::State::new(window.clone(), &lib));
+        let state = pollster::block_on(engine::State::new(window.clone(), &lib, &config));
         self.state = Some(state);
         self.library = Some(lib);
         

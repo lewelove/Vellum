@@ -4,6 +4,9 @@ use winit::window::Window;
 use crate::ui::physics::PhysicsEngine;
 use crate::ui::raster::Rasterizer;
 use crate::server::library::scanner::Library;
+use crate::config::AppConfig;
+use crate::expand_path;
+use rayon::prelude::*;
 
 #[repr(C)]
 #[derive(Copy, Clone, Pod, Zeroable)]
@@ -44,7 +47,7 @@ pub struct State {
 }
 
 impl State {
-    pub async fn new(window: Arc<Window>, library: &Library) -> Self {
+    pub async fn new(window: Arc<Window>, library: &Library, app_config: &AppConfig) -> Self {
         let size = window.inner_size();
         let instance = wgpu::Instance::default();
         let surface = instance.create_surface(window).unwrap();
@@ -106,7 +109,7 @@ impl State {
             label: None,
         });
 
-        let (album_tex_view, album_id_to_tex) = Self::create_texture_array(&device, &queue, library);
+        let (album_tex_view, album_id_to_tex) = Self::create_texture_array(&device, &queue, library, app_config);
 
         let tex_bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             entries: &[
@@ -135,6 +138,7 @@ impl State {
             address_mode_v: wgpu::AddressMode::ClampToEdge,
             mag_filter: wgpu::FilterMode::Linear,
             min_filter: wgpu::FilterMode::Linear,
+            mipmap_filter: wgpu::FilterMode::Linear,
             ..Default::default()
         });
 
@@ -263,15 +267,23 @@ impl State {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         library: &Library,
+        app_config: &AppConfig,
     ) -> (wgpu::TextureView, std::collections::HashMap<String, i32>) {
-        let max_layers = 1024;
+        let max_supported = device.limits().max_texture_array_layers;
+        let layer_count = (library.albums.len() as u32).min(max_supported).max(1);
+        
         let size = 200;
-        let texture_extent = wgpu::Extent3d { width: size, height: size, depth_or_array_layers: max_layers };
+        let mip_levels = 4;
+        let texture_extent = wgpu::Extent3d { 
+            width: size, 
+            height: size, 
+            depth_or_array_layers: layer_count 
+        };
         
         let texture = device.create_texture(&wgpu::TextureDescriptor {
             label: Some("Album Texture Array"),
             size: texture_extent,
-            mip_level_count: 1,
+            mip_level_count: mip_levels,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format: wgpu::TextureFormat::Rgba8UnormSrgb,
@@ -279,17 +291,30 @@ impl State {
             view_formats: &[],
         });
 
+        let thumb_root = app_config.storage.thumbnail_cache_folder.as_deref().map(expand_path).unwrap_or_default();
+        let thumb_dir = thumb_root.join("200px");
+
+        let jobs: Vec<_> = library.albums.iter().take(layer_count as usize).map(|a| {
+            let hash = &a.album_data.info.cover_hash;
+            let id = a.id.clone();
+            let thumb_path = thumb_dir.join(format!("{}.png", hash));
+            let fallback_path = library.root.join(&id).join(&a.album_data.info.cover_path);
+            (id, thumb_path, fallback_path)
+        }).collect();
+
+        let decoded_images: Vec<(String, Option<image::RgbaImage>)> = jobs.into_par_iter().map(|(id, thumb, fallback)| {
+            let path = if thumb.exists() { thumb } else { fallback };
+            let img = image::open(path).ok().map(|i| {
+                i.resize_exact(size, size, image::imageops::FilterType::Lanczos3).to_rgba8()
+            });
+            (id, img)
+        }).collect();
+
         let mut id_map = std::collections::HashMap::new();
         let mut count = 0;
 
-        for album in &library.albums {
-            if count >= max_layers as i32 { break; }
-            
-            let cover_rel = &album.album_data.info.cover_path;
-            let cover_path = library.root.join(&album.id).join(cover_rel);
-            
-            if let Ok(img) = image::open(cover_path) {
-                let rgba = img.resize_exact(size, size, image::imageops::FilterType::Lanczos3).to_rgba8();
+        for (id, img_opt) in decoded_images {
+            if let Some(rgba) = img_opt {
                 queue.write_texture(
                     wgpu::TexelCopyTextureInfo {
                         texture: &texture,
@@ -297,7 +322,7 @@ impl State {
                         origin: wgpu::Origin3d { x: 0, y: 0, z: count as u32 },
                         aspect: wgpu::TextureAspect::All,
                     },
-                    &rgba,
+                    rgba.as_raw(),
                     wgpu::TexelCopyBufferLayout {
                         offset: 0,
                         bytes_per_row: Some(4 * size),
@@ -305,7 +330,7 @@ impl State {
                     },
                     wgpu::Extent3d { width: size, height: size, depth_or_array_layers: 1 },
                 );
-                id_map.insert(album.id.clone(), count);
+                id_map.insert(id, count as i32);
                 count += 1;
             }
         }
