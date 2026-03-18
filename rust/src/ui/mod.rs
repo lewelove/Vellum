@@ -2,7 +2,7 @@ pub mod engine;
 pub mod physics;
 pub mod raster;
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use winit::application::ApplicationHandler;
 use winit::event::WindowEvent;
 use winit::event_loop::{ActiveEventLoop, EventLoop};
@@ -41,15 +41,20 @@ impl ApplicationHandler for App {
         
         let mut lib = Library::new(library_root);
         lib.scan();
-        self.library = Some(lib);
-
+        
         let window_attrs = Window::default_attributes().with_title("Vellum");
         let window = Arc::new(event_loop.create_window(window_attrs).unwrap());
         self.window = Some(window.clone());
 
-        let state = pollster::block_on(engine::State::new(window));
-        self.physics.update_layout(state.size.width, state.size.height);
+        let state = pollster::block_on(engine::State::new(window.clone(), &lib));
         self.state = Some(state);
+        self.library = Some(lib);
+        
+        if let Some(s) = self.state.as_mut() {
+            self.physics.update_layout(s.size.width, s.size.height);
+        }
+        
+        window.request_redraw();
     }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
@@ -68,17 +73,24 @@ impl ApplicationHandler for App {
             WindowEvent::Resized(physical_size) => {
                 state.resize(physical_size);
                 physics.update_layout(physical_size.width, physical_size.height);
+                window.request_redraw();
             }
             WindowEvent::MouseWheel { delta, .. } => {
                 let line_delta = match delta {
-                    winit::event::MouseScrollDelta::LineDelta(_, y) => y as f64 * 60.0,
+                    winit::event::MouseScrollDelta::LineDelta(_, y) => f64::from(y) * 120.0,
                     winit::event::MouseScrollDelta::PixelDelta(pos) => pos.y,
                 };
-                physics.scroll(-line_delta);
+                
+                let row_count = (library.albums.len() as f32 / physics.cols as f32).ceil() as usize;
+                let visible_rows = (physics.container_height as f32 / physics.row_height).ceil() as usize;
+                let max_slots = (row_count.saturating_sub(visible_rows) + 1) as f64;
+                
+                physics.scroll(-line_delta, max_slots);
+                window.request_redraw();
             }
             WindowEvent::RedrawRequested => {
                 physics.tick();
-                state.write_instances(physics, library.albums.len());
+                state.write_instances(physics, library);
                 state.update(physics);
                 match state.render() {
                     Ok(_) => {}

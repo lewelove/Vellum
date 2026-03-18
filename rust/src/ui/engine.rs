@@ -3,6 +3,7 @@ use std::sync::Arc;
 use winit::window::Window;
 use crate::ui::physics::PhysicsEngine;
 use crate::ui::raster::Rasterizer;
+use crate::server::library::scanner::Library;
 
 #[repr(C)]
 #[derive(Copy, Clone, Pod, Zeroable)]
@@ -31,16 +32,19 @@ pub struct State {
     pub globals_bind_group: wgpu::BindGroup,
     
     pub grid_pipeline: wgpu::RenderPipeline,
-    pub text_pipeline: wgpu::RenderPipeline,
+    pub _text_pipeline: wgpu::RenderPipeline,
     
     pub instance_buffer: wgpu::Buffer,
     pub num_instances: u32,
 
-    pub rasterizer: Rasterizer,
+    pub album_tex_bind_group: wgpu::BindGroup,
+    pub album_id_to_tex: std::collections::HashMap<String, i32>,
+
+    pub _rasterizer: Rasterizer,
 }
 
 impl State {
-    pub async fn new(window: Arc<Window>) -> Self {
+    pub async fn new(window: Arc<Window>, library: &Library) -> Self {
         let size = window.inner_size();
         let instance = wgpu::Instance::default();
         let surface = instance.create_surface(window).unwrap();
@@ -102,12 +106,68 @@ impl State {
             label: None,
         });
 
-        let grid_shader = device.create_shader_module(wgpu::include_wgsl!("shaders/grid.wgsl"));
-        let text_shader = device.create_shader_module(wgpu::include_wgsl!("shaders/text.wgsl"));
+        let (album_tex_view, album_id_to_tex) = Self::create_texture_array(&device, &queue, library);
+
+        let tex_bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        multisampled: false,
+                        view_dimension: wgpu::TextureViewDimension::D2Array,
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                    count: None,
+                },
+            ],
+            label: Some("Texture Bind Group Layout"),
+        });
+
+        let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+            address_mode_u: wgpu::AddressMode::ClampToEdge,
+            address_mode_v: wgpu::AddressMode::ClampToEdge,
+            mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Linear,
+            ..Default::default()
+        });
+
+        let album_tex_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &tex_bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(&album_tex_view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(&sampler),
+                },
+            ],
+            label: Some("Album Texture Bind Group"),
+        });
+
+        let grid_wgsl = std::fs::read_to_string("rust/src/ui/shaders/grid.wgsl").expect("Missing grid.wgsl");
+        let text_wgsl = std::fs::read_to_string("rust/src/ui/shaders/text.wgsl").expect("Missing text.wgsl");
+
+        let grid_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("Grid Shader"),
+            source: wgpu::ShaderSource::Wgsl(grid_wgsl.into()),
+        });
+        let text_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("Text Shader"),
+            source: wgpu::ShaderSource::Wgsl(text_wgsl.into()),
+        });
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: None,
-            bind_group_layouts: &[&globals_bind_group_layout],
+            bind_group_layouts: &[&globals_bind_group_layout, &tex_bind_group_layout],
             push_constant_ranges: &[],
         });
 
@@ -190,11 +250,70 @@ impl State {
             globals_buffer,
             globals_bind_group,
             grid_pipeline,
-            text_pipeline,
+            _text_pipeline: text_pipeline,
             instance_buffer,
             num_instances: 0,
-            rasterizer: Rasterizer::new(),
+            album_tex_bind_group,
+            album_id_to_tex,
+            _rasterizer: Rasterizer::new(),
         }
+    }
+
+    fn create_texture_array(
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        library: &Library,
+    ) -> (wgpu::TextureView, std::collections::HashMap<String, i32>) {
+        let max_layers = 1024;
+        let size = 200;
+        let texture_extent = wgpu::Extent3d { width: size, height: size, depth_or_array_layers: max_layers };
+        
+        let texture = device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("Album Texture Array"),
+            size: texture_extent,
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Rgba8UnormSrgb,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            view_formats: &[],
+        });
+
+        let mut id_map = std::collections::HashMap::new();
+        let mut count = 0;
+
+        for album in &library.albums {
+            if count >= max_layers as i32 { break; }
+            
+            let cover_rel = &album.album_data.info.cover_path;
+            let cover_path = library.root.join(&album.id).join(cover_rel);
+            
+            if let Ok(img) = image::open(cover_path) {
+                let rgba = img.resize_exact(size, size, image::imageops::FilterType::Lanczos3).to_rgba8();
+                queue.write_texture(
+                    wgpu::TexelCopyTextureInfo {
+                        texture: &texture,
+                        mip_level: 0,
+                        origin: wgpu::Origin3d { x: 0, y: 0, z: count as u32 },
+                        aspect: wgpu::TextureAspect::All,
+                    },
+                    &rgba,
+                    wgpu::TexelCopyBufferLayout {
+                        offset: 0,
+                        bytes_per_row: Some(4 * size),
+                        rows_per_image: Some(size),
+                    },
+                    wgpu::Extent3d { width: size, height: size, depth_or_array_layers: 1 },
+                );
+                id_map.insert(album.id.clone(), count);
+                count += 1;
+            }
+        }
+
+        (texture.create_view(&wgpu::TextureViewDescriptor {
+            dimension: Some(wgpu::TextureViewDimension::D2Array),
+            ..Default::default()
+        }), id_map)
     }
 
     pub fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
@@ -206,14 +325,17 @@ impl State {
         }
     }
 
-    pub fn write_instances(&mut self, physics: &PhysicsEngine, total_count: usize) {
-        let (start, end) = physics.get_visible_range(total_count);
-        let mut instances = Vec::with_capacity(end - start);
+    pub fn write_instances(&mut self, physics: &PhysicsEngine, library: &Library) {
+        let (start, end) = physics.get_visible_range(library.albums.len());
+        let mut instances = Vec::with_capacity(end.saturating_sub(start));
         
         for i in start..end {
+            let album = &library.albums[i];
+            let tex_idx = self.album_id_to_tex.get(&album.id).copied().unwrap_or(-1);
+            
             instances.push(AlbumInstance {
                 position: physics.get_item_pos(i),
-                tex_index: -1,
+                tex_index: tex_idx,
                 _padding: 0,
             });
         }
@@ -256,6 +378,7 @@ impl State {
             if self.num_instances > 0 {
                 rp.set_pipeline(&self.grid_pipeline);
                 rp.set_bind_group(0, &self.globals_bind_group, &[]);
+                rp.set_bind_group(1, &self.album_tex_bind_group, &[]);
                 rp.set_vertex_buffer(0, self.instance_buffer.slice(..));
                 rp.draw(0..6, 0..self.num_instances);
             }

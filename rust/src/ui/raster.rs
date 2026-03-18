@@ -3,26 +3,26 @@ use swash::scale::ScaleContext;
 use cosmic_text::{FontSystem, SwashCache};
 
 pub struct AtlasRect {
-    pub x: u32,
-    pub y: u32,
-    pub w: u32,
-    pub h: u32,
+    pub _x: u32,
+    pub _y: u32,
+    pub _w: u32,
+    pub _h: u32,
 }
 
 pub struct Rasterizer {
-    pub font_system: FontSystem,
-    pub swash_cache: SwashCache,
-    pub scale_context: ScaleContext,
-    pub glyph_cache: HashMap<u32, AtlasRect>,
+    pub _font_system: FontSystem,
+    pub _swash_cache: SwashCache,
+    pub _scale_context: ScaleContext,
+    pub _glyph_cache: HashMap<u32, AtlasRect>,
 }
 
 impl Rasterizer {
     pub fn new() -> Self {
         Self {
-            font_system: FontSystem::new(),
-            swash_cache: SwashCache::new(),
-            scale_context: ScaleContext::new(),
-            glyph_cache: HashMap::new(),
+            _font_system: FontSystem::new(),
+            _swash_cache: SwashCache::new(),
+            _scale_context: ScaleContext::new(),
+            _glyph_cache: HashMap::new(),
         }
     }
 }
