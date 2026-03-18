@@ -7,7 +7,7 @@ mod config;
 mod harvest;
 mod server;
 mod update;
-mod slint_ui;
+mod ui;
 
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
@@ -91,7 +91,7 @@ async fn main() -> Result<()> {
 
     match cli.command {
         Commands::Ui => {
-            slint_ui::run()?;
+            ui::run()?;
             Ok(())
         }
         Commands::Harvest {

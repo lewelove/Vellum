@@ -59,6 +59,7 @@
             pkgs.openssl 
             pkgs.nix
             pkgs.git
+            pkgs.vulkan-loader
           ];
           text = ''
             ROOT=$(git rev-parse --show-toplevel)
@@ -148,6 +149,7 @@
           wayland
           libxkbcommon
           fontconfig
+          vulkan-loader
         ];
       in
       {
@@ -165,6 +167,7 @@
               pkgs.wayland 
               pkgs.libxkbcommon 
               pkgs.fontconfig 
+              pkgs.vulkan-loader
             ]}:$LD_LIBRARY_PATH"
 
             export PYTHONDONTWRITEBYTECODE=1

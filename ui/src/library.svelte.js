@@ -1,3 +1,4 @@
+import { SvelteMap } from "svelte/reactivity";
 import { connectSocket } from "./api.js";
 import { player, updatePlayerState } from "./modules/player.svelte.js";
 import { nav } from "./navigation.svelte.js";
@@ -19,7 +20,8 @@ class LibraryState {
   viewVersion = $state(0);
   albumCache = $state(new Map());
   trackPathMap = $state(new Map());
-  pinnedTextures = $state(new Map());
+  
+  pinnedTextures = new SvelteMap();
 
   worker = null;
   _tRequest = 0;
@@ -145,14 +147,16 @@ class LibraryState {
         
         if (!url || this.pinnedTextures.has(url)) continue;
 
-        const img = new Image();
-        img.src = url;
-        
         try {
+          const img = new Image();
+          img.src = url;
+          
           await img.decode();
+          
           this.pinnedTextures.set(url, img);
-          this.pinnedTextures = new Map(this.pinnedTextures);
-        } catch (err) {}
+        } catch (err) {
+          // Decoding might fail for corrupt files or network blips
+        }
       }
     };
 
@@ -207,9 +211,9 @@ class LibraryState {
   getSidebarGroup(key) {
     if (!this.sidebarGroups.has(key) && this.worker) {
         this.worker.postMessage({ type: "GROUP", payload: { key } });
-        return [];
+        return[];
     }
-    return this.sidebarGroups.get(key) || [];
+    return this.sidebarGroups.get(key) ||[];
   }
 
   getTrackByPath(path) {
