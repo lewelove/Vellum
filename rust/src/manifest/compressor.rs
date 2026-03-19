@@ -19,7 +19,7 @@ pub fn compress(
         for (key, meta) in layout {
             if let Some(table) = meta.as_table() {
                 if table.get("level").and_then(|v| v.as_str()) == Some("track") {
-                    forced_track_keys.insert(key.clone());
+                    forced_track_keys.insert(key.to_uppercase());
                 }
             }
         }
@@ -41,7 +41,7 @@ pub fn compress(
             .all(|t| t.get(&key) == first_track.get(&key));
 
         if is_identical {
-            if forced_track_keys.contains(&key) {
+            if forced_track_keys.contains(&key.to_uppercase()) {
                 continue;
             }
             keys_to_promote.push(key.clone());

@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
 use lofty::config::ParseOptions;
+use lofty::file::AudioFile;
 use lofty::prelude::*;
 use lofty::probe::Probe;
 use rayon::prelude::*;
@@ -33,7 +34,7 @@ pub struct PhysicsData {
 }
 
 pub fn run(roots: Vec<PathBuf>, pretty: bool) {
-    let extensions = ["flac", "mp3", "m4a", "ogg", "wav", "opus"];
+    let extensions =["flac", "mp3", "m4a", "ogg", "wav", "opus"];
     let mut files = Vec::new();
 
     for root in roots {
@@ -98,8 +99,11 @@ pub fn harvest_file(path: &Path) -> Result<TrackJson> {
         .duration_since(std::time::UNIX_EPOCH)?
         .as_secs();
 
-    let tagged_file = Probe::open(path)
-        .context("Open failed")?
+    let mut f = std::fs::File::open(path).context("Open failed")?;
+    let probe = Probe::new(&mut f).guess_file_type().context("Guess failed")?;
+    let file_type = probe.file_type();
+
+    let tagged_file = Probe::open(path)?
         .options(ParseOptions::new().read_cover_art(false))
         .read()
         .context("Read failed")?;
@@ -119,47 +123,115 @@ pub fn harvest_file(path: &Path) -> Result<TrackJson> {
     };
 
     let mut tags = HashMap::new();
+    let mut concrete_parsed = false;
 
-    if let Some(tag) = tagged_file
-        .primary_tag()
-        .or_else(|| tagged_file.first_tag())
-    {
-        let tag_type = tag.tag_type();
-
-        for item in tag.items() {
-            let key = item
-                .key()
-                .map_key(tag_type)
-                .map_or_else(
-                    || {
-                        let k = format!("{item:?}");
-                        if let Some(start) = k.find('"')
-                            && let Some(end) = k.rfind('"')
-                            && start < end
-                        {
-                            return k[start + 1..end].to_string();
+    let mut file_content = std::fs::File::open(path)?;
+    match file_type {
+        Some(lofty::file::FileType::Flac) => {
+            if let Ok(flac) = lofty::flac::FlacFile::read_from(
+                &mut file_content,
+                ParseOptions::new().read_cover_art(false),
+            ) {
+                if let Some(comments) = flac.vorbis_comments() {
+                    for (k, v) in comments.items() {
+                        let key = k.to_uppercase();
+                        let value = v.trim();
+                        if !key.is_empty() && !value.is_empty() {
+                            tags.entry(key)
+                                .and_modify(|e: &mut String| {
+                                    if !e.contains(value) {
+                                        e.push_str("; ");
+                                        e.push_str(value);
+                                    }
+                                })
+                                .or_insert_with(|| value.to_string());
                         }
-                        k
-                    },
-                    ToString::to_string,
-                )
-                .to_uppercase();
-
-            let Some(value) = item.value().text() else {
-                continue;
-            };
-            let value = value.trim();
-
-            if key.is_empty() || value.is_empty() {
-                continue;
+                    }
+                    concrete_parsed = true;
+                }
             }
+        }
+        Some(lofty::file::FileType::Vorbis) => {
+            if let Ok(ogg) = lofty::ogg::VorbisFile::read_from(
+                &mut file_content,
+                ParseOptions::new().read_cover_art(false),
+            ) {
+                let comments = ogg.vorbis_comments();
+                for (k, v) in comments.items() {
+                    let key = k.to_uppercase();
+                    let value = v.trim();
+                    if !key.is_empty() && !value.is_empty() {
+                        tags.entry(key)
+                            .and_modify(|e: &mut String| {
+                                if !e.contains(value) {
+                                    e.push_str("; ");
+                                    e.push_str(value);
+                                }
+                            })
+                            .or_insert_with(|| value.to_string());
+                    }
+                }
+                concrete_parsed = true;
+            }
+        }
+        Some(lofty::file::FileType::Opus) => {
+            if let Ok(opus) = lofty::ogg::OpusFile::read_from(
+                &mut file_content,
+                ParseOptions::new().read_cover_art(false),
+            ) {
+                let comments = opus.vorbis_comments();
+                for (k, v) in comments.items() {
+                    let key = k.to_uppercase();
+                    let value = v.trim();
+                    if !key.is_empty() && !value.is_empty() {
+                        tags.entry(key)
+                            .and_modify(|e: &mut String| {
+                                if !e.contains(value) {
+                                    e.push_str("; ");
+                                    e.push_str(value);
+                                }
+                            })
+                            .or_insert_with(|| value.to_string());
+                    }
+                }
+                concrete_parsed = true;
+            }
+        }
+        _ => {}
+    }
 
-            tags.entry(key)
-                .and_modify(|existing: &mut String| {
-                    existing.push_str("; ");
-                    existing.push_str(value);
-                })
-                .or_insert_with(|| value.to_string());
+    if !concrete_parsed {
+        if let Some(tag) = tagged_file
+            .primary_tag()
+            .or_else(|| tagged_file.first_tag())
+        {
+            let tag_type = tag.tag_type();
+            for item in tag.items() {
+                let key = item
+                    .key()
+                    .map_key(tag_type)
+                    .map(ToString::to_string)
+                    .unwrap_or_else(|| format!("{:?}", item.key()))
+                    .to_uppercase();
+
+                let Some(value) = item.value().text() else {
+                    continue;
+                };
+                let value = value.trim();
+
+                if key.is_empty() || value.is_empty() {
+                    continue;
+                }
+
+                tags.entry(key)
+                    .and_modify(|existing: &mut String| {
+                        if !existing.contains(value) {
+                            existing.push_str("; ");
+                            existing.push_str(value);
+                        }
+                    })
+                    .or_insert_with(|| value.to_string());
+            }
         }
     }
 

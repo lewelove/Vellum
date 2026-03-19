@@ -21,22 +21,28 @@ pub fn render_toml_block(
     level: &str,
 ) -> Vec<String> {
     let mut lines = Vec::new();
-    let mut consumed_keys = HashSet::new();
+    let mut layout_keys = HashSet::new();
 
     if let Some(lay) = layout {
+        for key in lay.keys() {
+            layout_keys.insert(key.to_uppercase());
+        }
+
         for (key, meta) in lay {
             if let Some(meta_table) = meta.as_table() {
                 let key_level = meta_table.get("level").and_then(|v| v.as_str()).unwrap_or("");
                 if key_level == level {
-                    let val = pool.get(key);
+                    let val = pool.get(key).or_else(|| pool.get(&key.to_uppercase()));
                     let rendered_val = match val {
                         Some(v) => format_toml_value(v),
                         None => "\"\"".to_string(),
                     };
                     lines.push(format!("{key} = {rendered_val}"));
-                    consumed_keys.insert(key.clone());
 
-                    let add_newline = meta_table.get("add_newline").and_then(|v| v.as_bool()).unwrap_or(false);
+                    let add_newline = meta_table
+                        .get("add_newline")
+                        .and_then(|v| v.as_bool())
+                        .unwrap_or(false);
                     if add_newline {
                         lines.push(String::new());
                     }
@@ -47,7 +53,7 @@ pub fn render_toml_block(
 
     let mut appendix_keys: Vec<String> = pool
         .keys()
-        .filter(|k| !consumed_keys.contains(*k))
+        .filter(|k| !layout_keys.contains(&k.to_uppercase()))
         .cloned()
         .collect();
     appendix_keys.sort();
