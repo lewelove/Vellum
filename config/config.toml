@@ -28,3 +28,24 @@ folder = "/home/lewelove/dev/vellum/extensions/python"
 functions_folder = "functions"
 flake = "flake.nix"
 kernel_command = "python extensions/python/compile_kernel.py"
+
+[manifest_layout]
+album = { level = "album" }
+albumartist = { level = "album" }
+date = { level = "album" }
+genre = { level = "album", add_newline = true }
+
+comment = { level = "album", add_newline = true }
+
+country = { level = "album" }
+label = { level = "album" }
+catalognumber = { level = "album" }
+media = { level = "album", add_newline = true }
+
+discogs_url = { level = "album" }
+musicbrainz_url = { level = "album", add_newline = true }
+
+title = { level = "track" }
+artist = { level = "track" }
+tracknumber = { level = "track" }
+discnumber = { level = "track" }
