@@ -45,6 +45,6 @@ media = { level = "album", add_newline = true }
 discogs_url = { level = "album" }
 musicbrainz_url = { level = "album", add_newline = true }
 
+tracknumber = { level = "track" }
 title = { level = "track" }
 artist = { level = "track" }
-tracknumber = { level = "track" }
