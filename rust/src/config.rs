@@ -1,4 +1,5 @@
 use anyhow::{Context, Result};
+use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
@@ -13,7 +14,7 @@ pub struct AppConfig {
     pub extensions: Option<ExtensionsConfig>,
     pub compiler: Option<CompilerConfig>,
     pub compiler_registry: Option<HashMap<String, Value>>,
-    pub lock: Option<LockConfig>,
+    pub manifest_layout: Option<IndexMap<String, Value>>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -48,11 +49,6 @@ pub struct ExtensionsConfig {
 pub struct CompilerConfig {
     pub legacy_extensions_folder: String,
     pub scan_depth: Option<usize>,
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct LockConfig {
-    pub layout: HashMap<String, Vec<Value>>,
 }
 
 impl AppConfig {

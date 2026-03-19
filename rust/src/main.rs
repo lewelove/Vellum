@@ -5,6 +5,7 @@
 mod compile;
 mod config;
 mod harvest;
+mod manifest;
 mod server;
 mod update;
 
@@ -56,6 +57,10 @@ enum Commands {
         jobs: Option<usize>,
         #[arg(long)]
         no_extensions: bool,
+    },
+    Manifest {
+        #[arg(long)]
+        force: bool,
     },
 }
 
@@ -155,5 +160,6 @@ async fn main() -> Result<()> {
             let expanded = path.map(|p| expand_path(&p));
             update::run(expanded, force, jobs, no_extensions).await
         }
+        Commands::Manifest { force } => manifest::run(force).await,
     }
 }
