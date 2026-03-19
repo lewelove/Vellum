@@ -37,7 +37,7 @@ pub fn render_toml_block(
                         Some(v) => format_toml_value(v),
                         None => "\"\"".to_string(),
                     };
-                    lines.push(format!("{key} = {rendered_val}"));
+                    lines.push(format!("{} = {rendered_val}", key.to_uppercase()));
 
                     let add_newline = meta_table
                         .get("add_newline")
@@ -60,7 +60,7 @@ pub fn render_toml_block(
 
     for k in appendix_keys {
         if let Some(v) = pool.get(&k) {
-            lines.push(format!("{k} = {}", format_toml_value(v)));
+            lines.push(format!("{} = {}", k.to_uppercase(), format_toml_value(v)));
         }
     }
 
