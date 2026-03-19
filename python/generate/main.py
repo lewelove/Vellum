@@ -1,4 +1,3 @@
-import tomllib
 import json
 import sys
 import os
@@ -6,12 +5,12 @@ import subprocess
 from pathlib import Path
 from tqdm import tqdm
 
+from python.config import load_config
 from .engine import render_toml_block
 from .compressor import compress
 from .grouper import group_tracks, resolve_anchor, sort_album_tracks
 
 def harvest_metadata(target_paths):
-    """Call the native rust binary directly for harvesting."""
     if not isinstance(target_paths, list):
         target_paths = [target_paths]
     
@@ -27,25 +26,23 @@ def harvest_metadata(target_paths):
     return harvested_map
 
 def run_generate():
-    config_path = Path("config.toml")
-    if not config_path.exists():
-        print("Error: config.toml not found.")
+    try:
+        config = load_config()
+    except Exception as e:
+        print(f"Error: {e}")
         return
 
     force_mode = "--force" in sys.argv
 
-    with open(config_path, "rb") as f:
-        config = tomllib.load(f)
-
     lib_root = Path(config["storage"]["library_root"]).expanduser().resolve()
     gen_cfg = config.get("generate", {})
-    registry_cfg = config.get("compiler_registry", {})
     
     supported_exts = set(e.lower() for e in gen_cfg.get("supported_extensions", [".flac"]))
     grouping_keys = gen_cfg.get("grouping_keys", ["ALBUMARTIST", "ALBUM"])
     
-    album_layout = registry_cfg.get("album", [])
-    tracks_layout = registry_cfg.get("tracks", [])
+    layout_cfg = config.get("lock", {}).get("layout", {})
+    album_layout = layout_cfg.get("album", [])
+    tracks_layout = layout_cfg.get("tracks", [])
 
     dirs_to_harvest = []
     for root, dirs, files in os.walk(lib_root):
@@ -98,6 +95,5 @@ def run_generate():
                 f.write("[[tracks]]\n")
                 f.write("\n".join(render_toml_block(tp, tracks_layout)) + "\n\n")
 
-    # Trigger the NEW Rust-based update via subprocess
     print("\nGeneration complete. Triggering library update...")
     subprocess.run(["vellum", "update"])

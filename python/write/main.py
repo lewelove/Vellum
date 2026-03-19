@@ -1,12 +1,11 @@
 import argparse
 import json
-import tomllib
 import subprocess
 from pathlib import Path
+from python.config import load_config
 from .syncer import collect_changes, apply_write_plan
 
 def harvest_metadata(target_path):
-    """Call the native rust binary directly for harvesting."""
     cmd = ["vellum", "harvest", str(target_path)]
     result = subprocess.run(cmd, capture_output=True, text=True)
     
@@ -26,22 +25,20 @@ def run_write():
     parser.add_argument(
         "path", 
         nargs="?", 
-        help="Path to folder containing albums (Defaults to library_root in config.toml)"
+        help="Path to folder containing albums"
     )
     
     args = parser.parse_args()
 
+    try:
+        config = load_config()
+    except Exception as e:
+        print(f"Error: {e}")
+        return
+
     if args.path:
         target_path = Path(args.path).expanduser().resolve()
     else:
-        config_path = Path("config.toml")
-        if not config_path.exists():
-            print("Error: No path provided and config.toml not found.")
-            return
-        
-        with open(config_path, "rb") as f:
-            config = tomllib.load(f)
-        
         target_path = Path(config["storage"]["library_root"]).expanduser().resolve()
 
     if not target_path.exists():
@@ -52,6 +49,8 @@ def run_write():
     if not lock_files:
         print(f"No metadata.lock.json files found in {target_path}")
         return
+
+    registry = config.get("compiler_registry", {})
 
     print(f"Scanning {len(lock_files)} anchored folders...")
 
@@ -71,12 +70,7 @@ def run_write():
         if not harvested_map: 
             continue
 
-        change_log, sync_plan, injection_plan = collect_changes(album_root, lock_data, harvested_map)
-
-        if injection_plan:
-            count = sum(len(tags) for tags in injection_plan.values())
-            print(f"Injecting {count} missing tags into: {album_root.name}")
-            apply_write_plan(injection_plan)
+        change_log, sync_plan, _ = collect_changes(album_root, lock_data, harvested_map, registry)
 
         if change_log:
             print(f"\nDiscrepancies found in: {album_root}")

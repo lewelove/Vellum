@@ -1,24 +1,22 @@
-import tomllib
 import shutil
 from pathlib import Path
 from tqdm import tqdm
 
+from python.config import load_config
 from python.generate.naming import generate_filename
 from python.generate.engine import render_toml_block
 
 def run_export():
-    config_path = Path("config.toml")
-    if not config_path.exists():
-        print("Error: config.toml not found.")
+    try:
+        config = load_config()
+    except Exception as e:
+        print(f"Error: {e}")
         return
-
-    with open(config_path, "rb") as f:
-        config = tomllib.load(f)
 
     lib_root = Path(config["storage"]["library_root"]).expanduser().resolve()
     export_root = Path(config["storage"]["library_export"]).expanduser().resolve()
     
-    gen_cfg = config["generate"]
+    gen_cfg = config.get("generate", {})
     group_keys = gen_cfg.get("grouping_keys", ["ALBUMARTIST", "ALBUM"])
     naming_sep = gen_cfg.get("naming_separator", "_")
     
@@ -28,11 +26,10 @@ def run_export():
 
     print(f"Exporting {len(album_folders)} albums to: {export_root}")
 
+    import tomllib
     for album_path in tqdm(album_folders, desc="Exporting", unit="album"):
         meta_path = album_path / "metadata.toml"
         files_path = album_path / "files.toml"
-
-        tqdm.write(f"Processing: {album_path.relative_to(lib_root)}")
 
         with open(meta_path, "rb") as f:
             meta_data = tomllib.load(f)

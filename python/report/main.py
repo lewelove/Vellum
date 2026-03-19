@@ -1,7 +1,6 @@
 import argparse
-import tomllib
 from pathlib import Path
-
+from python.config import load_config
 from .lb_parser import parse_listenbrainz_export
 from .matcher import get_library_metadata, match_listens
 from .formatter import generate_report_text
@@ -15,13 +14,11 @@ def run_report():
     
     args = parser.parse_args()
     
-    config_path = Path("config.toml")
-    if not config_path.exists():
-        print("Error: config.toml not found.")
+    try:
+        config = load_config()
+    except Exception as e:
+        print(f"Error: {e}")
         return
-
-    with open(config_path, "rb") as f:
-        config = tomllib.load(f)
     
     lib_root = config["storage"]["library_root"]
     
