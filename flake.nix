@@ -50,6 +50,7 @@
           runtimeInputs = [ 
             pythonEnv 
             pkgs.bun
+            pkgs.nodejs_20
             pkgs.cargo 
             pkgs.rustc 
             pkgs.clippy
@@ -72,6 +73,9 @@
                 ;;
               ui)
                 cd "$ROOT/ui" && bun run dev
+                ;;
+              ui-npm)
+                cd "$ROOT/ui" && npm run dev
                 ;;
               server|compile|update|harvest)
                 if [ ! -f "$BIN" ]; then
