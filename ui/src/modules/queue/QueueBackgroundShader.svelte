@@ -37,9 +37,9 @@
 
     out vec4 fragColor;
 
-    const float SPEED = 0.10;
+    const float SPEED = 0.03;
     const float SATURATION = 1.2;
-    const float GRAIN_AMOUNT = 0.02;
+    const float GRAIN_AMOUNT = 0.04;
     const float BLEND_SOFTNESS = 0.12;
 
     vec3 hexToRgb(int hex) {
