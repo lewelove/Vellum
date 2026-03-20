@@ -15,7 +15,7 @@
   let activeAlbum = $derived(activeId ? library.albumCache.get(activeId) : null);
   let coverUrl = $derived(activeId ? library.getAlbumCoverUrl(activeId) : "");
   
-  let palette = $derived(activeAlbum?.tags?.COVER_PALETTE ||[]);
+  let palette = $derived(activeAlbum?.tags?.COVER_PALETTE || []);
 
   let activeView = $state("tracks");
 
@@ -68,6 +68,7 @@
 <svelte:window bind:innerWidth={windowWidth} bind:innerHeight={windowHeight} />
 
 <div class="queue-view-container">
+  <QueueBackgroundShader colors={palette} coverSize={coverSize} />
 
   {#if isExpanded}
     <div 
@@ -78,8 +79,6 @@
       onkeydown={(e) => { if(e.key === 'Enter') toggleExpand(); }}
       transition:fade={{ duration: 300 }}
     >
-      <QueueBackgroundShader colors={palette} coverSize={expandedSize} />
-
       <div 
         class="expanded-content" 
         style="width: {expandedSize}px; height: {expandedSize}px;"
@@ -134,7 +133,6 @@
 
         <div class="column-right">
           <div class="scroll-area">
-            <div class="scroll-fade-overlay-top"></div>
             <div class="scroll-content">
               {#if activeView === 'tracks'}
                 <div class="tracks-wrapper" in:fade={{ duration: 150 }}>
@@ -146,7 +144,6 @@
                 </div>
               {/if}
             </div>
-            <div class="scroll-fade-overlay-bottom"></div>
           </div>
         </div>
       </div>
@@ -158,14 +155,13 @@
   </div>
 
   <QueueBar {activeView} onViewChange={(v) => activeView = v} />
-
 </div>
 
 <style>
   .queue-view-container {
     width: 100%;
     height: 100%;
-    background-color: var(--background-main);
+    background-color: transparent;
     position: relative;
     overflow: hidden;
     display: flex;
@@ -177,17 +173,21 @@
     position: relative;
     height: 100%;
     min-width: 0;
-    padding: 24px 32px; 
+    padding: 32px; 
     box-sizing: border-box;
+    z-index: 1;
   }
 
   .queue-layout {
     width: 100%;
     height: 100%;
-    background-color: #242424;
+    background: rgba(15, 15, 15, 0.3);
+    backdrop-filter: blur(50px) saturate(80%);
+    -webkit-backdrop-filter: blur(50px);
     border-radius: 16px;
     overflow: hidden;
-    box-shadow: var(--modal-shadow);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0px 0px 80px rgba(0, 0, 0, 0.7);
     display: flex;
     flex-direction: column;
   }
@@ -196,16 +196,18 @@
     display: flex;
     flex-direction: row;
     min-height: 0;
+    flex: 1;
   }
 
   .column-left {
     display: flex;
     flex-direction: column;
-    background-color: #1f1f1f;
+    background-color: rgba(0, 0, 0, 0.1);
     height: 100%;
     flex-shrink: 0;
     box-sizing: border-box;
     overflow: hidden;
+    border-right: 1px solid rgba(255, 255, 255, 0.03);
   }
 
   .left-main-area {
@@ -240,7 +242,7 @@
 
   .empty-cover span {
     font-family: var(--font-mono);
-    color: #333;
+    color: #444;
     font-size: 12px;
     letter-spacing: 2px;
   }
@@ -252,7 +254,7 @@
     min-width: 0;
     height: 100%;
     box-sizing: border-box;
-    background-color: #242424;
+    background-color: transparent;
     overflow: hidden;
   }
 
@@ -262,7 +264,9 @@
     min-height: 0;
     display: flex;
     flex-direction: column;
-    padding: 32px 32px 0 32px; 
+    padding: 32px;
+    -webkit-mask-image: linear-gradient(to bottom, transparent, black 32px, black calc(100% - 32px), transparent);
+    mask-image: linear-gradient(to bottom, transparent, black 32px, black calc(100% - 32px), transparent);
   }
 
   .scroll-content {
@@ -283,28 +287,6 @@
     height: 100%;
   }
 
-  .scroll-fade-overlay-top {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 12px;
-    background: linear-gradient(to bottom, #242424 0%, transparent 100%);
-    z-index: 10;
-    pointer-events: none;
-  }
-
-  .scroll-fade-overlay-bottom {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 12px;
-    background: linear-gradient(to top, #242424 0%, transparent 100%);
-    z-index: 10;
-    pointer-events: none;
-  }
-
   .layout-footer {
     flex-shrink: 0;
     width: 100%;
@@ -314,8 +296,8 @@
     position: fixed;
     inset: 0;
     z-index: 9999;
-    background-color: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(10px);
+    background-color: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(25px);
     display: flex;
     align-items: center;
     justify-content: center;
