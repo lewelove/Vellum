@@ -171,7 +171,7 @@ pub fn resolve_cover_entropy(ctx: &AlbumContext) -> Option<Value> {
 
 pub fn resolve_cover_palette(ctx: &AlbumContext) -> Option<Value> {
     let img = ctx.cover_image?;
-    let small_img = img.resize_exact(64, 64, FilterType::Triangle);
+    let small_img = img.resize_exact(64, 64, FilterType::Nearest);
 
     let lab_pixels: Vec<Lab> = small_img
         .pixels()
@@ -269,15 +269,21 @@ pub fn resolve_cover_palette(ctx: &AlbumContext) -> Option<Value> {
         })
         .collect();
 
+    // Sort by score (proportional to ratio) descending
     scored.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
 
-    let top: Vec<(f64, Lab)> = scored.into_iter().take(8).collect();
-    let total_score: f64 = top.iter().map(|(score, _)| *score).sum();
+    let total_score: f64 = scored.iter().map(|(score, _)| *score).sum();
 
-    let palette_data: Vec<Value> = top
+    let palette_data: Vec<Value> = scored
         .into_iter()
-        .map(|(score, lab)| {
+        .filter_map(|(score, lab)| {
             let ratio = if total_score > 0.0 { score / total_score } else { 0.0 };
+            
+            // Discard entries with ratio < 0.001
+            if ratio < 0.001 {
+                return None;
+            }
+
             let srgb = Srgb::from_color(lab);
             let hex = format!(
                 "#{:02X}{:02X}{:02X}",
@@ -286,10 +292,7 @@ pub fn resolve_cover_palette(ctx: &AlbumContext) -> Option<Value> {
                 (srgb.blue.clamp(0.0, 1.0) * 255.0).round() as u8
             );
 
-            json!({
-                "color": hex,
-                "ratio": ratio
-            })
+            Some(json!(hex))
         })
         .collect();
 
