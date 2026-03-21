@@ -1,8 +1,0 @@
-[gd_scene format=3 uid="uid://dwcmdignqlpwk"]
-
-[ext_resource type="Script" uid="uid://igl80xytyhdm" path="res://scripts/MainUI.gd" id="1_vfs0v"]
-
-[node name="MainUI" type="Control" unique_id=798263048]
-layout_mode = 3
-anchors_preset = 0
-script = ExtResource("1_vfs0v")
