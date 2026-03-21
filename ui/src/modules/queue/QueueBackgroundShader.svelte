@@ -9,6 +9,7 @@
   let animationFrame;
   let startTime;
   let randomOffset = Math.random() * 1000.0;
+  let uniforms = {};
 
   const DEFAULT_PALETTE = [
     { color: "#1a1a1a", ratio: 0.4 },
@@ -17,6 +18,10 @@
     { color: "#161b22", ratio: 0.1 }
   ];
 
+  // Renders at half logical resolution. On a 1080p display, this renders at 960x540.
+  // This drastically reduces fill-rate pressure on integrated GPUs by 75%.
+  const RENDER_SCALE = 1;
+
   const vertexShaderSource = `#version 300 es
     in vec2 position;
     void main() {
@@ -24,6 +29,7 @@
     }
   `;
 
+  // highp float is strictly required. mediump collapses the hash() mantissa.
   const fragmentShaderSource = `#version 300 es
     precision highp float;
     precision highp int;
@@ -32,20 +38,13 @@
     uniform float iRandom;
     uniform vec2 iResolution;
     uniform float iCoverSize;
-    uniform int iColors[8];
+    uniform vec3 iColors[8];
     uniform float iRatios[8];
 
     out vec4 fragColor;
 
     const float SPEED = 0.04;
     const float GRAIN_AMOUNT = 0.02;
-
-    vec3 hexToRgb(int hex) {
-        float r = float((hex >> 16) & 0xFF) / 255.0;
-        float g = float((hex >> 8) & 0xFF) / 255.0;
-        float b = float(hex & 0xFF) / 255.0;
-        return vec3(r, g, b);
-    }
 
     float hash(vec2 p) {
         p = fract(p * vec2(123.34, 456.21));
@@ -67,7 +66,8 @@
     float fbm(vec2 p) {
         float v = 0.0;
         float a = 0.5;
-        for (int i = 0; i < 4; i++) {
+        // 3 octaves is sufficient for fluid blobs.
+        for (int i = 0; i < 3; i++) {
             v += a * noise(p);
             p *= 2.0;
             a *= 0.5;
@@ -92,25 +92,19 @@
         float val = fbm(p * 1.5 + t);
         val = clamp(val, 0.0, 1.0);
 
-        float totalRatio = 0.0;
-        for(int i = 0; i < 8; i++) {
-            totalRatio += iRatios[i];
-        }
-
         vec3 finalColor = vec3(0.0);
         float cumulative = 0.0;
-        float softness = 0.02; 
+        const float softness = 0.02; 
 
         for(int i = 0; i < 8; i++) {
             if (iRatios[i] <= 0.0) continue;
             
-            float normRatio = iRatios[i] / totalRatio;
-            float nextCumulative = cumulative + normRatio;
+            float nextCumulative = cumulative + iRatios[i];
             
             float weight = smoothstep(cumulative - softness, cumulative + softness, val) - 
                            smoothstep(nextCumulative - softness, nextCumulative + softness, val);
             
-            finalColor += hexToRgb(iColors[i]) * max(0.0, weight);
+            finalColor += iColors[i] * max(0.0, weight);
             cumulative = nextCumulative;
         }
 
@@ -126,6 +120,7 @@
     gl.shaderSource(shader, source);
     gl.compileShader(shader);
     if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+      console.error(gl.getShaderInfoLog(shader));
       gl.deleteShader(shader);
       return null;
     }
@@ -135,7 +130,7 @@
   function initGL() {
     gl = canvasEl.getContext("webgl2", { 
       alpha: false, 
-      antialias: true,
+      antialias: false,
       premultipliedAlpha: false 
     });
     
@@ -158,6 +153,16 @@
     gl.enableVertexAttribArray(positionLoc);
     gl.vertexAttribPointer(positionLoc, 2, gl.FLOAT, false, 0, 0);
 
+    gl.useProgram(program);
+
+    // Cache uniform locations to avoid expensive driver lookups every frame
+    uniforms.iTime = gl.getUniformLocation(program, "iTime");
+    uniforms.iRandom = gl.getUniformLocation(program, "iRandom");
+    uniforms.iResolution = gl.getUniformLocation(program, "iResolution");
+    uniforms.iCoverSize = gl.getUniformLocation(program, "iCoverSize");
+    uniforms.iColors = gl.getUniformLocation(program, "iColors[0]") || gl.getUniformLocation(program, "iColors");
+    uniforms.iRatios = gl.getUniformLocation(program, "iRatios[0]") || gl.getUniformLocation(program, "iRatios");
+
     startTime = performance.now();
     render();
   }
@@ -168,32 +173,43 @@
     const elapsed = (now - startTime) / 1000;
 
     gl.viewport(0, 0, canvasEl.width, canvasEl.height);
-    gl.useProgram(program);
-
-    gl.uniform1f(gl.getUniformLocation(program, "iTime"), elapsed);
-    gl.uniform1f(gl.getUniformLocation(program, "iRandom"), randomOffset);
-    gl.uniform2f(gl.getUniformLocation(program, "iResolution"), canvasEl.width, canvasEl.height);
     
-    const dpr = window.devicePixelRatio || 1;
-    gl.uniform1f(gl.getUniformLocation(program, "iCoverSize"), coverSize * dpr);
+    gl.uniform1f(uniforms.iTime, elapsed);
+    gl.uniform1f(uniforms.iRandom, randomOffset);
+    gl.uniform2f(uniforms.iResolution, canvasEl.width, canvasEl.height);
+    gl.uniform1f(uniforms.iCoverSize, coverSize * RENDER_SCALE);
 
     const activePalette = colors.length > 0 ? colors : DEFAULT_PALETTE;
-    const intColors = new Int32Array(8);
+    const floatColors = new Float32Array(8 * 3);
     const floatRatios = new Float32Array(8);
     
+    let totalRatio = 0.0;
     for (let i = 0; i < 8; i++) {
       const item = activePalette[i];
       if (item && item.color) {
-        intColors[i] = parseInt(item.color.replace("#", ""), 16);
-        floatRatios[i] = parseFloat(item.ratio) || 0.0;
+        totalRatio += parseFloat(item.ratio) || 0.0;
+      }
+    }
+    if (totalRatio === 0.0) totalRatio = 1.0;
+
+    for (let i = 0; i < 8; i++) {
+      const item = activePalette[i];
+      if (item && item.color) {
+        const hex = parseInt(item.color.replace("#", ""), 16);
+        floatColors[i * 3]     = ((hex >> 16) & 0xFF) / 255.0;
+        floatColors[i * 3 + 1] = ((hex >> 8) & 0xFF) / 255.0;
+        floatColors[i * 3 + 2] = (hex & 0xFF) / 255.0;
+        floatRatios[i] = (parseFloat(item.ratio) || 0.0) / totalRatio;
       } else {
-        intColors[i] = 0;
+        floatColors[i * 3]     = 0.0;
+        floatColors[i * 3 + 1] = 0.0;
+        floatColors[i * 3 + 2] = 0.0;
         floatRatios[i] = 0.0;
       }
     }
     
-    gl.uniform1iv(gl.getUniformLocation(program, "iColors"), intColors);
-    gl.uniform1fv(gl.getUniformLocation(program, "iRatios"), floatRatios);
+    gl.uniform3fv(uniforms.iColors, floatColors);
+    gl.uniform1fv(uniforms.iRatios, floatRatios);
 
     gl.drawArrays(gl.TRIANGLES, 0, 6);
     animationFrame = requestAnimationFrame(render);
@@ -201,9 +217,8 @@
 
   function handleResize() {
     if (canvasEl) {
-      const dpr = window.devicePixelRatio || 1;
-      canvasEl.width = window.innerWidth * dpr;
-      canvasEl.height = window.innerHeight * dpr;
+      canvasEl.width = Math.max(1, Math.floor(window.innerWidth * RENDER_SCALE));
+      canvasEl.height = Math.max(1, Math.floor(window.innerHeight * RENDER_SCALE));
     }
   }
 
