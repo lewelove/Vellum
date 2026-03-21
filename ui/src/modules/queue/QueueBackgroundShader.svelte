@@ -37,10 +37,8 @@
 
     out vec4 fragColor;
 
-    const float SPEED = 0.03;
-    const float SATURATION = 1.2;
-    const float GRAIN_AMOUNT = 0.04;
-    const float BLEND_SOFTNESS = 0.12;
+    const float SPEED = 0.04;
+    const float GRAIN_AMOUNT = 0.02;
 
     vec3 hexToRgb(int hex) {
         float r = float((hex >> 16) & 0xFF) / 255.0;
@@ -49,36 +47,50 @@
         return vec3(r, g, b);
     }
 
-    float random(vec2 st) {
-        return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123);
+    float hash(vec2 p) {
+        p = fract(p * vec2(123.34, 456.21));
+        p += dot(p, p + 45.32);
+        return fract(p.x * p.y);
+    }
+
+    float noise(vec2 p) {
+        vec2 i = floor(p);
+        vec2 f = fract(p);
+        f = f * f * (3.0 - 2.0 * f);
+        float a = hash(i);
+        float b = hash(i + vec2(1.0, 0.0));
+        float c = hash(i + vec2(0.0, 1.0));
+        float d = hash(i + vec2(1.0, 1.0));
+        return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+    }
+
+    float fbm(vec2 p) {
+        float v = 0.0;
+        float a = 0.5;
+        for (int i = 0; i < 4; i++) {
+            v += a * noise(p);
+            p *= 2.0;
+            a *= 0.5;
+        }
+        return v;
     }
 
     void main() {
         vec2 uv = gl_FragCoord.xy / iResolution.xy;
         float aspect = iResolution.x / iResolution.y;
-        uv.x *= aspect;
+        vec2 p = uv;
+        p.x *= aspect;
         
         float t = (iTime + iRandom) * SPEED;
         
         vec2 center = vec2(0.5 * aspect, 0.5);
-        vec2 diff = uv - center;
-        float dBox = max(abs(diff.x), abs(diff.y));
+        float dist = length(p - center);
         float cRad = (iCoverSize / iResolution.y) * 0.5;
         
-        float repel = smoothstep(cRad + 0.4, cRad - 0.2, dBox);
-        vec2 normDiff = diff / (length(diff) + 0.0001);
-        vec2 p = uv + normDiff * repel * 0.35;
-        
-        p *= 2.2;
-        
-        for(float i = 1.0; i < 5.0; i++) {
-            vec2 newp = p;
-            newp.x += 0.6 / i * cos(i * 1.8 * p.y + t * 1.5);
-            newp.y += 0.6 / i * sin(i * 1.2 * p.x - t * 1.3);
-            p = newp;
-        }
+        p += (p - center) * smoothstep(cRad + 0.5, cRad - 0.1, dist) * 0.3;
 
-        float noiseVal = sin(p.x * 0.45 + p.y * 0.35 + t * 0.5) * 0.5 + 0.5;
+        float val = fbm(p * 1.5 + t);
+        val = clamp(val, 0.0, 1.0);
 
         float totalRatio = 0.0;
         for(int i = 0; i < 8; i++) {
@@ -86,32 +98,25 @@
         }
 
         vec3 finalColor = vec3(0.0);
-        float currentStart = 0.0;
-        float totalWeight = 0.0;
+        float cumulative = 0.0;
+        float softness = 0.02; 
 
-        for (int i = 0; i < 8; i++) {
+        for(int i = 0; i < 8; i++) {
             if (iRatios[i] <= 0.0) continue;
             
             float normRatio = iRatios[i] / totalRatio;
-            float currentEnd = currentStart + normRatio;
+            float nextCumulative = cumulative + normRatio;
             
-            float weight = smoothstep(currentStart - BLEND_SOFTNESS, currentStart + BLEND_SOFTNESS, noiseVal) * 
-                           (1.0 - smoothstep(currentEnd - BLEND_SOFTNESS, currentEnd + BLEND_SOFTNESS, noiseVal));
+            float weight = smoothstep(cumulative - softness, cumulative + softness, val) - 
+                           smoothstep(nextCumulative - softness, nextCumulative + softness, val);
             
-            finalColor += hexToRgb(iColors[i]) * weight;
-            totalWeight += weight;
-            
-            currentStart = currentEnd;
+            finalColor += hexToRgb(iColors[i]) * max(0.0, weight);
+            cumulative = nextCumulative;
         }
 
-        finalColor /= (totalWeight + 0.00001);
-
-        float luminance = dot(finalColor, vec3(0.2126, 0.7152, 0.0722));
-        finalColor = mix(vec3(luminance), finalColor, SATURATION);
-
-        float noise = (random(gl_FragCoord.xy / iResolution.xy + iTime) - 0.5) * GRAIN_AMOUNT;
-        finalColor += noise;
-
+        float noiseFloor = (hash(uv + iTime) - 0.5) * GRAIN_AMOUNT;
+        finalColor += noiseFloor;
+        
         fragColor = vec4(finalColor, 1.0);
     }
   `;
@@ -180,7 +185,7 @@
       const item = activePalette[i];
       if (item && item.color) {
         intColors[i] = parseInt(item.color.replace("#", ""), 16);
-        floatRatios[i] = item.ratio || 0.1;
+        floatRatios[i] = parseFloat(item.ratio) || 0.0;
       } else {
         intColors[i] = 0;
         floatRatios[i] = 0.0;

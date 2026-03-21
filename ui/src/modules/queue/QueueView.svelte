@@ -182,12 +182,12 @@
     width: 100%;
     height: 100%;
     background: rgba(66, 66, 66, 0.1);
-    backdrop-filter: blur(40px) saturate(60%);
+    backdrop-filter: blur(20px) saturate(90%);
     -webkit-backdrop-filter: blur(50px);
     border-radius: 16px;
     overflow: hidden;
     border: 1px solid rgba(255, 255, 255, 0.08);
-    box-shadow: 0px 0px 32px rgba(0, 0, 0, 0.7);
+    box-shadow: 0px 0px 32px rgba(0, 0, 0, 0.4);
     display: flex;
     flex-direction: column;
   }
@@ -261,12 +261,13 @@
   .scroll-area {
     position: relative;
     flex: 1;
+    background-color: rgba(0, 0, 0, 0.1);
     min-height: 0;
     display: flex;
     flex-direction: column;
     padding: 32px;
-    -webkit-mask-image: linear-gradient(to bottom, transparent, black 32px, black calc(100% - 32px), transparent);
-    mask-image: linear-gradient(to bottom, transparent, black 32px, black calc(100% - 32px), transparent);
+    /* -webkit-mask-image: linear-gradient(to bottom, transparent, black 32px, black calc(100% - 32px), transparent); */
+    /* mask-image: linear-gradient(to bottom, transparent, black 32px, black calc(100% - 32px), transparent); */
   }
 
   .scroll-content {

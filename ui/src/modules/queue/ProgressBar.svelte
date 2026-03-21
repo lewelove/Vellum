@@ -83,10 +83,10 @@
     width: 100%;
     height: 64px;
     display: flex;
+    background-color: rgba(0, 0, 0, 0.1);
     align-items: center;
     padding: 0 24px;
     box-sizing: border-box;
-    background-color: transparent;
     border-top: 1px solid rgba(255, 255, 255, 0.05);
     gap: 32px;
   }
