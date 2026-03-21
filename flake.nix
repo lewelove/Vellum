@@ -42,6 +42,7 @@
           httpx
           opencv4
           matplotlib
+          scikit-learn
           (lyricsgenius ps)
         ]);
 

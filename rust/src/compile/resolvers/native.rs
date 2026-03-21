@@ -1,7 +1,7 @@
 use crate::compile::builder::context::AlbumContext;
 use crate::compile::resolvers::standard;
 use image::GenericImageView;
-use kmeans_colors::get_kmeans;
+use image::imageops::FilterType;
 use palette::{FromColor, Lab, Srgb};
 use serde_json::{Value, json};
 use std::collections::HashSet;
@@ -171,12 +171,9 @@ pub fn resolve_cover_entropy(ctx: &AlbumContext) -> Option<Value> {
 
 pub fn resolve_cover_palette(ctx: &AlbumContext) -> Option<Value> {
     let img = ctx.cover_image?;
-    let k = 16;
-    let max_iter = 20;
-    let convergence = 0.05;
-    let seed = 42u64;
+    let small_img = img.resize_exact(64, 64, FilterType::Triangle);
 
-    let lab_pixels: Vec<Lab> = img
+    let lab_pixels: Vec<Lab> = small_img
         .pixels()
         .map(|(_, _, p)| {
             let srgb = Srgb::new(
@@ -188,66 +185,82 @@ pub fn resolve_cover_palette(ctx: &AlbumContext) -> Option<Value> {
         })
         .collect();
 
-    let result = get_kmeans(
-        k,
-        max_iter,
-        convergence,
-        false,
-        &lab_pixels,
-        seed,
-    );
+    let bandwidth = 16.0_f32;
+    let bandwidth_sq = bandwidth * bandwidth;
+    let convergence_sq = 1.0_f32;
+    let max_iter = 15;
 
-    let mut buckets = vec![0usize; result.centroids.len()];
+    let mut modes = Vec::with_capacity(lab_pixels.len());
 
-    for pixel in &lab_pixels {
-        let mut min_dist = f32::MAX;
-        let mut best_idx = 0;
+    for &seed in &lab_pixels {
+        let mut current = seed;
+        for _ in 0..max_iter {
+            let mut sum_l = 0.0;
+            let mut sum_a = 0.0;
+            let mut sum_b = 0.0;
+            let mut count = 0.0;
 
-        for (i, centroid) in result.centroids.iter().enumerate() {
-            let dl = pixel.l - centroid.l;
-            let da = pixel.a - centroid.a;
-            let db = pixel.b - centroid.b;
-            let dist_sq = (dl * dl) + (da * da) + (db * db);
+            for &p in &lab_pixels {
+                let dl = p.l - current.l;
+                let da = p.a - current.a;
+                let db = p.b - current.b;
+                let dist_sq = dl * dl + da * da + db * db;
 
-            if dist_sq < min_dist {
-                min_dist = dist_sq;
-                best_idx = i;
+                if dist_sq <= bandwidth_sq {
+                    sum_l += p.l;
+                    sum_a += p.a;
+                    sum_b += p.b;
+                    count += 1.0;
+                }
+            }
+
+            if count > 0.0 {
+                let new_l = sum_l / count;
+                let new_a = sum_a / count;
+                let new_b = sum_b / count;
+
+                let dl = new_l - current.l;
+                let da = new_a - current.a;
+                let db = new_b - current.b;
+                let shift_sq = dl * dl + da * da + db * db;
+
+                current = Lab::new(new_l, new_a, new_b);
+
+                if shift_sq < convergence_sq {
+                    break;
+                }
+            } else {
+                break;
             }
         }
-
-        buckets[best_idx] += 1;
+        modes.push(current);
     }
 
-    let mut clusters: Vec<(Lab, usize)> = result
-        .centroids
-        .into_iter()
-        .zip(buckets.into_iter())
-        .filter(|(_, count)| *count > 0)
-        .collect();
+    let mut clusters: Vec<(Lab, usize)> = Vec::new();
+    let cluster_threshold_sq = 25.0_f32;
 
-    clusters.sort_by(|a, b| b.1.cmp(&a.1));
-
-    let mut merged: Vec<(Lab, usize)> = Vec::new();
-    for (lab, count) in clusters {
+    for mode in modes {
         let mut found = false;
-        for (m_lab, m_count) in &mut merged {
-            let dl = m_lab.l - lab.l;
-            let da = m_lab.a - lab.a;
-            let db = m_lab.b - lab.b;
-            let dist = (dl * dl + da * da + db * db).sqrt();
-
-            if dist < 15.0 {
-                *m_count += count;
+        for (center, count) in &mut clusters {
+            let dl = center.l - mode.l;
+            let da = center.a - mode.a;
+            let db = center.b - mode.b;
+            if dl * dl + da * da + db * db < cluster_threshold_sq {
+                let c = *count as f32;
+                center.l = (center.l * c + mode.l) / (c + 1.0);
+                center.a = (center.a * c + mode.a) / (c + 1.0);
+                center.b = (center.b * c + mode.b) / (c + 1.0);
+                *count += 1;
                 found = true;
                 break;
             }
         }
         if !found {
-            merged.push((lab, count));
+            clusters.push((mode, 1));
         }
     }
 
-    let mut scored: Vec<(f64, Lab)> = merged
+    let mut scored: Vec<(f64, Lab)> = clusters
         .into_iter()
         .map(|(lab, count)| {
             let chroma = (lab.a.powi(2) + lab.b.powi(2)).sqrt() as f64;
