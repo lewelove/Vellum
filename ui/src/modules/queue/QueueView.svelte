@@ -181,13 +181,13 @@
   .queue-layout {
     width: 100%;
     height: 100%;
-    background: rgba(66, 66, 66, 0.1);
-    backdrop-filter: blur(20px) saturate(90%);
+    background: rgba(36, 36, 36, 0.65);
+    /* backdrop-filter: blur(2px) saturate(90%); */
     -webkit-backdrop-filter: blur(50px);
     border-radius: 16px;
     overflow: hidden;
     border: 1px solid rgba(255, 255, 255, 0.08);
-    box-shadow: 0px 0px 32px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 0 16px rgba(0, 0, 0, 0.1), 0 0 16px rgba(0, 0, 0, 0.2), 0 0 10px rgba(0, 0, 0, 0.2);
     display: flex;
     flex-direction: column;
   }

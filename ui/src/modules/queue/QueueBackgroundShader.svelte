@@ -1,5 +1,12 @@
 <script>
   import { onMount, onDestroy } from "svelte";
+  
+  import vertexShaderSource from "./shaders/quad.vert?raw";
+  // import fragmentShaderSource from "./shaders/liquid_bg.frag?raw";
+  import fragmentShaderSource from "./shaders/simplex.frag?raw";
+  // import fragmentShaderSource from "./shaders/aurora.frag?raw";
+  // import fragmentShaderSource from "../../shaders/deep_liquid.frag?raw"; 
+  // import fragmentShaderSource from "../../shaders/radial_drift.frag?raw";
 
   let { colors = [], coverSize = 0 } = $props();
 
@@ -11,113 +18,6 @@
   let randomOffset = Math.random() * 1000.0;
 
   const DEFAULT_PALETTE = ["#1a1a1a", "#242424", "#0d1117", "#161b22"];
-
-  const vertexShaderSource = `#version 300 es
-    in vec2 position;
-    void main() {
-      gl_Position = vec4(position, 0.0, 1.0);
-    }
-  `;
-
-  const fragmentShaderSource = `#version 300 es
-    precision highp float;
-    precision highp int;
-
-    uniform float iTime;
-    uniform float iRandom;
-    uniform vec2 iResolution;
-    uniform float iCoverSize;
-    uniform int iColors[16];
-    uniform int iCount;
-
-    out vec4 fragColor;
-
-    const float SPEED = 0.02;
-    const float GRAIN_AMOUNT = 0.02;
-    const float N = 2.0; 
-
-    vec3 hexToRgb(int hex) {
-        float r = float((hex >> 16) & 0xFF) / 255.0;
-        float g = float((hex >> 8) & 0xFF) / 255.0;
-        float b = float(hex & 0xFF) / 255.0;
-        return vec3(r, g, b);
-    }
-
-    float hash(vec2 p) {
-        p = fract(p * vec2(123.34, 456.21));
-        p += dot(p, p + 45.32);
-        return fract(p.x * p.y);
-    }
-
-    float noise(vec2 p) {
-        vec2 i = floor(p);
-        vec2 f = fract(p);
-        f = f * f * (3.0 - 2.0 * f);
-        float a = hash(i);
-        float b = hash(i + vec2(1.0, 0.0));
-        float c = hash(i + vec2(0.0, 1.0));
-        float d = hash(i + vec2(1.0, 1.0));
-        return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
-    }
-
-    float fbm(vec2 p) {
-        float v = 0.0;
-        float a = 0.5;
-        for (int i = 0; i < 4; i++) {
-            v += a * noise(p);
-            p *= 2.0;
-            a *= 0.5;
-        }
-        return v;
-    }
-
-    void main() {
-        vec2 uv = gl_FragCoord.xy / iResolution.xy;
-        float aspect = iResolution.x / iResolution.y;
-        vec2 p = uv;
-        p.x *= aspect;
-        
-        float t = (iTime + iRandom) * SPEED;
-        
-        vec2 center = vec2(0.5 * aspect, 0.5);
-        float dist = length(p - center);
-        float cRad = (iCoverSize / iResolution.y) * 0.5;
-        
-        p += (p - center) * smoothstep(cRad + 0.5, cRad - 0.1, dist) * 0.3;
-
-        float val = fbm(p * 1.5 + t);
-        val = clamp(val, 0.0, 1.0);
-
-        // Calculate total weight for normalization based on 1/(index + N)
-        float totalWeight = 0.0;
-        for(int i = 0; i < 16; i++) {
-            if (i >= iCount) break;
-            totalWeight += 1.0 / (float(i) + N);
-        }
-
-        vec3 finalColor = vec3(0.0);
-        float softness = 0.025; 
-        float cumulative = 0.2;
-
-        for(int i = 0; i < 16; i++) {
-            if (i >= iCount) break;
-            
-            float weight = (1.0 / (float(i) + N)) / totalWeight;
-            float nextCumulative = cumulative + weight;
-            
-            float weightMask = smoothstep(cumulative - softness, cumulative + softness, val) - 
-                               smoothstep(nextCumulative - softness, nextCumulative + softness, val);
-            
-            finalColor += hexToRgb(iColors[i]) * max(0.0, weightMask);
-            cumulative = nextCumulative;
-        }
-
-        float noiseFloor = (hash(uv + iTime) - 0.5) * GRAIN_AMOUNT;
-        finalColor += noiseFloor;
-        
-        fragColor = vec4(finalColor, 1.0);
-    }
-  `;
 
   function createShader(gl, type, source) {
     const shader = gl.createShader(type);
