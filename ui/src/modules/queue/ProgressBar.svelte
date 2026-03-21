@@ -49,7 +49,6 @@
 </script>
 
 <div class="unified-progress-bar">
-  <!-- Interactive buttons -->
   <div class="transport-group">
     <button class="ctrl-btn" onclick={prev}>
       <img src="/icons/24px/skip_previous.svg" alt="Prev" />
@@ -84,10 +83,10 @@
     width: 100%;
     height: 64px;
     display: flex;
+    background-color: rgba(0, 0, 0, 0.1);
     align-items: center;
     padding: 0 24px;
     box-sizing: border-box;
-    background-color: var(--background-drawer);
     border-top: 1px solid rgba(255, 255, 255, 0.05);
     gap: 32px;
   }
@@ -185,7 +184,7 @@
     position: relative;
     width: 100%;
     height: 3px;
-    background-color: rgba(255, 255, 255, 0.06);
+    background-color: rgba(255, 255, 255, 0.1);
     border-radius: 2px;
     overflow: hidden;
   }
@@ -195,7 +194,7 @@
     top: 0;
     left: 0;
     height: 100%;
-    background-color: var(--text-muted);
+    background-color: var(--text-main);
     border-radius: 2px;
   }
 </style>
