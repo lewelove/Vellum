@@ -12,8 +12,8 @@ uniform int iCount;
 out vec4 fragColor;
 
 const float SPEED = 0.01;
-const float GRAIN_AMOUNT = 0.0;
-const float N = 11.0; 
+const float GRAIN_AMOUNT = 0.1;
+const float N = 0.5; 
 
 vec3 hexToRgb(int hex) {
     float r = float((hex >> 16) & 0xFF) / 255.0;
@@ -122,7 +122,7 @@ void main() {
 
     vec3 finalColor = vec3(0.0);
     float softness = 0.05; 
-    float cumulative = 0.40;
+    float cumulative = 0.00;
 
     for(int i = 0; i < 16; i++) {
         if (i >= iCount) break;

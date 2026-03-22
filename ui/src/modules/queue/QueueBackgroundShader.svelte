@@ -18,7 +18,7 @@
 
   const intColors = new Int32Array(16);
   let activeColorCount = 0;
-  const DEFAULT_PALETTE = ["#1a1a1a", "#242424", "#0d1117", "#161b22"];
+  const DEFAULT_PALETTE = ["#242424"];
 
   let shouldRender = $derived(visible && isTabVisible);
 
