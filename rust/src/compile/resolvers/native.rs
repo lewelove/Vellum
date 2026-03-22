@@ -171,9 +171,11 @@ pub fn resolve_cover_entropy(ctx: &AlbumContext) -> Option<Value> {
 
 pub fn resolve_cover_palette(ctx: &AlbumContext) -> Option<Value> {
     let img = ctx.cover_image?;
-    let small_img = img.resize_exact(64, 64, FilterType::Nearest);
+    
+    // Fast Mean Shift to find true color modes existing in the original pixels.
+    let discovery_img = img.resize_exact(64, 64, FilterType::Nearest);
 
-    let lab_pixels: Vec<Lab> = small_img
+    let discovery_pixels: Vec<Lab> = discovery_img
         .pixels()
         .map(|(_, _, p)| {
             let srgb = Srgb::new(
@@ -185,14 +187,14 @@ pub fn resolve_cover_palette(ctx: &AlbumContext) -> Option<Value> {
         })
         .collect();
 
-    let bandwidth = 16.0_f32;
+    let bandwidth = 12.0_f32;
     let bandwidth_sq = bandwidth * bandwidth;
     let convergence_sq = 1.0_f32;
     let max_iter = 15;
 
-    let mut modes = Vec::with_capacity(lab_pixels.len());
+    let mut modes = Vec::with_capacity(discovery_pixels.len());
 
-    for &seed in &lab_pixels {
+    for &seed in &discovery_pixels {
         let mut current = seed;
         for _ in 0..max_iter {
             let mut sum_l = 0.0;
@@ -200,7 +202,7 @@ pub fn resolve_cover_palette(ctx: &AlbumContext) -> Option<Value> {
             let mut sum_b = 0.0;
             let mut count = 0.0;
 
-            for &p in &lab_pixels {
+            for &p in &discovery_pixels {
                 let dl = p.l - current.l;
                 let da = p.a - current.a;
                 let db = p.b - current.b;
@@ -236,12 +238,13 @@ pub fn resolve_cover_palette(ctx: &AlbumContext) -> Option<Value> {
         modes.push(current);
     }
 
-    let mut clusters: Vec<(Lab, usize)> = Vec::new();
+    let mut merged_clusters: Vec<(Lab, usize)> = Vec::new();
     let cluster_threshold_sq = 25.0_f32;
 
+    // Consolidate identical modes
     for mode in modes {
         let mut found = false;
-        for (center, count) in &mut clusters {
+        for (center, count) in &mut merged_clusters {
             let dl = center.l - mode.l;
             let da = center.a - mode.a;
             let db = center.b - mode.b;
@@ -256,32 +259,61 @@ pub fn resolve_cover_palette(ctx: &AlbumContext) -> Option<Value> {
             }
         }
         if !found {
-            clusters.push((mode, 1));
+            merged_clusters.push((mode, 1));
         }
     }
+    
+    // Extract the finalized core modes
+    let final_modes: Vec<Lab> = merged_clusters.into_iter().map(|(lab, _)| lab).collect();
 
-    let mut scored: Vec<(f64, Lab)> = clusters
+    // Scan a massive sample and assign every pixel to its nearest discovered mode.
+    let ratio_img = img.resize_exact(256, 256, FilterType::Nearest);
+    let mut physical_counts = vec![0_usize; final_modes.len()];
+
+    for (_, _, p) in ratio_img.pixels() {
+        let srgb = Srgb::new(
+            p[0] as f32 / 255.0,
+            p[1] as f32 / 255.0,
+            p[2] as f32 / 255.0,
+        );
+        let pixel_lab = Lab::from_color(srgb);
+
+        let mut best_dist = f32::MAX;
+        let mut best_idx = 0;
+
+        for (idx, center_lab) in final_modes.iter().enumerate() {
+            let dl = pixel_lab.l - center_lab.l;
+            let da = pixel_lab.a - center_lab.a;
+            let db = pixel_lab.b - center_lab.b;
+            let dist_sq = dl * dl + da * da + db * db;
+
+            if dist_sq < best_dist {
+                best_dist = dist_sq;
+                best_idx = idx;
+            }
+        }
+        physical_counts[best_idx] += 1;
+    }
+
+    // --- FINAL OBJECTIVE CALCULATION ---
+    let total_samples = (256 * 256) as f64;
+
+    let mut representation: Vec<(f64, Lab)> = final_modes
         .into_iter()
-        .map(|(lab, count)| {
-            let chroma = (lab.a.powi(2) + lab.b.powi(2)).sqrt() as f64;
-            let score = (count as f64) * (1.0 + chroma * 0.1);
-            (score, lab)
+        .enumerate()
+        .map(|(i, lab)| {
+            let ratio = (physical_counts[i] as f64) / total_samples;
+            (ratio, lab)
         })
+        // .filter(|(ratio, _)| *ratio >= 0.001) // Noise floor threshold (0.1%)
         .collect();
 
-    scored.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
+    // Sort descending by actual physical presence
+    representation.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
 
-    let total_score: f64 = scored.iter().map(|(score, _)| *score).sum();
-
-    let palette_data: Vec<Value> = scored
+    let palette_data: Vec<Value> = representation
         .into_iter()
-        .filter_map(|(score, lab)| {
-            let ratio = if total_score > 0.0 { score / total_score } else { 0.0 };
-            
-            if ratio < 0.001 {
-                return None;
-            }
-
+        .map(|(ratio, lab)| {
             let srgb = Srgb::from_color(lab);
             let hex = format!(
                 "#{:02X}{:02X}{:02X}",
@@ -290,7 +322,7 @@ pub fn resolve_cover_palette(ctx: &AlbumContext) -> Option<Value> {
                 (srgb.blue.clamp(0.0, 1.0) * 255.0).round() as u8
             );
 
-            Some(json!([hex, format!("{ratio:.4}")]))
+            json!([hex, format!("{ratio:.4}")])
         })
         .collect();
 

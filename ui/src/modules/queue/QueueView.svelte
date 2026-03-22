@@ -295,8 +295,8 @@
     height: 52px;
     flex-shrink: 0;
     background-color: rgba(36, 36, 36, 0.66);
-    -webkit-backdrop-filter: blur(80px);
-    /* backdrop-filter: blur(90px); */
+    /* -webkit-backdrop-filter: blur(80px); */
+    backdrop-filter: blur(30px);
     transform: translateZ(0);
     border-radius: 16px 16px 0 0;
     border: 1px solid rgba(255, 255, 255, 0.08);
