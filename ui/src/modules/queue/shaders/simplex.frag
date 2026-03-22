@@ -121,7 +121,7 @@ void main() {
     }
 
     vec3 finalColor = vec3(0.0);
-    float softness = 0.00; 
+    float softness = 0.05; 
     float cumulative = 0.40;
 
     for(int i = 0; i < 16; i++) {

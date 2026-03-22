@@ -25,15 +25,12 @@
   let containerWidth = $state(0);
   let containerHeight = $state(0);
   
-  const FOOTER_HEIGHT = 64;
   const PADDING = 64;
-
-  let mainHeight = $derived(Math.max(0, containerHeight - FOOTER_HEIGHT));
   
   let leftPanelWidth = $derived.by(() => {
     if (containerHeight <= 0 || containerWidth <= 0) return 0;
     const maxWidth = containerWidth * 0.6;
-    return Math.min(mainHeight, maxWidth);
+    return Math.min(containerHeight, maxWidth);
   });
 
   let coverSize = $derived(Math.max(0, leftPanelWidth - PADDING));
@@ -105,7 +102,7 @@
       bind:clientWidth={containerWidth}
       bind:clientHeight={containerHeight}
     >
-      <div class="layout-main" style="height: {mainHeight}px;">
+      <div class="layout-main">
         <div class="column-left" style="width: {leftPanelWidth}px;">
           <div class="left-main-area">
             {#if coverSize > 0}
@@ -150,10 +147,10 @@
           </div>
         </div>
       </div>
+    </div>
 
-      <div class="layout-footer">
-        <ProgressBar />
-      </div>
+    <div class="queue-bottom-bar">
+      <ProgressBar />
     </div>
   </div>
 
@@ -176,16 +173,22 @@
     position: relative;
     height: 100%;
     min-width: 0;
-    padding: 32px; 
+    padding: 32px 32px 0 32px; 
     box-sizing: border-box;
     z-index: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
   }
 
   .queue-layout {
     width: 100%;
-    height: 100%;
-    background: rgba(36, 36, 36, 1.66);
-    -webkit-backdrop-filter: blur(50px);
+    flex: 1;
+    min-height: 0;
+    background-color: rgba(36, 36, 36, 0.66);
+    /* -webkit-backdrop-filter: blur(80px); */
+    backdrop-filter: blur(30px);
+    transform: translateZ(0);
     border-radius: 16px;
     overflow: hidden;
     border: 1px solid rgba(255, 255, 255, 0.08);
@@ -198,13 +201,13 @@
     display: flex;
     flex-direction: row;
     min-height: 0;
+    height: 100%;
     flex: 1;
   }
 
   .column-left {
     display: flex;
     flex-direction: column;
-    background-color: rgba(0, 0, 0, 0.1);
     height: 100%;
     flex-shrink: 0;
     box-sizing: border-box;
@@ -263,7 +266,6 @@
   .scroll-area {
     position: relative;
     flex: 1;
-    background-color: rgba(0, 0, 0, 0.1);
     min-height: 0;
     display: flex;
     flex-direction: column;
@@ -288,9 +290,19 @@
     height: 100%;
   }
 
-  .layout-footer {
-    flex-shrink: 0;
+  .queue-bottom-bar {
     width: 100%;
+    height: 52px;
+    flex-shrink: 0;
+    background-color: rgba(36, 36, 36, 0.66);
+    -webkit-backdrop-filter: blur(80px);
+    /* backdrop-filter: blur(90px); */
+    transform: translateZ(0);
+    border-radius: 16px 16px 0 0;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: none;
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.1), 0 -2px 10px rgba(0, 0, 0, 0.2);
+    overflow: hidden;
   }
 
   .expanded-backdrop {
