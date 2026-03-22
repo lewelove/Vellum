@@ -4,7 +4,7 @@
   import vertexShaderSource from "./shaders/quad.vert?raw";
   import fragmentShaderSource from "./shaders/simplex.frag?raw";
 
-  let { colors = [], coverSize = 0, visible = false } = $props();
+  let { colors =[], coverSize = 0, visible = false } = $props();
 
   let canvasEl;
   let gl;
@@ -17,6 +17,7 @@
   let randomOffset = Math.random() * 1000.0;
 
   const intColors = new Int32Array(16);
+  const floatRatios = new Float32Array(16);
   let activeColorCount = 0;
   const DEFAULT_PALETTE = ["#242424"];
 
@@ -25,11 +26,34 @@
   $effect(() => {
     const palette = (colors && colors.length > 0) ? colors : DEFAULT_PALETTE;
     activeColorCount = Math.min(palette.length, 16);
+    
+    // Check if the current palette schema provides ratios
+    let hasRatios = false;
+    for (let i = 0; i < activeColorCount; i++) {
+      if (Array.isArray(palette[i]) && palette[i].length > 1) {
+        hasRatios = true;
+        break;
+      }
+    }
+
     for (let i = 0; i < 16; i++) {
       if (i < activeColorCount) {
-        intColors[i] = parseInt(palette[i].replace("#", ""), 16);
+        const c = palette[i];
+        const hex = Array.isArray(c) ? c[0] : (c.hex || c);
+        
+        let ratio = 0.0;
+        if (hasRatios) {
+          ratio = Array.isArray(c) ? parseFloat(c[1]) : 0.0;
+        } else {
+          // Fallback uniform decay for legacy palettes
+          ratio = 1.0 / (i + 1.0);
+        }
+
+        intColors[i] = parseInt(hex.replace("#", ""), 16);
+        floatRatios[i] = ratio;
       } else {
         intColors[i] = 0;
+        floatRatios[i] = 0.0;
       }
     }
   });
@@ -106,6 +130,7 @@
     gl.uniform1f(gl.getUniformLocation(program, "iCoverSize"), coverSize * dpr);
 
     gl.uniform1iv(gl.getUniformLocation(program, "iColors"), intColors);
+    gl.uniform1fv(gl.getUniformLocation(program, "iRatios"), floatRatios);
     gl.uniform1i(gl.getUniformLocation(program, "iCount"), activeColorCount);
 
     gl.drawArrays(gl.TRIANGLES, 0, 6);

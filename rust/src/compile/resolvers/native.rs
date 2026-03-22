@@ -269,7 +269,6 @@ pub fn resolve_cover_palette(ctx: &AlbumContext) -> Option<Value> {
         })
         .collect();
 
-    // Sort by score (proportional to ratio) descending
     scored.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
 
     let total_score: f64 = scored.iter().map(|(score, _)| *score).sum();
@@ -279,7 +278,6 @@ pub fn resolve_cover_palette(ctx: &AlbumContext) -> Option<Value> {
         .filter_map(|(score, lab)| {
             let ratio = if total_score > 0.0 { score / total_score } else { 0.0 };
             
-            // Discard entries with ratio < 0.001
             if ratio < 0.001 {
                 return None;
             }
@@ -292,7 +290,7 @@ pub fn resolve_cover_palette(ctx: &AlbumContext) -> Option<Value> {
                 (srgb.blue.clamp(0.0, 1.0) * 255.0).round() as u8
             );
 
-            Some(json!(hex))
+            Some(json!([hex, format!("{ratio:.4}")]))
         })
         .collect();
 

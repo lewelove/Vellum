@@ -7,13 +7,13 @@ uniform float iRandom;
 uniform vec2 iResolution;
 uniform float iCoverSize;
 uniform int iColors[16];
+uniform float iRatios[16];
 uniform int iCount;
 
 out vec4 fragColor;
 
 const float SPEED = 0.01;
-const float GRAIN_AMOUNT = 0.1;
-const float N = 0.5; 
+const float GRAIN_AMOUNT = 0.03;
 
 vec3 hexToRgb(int hex) {
     float r = float((hex >> 16) & 0xFF) / 255.0;
@@ -95,7 +95,21 @@ float fbm(vec3 p) {
         p *= 2.0;
         a *= 0.5;
     }
-    return v * 0.5 + 0.5;
+    
+    // Normalize absolute bounds to [-1, 1]
+    v = v / 0.875;
+    
+    // Shift to [0, 1]
+    v = v * 0.5 + 0.5;
+    
+    // Apply trigonometric expansion twice.
+    // This forcibly spreads the clumped center of the noise outwards toward 0 and 1,
+    // flattening the Gaussian bell curve into a much more uniform distribution 
+    // so colors appear exactly relative to their ratios.
+    v = 0.5 - 0.5 * cos(3.14159265 * v);
+    v = 0.5 - 0.5 * cos(3.14159265 * v);
+    
+    return clamp(v, 0.0, 1.0);
 }
 
 void main() {
@@ -106,40 +120,41 @@ void main() {
     
     float t = (iTime + iRandom) * SPEED;
 
-    // Use 3D Simplex: X and Y are screen space, Z is Time.
-    // This makes the noise evolve "in-place" without sliding.
     float val = fbm(vec3(p * 1.2, t));
-    
-    // Distort the lookup slightly for a more "oily" feel
-    // val += snoise(vec3(p * 0.5, t * 0.5)) * 0.1;
-    // val = clamp(val, 0.0, 1.0);
 
+    // Normalize ratios
     float totalWeight = 0.0;
     for(int i = 0; i < 16; i++) {
         if (i >= iCount) break;
-        totalWeight += 1.0 / (float(i) + N);
+        totalWeight += iRatios[i];
     }
+    if (totalWeight <= 0.0) totalWeight = 1.0; 
 
     vec3 finalColor = vec3(0.0);
-    float softness = 0.05; 
     float cumulative = 0.00;
 
     for(int i = 0; i < 16; i++) {
         if (i >= iCount) break;
         
-        float weight = (1.0 / (float(i) + N)) / totalWeight;
+        float weight = iRatios[i] / totalWeight;
         float nextCumulative = cumulative + weight;
         
-        float weightMask = smoothstep(cumulative - softness, cumulative + softness, val) - 
-                           smoothstep(nextCumulative - softness, nextCumulative + softness, val);
+        // Dynamically scale softness based on the band size so tiny bands aren't swallowed
+        float currentSoftness = min(0.05, weight * 0.45); 
+        
+        // Unconditionally pin the absolute edges to 1.0/0.0 to prevent 50% opacity dimming boundary bleed
+        float startMask = (i == 0) ? 1.0 : smoothstep(cumulative - currentSoftness, cumulative + currentSoftness, val);
+        float endMask = (i == iCount - 1) ? 0.0 : smoothstep(nextCumulative - currentSoftness, nextCumulative + currentSoftness, val);
+        
+        float weightMask = startMask - endMask;
         
         finalColor += hexToRgb(iColors[i]) * max(0.0, weightMask);
         cumulative = nextCumulative;
     }
-
-    // High frequency grain
-    // float grain = (fract(sin(dot(uv, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) * GRAIN_AMOUNT;
-    // finalColor += grain;
+    
+    // Add high frequency grain to prevent banding over large smoothstep gradients
+    float grain = (fract(sin(dot(uv, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) * GRAIN_AMOUNT;
+    finalColor += grain;
     
     fragColor = vec4(finalColor, 1.0);
 }

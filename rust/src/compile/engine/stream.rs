@@ -149,6 +149,90 @@ fn strip_empty_values(value: &mut Value) {
     }
 }
 
+fn format_json_value(value: &Value, indent: usize, out: &mut String) {
+    let pad = "  ".repeat(indent);
+    match value {
+        Value::Object(map) => {
+            if map.is_empty() {
+                out.push_str("{}");
+                return;
+            }
+            out.push_str("{\n");
+            let mut it = map.iter().peekable();
+            while let Some((k, v)) = it.next() {
+                out.push_str(&pad);
+                out.push_str("  ");
+                out.push_str(&serde_json::to_string(k).unwrap_or_default());
+                out.push_str(": ");
+                format_json_value(v, indent + 1, out);
+                if it.peek().is_some() {
+                    out.push_str(",\n");
+                } else {
+                    out.push('\n');
+                }
+            }
+            out.push_str(&pad);
+            out.push('}');
+        }
+        Value::Array(arr) => {
+            if arr.is_empty() {
+                out.push_str("[]");
+                return;
+            }
+            
+            let is_simple = arr.iter().all(|v| !matches!(v, Value::Object(_) | Value::Array(_)));
+            
+            if is_simple {
+                out.push('[');
+                let mut it = arr.iter().peekable();
+                while let Some(v) = it.next() {
+                    format_json_inline(v, out);
+                    if it.peek().is_some() {
+                        out.push_str(", ");
+                    }
+                }
+                out.push(']');
+            } else {
+                out.push_str("[\n");
+                let mut it = arr.iter().peekable();
+                while let Some(v) = it.next() {
+                    out.push_str(&pad);
+                    out.push_str("  ");
+                    format_json_value(v, indent + 1, out);
+                    if it.peek().is_some() {
+                        out.push_str(",\n");
+                    } else {
+                        out.push('\n');
+                    }
+                }
+                out.push_str(&pad);
+                out.push(']');
+            }
+        }
+        _ => {
+            out.push_str(&serde_json::to_string(value).unwrap_or_default());
+        }
+    }
+}
+
+fn format_json_inline(value: &Value, out: &mut String) {
+    if let Value::Array(arr) = value {
+        out.push('[');
+        let mut it = arr.iter().peekable();
+        while let Some(v) = it.next() {
+            format_json_inline(v, out);
+            if it.peek().is_some() {
+                out.push_str(", ");
+            }
+        }
+        out.push(']');
+    } else if let Value::Object(_) = value {
+        out.push_str("{}");
+    } else {
+        out.push_str(&serde_json::to_string(value).unwrap_or_default());
+    }
+}
+
 fn finalize(
     mut v: Value,
     target: ExportTarget,
@@ -177,9 +261,13 @@ fn finalize(
         .get("paths")
         .and_then(|p| p.get("album_root"))
         .and_then(Value::as_str);
+        
     if let Some(path) = album_root_str {
         let album_root = Path::new(path);
-        let content = serde_json::to_string_pretty(&v)?;
+        
+        let mut content = String::new();
+        format_json_value(&v, 0, &mut content);
+        
         if target == ExportTarget::Stdout {
             println!("{content}");
         } else {
