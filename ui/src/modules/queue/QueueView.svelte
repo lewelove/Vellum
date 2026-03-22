@@ -184,7 +184,7 @@
   .queue-layout {
     width: 100%;
     height: 100%;
-    background: rgba(36, 36, 36, 0.66);
+    background: rgba(36, 36, 36, 1.66);
     -webkit-backdrop-filter: blur(50px);
     border-radius: 16px;
     overflow: hidden;
