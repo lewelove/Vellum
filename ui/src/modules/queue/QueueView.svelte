@@ -185,9 +185,9 @@
     width: 100%;
     flex: 1;
     min-height: 0;
-    background-color: rgba(36, 36, 36, 0.66);
+    background-color: rgba(36, 36, 36, 0.46);
     /* -webkit-backdrop-filter: blur(80px); */
-    backdrop-filter: blur(30px);
+    backdrop-filter: blur(10px);
     transform: translateZ(0);
     border-radius: 16px;
     overflow: hidden;
