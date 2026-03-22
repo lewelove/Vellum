@@ -2,6 +2,7 @@
   import { onMount, onDestroy } from "svelte";
   import { player } from "../player.svelte.js";
   import { library } from "../../library.svelte.js";
+  import { nav } from "../../navigation.svelte.js";
   import { fade } from "svelte/transition";
   
   import QueueTracks from "./QueueTracks.svelte";
@@ -16,6 +17,8 @@
   let coverUrl = $derived(activeId ? library.getAlbumCoverUrl(activeId) : "");
   
   let palette = $derived(activeAlbum?.tags?.COVER_PALETTE || []);
+
+  let isViewVisible = $derived(nav.activeTab === 'queue');
 
   let activeView = $state("tracks");
 
@@ -68,7 +71,7 @@
 <svelte:window bind:innerWidth={windowWidth} bind:innerHeight={windowHeight} />
 
 <div class="queue-view-container">
-  <QueueBackgroundShader colors={palette} coverSize={coverSize} />
+  <QueueBackgroundShader colors={palette} coverSize={coverSize} visible={isViewVisible} />
 
   {#if isExpanded}
     <div 
@@ -182,7 +185,6 @@
     width: 100%;
     height: 100%;
     background: rgba(36, 36, 36, 0.66);
-    /* backdrop-filter: blur(2px) saturate(90%); */
     -webkit-backdrop-filter: blur(50px);
     border-radius: 16px;
     overflow: hidden;
@@ -266,8 +268,6 @@
     display: flex;
     flex-direction: column;
     padding: 32px;
-    /* -webkit-mask-image: linear-gradient(to bottom, transparent, black 32px, black calc(100% - 32px), transparent); */
-    /* mask-image: linear-gradient(to bottom, transparent, black 32px, black calc(100% - 32px), transparent); */
   }
 
   .scroll-content {
