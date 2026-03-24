@@ -120,7 +120,15 @@
     let timeAdvanced = false;
 
     if (isPlaying) {
-      const delta = (now - lastFrameTime) / 1000;
+      let delta = (now - lastFrameTime) / 1000;
+      
+      // Delta Clamping: If more than 100ms have passed between frames, the OS/Compositor
+      // likely suspended the window (e.g., Hyprland unmapped the special workspace).
+      // We clamp the delta to a standard ~60fps frame (0.016s) to prevent a massive jump.
+      if (delta > 0.1) {
+        delta = 0.016;
+      }
+      
       totalTime += delta;
       timeAdvanced = true;
     }
