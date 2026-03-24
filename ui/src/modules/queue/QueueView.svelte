@@ -160,12 +160,12 @@
     position: relative;
     height: 100%;
     min-width: 0;
-    padding: 32px 32px 0 32px; 
+    padding: 24px 32px 0 32px; 
     box-sizing: border-box;
     z-index: 1;
     display: flex;
     flex-direction: column;
-    gap: 32px;
+    gap: 24px;
   }
 
   .queue-modules {
@@ -174,7 +174,7 @@
     min-height: 0;
     display: flex;
     flex-direction: row;
-    gap: 32px;
+    gap: 24px;
     justify-content: center;
     align-items: center;
   }
@@ -185,8 +185,8 @@
     /* max-width: 800px; */
     height: 100%;
     background-color: rgba(36, 36, 36, 0.66);
-    backdrop-filter: blur(20px);
-    border-radius: 16px;
+    backdrop-filter: blur(30px);
+    border-radius: 12px;
     border: 1px solid rgba(255, 255, 255, 0.08);
     box-shadow: 0 0 16px rgba(0, 0, 0, 0.1), 0 0 16px rgba(0, 0, 0, 0.2), 0 0 10px rgba(0, 0, 0, 0.2);
     display: flex;
@@ -256,7 +256,7 @@
     border-radius: 16px 16px 0 0;
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-bottom: none;
-    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.1), 0 -2px 10px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 0px 16px rgba(0, 0, 0, 0.1), 0 -2px 10px rgba(0, 0, 0, 0.2);
     overflow: hidden;
   }
 
