@@ -160,7 +160,7 @@
 
   .header-artist,
   .track-artist {
-    color: rgba(255, 255, 255, 0.7);
+    color: rgba(255, 255, 255, 0.8);
   }
 
   .header-meta,
@@ -168,7 +168,7 @@
   .disc-duration-label,
   .track-index,
   .track-meta {
-    color: rgba(255, 255, 255, 0.5);
+    color: rgba(255, 255, 255, 0.6);
   }
 
   .tracks-list-container {
