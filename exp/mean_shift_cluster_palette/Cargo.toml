@@ -1,0 +1,10 @@
+[package]
+name = "mean_shift_cluster_palette"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+clap = { version = "4.6.0", features = ["derive"] }
+image = "0.25.10"
+minifb = "0.28.0"
+palette = "0.7.6"
