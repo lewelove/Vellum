@@ -11,6 +11,7 @@
   import ModalDrawerCover from "../album-grid/ModalDrawerCover.svelte";
   import ProgressBar from "./ProgressBar.svelte";
   import QueueBackgroundShader from "./QueueBackgroundShader.svelte";
+  import NavBar from "../navigation/NavBar.svelte";
 
   let activeId = $derived(player.currentAlbumId);
   let activeAlbum = $derived(activeId ? library.albumCache.get(activeId) : null);
@@ -65,6 +66,8 @@
 
 <div class="queue-view-container">
   <QueueBackgroundShader colors={palette} coverSize={coverSize} visible={isViewVisible} />
+
+  <NavBar variant="glass" />
 
   {#if isExpanded}
     <div 
@@ -160,7 +163,7 @@
     position: relative;
     height: 100%;
     min-width: 0;
-    padding: 24px 32px 0 32px; 
+    padding: 24px 24px 0 24px; 
     box-sizing: border-box;
     z-index: 1;
     display: flex;
@@ -181,8 +184,7 @@
 
   .module-panel {
     flex: 1 1 320px;
-    /* min-width: 240px; */
-    /* max-width: 800px; */
+    min-width: 320px;
     height: 100%;
     background-color: rgba(36, 36, 36, 0.66);
     backdrop-filter: blur(30px);

@@ -123,7 +123,6 @@
     class:visible={isQueueVisible}
     aria-hidden={!isQueueVisible}
   >
-    <NavBar />
     <div class="workspace">
       <QueueView />
     </div>
