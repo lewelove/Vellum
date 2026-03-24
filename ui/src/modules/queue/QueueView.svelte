@@ -181,7 +181,7 @@
     min-height: 0;
     display: flex;
     flex-direction: row;
-    gap: 32px;
+    gap: 24px;
     justify-content: center;
     align-items: center;
   }
@@ -202,7 +202,7 @@
 
   .panel-inner {
     flex: 1;
-    padding: 24px;
+    padding: 24px 32px;
     overflow: hidden;
     display: flex;
     flex-direction: column;
