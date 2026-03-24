@@ -65,25 +65,37 @@
       }
     }
 
-    // 2. Clamp maximum to 0.5 and distribute excess equally
+    // 2. Clamp maximum to 0.5 and distribute proportionally
     if (activeColorCount > 1) {
-      let excess = 0;
       let clampedIndex = -1;
       
       for (let i = 0; i < activeColorCount; i++) {
         if (rawRatios[i] > 0.5) {
-          excess = rawRatios[i] - 0.5;
-          rawRatios[i] = 0.5;
           clampedIndex = i;
           break; // Since the sum is 1.0, at most one element can be > 0.5
         }
       }
 
-      if (excess > 0) {
-        const share = excess / (activeColorCount - 1);
+      if (clampedIndex !== -1) {
+        rawRatios[clampedIndex] = 0.3;
+
+        // Find the sum of all remaining, unclamped elements
+        let remainingSum = 0;
         for (let i = 0; i < activeColorCount; i++) {
-          if (i !== clampedIndex) {
-            rawRatios[i] += share;
+          if (i !== clampedIndex) remainingSum += rawRatios[i];
+        }
+
+        // Scale remaining elements so they perfectly fill the remaining 0.5 space
+        if (remainingSum > 0) {
+          const scale = 0.5 / remainingSum;
+          for (let i = 0; i < activeColorCount; i++) {
+            if (i !== clampedIndex) rawRatios[i] *= scale;
+          }
+        } else {
+          // Fallback if all other elements were exactly 0
+          const share = 0.5 / (activeColorCount - 1);
+          for (let i = 0; i < activeColorCount; i++) {
+            if (i !== clampedIndex) rawRatios[i] = share;
           }
         }
       }

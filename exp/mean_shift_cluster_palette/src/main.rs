@@ -34,7 +34,7 @@ fn run_mean_shift(img: &DynamicImage) -> ClusterResult {
         weights.push(weight);
     }
 
-    let sample_size = 512;
+    let sample_size = 1024;
     let step = (discovery_pixels.len() / sample_size).max(1);
     let seeds: Vec<Lab> = discovery_pixels.iter().step_by(step).take(sample_size).copied().collect();
 
