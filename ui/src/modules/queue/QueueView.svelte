@@ -16,7 +16,7 @@
   let activeAlbum = $derived(activeId ? library.albumCache.get(activeId) : null);
   let coverUrl = $derived(activeId ? library.getAlbumCoverUrl(activeId) : "");
   
-  let palette = $derived(activeAlbum?.tags?.COVER_PALETTE ||[]);
+  let palette = $derived(activeAlbum?.tags?.COVER_PALETTE || []);
 
   let isViewVisible = $derived(nav.activeTab === 'queue');
   let isPlaying = $derived(player.state === "play");
@@ -30,7 +30,12 @@
     panels[key] = !panels[key];
   }
 
-  let coverSize = $state(0);
+  // Padding configuration
+  const coverPadding = 24;
+  let moduleWidth = $state(0);
+  
+  // Explicit calculation: subtract padding from both sides
+  let coverSize = $derived(Math.max(0, moduleWidth - (coverPadding * 2)));
 
   let isExpanded = $state(false);
   let windowWidth = $state(0);
@@ -107,26 +112,28 @@
       {/if}
 
       <div 
-        class="module-cover" 
+        class="module-panel module-cover" 
         class:clickable={!!coverUrl}
-        bind:clientWidth={coverSize}
+        bind:clientWidth={moduleWidth}
         onclick={toggleExpand}
         role="button"
         tabindex="0"
         onkeydown={(e) => { if(e.key === 'Enter') toggleExpand(); }}
       >
-        <div class="cover-absolute-wrapper">
-          {#if coverUrl}
-            <ModalDrawerCover 
-              src={coverUrl} 
-              width={coverSize} 
-              height={coverSize} 
-            />
-          {:else}
-            <div class="empty-cover">
-              <span>NO SIGNAL</span>
-            </div>
-          {/if}
+        <div class="panel-inner cover-inner" style="padding: {coverPadding}px;">
+          <div class="cover-absolute-wrapper" style="inset: {coverPadding}px;">
+            {#if coverUrl}
+              <ModalDrawerCover 
+                src={coverUrl} 
+                width={coverSize} 
+                height={coverSize} 
+              />
+            {:else}
+              <div class="empty-cover">
+                <span>NO SIGNAL</span>
+              </div>
+            {/if}
+          </div>
         </div>
       </div>
 
@@ -160,7 +167,7 @@
     position: relative;
     height: 100%;
     min-width: 0;
-    padding: 48px 32px; 
+    padding: 24px 32px; 
     box-sizing: border-box;
     z-index: 1;
     display: flex;
@@ -186,7 +193,7 @@
     background-color: #24242480;
     backdrop-filter: blur(4px);
     border-radius: 12px;
-    border: 1px solid #FFFFFF11;
+    /* border: 1px solid #FFFFFF11; */
     box-shadow: 0 0 16px rgba(0, 0, 0, 0.1), 0 0 16px rgba(0, 0, 0, 0.2), 0 0 10px rgba(0, 0, 0, 0.2);
     display: flex;
     flex-direction: column;
@@ -195,7 +202,7 @@
 
   .panel-inner {
     flex: 1;
-    padding: 32px;
+    padding: 24px;
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -204,32 +211,29 @@
 
   .module-cover {
     flex: 0 1 auto;
-    height: 100%;
-    max-height: 100%;
     aspect-ratio: 1 / 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    cursor: default;
     outline: none;
-    position: relative;
-    min-width: 0;
-    min-height: 0;
+    /* border-radius: 0px !important; */
   }
 
   .module-cover.clickable {
     cursor: pointer;
   }
+
+  .cover-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    /* Override global padding to use local variable */
+    padding: 0 !important; 
+  }
   
   .cover-absolute-wrapper {
     position: absolute;
-    inset: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    /* padding: 32px; */
-    /* border: 1px solid #FFFFFF11; */
-    /* background-color: #24242480; */
-    /* border-radius: 12px; */
   }
 
   .empty-cover {
