@@ -9,7 +9,6 @@
   import QueueBar from "./QueueBar.svelte";
   import Lyrics from "./Lyrics.svelte";
   import ModalDrawerCover from "../album-grid/ModalDrawerCover.svelte";
-  import ProgressBar from "./ProgressBar.svelte";
   import QueueBackgroundShader from "./QueueBackgroundShader.svelte";
   import NavBar from "../navigation/NavBar.svelte";
 
@@ -140,9 +139,6 @@
       {/if}
     </div>
 
-    <div class="queue-bottom-bar">
-      <ProgressBar />
-    </div>
   </div>
 
   <QueueBar {panels} onToggle={togglePanel} />
@@ -164,12 +160,12 @@
     position: relative;
     height: 100%;
     min-width: 0;
-    padding: 24px 24px 0 24px; 
+    padding: 32px; 
     box-sizing: border-box;
     z-index: 1;
     display: flex;
     flex-direction: column;
-    gap: 24px;
+    gap: 32px;
   }
 
   .queue-modules {
@@ -178,7 +174,7 @@
     min-height: 0;
     display: flex;
     flex-direction: row;
-    gap: 24px;
+    gap: 32px;
     justify-content: center;
     align-items: center;
   }
@@ -247,20 +243,6 @@
     color: #444;
     font-size: 12px;
     letter-spacing: 2px;
-  }
-
-  .queue-bottom-bar {
-    width: 100%;
-    height: 52px;
-    flex-shrink: 0;
-    background-color: rgba(36, 36, 36, 0.66);
-    backdrop-filter: blur(8px);
-    transform: translateZ(0);
-    border-radius: 16px 16px 0 0;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-bottom: none;
-    box-shadow: 0 0px 16px rgba(0, 0, 0, 0.1), 0 -2px 10px rgba(0, 0, 0, 0.2);
-    overflow: hidden;
   }
 
   .expanded-backdrop {

@@ -1,6 +1,32 @@
 <script>
+  import { onMount } from "svelte";
   import { player } from "../player.svelte.js";
   import { library } from "../../library.svelte.js";
+
+  let tickingElapsed = $state(0);
+
+  function tick() {
+    if (player.state === "play") {
+      const delta = (performance.now() - player.lastUpdated) / 1000;
+      tickingElapsed = Math.min(player.elapsed + delta, player.duration || 0);
+    } else {
+      tickingElapsed = player.elapsed || 0;
+    }
+    requestAnimationFrame(tick);
+  }
+
+  onMount(() => {
+    const raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  });
+
+  function formatSeconds(totalSeconds) {
+    const s = Math.floor(totalSeconds || 0);
+    const m = Math.floor(s / 60);
+    const rs = s % 60;
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${m}:${pad(rs)}`;
+  }
 
   function formatDuration(str) {
     if (!str) return "0:00";
@@ -64,7 +90,7 @@
   }));
 
   let groupedQueue = $derived.by(() => {
-    const groups = [];
+    const groups =[];
     mappedTracks.forEach(track => {
       if (groups.length === 0 || groups[groups.length - 1].albumId !== track.albumId) {
         const albumMeta = library.albumCache.get(track.albumId);
@@ -129,7 +155,13 @@
               <span class="track-artist">{track.artist}</span>
             {/if}
           </div>
-          <span class="track-meta">{formatDuration(track.duration)}</span>
+          <span class="track-meta">
+            {#if track.isPlaying}
+              {formatSeconds(tickingElapsed)} / {formatDuration(track.duration)}
+            {:else}
+              {formatDuration(track.duration)}
+            {/if}
+          </span>
         </div>
       {/each}
     {/each}
@@ -194,7 +226,7 @@
   }
 
   .album-group-header {
-    padding: 12px 0px 12px 0px;
+    padding: 0px 0px 12px 0px;
     display: flex;
     align-items: center;
     gap: 12px;

@@ -19,7 +19,7 @@
   const intColors = new Int32Array(16);
   const floatRatios = new Float32Array(16);
   let activeColorCount = 0;
-  const DEFAULT_PALETTE = ["#242424"];
+  const DEFAULT_PALETTE =["#242424"];
 
   let needsRedraw = true;
 
@@ -36,21 +36,64 @@
       }
     }
 
+    // 1. Extract and normalize raw ratios
+    let rawRatios = new Array(activeColorCount).fill(0);
+    let totalRaw = 0;
+    
+    for (let i = 0; i < activeColorCount; i++) {
+      const c = palette[i];
+      if (hasRatios) {
+        rawRatios[i] = Array.isArray(c) ? parseFloat(c[1]) : 0.0;
+      } else {
+        // Fallback uniform decay for legacy palettes
+        rawRatios[i] = 1.0 / (i + 1.0);
+      }
+      totalRaw += rawRatios[i];
+    }
+
+    // Normalize so all ratios sum to 1.0
+    if (totalRaw > 0) {
+      for (let i = 0; i < activeColorCount; i++) {
+        rawRatios[i] /= totalRaw;
+      }
+    } else {
+      for (let i = 0; i < activeColorCount; i++) {
+        rawRatios[i] = 1.0 / activeColorCount;
+      }
+    }
+
+    // 2. Clamp maximum to 0.5 and distribute excess equally
+    if (activeColorCount > 1) {
+      let excess = 0;
+      let clampedIndex = -1;
+      
+      for (let i = 0; i < activeColorCount; i++) {
+        if (rawRatios[i] > 0.5) {
+          excess = rawRatios[i] - 0.5;
+          rawRatios[i] = 0.5;
+          clampedIndex = i;
+          break; // Since the sum is 1.0, at most one element can be > 0.5
+        }
+      }
+
+      if (excess > 0) {
+        const share = excess / (activeColorCount - 1);
+        for (let i = 0; i < activeColorCount; i++) {
+          if (i !== clampedIndex) {
+            rawRatios[i] += share;
+          }
+        }
+      }
+    }
+
+    // 3. Assign to uniforms
     for (let i = 0; i < 16; i++) {
       if (i < activeColorCount) {
         const c = palette[i];
         const hex = Array.isArray(c) ? c[0] : (c.hex || c);
         
-        let ratio = 0.0;
-        if (hasRatios) {
-          ratio = Array.isArray(c) ? parseFloat(c[1]) : 0.0;
-        } else {
-          // Fallback uniform decay for legacy palettes
-          ratio = 1.0 / (i + 1.0);
-        }
-
         intColors[i] = parseInt(hex.replace("#", ""), 16);
-        floatRatios[i] = ratio;
+        floatRatios[i] = rawRatios[i];
       } else {
         intColors[i] = 0;
         floatRatios[i] = 0.0;
