@@ -65,10 +65,9 @@
     height: 100%;
     overflow-y: auto;
     background-color: transparent;
-    padding: 12px;
     box-sizing: border-box;
     display: flex;
-    flex-direction: column;
+    /* flex-direction: column; */
   }
 
   .lyrics-container::-webkit-scrollbar {
@@ -77,12 +76,14 @@
 
   .lyrics-content {
     white-space: pre-wrap;
+    text-wrap: balance;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
     font-family: var(--font-stack);
     font-size: 16px;
     line-height: 1.4;
     color: var(--text-main);
     text-align: left;
-    margin: auto;
+    margin: 0 auto;
     max-width: 400px;
   }
 

@@ -104,7 +104,8 @@
     
     <div class="queue-modules">
       {#if panels.lyrics}
-        <div class="module-panel" in:fade={{ duration: 150 }} out:fade={{ duration: 150 }}>
+        <div class="module-panel">
+        <!-- <div class="module-panel" in:fade={{ duration: 150 }} out:fade={{ duration: 150 }}> -->
           <div class="panel-inner">
             <Lyrics />
           </div>
@@ -138,7 +139,8 @@
       </div>
 
       {#if panels.tracks}
-        <div class="module-panel" in:fade={{ duration: 150 }} out:fade={{ duration: 150 }}>
+        <div class="module-panel">
+        <!-- <div class="module-panel" in:fade={{ duration: 150 }} out:fade={{ duration: 150 }}> -->
           <div class="panel-inner">
             <QueueTracks />
           </div>
@@ -167,12 +169,13 @@
     position: relative;
     height: 100%;
     min-width: 0;
-    padding: 24px 32px; 
+    padding: 24px; 
     box-sizing: border-box;
     z-index: 1;
     display: flex;
     flex-direction: column;
     gap: 32px;
+    overflow: hidden;
   }
 
   .queue-modules {
@@ -181,14 +184,14 @@
     min-height: 0;
     display: flex;
     flex-direction: row;
-    gap: 24px;
+    gap: 16px;
     justify-content: center;
     align-items: center;
   }
 
   .module-panel {
-    flex: 1 1 320px;
-    min-width: 320px;
+    flex: 1 1 240px;
+    min-width: 240px;
     height: 100%;
     background-color: #24242480;
     backdrop-filter: blur(4px);
@@ -202,7 +205,7 @@
 
   .panel-inner {
     flex: 1;
-    padding: 24px 32px;
+    padding: 24px 24px;
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -214,6 +217,7 @@
     aspect-ratio: 1 / 1;
     cursor: default;
     outline: none;
+    background-color: #24242432;
     /* border-radius: 0px !important; */
   }
 

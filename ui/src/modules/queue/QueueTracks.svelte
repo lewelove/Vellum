@@ -259,14 +259,16 @@
     font-size: 16px;
     white-space: nowrap;
     overflow: hidden;
-    text-overflow: ellipsis;
+    word-break: keep-all;
+    overflow-wrap: break-word;
   }
 
   .header-artist {
     font-size: 14px;
     white-space: nowrap;
     overflow: hidden;
-    text-overflow: ellipsis;
+    word-break: keep-all;
+    overflow-wrap: break-word;
   }
 
   .header-meta {
@@ -344,12 +346,12 @@
   }
 
   .track-row:hover {
-    background-color: rgba(255, 255, 255, 0.03);
+    background-color: rgba(255, 255, 255, 0.01);
     border-color: rgba(255, 255, 255, 0.04);
   }
 
   .track-row.active {
-    background-color: rgba(255, 255, 255, 0.05);
+    background-color: rgba(255, 255, 255, 0.02);
     border-color: rgba(255, 255, 255, 0.05);
   }
 
