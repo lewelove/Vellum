@@ -16,24 +16,35 @@
   let activeAlbum = $derived(activeId ? library.albumCache.get(activeId) : null);
   let coverUrl = $derived(activeId ? library.getAlbumCoverUrl(activeId) : "");
   
-  let palette = $derived(activeAlbum?.tags?.COVER_PALETTE || []);
+  let palette = $derived(activeAlbum?.tags?.COVER_PALETTE ||[]);
 
   let isViewVisible = $derived(nav.activeTab === 'queue');
 
-  let activeView = $state("tracks");
+  let panels = $state({
+    lyrics: false,
+    cover: true,
+    tracks: true
+  });
+
+  function togglePanel(key) {
+    panels[key] = !panels[key];
+  }
 
   let containerWidth = $state(0);
   let containerHeight = $state(0);
   
-  const PADDING = 64;
-  
-  let leftPanelWidth = $derived.by(() => {
-    if (containerHeight <= 0 || containerWidth <= 0) return 0;
-    const maxWidth = containerWidth * 0.6;
-    return Math.min(containerHeight, maxWidth);
-  });
+  let activeTextPanels = $derived((panels.lyrics ? 1 : 0) + (panels.tracks ? 1 : 0));
 
-  let coverSize = $derived(Math.max(0, leftPanelWidth - PADDING));
+  let coverSize = $derived.by(() => {
+    if (!panels.cover || containerHeight <= 0 || containerWidth <= 0) return 0;
+    
+    let maxRatio = 1.0;
+    if (activeTextPanels === 1) maxRatio = 0.6; // Matches old 60% max-width logic
+    if (activeTextPanels === 2) maxRatio = 0.45; // Keeps text panels readable while maximizing cover
+    
+    const maxWidth = containerWidth * maxRatio;
+    return Math.max(0, Math.floor(Math.min(containerHeight, maxWidth)));
+  });
 
   let isExpanded = $state(false);
   let windowWidth = $state(0);
@@ -97,56 +108,53 @@
   {/if}
   
   <div class="view-content-wrapper">
+    
     <div 
-      class="queue-layout"
+      class="queue-modules"
       bind:clientWidth={containerWidth}
       bind:clientHeight={containerHeight}
     >
-      <div class="layout-main">
-        <div class="column-left" style="width: {leftPanelWidth}px;">
-          <div class="left-main-area">
-            {#if coverSize > 0}
-              <div 
-                class="cover-wrapper" 
-                class:clickable={!!coverUrl}
-                style="width: {coverSize}px; height: {coverSize}px;"
-                onclick={toggleExpand}
-                role="button"
-                tabindex="0"
-                onkeydown={(e) => { if(e.key === 'Enter') toggleExpand(); }}
-              >
-                {#if coverUrl}
-                  <ModalDrawerCover 
-                    src={coverUrl} 
-                    width={coverSize} 
-                    height={coverSize} 
-                  />
-                {:else}
-                  <div class="empty-cover">
-                    <span>NO SIGNAL</span>
-                  </div>
-                {/if}
-              </div>
-            {/if}
+      {#if panels.lyrics}
+        <div class="module-panel" in:fade={{ duration: 150 }} out:fade={{ duration: 150 }}>
+          <div class="panel-inner">
+            <Lyrics />
           </div>
         </div>
+      {/if}
 
-        <div class="column-right">
-          <div class="scroll-area">
-            <div class="scroll-content">
-              {#if activeView === 'tracks'}
-                <div class="tracks-wrapper" in:fade={{ duration: 150 }}>
-                  <QueueTracks />
-                </div>
-              {:else if activeView === 'lyrics'}
-                <div class="lyrics-wrapper" in:fade={{ duration: 150 }}>
-                  <Lyrics />
-                </div>
-              {/if}
+      {#if panels.cover}
+        <div 
+          class="module-cover" 
+          class:clickable={!!coverUrl}
+          style="width: {coverSize}px; height: {coverSize}px;"
+          onclick={toggleExpand}
+          role="button"
+          tabindex="0"
+          onkeydown={(e) => { if(e.key === 'Enter') toggleExpand(); }}
+          in:fade={{ duration: 150 }} 
+          out:fade={{ duration: 150 }}
+        >
+          {#if coverUrl}
+            <ModalDrawerCover 
+              src={coverUrl} 
+              width={coverSize} 
+              height={coverSize} 
+            />
+          {:else}
+            <div class="empty-cover">
+              <span>NO SIGNAL</span>
             </div>
+          {/if}
+        </div>
+      {/if}
+
+      {#if panels.tracks}
+        <div class="module-panel" in:fade={{ duration: 150 }} out:fade={{ duration: 150 }}>
+          <div class="panel-inner">
+            <QueueTracks />
           </div>
         </div>
-      </div>
+      {/if}
     </div>
 
     <div class="queue-bottom-bar">
@@ -154,7 +162,7 @@
     </div>
   </div>
 
-  <QueueBar {activeView} onViewChange={(v) => activeView = v} />
+  <QueueBar {panels} onToggle={togglePanel} />
 </div>
 
 <style>
@@ -181,58 +189,50 @@
     gap: 32px;
   }
 
-  .queue-layout {
+  .queue-modules {
     width: 100%;
     flex: 1;
     min-height: 0;
-    background-color: rgba(36, 36, 36, 0.46);
-    /* -webkit-backdrop-filter: blur(80px); */
+    display: flex;
+    flex-direction: row;
+    gap: 32px;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .module-panel {
+    flex: 1;
+    height: 100%;
+    background-color: rgba(36, 36, 36, 0.66);
     backdrop-filter: blur(10px);
-    transform: translateZ(0);
     border-radius: 16px;
-    overflow: hidden;
     border: 1px solid rgba(255, 255, 255, 0.08);
     box-shadow: 0 0 16px rgba(0, 0, 0, 0.1), 0 0 16px rgba(0, 0, 0, 0.2), 0 0 10px rgba(0, 0, 0, 0.2);
     display: flex;
     flex-direction: column;
-  }
-
-  .layout-main {
-    display: flex;
-    flex-direction: row;
-    min-height: 0;
-    height: 100%;
-    flex: 1;
-  }
-
-  .column-left {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    flex-shrink: 0;
-    box-sizing: border-box;
     overflow: hidden;
-    border-right: 1px solid rgba(255, 255, 255, 0.03);
+    min-width: 0;
   }
 
-  .left-main-area {
+  .panel-inner {
     flex: 1;
+    padding: 32px;
+    overflow: hidden;
     display: flex;
     flex-direction: column;
+    min-height: 0;
+  }
+
+  .module-cover {
+    flex: 0 0 auto;
+    display: flex;
     align-items: center;
     justify-content: center;
-    width: 100%;
-    padding: 32px;
-    box-sizing: border-box;
-  }
-
-  .cover-wrapper {
-    position: relative;
-    flex-shrink: 0;
     outline: none;
+    position: relative;
   }
 
-  .cover-wrapper.clickable {
+  .module-cover.clickable {
     cursor: pointer;
   }
 
@@ -252,50 +252,11 @@
     letter-spacing: 2px;
   }
 
-  .column-right {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-    height: 100%;
-    box-sizing: border-box;
-    background-color: transparent;
-    overflow: hidden;
-  }
-
-  .scroll-area {
-    position: relative;
-    flex: 1;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-    padding: 32px;
-  }
-
-  .scroll-content {
-    flex: 1;
-    position: relative;
-    overflow-y: auto;
-    overflow-x: hidden;
-  }
-
-  .scroll-content::-webkit-scrollbar {
-    width: 0px;
-  }
-
-  .tracks-wrapper, .lyrics-wrapper {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-  }
-
   .queue-bottom-bar {
     width: 100%;
     height: 52px;
     flex-shrink: 0;
     background-color: rgba(36, 36, 36, 0.66);
-    /* -webkit-backdrop-filter: blur(80px); */
     backdrop-filter: blur(30px);
     transform: translateZ(0);
     border-radius: 16px 16px 0 0;

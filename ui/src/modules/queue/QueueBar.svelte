@@ -1,22 +1,28 @@
 <script>
   import QueueNavButton from "./QueueNavButton.svelte";
 
-  let { activeView, onViewChange } = $props();
+  let { panels, onToggle } = $props();
 </script>
 
 <div class="queue-bar">
   <div class="nav-group">
     <QueueNavButton 
-      icon="icons/24px/format_list_bulleted.svg" 
-      label="Track List" 
-      active={activeView === 'tracks'}
-      onclick={() => onViewChange('tracks')} 
-    />
-    <QueueNavButton 
       icon="icons/24px/lyrics.svg" 
       label="Lyrics" 
-      active={activeView === 'lyrics'}
-      onclick={() => onViewChange('lyrics')} 
+      active={panels.lyrics}
+      onclick={() => onToggle('lyrics')} 
+    />
+    <QueueNavButton 
+      icon="icons/24px/album.svg" 
+      label="Cover" 
+      active={panels.cover}
+      onclick={() => onToggle('cover')} 
+    />
+    <QueueNavButton 
+      icon="icons/24px/format_list_bulleted.svg" 
+      label="Track List" 
+      active={panels.tracks}
+      onclick={() => onToggle('tracks')} 
     />
   </div>
 </div>

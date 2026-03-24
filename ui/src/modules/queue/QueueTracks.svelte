@@ -137,6 +137,40 @@
 </div>
 
 <style>
+  .header-row,
+  .disc-header-row,
+  .track-row,
+  .header-album,
+  .header-artist,
+  .header-meta,
+  .disc-label,
+  .disc-duration-label,
+  .track-index,
+  .track-title,
+  .track-artist,
+  .track-meta {
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+  }
+
+  .header-album,
+  .track-row,
+  .track-title {
+    color: #ffffff;
+  }
+
+  .header-artist,
+  .track-artist {
+    color: rgba(255, 255, 255, 0.7);
+  }
+
+  .header-meta,
+  .disc-label,
+  .disc-duration-label,
+  .track-index,
+  .track-meta {
+    color: rgba(255, 255, 255, 0.5);
+  }
+
   .tracks-list-container {
     width: 100%;
     height: 100%;
@@ -164,7 +198,6 @@
     display: flex;
     align-items: center;
     gap: 12px;
-    /* margin-bottom: 8px; */
     box-sizing: border-box;
   }
 
@@ -192,7 +225,6 @@
 
   .header-album {
     font-size: 16px;
-    color: var(--text-main);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -200,7 +232,6 @@
 
   .header-artist {
     font-size: 14px;
-    color: var(--text-muted);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -208,7 +239,6 @@
 
   .header-meta {
     font-size: 13px;
-    color: #888888;
     white-space: nowrap;
     margin-left: 8px;
     font-feature-settings: "tnum";
@@ -238,31 +268,25 @@
     align-items: center;
   }
 
-  .disc-label {
+  .disc-label,
+  .disc-duration-label {
     display: flex;
     align-items: center;
     padding: 0 12px;
     font-size: 12px;
-    font-weight: 600;
-    color: #666;
     border: 1px solid rgba(255, 255, 255, 0.05);
     border-radius: 8px;
     height: 24px;
     box-sizing: border-box;
   }
 
+  .disc-label {
+    font-weight: 600;
+  }
+
   .disc-duration-label {
     font-feature-settings: "tnum";
-    display: flex;
-    align-items: center;
-    padding: 0 12px;
-    font-size: 12px;
     font-weight: 400;
-    color: #666;
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 8px;
-    height: 24px;
-    box-sizing: border-box;
   }
 
   .track-row {
@@ -271,11 +295,11 @@
     align-items: flex-start;
     padding: 6px 0px;
     font-size: 14px;
-    color: #ffffff;
     cursor: default;
     user-select: none;
     background-color: transparent;
     border-radius: 8px;
+    border: 1px solid transparent;
     margin: 0 0px;
     transition: background-color 0.1s ease;
     overflow: hidden;
@@ -286,11 +310,13 @@
   }
 
   .track-row:hover {
-    background-color: rgba(255, 255, 255, 0.03);
+    background-color: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.04);
   }
 
   .track-row.active {
-    background-color: rgba(255, 255, 255, 0.03);
+    background-color: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.05);
   }
 
   .track-index {
@@ -299,7 +325,6 @@
     z-index: 1;
     flex: 0 0 44px;
     text-align: center;
-    color: #888888;
     font-size: 12px;
     line-height: 18px;
   }
@@ -317,7 +342,6 @@
 
   .track-title {
     font-size: 14px;
-    color: #ffffff;
     line-height: 18px;
     word-break: keep-all;
     overflow-wrap: break-word;
@@ -325,7 +349,6 @@
 
   .track-artist {
     font-size: 13px;
-    color: #999999;
     margin-top: 4px;
     line-height: 16px;
     word-break: keep-all;
@@ -335,7 +358,6 @@
   .track-meta {
     position: relative;
     z-index: 1;
-    color: #888888;
     text-align: right;
     font-size: 13px;
     font-feature-settings: "tnum";
