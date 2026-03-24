@@ -22,7 +22,6 @@
 
   let panels = $state({
     lyrics: false,
-    cover: true,
     tracks: true
   });
 
@@ -30,21 +29,7 @@
     panels[key] = !panels[key];
   }
 
-  let containerWidth = $state(0);
-  let containerHeight = $state(0);
-  
-  let activeTextPanels = $derived((panels.lyrics ? 1 : 0) + (panels.tracks ? 1 : 0));
-
-  let coverSize = $derived.by(() => {
-    if (!panels.cover || containerHeight <= 0 || containerWidth <= 0) return 0;
-    
-    let maxRatio = 1.0;
-    if (activeTextPanels === 1) maxRatio = 0.6; // Matches old 60% max-width logic
-    if (activeTextPanels === 2) maxRatio = 0.45; // Keeps text panels readable while maximizing cover
-    
-    const maxWidth = containerWidth * maxRatio;
-    return Math.max(0, Math.floor(Math.min(containerHeight, maxWidth)));
-  });
+  let coverSize = $state(0);
 
   let isExpanded = $state(false);
   let windowWidth = $state(0);
@@ -109,11 +94,7 @@
   
   <div class="view-content-wrapper">
     
-    <div 
-      class="queue-modules"
-      bind:clientWidth={containerWidth}
-      bind:clientHeight={containerHeight}
-    >
+    <div class="queue-modules">
       {#if panels.lyrics}
         <div class="module-panel" in:fade={{ duration: 150 }} out:fade={{ duration: 150 }}>
           <div class="panel-inner">
@@ -122,18 +103,16 @@
         </div>
       {/if}
 
-      {#if panels.cover}
-        <div 
-          class="module-cover" 
-          class:clickable={!!coverUrl}
-          style="width: {coverSize}px; height: {coverSize}px;"
-          onclick={toggleExpand}
-          role="button"
-          tabindex="0"
-          onkeydown={(e) => { if(e.key === 'Enter') toggleExpand(); }}
-          in:fade={{ duration: 150 }} 
-          out:fade={{ duration: 150 }}
-        >
+      <div 
+        class="module-cover" 
+        class:clickable={!!coverUrl}
+        bind:clientWidth={coverSize}
+        onclick={toggleExpand}
+        role="button"
+        tabindex="0"
+        onkeydown={(e) => { if(e.key === 'Enter') toggleExpand(); }}
+      >
+        <div class="cover-absolute-wrapper">
           {#if coverUrl}
             <ModalDrawerCover 
               src={coverUrl} 
@@ -146,7 +125,7 @@
             </div>
           {/if}
         </div>
-      {/if}
+      </div>
 
       {#if panels.tracks}
         <div class="module-panel" in:fade={{ duration: 150 }} out:fade={{ duration: 150 }}>
@@ -201,17 +180,18 @@
   }
 
   .module-panel {
-    flex: 1;
+    flex: 1 1 320px;
+    /* min-width: 240px; */
+    /* max-width: 800px; */
     height: 100%;
     background-color: rgba(36, 36, 36, 0.66);
-    backdrop-filter: blur(10px);
+    backdrop-filter: blur(20px);
     border-radius: 16px;
     border: 1px solid rgba(255, 255, 255, 0.08);
     box-shadow: 0 0 16px rgba(0, 0, 0, 0.1), 0 0 16px rgba(0, 0, 0, 0.2), 0 0 10px rgba(0, 0, 0, 0.2);
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    min-width: 0;
   }
 
   .panel-inner {
@@ -224,16 +204,29 @@
   }
 
   .module-cover {
-    flex: 0 0 auto;
+    flex: 0 1 auto;
+    height: 100%;
+    max-height: 100%;
+    aspect-ratio: 1 / 1;
     display: flex;
     align-items: center;
     justify-content: center;
     outline: none;
     position: relative;
+    min-width: 0;
+    min-height: 0;
   }
 
   .module-cover.clickable {
     cursor: pointer;
+  }
+  
+  .cover-absolute-wrapper {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .empty-cover {
@@ -243,6 +236,7 @@
     align-items: center;
     justify-content: center;
     border: 1px solid rgba(255, 255, 255, 0.05);
+    box-sizing: border-box;
   }
 
   .empty-cover span {
