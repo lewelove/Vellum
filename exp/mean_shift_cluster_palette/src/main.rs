@@ -49,12 +49,12 @@ fn run_mean_shift(img: &DynamicImage) -> ClusterResult {
     distances.sort_by(|a, b| a.partial_cmp(b).unwrap());
     
     let bandwidth = if distances.is_empty() { 6.0 } else { 
-        distances[(distances.len() as f32 * 0.1) as usize].clamp(2.0, 8.0) 
+        distances[(distances.len() as f32 * 0.2) as usize].clamp(2.0, 16.0) 
     };
     
     let bandwidth_sq = bandwidth * bandwidth;
-    let convergence_sq = 0.01_f32;
-    let max_iter = 20;
+    let convergence_sq = 0.1_f32;
+    let max_iter = 15;
 
     let mut raw_modes = Vec::new();
     for &seed in &seeds {
@@ -84,7 +84,7 @@ fn run_mean_shift(img: &DynamicImage) -> ClusterResult {
     let pre_merge_count = raw_modes.len();
     let mut merged_centers: Vec<Lab> = Vec::new();
     // Lower merge threshold to preserve distinct accents
-    let merge_threshold_sq = 16.0_f32; 
+    let merge_threshold_sq = 32.0_f32; 
 
     for mode in raw_modes {
         let mut is_merged = false;

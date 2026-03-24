@@ -1,5 +1,6 @@
 config/extensions/
 llm/
+exp/
 docs/
 dead_code/
 LICENSE.txt

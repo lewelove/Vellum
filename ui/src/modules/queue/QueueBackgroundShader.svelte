@@ -2,6 +2,9 @@
   import { onMount, onDestroy } from "svelte";
   
   import vertexShaderSource from "./shaders/quad.vert?raw";
+  // import fragmentShaderSource from "./shaders/silk_harmonics.frag?raw";
+  // import fragmentShaderSource from "./shaders/cell_fluid.frag?raw";
+  // import fragmentShaderSource from "./shaders/marble.frag?raw";
   import fragmentShaderSource from "./shaders/simplex.frag?raw";
 
   let { colors =[], coverSize = 0, visible = false, isPlaying = false } = $props();
