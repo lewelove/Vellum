@@ -20,6 +20,7 @@
   let palette = $derived(activeAlbum?.tags?.COVER_PALETTE ||[]);
 
   let isViewVisible = $derived(nav.activeTab === 'queue');
+  let isPlaying = $derived(player.state === "play");
 
   let panels = $state({
     lyrics: false,
@@ -65,7 +66,7 @@
 <svelte:window bind:innerWidth={windowWidth} bind:innerHeight={windowHeight} />
 
 <div class="queue-view-container">
-  <QueueBackgroundShader colors={palette} coverSize={coverSize} visible={isViewVisible} />
+  <QueueBackgroundShader colors={palette} coverSize={coverSize} visible={isViewVisible} {isPlaying} />
 
   <NavBar variant="glass" />
 

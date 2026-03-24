@@ -4,7 +4,7 @@
   import vertexShaderSource from "./shaders/quad.vert?raw";
   import fragmentShaderSource from "./shaders/simplex.frag?raw";
 
-  let { colors =[], coverSize = 0, visible = false } = $props();
+  let { colors =[], coverSize = 0, visible = false, isPlaying = false } = $props();
 
   let canvasEl;
   let gl;
@@ -21,7 +21,7 @@
   let activeColorCount = 0;
   const DEFAULT_PALETTE = ["#242424"];
 
-  let shouldRender = $derived(visible && isTabVisible);
+  let needsRedraw = true;
 
   $effect(() => {
     const palette = (colors && colors.length > 0) ? colors : DEFAULT_PALETTE;
@@ -56,6 +56,7 @@
         floatRatios[i] = 0.0;
       }
     }
+    needsRedraw = true;
   });
 
   function createShader(gl, type, source) {
@@ -109,31 +110,42 @@
   function render() {
     if (!gl) return;
 
-    if (!shouldRender) {
+    // Discard looping calculations completely while inactive/hidden to avoid time skipping
+    if (!visible || !isTabVisible) {
       animationFrame = requestAnimationFrame(render);
       return;
     }
 
     const now = performance.now();
-    const delta = (now - lastFrameTime) / 1000;
+    let timeAdvanced = false;
+
+    if (isPlaying) {
+      const delta = (now - lastFrameTime) / 1000;
+      totalTime += delta;
+      timeAdvanced = true;
+    }
     lastFrameTime = now;
-    totalTime += delta;
 
-    gl.viewport(0, 0, canvasEl.width, canvasEl.height);
-    gl.useProgram(program);
+    // Avoid burning the GPU drawing identical frames if we're paused and not resizing/changing palette
+    if (timeAdvanced || needsRedraw) {
+      gl.viewport(0, 0, canvasEl.width, canvasEl.height);
+      gl.useProgram(program);
 
-    gl.uniform1f(gl.getUniformLocation(program, "iTime"), totalTime);
-    gl.uniform1f(gl.getUniformLocation(program, "iRandom"), randomOffset);
-    gl.uniform2f(gl.getUniformLocation(program, "iResolution"), canvasEl.width, canvasEl.height);
-    
-    const dpr = window.devicePixelRatio || 1;
-    gl.uniform1f(gl.getUniformLocation(program, "iCoverSize"), coverSize * dpr);
+      gl.uniform1f(gl.getUniformLocation(program, "iTime"), totalTime);
+      gl.uniform1f(gl.getUniformLocation(program, "iRandom"), randomOffset);
+      gl.uniform2f(gl.getUniformLocation(program, "iResolution"), canvasEl.width, canvasEl.height);
+      
+      const dpr = window.devicePixelRatio || 1;
+      gl.uniform1f(gl.getUniformLocation(program, "iCoverSize"), coverSize * dpr);
 
-    gl.uniform1iv(gl.getUniformLocation(program, "iColors"), intColors);
-    gl.uniform1fv(gl.getUniformLocation(program, "iRatios"), floatRatios);
-    gl.uniform1i(gl.getUniformLocation(program, "iCount"), activeColorCount);
+      gl.uniform1iv(gl.getUniformLocation(program, "iColors"), intColors);
+      gl.uniform1fv(gl.getUniformLocation(program, "iRatios"), floatRatios);
+      gl.uniform1i(gl.getUniformLocation(program, "iCount"), activeColorCount);
 
-    gl.drawArrays(gl.TRIANGLES, 0, 6);
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+      needsRedraw = false;
+    }
+
     animationFrame = requestAnimationFrame(render);
   }
 
@@ -142,14 +154,12 @@
       const dpr = window.devicePixelRatio || 1;
       canvasEl.width = window.innerWidth * dpr;
       canvasEl.height = window.innerHeight * dpr;
+      needsRedraw = true;
     }
   }
 
   function handleVisibilityChange() {
     isTabVisible = !document.hidden;
-    if (isTabVisible) {
-      lastFrameTime = performance.now();
-    }
   }
 
   $effect(() => {
@@ -158,9 +168,11 @@
     }
   });
 
+  // Re-synchronize lastFrameTime when visibility is restored so the time delta doesn't hitch.
   $effect(() => {
-    if (shouldRender) {
+    if (visible && isTabVisible) {
       lastFrameTime = performance.now();
+      needsRedraw = true;
     }
   });
 
