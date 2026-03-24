@@ -160,7 +160,7 @@
     position: relative;
     height: 100%;
     min-width: 0;
-    padding: 32px; 
+    padding: 48px 32px; 
     box-sizing: border-box;
     z-index: 1;
     display: flex;
@@ -183,10 +183,10 @@
     flex: 1 1 320px;
     min-width: 320px;
     height: 100%;
-    background-color: rgba(36, 36, 36, 0.66);
-    backdrop-filter: blur(8px);
+    background-color: #24242480;
+    backdrop-filter: blur(4px);
     border-radius: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid #FFFFFF11;
     box-shadow: 0 0 16px rgba(0, 0, 0, 0.1), 0 0 16px rgba(0, 0, 0, 0.2), 0 0 10px rgba(0, 0, 0, 0.2);
     display: flex;
     flex-direction: column;
@@ -226,6 +226,10 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    /* padding: 32px; */
+    /* border: 1px solid #FFFFFF11; */
+    /* background-color: #24242480; */
+    /* border-radius: 12px; */
   }
 
   .empty-cover {

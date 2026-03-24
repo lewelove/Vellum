@@ -12,7 +12,7 @@ uniform int iCount;
 
 out vec4 fragColor;
 
-const float SPEED = 0.01;
+const float SPEED = 0.005;
 const float GRAIN_AMOUNT = 0.03;
 
 vec3 hexToRgb(int hex) {

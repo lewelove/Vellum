@@ -181,7 +181,7 @@
   .track-title,
   .track-artist,
   .track-meta {
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
   }
 
   .header-album,
@@ -325,15 +325,17 @@
     position: relative;
     display: flex;
     align-items: flex-start;
-    padding: 6px 0px;
+    padding: 4px 0px;
     font-size: 14px;
     cursor: default;
     user-select: none;
     background-color: transparent;
+    /* background-color: rgba(36, 36, 36, 0.16); */
     border-radius: 8px;
     border: 1px solid transparent;
+    /* border: 1px solid rgba(255, 255, 255, 0.1); */
     margin: 0 0px;
-    transition: background-color 0.1s ease;
+    /* transition: background-color 0.1s ease; */
     overflow: hidden;
   }
 
@@ -342,12 +344,12 @@
   }
 
   .track-row:hover {
-    background-color: rgba(255, 255, 255, 0.05);
+    background-color: rgba(255, 255, 255, 0.03);
     border-color: rgba(255, 255, 255, 0.04);
   }
 
   .track-row.active {
-    background-color: rgba(255, 255, 255, 0.08);
+    background-color: rgba(255, 255, 255, 0.05);
     border-color: rgba(255, 255, 255, 0.05);
   }
 
