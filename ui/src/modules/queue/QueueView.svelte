@@ -194,7 +194,7 @@
     min-width: 240px;
     height: 100%;
     background-color: #24242432;
-    backdrop-filter: blur(32px);
+    backdrop-filter: blur(128px);
     border-radius: 12px;
     /* border: 1px solid #FFFFFF11; */
     box-shadow: 0 0 16px rgba(0, 0, 0, 0.1), 0 0 16px rgba(0, 0, 0, 0.2), 0 0 10px rgba(0, 0, 0, 0.2);
