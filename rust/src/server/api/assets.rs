@@ -48,11 +48,8 @@ pub async fn get_lyrics(
     Path((id, path)): Path<(String, String)>,
     State(state): State<Arc<AppState>>,
 ) -> Response {
-    // Security/Logic check: ensure we are looking inside the library root
     let full_path = state.config.library_root.join(&id).join(&path);
 
-    // Simple traversal check could be added here if needed,
-    // but typical usage implies 'path' comes from trusted metadata.
     if full_path.exists()
         && full_path.is_file()
         && let Ok(mut file) = File::open(&full_path).await
@@ -70,6 +67,34 @@ pub async fn get_lyrics(
                 buf,
             )
                 .into_response();
+        }
+    }
+
+    StatusCode::NOT_FOUND.into_response()
+}
+
+pub async fn get_custom_shader(State(state): State<Arc<AppState>>) -> Response {
+    let path_opt = {
+        let guard = state.config.resolved_shader_path.read().await;
+        guard.clone()
+    };
+
+    if let Some(path) = path_opt {
+        if let Ok(mut file) = File::open(&path).await {
+            let mut buf = String::new();
+            if file.read_to_string(&mut buf).await.is_ok() {
+                return (
+                    [
+                        (
+                            header::CONTENT_TYPE,
+                            HeaderValue::from_static("text/x-glsl; charset=utf-8"),
+                        ),
+                        (header::CACHE_CONTROL, HeaderValue::from_static("no-cache")),
+                    ],
+                    buf,
+                )
+                    .into_response();
+            }
         }
     }
 

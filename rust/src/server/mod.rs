@@ -6,6 +6,7 @@ pub mod watchdog;
 
 use anyhow::{Context, Result};
 use std::net::SocketAddr;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::{RwLock, broadcast};
 use tower_http::cors::{Any, CorsLayer};
@@ -16,6 +17,7 @@ use crate::expand_path;
 
 pub async fn run(port: u16) -> Result<()> {
     let (config, _, config_path) = AppConfig::load().context("Failed to load application configuration")?;
+    let config_dir = config_path.parent().unwrap_or(Path::new(".")).to_path_buf();
 
     let lib_root_str = &config.storage.library_root;
     let thumb_root_str = config.storage.thumbnail_cache_folder.as_deref();
@@ -25,11 +27,25 @@ pub async fn run(port: u16) -> Result<()> {
         .canonicalize()
         .context("Invalid library_root path")?;
 
+    let shader_cfg = config.theme.as_ref().and_then(|t| t.shader.clone());
+    let mut resolved_path = None;
+    if let Some(ref s) = shader_cfg 
+        && let Some(ref p) = s.path 
+    {
+        let p_buf = PathBuf::from(p);
+        resolved_path = if p_buf.is_absolute() {
+            Some(p_buf)
+        } else {
+            Some(config_dir.join(p_buf))
+        };
+    }
+
     let server_config = Arc::new(ServerConfig {
         library_root: library_root.clone(),
         thumbnail_root: thumb_root_str.map(expand_path),
         thumbnail_size: thumb_size,
-        shader: config.theme.as_ref().and_then(|t| t.shader.clone()),
+        shader: shader_cfg,
+        resolved_shader_path: Arc::new(RwLock::new(resolved_path)),
     });
 
     let state_file = expand_path("~/.vellum/state.json");

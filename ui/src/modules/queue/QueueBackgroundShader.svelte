@@ -3,7 +3,7 @@
   import { library } from "../../library.svelte.js";
   
   import vertexShaderSource from "./shaders/quad.vert?raw";
-  import fragmentShaderSource from "./shaders/marble.frag?raw";
+  import internalFragmentShader from "./shaders/marble.frag?raw";
 
   let { colors = [], coverSize = 0, visible = false, isPlaying = false } = $props();
 
@@ -23,6 +23,28 @@
   const DEFAULT_PALETTE = ["#242424"];
 
   let needsRedraw = true;
+  let shaderSource = $state(internalFragmentShader);
+
+  async function loadExternalShader(path) {
+    if (!path) {
+        shaderSource = internalFragmentShader;
+        return;
+    }
+    try {
+        const res = await fetch("/api/theme/shader");
+        if (res.ok) {
+            shaderSource = await res.text();
+        } else {
+            shaderSource = internalFragmentShader;
+        }
+    } catch (e) {
+        shaderSource = internalFragmentShader;
+    }
+  }
+
+  $effect(() => {
+    loadExternalShader(library.config.shader?.path);
+  });
 
   $effect(() => {
     const palette = (colors && colors.length > 0) ? colors : DEFAULT_PALETTE;
@@ -61,22 +83,18 @@
 
     if (activeColorCount > 1) {
       let clampedIndex = -1;
-      
       for (let i = 0; i < activeColorCount; i++) {
         if (rawRatios[i] > 0.5) {
           clampedIndex = i;
           break; 
         }
       }
-
       if (clampedIndex !== -1) {
         rawRatios[clampedIndex] = 0.5;
-
         let remainingSum = 0;
         for (let i = 0; i < activeColorCount; i++) {
           if (i !== clampedIndex) remainingSum += rawRatios[i];
         }
-
         if (remainingSum > 0) {
           const scale = 0.5 / remainingSum;
           for (let i = 0; i < activeColorCount; i++) {
@@ -95,7 +113,6 @@
       if (i < activeColorCount) {
         const c = palette[i];
         const hex = Array.isArray(c) ? c[0] : (c.hex || c);
-        
         intColors[i] = parseInt(hex.replace("#", ""), 16);
         floatRatios[i] = rawRatios[i];
       } else {
@@ -119,6 +136,7 @@
   }
 
   function initGL() {
+    if (!canvasEl) return;
     gl = canvasEl.getContext("webgl2", { 
       alpha: false, 
       antialias: true,
@@ -129,8 +147,11 @@
     if (!gl) return;
 
     const vs = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
-    const fs = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
+    const fs = createShader(gl, gl.FRAGMENT_SHADER, shaderSource);
 
+    if (!vs || !fs) return;
+
+    if (program) gl.deleteProgram(program);
     program = gl.createProgram();
     gl.attachShader(program, vs);
     gl.attachShader(program, fs);
@@ -149,6 +170,11 @@
     startLoop();
   }
 
+  // Watch for source changes to recompile
+  $effect(() => {
+    if (shaderSource) initGL();
+  });
+
   function startLoop() {
     if (animationFrame) cancelAnimationFrame(animationFrame);
     lastFrameTime = performance.now();
@@ -156,7 +182,7 @@
   }
 
   function render() {
-    if (!gl) return;
+    if (!gl || !program) return;
 
     if (!visible || !isTabVisible) {
       animationFrame = requestAnimationFrame(render);
@@ -168,9 +194,7 @@
 
     if (isPlaying) {
       let delta = (now - lastFrameTime) / 1000;
-      if (delta > 0.1) {
-        delta = 0.016;
-      }
+      if (delta > 0.1) delta = 0.016;
       totalTime += delta;
       timeAdvanced = true;
     }
