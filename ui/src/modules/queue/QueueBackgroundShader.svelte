@@ -7,7 +7,7 @@
   // import fragmentShaderSource from "./shaders/marble.frag?raw";
   import fragmentShaderSource from "./shaders/simplex.frag?raw";
 
-  let { colors =[], coverSize = 0, visible = false, isPlaying = false } = $props();
+  let { colors = [], coverSize = 0, visible = false, isPlaying = false } = $props();
 
   let canvasEl;
   let gl;
@@ -19,16 +19,16 @@
   let isTabVisible = $state(true);
   let randomOffset = Math.random() * 1000.0;
 
-  const intColors = new Int32Array(16);
-  const floatRatios = new Float32Array(16);
+  const intColors = new Int32Array(24);
+  const floatRatios = new Float32Array(24);
   let activeColorCount = 0;
-  const DEFAULT_PALETTE =["#242424"];
+  const DEFAULT_PALETTE = ["#242424"];
 
   let needsRedraw = true;
 
   $effect(() => {
     const palette = (colors && colors.length > 0) ? colors : DEFAULT_PALETTE;
-    activeColorCount = Math.min(palette.length, 16);
+    activeColorCount = Math.min(palette.length, 24);
     
     // Check if the current palette schema provides ratios
     let hasRatios = false;
@@ -66,33 +66,31 @@
     }
 
     // 2. Clamp maximum to 0.5 and distribute proportionally
+    // This prevents a single dominant color from washing out the animation
     if (activeColorCount > 1) {
       let clampedIndex = -1;
       
       for (let i = 0; i < activeColorCount; i++) {
         if (rawRatios[i] > 0.5) {
           clampedIndex = i;
-          break; // Since the sum is 1.0, at most one element can be > 0.5
+          break; 
         }
       }
 
       if (clampedIndex !== -1) {
         rawRatios[clampedIndex] = 0.5;
 
-        // Find the sum of all remaining, unclamped elements
         let remainingSum = 0;
         for (let i = 0; i < activeColorCount; i++) {
           if (i !== clampedIndex) remainingSum += rawRatios[i];
         }
 
-        // Scale remaining elements so they perfectly fill the remaining 0.5 space
         if (remainingSum > 0) {
           const scale = 0.5 / remainingSum;
           for (let i = 0; i < activeColorCount; i++) {
             if (i !== clampedIndex) rawRatios[i] *= scale;
           }
         } else {
-          // Fallback if all other elements were exactly 0
           const share = 0.5 / (activeColorCount - 1);
           for (let i = 0; i < activeColorCount; i++) {
             if (i !== clampedIndex) rawRatios[i] = share;
@@ -102,7 +100,7 @@
     }
 
     // 3. Assign to uniforms
-    for (let i = 0; i < 16; i++) {
+    for (let i = 0; i < 24; i++) {
       if (i < activeColorCount) {
         const c = palette[i];
         const hex = Array.isArray(c) ? c[0] : (c.hex || c);
@@ -122,6 +120,7 @@
     gl.shaderSource(shader, source);
     gl.compileShader(shader);
     if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+      console.error(gl.getShaderInfoLog(shader));
       gl.deleteShader(shader);
       return null;
     }
@@ -168,7 +167,6 @@
   function render() {
     if (!gl) return;
 
-    // Discard looping calculations completely while inactive/hidden to avoid time skipping
     if (!visible || !isTabVisible) {
       animationFrame = requestAnimationFrame(render);
       return;
@@ -180,9 +178,7 @@
     if (isPlaying) {
       let delta = (now - lastFrameTime) / 1000;
       
-      // Delta Clamping: If more than 100ms have passed between frames, the OS/Compositor
-      // likely suspended the window (e.g., Hyprland unmapped the special workspace).
-      // We clamp the delta to a standard ~60fps frame (0.016s) to prevent a massive jump.
+      // Delta Clamping: prevent massive jumps if window is unmapped/suspended
       if (delta > 0.1) {
         delta = 0.016;
       }
@@ -192,7 +188,6 @@
     }
     lastFrameTime = now;
 
-    // Avoid burning the GPU drawing identical frames if we're paused and not resizing/changing palette
     if (timeAdvanced || needsRedraw) {
       gl.viewport(0, 0, canvasEl.width, canvasEl.height);
       gl.useProgram(program);
@@ -234,7 +229,6 @@
     }
   });
 
-  // Re-synchronize lastFrameTime when visibility is restored so the time delta doesn't hitch.
   $effect(() => {
     if (visible && isTabVisible) {
       lastFrameTime = performance.now();

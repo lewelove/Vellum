@@ -6,8 +6,8 @@ uniform float iTime;
 uniform float iRandom;
 uniform vec2 iResolution;
 uniform float iCoverSize;
-uniform int iColors[16];
-uniform float iRatios[16];
+uniform int iColors[24];
+uniform float iRatios[24];
 uniform int iCount;
 
 out vec4 fragColor;
@@ -124,7 +124,7 @@ void main() {
 
     // Normalize ratios
     float totalWeight = 0.0;
-    for(int i = 0; i < 16; i++) {
+    for(int i = 0; i < 24; i++) {
         if (i >= iCount) break;
         totalWeight += iRatios[i];
     }
@@ -133,7 +133,7 @@ void main() {
     vec3 finalColor = vec3(0.0);
     float cumulative = 0.00;
 
-    for(int i = 0; i < 16; i++) {
+    for(int i = 0; i < 24; i++) {
         if (i >= iCount) break;
         
         float weight = iRatios[i] / totalWeight;
@@ -142,7 +142,7 @@ void main() {
         // Dynamically scale softness based on the band size so tiny bands aren't swallowed
         float currentSoftness = min(0.05, weight * 0.45); 
         
-        // Unconditionally pin the absolute edges to 1.0/0.0 to prevent 50% opacity dimming boundary bleed
+        // Unconditionally pin the absolute edges to 1.0/0.0 to prevent bleed
         float startMask = (i == 0) ? 1.0 : smoothstep(cumulative - currentSoftness, cumulative + currentSoftness, val);
         float endMask = (i == iCount - 1) ? 0.0 : smoothstep(nextCumulative - currentSoftness, nextCumulative + currentSoftness, val);
         
