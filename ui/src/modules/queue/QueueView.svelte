@@ -11,7 +11,6 @@
   import ModalDrawerCover from "../album-grid/ModalDrawerCover.svelte";
   import QueueBackgroundShader from "./QueueBackgroundShader.svelte";
   import NavBar from "../navigation/NavBar.svelte";
-  import GrainOverlay from "./GrainOverlay.svelte";
 
   let activeId = $derived(player.currentAlbumId);
   let activeAlbum = $derived(activeId ? library.albumCache.get(activeId) : null);
@@ -139,7 +138,7 @@
       </div>
 
       {#if panels.tracks}
-        <div class="module-panel">
+        <div class="module-panel greedy">
           <div class="panel-inner">
             <QueueTracks />
           </div>
@@ -185,27 +184,28 @@
     flex-direction: row;
     gap: 16px;
     justify-content: center;
-    align-items: center;
+    align-items: flex-start;
   }
 
   .module-panel {
-    position: relative;
-    flex: 1 0 auto;
+    flex: 0 1 auto;
     min-width: 240px;
-    height: 100%;
-    background-color: #24242466;
-    backdrop-filter: blur(2px);
+    height: auto;
+    max-height: 100%;
+    background-color: #24242480;
+    backdrop-filter: blur(8px);
     border-radius: 12px;
-    /* border: 1px solid #FFFFFF11; */
     box-shadow: 0 0 16px rgba(0, 0, 0, 0.1), 0 0 16px rgba(0, 0, 0, 0.2), 0 0 10px rgba(0, 0, 0, 0.2);
     display: flex;
     flex-direction: column;
     overflow: hidden;
   }
 
+  .module-panel.greedy {
+    flex: 1 1 0;
+  }
+
   .panel-inner {
-    position: relative;
-    z-index: 2;
     flex: 1;
     padding: 24px 24px;
     overflow: hidden;
@@ -216,11 +216,13 @@
 
   .module-cover {
     flex: 0 1 auto;
+    height: 100%;
+    width: auto;
     aspect-ratio: 1 / 1;
     cursor: default;
     outline: none;
-    background-color: #24242432;
-    backdrop-filter: blur(2px);
+    background-color: #24242442;
+    backdrop-filter: blur(0px);
     /* border-radius: 0px !important; */
   }
 

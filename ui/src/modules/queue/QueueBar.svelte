@@ -24,8 +24,8 @@
 <style>
   .queue-bar {
     height: 100%;
-    background-color: #24242432;
-    backdrop-filter: blur(4px);
+    background-color: #24242442;
+    backdrop-filter: blur(0px);
     box-shadow: 0 0 16px rgba(0, 0, 0, 0.1), 0 0 16px rgba(0, 0, 0, 0.2), 0 0 10px rgba(0, 0, 0, 0.2);
     display: flex;
     flex-direction: column;

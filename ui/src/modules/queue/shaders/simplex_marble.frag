@@ -13,13 +13,13 @@ uniform int iCount;
 out vec4 fragColor;
 
 // --- TUNABLE PARAMETERS ---
-const float ZOOM = 1.5;             // How far zoomed in the noise is (lower = more zoomed in)
-const float SPEED = 0.005;          // How fast the noise evolves over time
-const float GRAIN_AMOUNT = 0.03;    // Intensity of the high-frequency dither grain
-const float WARP_STRENGTH_1 = 1.5;  // First pass domain warping intensity (the "folds")
+const float ZOOM = 0.5;             // How far zoomed in the noise is (lower = more zoomed in)
+const float SPEED = 0.001;          // How fast the noise evolves over time
+const float GRAIN_AMOUNT = 0.02;    // Intensity of the high-frequency dither grain
+const float WARP_STRENGTH_1 = 1.1;  // First pass domain warping intensity (the "folds")
 const float WARP_STRENGTH_2 = 2.0;  // Second pass domain warping intensity (the fine "swirls")
-const float MAX_SOFTNESS = 0.15;    // Maximum blur radius for color transitions
-const float SOFTNESS_SCALE = 0.6;   // Multiplier for dynamically shrinking the blur on small bands
+const float MAX_SOFTNESS = 0.66;    // Maximum blur radius for color transitions
+const float SOFTNESS_SCALE = 0.66;   // Multiplier for dynamically shrinking the blur on small bands
 
 vec3 hexToRgb(int hex) {
     float r = float((hex >> 16) & 0xFF) / 255.0;

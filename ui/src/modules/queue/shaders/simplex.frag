@@ -2,24 +2,25 @@
 precision highp float;
 precision highp int;
 
+#ifndef NUM_COLORS
+#define NUM_COLORS 24
+#endif
+
 uniform float iTime;
 uniform float iRandom;
 uniform vec2 iResolution;
 uniform float iCoverSize;
-uniform int iColors[24];
-uniform float iRatios[24];
+uniform int iColors[NUM_COLORS];
+uniform float iRatios[NUM_COLORS];
 uniform int iCount;
 
 out vec4 fragColor;
 
 // --- TUNABLE PARAMETERS ---
-// const float ZOOM = 1.5;
 const float ZOOM = 0.9;
 const float SPEED = 0.006;
 const float GRAIN_AMOUNT = 0.02;
-// const float MAX_SOFTNESS = 0.01;
 const float MAX_SOFTNESS = 0.66;
-// const float SOFTNESS_SCALE = 0.06;
 const float SOFTNESS_SCALE = 0.66;
 
 vec3 hexToRgb(int hex) {
@@ -110,9 +111,6 @@ float fbm(vec3 p) {
     v = v * 0.5 + 0.5;
     
     // Apply trigonometric expansion twice.
-    // This forcibly spreads the clumped center of the noise outwards toward 0 and 1,
-    // flattening the Gaussian bell curve into a much more uniform distribution 
-    // so colors appear exactly relative to their ratios.
     v = 0.5 - 0.5 * cos(3.14159265 * v);
     v = 0.5 - 0.5 * cos(3.14159265 * v);
     
@@ -131,8 +129,7 @@ void main() {
 
     // Normalize ratios
     float totalWeight = 0.0;
-    for(int i = 0; i < 24; i++) {
-        if (i >= iCount) break;
+    for(int i = 0; i < NUM_COLORS; i++) {
         totalWeight += iRatios[i];
     }
     if (totalWeight <= 0.0) totalWeight = 1.0; 
@@ -143,15 +140,13 @@ void main() {
     // Track the edge softness from the previous boundary so both masks match perfectly
     float currentEdgeSoftness = 0.0;
 
-    for(int i = 0; i < 24; i++) {
-        if (i >= iCount) break;
-        
+    for(int i = 0; i < NUM_COLORS; i++) {
         float weight = iRatios[i] / totalWeight;
         float nextCumulative = cumulative + weight;
         
         // Peek at the next weight to calculate the shared boundary softness
         float nextWeight = 0.0;
-        if (i + 1 < iCount) {
+        if (i + 1 < NUM_COLORS) {
             nextWeight = iRatios[i+1] / totalWeight;
         }
         
@@ -159,7 +154,7 @@ void main() {
         float nextEdgeSoftness = min(MAX_SOFTNESS, min(weight, nextWeight) * SOFTNESS_SCALE); 
         
         float startMask = (i == 0) ? 1.0 : smoothstep(cumulative - currentEdgeSoftness, cumulative + currentEdgeSoftness, val);
-        float endMask = (i == iCount - 1) ? 0.0 : smoothstep(nextCumulative - nextEdgeSoftness, nextCumulative + nextEdgeSoftness, val);
+        float endMask = (i == NUM_COLORS - 1) ? 0.0 : smoothstep(nextCumulative - nextEdgeSoftness, nextCumulative + nextEdgeSoftness, val);
         
         float weightMask = startMask - endMask;
         

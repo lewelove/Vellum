@@ -186,7 +186,7 @@ pub fn resolve_cover_palette(ctx: &AlbumContext) -> Option<Value> {
         )));
     }
 
-    // 2. Run K-Means with k=24
+    // 2. Run K-Means with k=8
     let k = 8;
     let max_iter = 20;
     let convergence = 0.000;
