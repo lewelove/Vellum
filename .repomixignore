@@ -1,6 +1,2 @@
-config/extensions/
-python/
-llm/
 docs/
-dead_code/
 LICENSE.txt
