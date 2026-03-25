@@ -31,7 +31,7 @@
   }
 
   // Padding configuration
-  const coverPadding = 24;
+  const coverPadding = 12;
   let moduleWidth = $state(0);
   
   // Explicit calculation: subtract padding from both sides
@@ -192,10 +192,10 @@
     min-width: 240px;
     height: auto;
     max-height: 100%;
-    background-color: #242424AA;
-    backdrop-filter: blur(8px);
+    backdrop-filter: blur(32px) brightness(0.8) saturate(0.75);
     border-radius: 12px;
     box-shadow: 0 0 16px rgba(0, 0, 0, 0.1), 0 0 16px rgba(0, 0, 0, 0.2), 0 0 10px rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.08);
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -222,7 +222,8 @@
     cursor: default;
     outline: none;
     background-color: #24242442;
-    backdrop-filter: blur(0px);
+    backdrop-filter: blur(4px);
+    border: transparent;
     /* border-radius: 0px !important; */
   }
 
@@ -266,8 +267,8 @@
     position: fixed;
     inset: 0;
     z-index: 9999;
-    background-color: rgba(0, 0, 0, 0.8);
-    backdrop-filter: blur(25px);
+    background-color: rgba(0, 0, 0, 0.0);
+    backdrop-filter: blur(16px);
     display: flex;
     align-items: center;
     justify-content: center;
