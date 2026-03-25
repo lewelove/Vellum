@@ -16,15 +16,15 @@ pub async fn run(force: bool) -> Result<()> {
     let (config, _raw_config, _) = AppConfig::load().context("Failed to load config")?;
     let lib_root = expand_path(&config.storage.library_root).canonicalize()?;
 
-    let gen_cfg = config.generate.context("Missing [generate] configuration")?;
-    let supported_exts: Vec<String> = gen_cfg
+    let manifest_cfg = config.manifest.context("Missing [manifest] configuration")?;
+    let supported_exts: Vec<String> = manifest_cfg
         .supported_extensions
         .iter()
         .map(|e| e.to_lowercase())
         .collect();
-    let grouping_keys = gen_cfg.grouping_keys;
+    let grouping_keys = vec!["ALBUMARTIST".to_string(), "ALBUM".to_string()];
 
-    let manifest_layout = config.manifest_layout;
+    let manifest_layout = manifest_cfg.keys;
 
     let mut dirs_to_harvest = Vec::new();
     let mut it = WalkDir::new(&lib_root).into_iter();
@@ -110,7 +110,7 @@ pub async fn run(force: bool) -> Result<()> {
     pb.set_style(
         ProgressStyle::default_bar()
             .template(
-                "{spinner:.green}[{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta})",
+                "{spinner:.green}[{elapsed_precise}][{bar:40.cyan/blue}] {pos}/{len} ({eta})",
             )
             .unwrap()
             .progress_chars("#>-"),
@@ -159,7 +159,7 @@ pub async fn run(force: bool) -> Result<()> {
     pb.finish_with_message("Generation complete");
 
     log::info!("Manifest generation complete. Triggering library update...");
-    crate::update::run(None, false, None, false).await?;
+    crate::update::run(None, false, None).await?;
 
     Ok(())
 }

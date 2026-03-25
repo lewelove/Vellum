@@ -1,12 +1,9 @@
 <script>
   import { onMount, onDestroy } from "svelte";
+  import { library } from "../../library.svelte.js";
   
   import vertexShaderSource from "./shaders/quad.vert?raw";
-  // import fragmentShaderSource from "./shaders/silk_harmonics.frag?raw";
-  // import fragmentShaderSource from "./shaders/cell_fluid.frag?raw";
-  // import fragmentShaderSource from "./shaders/marble.frag?raw";
-  // import fragmentShaderSource from "./shaders/simplex.frag?raw";
-  import fragmentShaderSource from "./shaders/simplex_marble.frag?raw";
+  import fragmentShaderSource from "./shaders/marble.frag?raw";
 
   let { colors = [], coverSize = 0, visible = false, isPlaying = false } = $props();
 
@@ -31,7 +28,6 @@
     const palette = (colors && colors.length > 0) ? colors : DEFAULT_PALETTE;
     activeColorCount = Math.min(palette.length, 24);
     
-    // Check if the current palette schema provides ratios
     let hasRatios = false;
     for (let i = 0; i < activeColorCount; i++) {
       if (Array.isArray(palette[i]) && palette[i].length > 1) {
@@ -40,7 +36,6 @@
       }
     }
 
-    // 1. Extract and normalize raw ratios
     let rawRatios = new Array(activeColorCount).fill(0);
     let totalRaw = 0;
     
@@ -49,13 +44,11 @@
       if (hasRatios) {
         rawRatios[i] = Array.isArray(c) ? parseFloat(c[1]) : 0.0;
       } else {
-        // Fallback uniform decay for legacy palettes
         rawRatios[i] = 1.0 / (i + 1.0);
       }
       totalRaw += rawRatios[i];
     }
 
-    // Normalize so all ratios sum to 1.0
     if (totalRaw > 0) {
       for (let i = 0; i < activeColorCount; i++) {
         rawRatios[i] /= totalRaw;
@@ -66,8 +59,6 @@
       }
     }
 
-    // 2. Clamp maximum to 0.5 and distribute proportionally
-    // This prevents a single dominant color from washing out the animation
     if (activeColorCount > 1) {
       let clampedIndex = -1;
       
@@ -100,7 +91,6 @@
       }
     }
 
-    // 3. Assign to uniforms
     for (let i = 0; i < 24; i++) {
       if (i < activeColorCount) {
         const c = palette[i];
@@ -178,12 +168,9 @@
 
     if (isPlaying) {
       let delta = (now - lastFrameTime) / 1000;
-      
-      // Delta Clamping: prevent massive jumps if window is unmapped/suspended
       if (delta > 0.1) {
         delta = 0.016;
       }
-      
       totalTime += delta;
       timeAdvanced = true;
     }
@@ -203,6 +190,13 @@
       gl.uniform1iv(gl.getUniformLocation(program, "iColors"), intColors);
       gl.uniform1fv(gl.getUniformLocation(program, "iRatios"), floatRatios);
       gl.uniform1i(gl.getUniformLocation(program, "iCount"), activeColorCount);
+
+      const s = library.config.shader || {};
+      gl.uniform1f(gl.getUniformLocation(program, "iSpeed"), s.speed ?? 0.001);
+      gl.uniform1f(gl.getUniformLocation(program, "iZoom"), s.zoom ?? 0.3);
+      gl.uniform1f(gl.getUniformLocation(program, "iBlur"), s.blur ?? 0.66);
+      gl.uniform1f(gl.getUniformLocation(program, "iEdgeBlur"), s.edge_blur ?? 0.66);
+      gl.uniform1f(gl.getUniformLocation(program, "iGrain"), s.grain ?? 0.02);
 
       gl.drawArrays(gl.TRIANGLES, 0, 6);
       needsRedraw = false;
@@ -225,7 +219,7 @@
   }
 
   $effect(() => {
-    if (colors || coverSize) {
+    if (colors || coverSize || library.config.shader) {
       handleResize();
     }
   });

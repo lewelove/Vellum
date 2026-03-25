@@ -1,7 +1,6 @@
 import { connectSocket } from "./api.js";
 import { player, updatePlayerState } from "./modules/player.svelte.js";
 import { nav } from "./navigation.svelte.js";
-import { theme } from "./theme.svelte.js";
 import LogicWorker from "./workers/logic.worker.js?worker"; 
 
 class LibraryState {
@@ -20,6 +19,11 @@ class LibraryState {
   albumCache = $state(new Map());
   trackPathMap = $state(new Map());
   pinnedTextures = $state(new Map());
+
+  config = $state({
+    thumbnail_size: 200,
+    shader: null
+  });
 
   worker = null;
   _tRequest = 0;
@@ -116,8 +120,8 @@ class LibraryState {
     if (json.type === "UPDATE") {
       this.worker.postMessage({ type: "UPDATE", payload: json.payload });
     } else if (json.type === "INIT") {
-      if (json.config && json.config.thumbnail_size) {
-        theme.albumGrid["cover-size"] = json.config.thumbnail_size;
+      if (json.config) {
+        this.config = { ...this.config, ...json.config };
       }
       if (json.ui_state) {
           this.applyPersistedState(json.ui_state);
@@ -129,6 +133,10 @@ class LibraryState {
           ui_state: json.ui_state
         }
       });
+    } else if (json.type === "CONFIG_UPDATE") {
+      if (json.config) {
+        this.config = { ...this.config, ...json.config };
+      }
     } else if (json.type === "MPD_STATUS") {
       updatePlayerState(json);
     }
@@ -218,7 +226,7 @@ class LibraryState {
 
   getThumbnailUrl(album) {
     if (!album || !album.cover_hash) return "";
-    const size = theme.albumGrid["cover-size"] || 200;
+    const size = this.config.thumbnail_size || 200;
     return `/api/covers/${size}px/${album.cover_hash}`;
   }
 

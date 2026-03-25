@@ -1,40 +1,37 @@
 use crate::compile::{ExportTarget, builder, engine::verify};
-use anyhow::{Context, Result};
+use anyhow::{Result};
 use rayon::prelude::*;
 use serde_json::{Value, json};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
-use tokio::process::Child;
 use tokio::sync::mpsc;
 
 pub struct StreamContext {
     pub albums: Vec<PathBuf>,
     pub config: Arc<Value>,
     pub project_root: Arc<PathBuf>,
-    pub gen_cfg: Arc<Value>,
+    pub manifest_cfg: Arc<Value>,
     pub active_flags: Arc<Vec<String>>,
     pub target: ExportTarget,
     pub jobs: Option<usize>,
-    pub no_extensions: bool,
     pub notify_tx: Option<mpsc::Sender<PathBuf>>,
 }
 
-pub async fn run(child: Option<Child>, ctx: StreamContext) -> Result<()> {
-    let (ktx, krx) = mpsc::channel::<String>(32);
+pub async fn run(ctx: StreamContext) -> Result<()> {
     let (dtx, mut drx) = mpsc::channel::<Value>(512);
 
     let reg = Arc::new(
         ctx.config
-            .get("compiler_registry")
+            .get("compiler")
+            .and_then(|c| c.get("keys"))
             .and_then(Value::as_object)
             .map(|v| v.clone().into_iter().collect::<HashMap<String, Value>>())
             .unwrap_or_default(),
     );
 
     let notify = ctx.notify_tx.clone().map(Arc::new);
-    let build_handle = spawn_builders(&ctx, ktx, dtx);
+    let build_handle = spawn_builders(&ctx, dtx);
 
     let d_notify = notify.clone();
     let d_reg = reg.clone();
@@ -49,10 +46,6 @@ pub async fn run(child: Option<Child>, ctx: StreamContext) -> Result<()> {
         }
     });
 
-    if let Some(mut proc) = child {
-        run_bridge(&mut proc, krx, notify, reg, target).await?;
-    }
-
     let _ = build_handle.await;
     let _ = direct_handle.await;
     Ok(())
@@ -60,16 +53,14 @@ pub async fn run(child: Option<Child>, ctx: StreamContext) -> Result<()> {
 
 fn spawn_builders(
     ctx: &StreamContext,
-    ktx: mpsc::Sender<String>,
     dtx: mpsc::Sender<Value>,
 ) -> tokio::task::JoinHandle<()> {
     let albums = ctx.albums.clone();
     let cfg = Arc::clone(&ctx.config);
     let root = Arc::clone(&ctx.project_root);
-    let gcfg = Arc::clone(&ctx.gen_cfg);
+    let mcfg = Arc::clone(&ctx.manifest_cfg);
     let flags = Arc::clone(&ctx.active_flags);
     let jobs = ctx.jobs;
-    let no_ext = ctx.no_extensions;
 
     tokio::task::spawn_blocking(move || {
         let pool = rayon::ThreadPoolBuilder::new()
@@ -78,13 +69,9 @@ fn spawn_builders(
             .unwrap();
         pool.install(|| {
             albums.par_iter().for_each(|ar| {
-                match builder::build(ar, &root, &cfg, &gcfg, &flags, no_ext) {
-                    Ok((man, needs_ext)) => {
-                        if !needs_ext || no_ext {
-                            let _ = dtx.blocking_send(man);
-                        } else if let Ok(l) = serde_json::to_string(&man) {
-                            let _ = ktx.blocking_send(l);
-                        }
+                match builder::build(ar, &root, &cfg, &mcfg, &flags) {
+                    Ok(man) => {
+                        let _ = dtx.blocking_send(man);
                     }
                     Err(e) => {
                         log::error!("Build failed for {}: {}", ar.display(), e);
@@ -93,39 +80,6 @@ fn spawn_builders(
             });
         });
     })
-}
-
-async fn run_bridge(
-    child: &mut Child,
-    mut krx: mpsc::Receiver<String>,
-    notify: Option<Arc<mpsc::Sender<PathBuf>>>,
-    reg: Arc<HashMap<String, Value>>,
-    target: ExportTarget,
-) -> Result<()> {
-    let mut stdin = child.stdin.take().context("No stdin")?;
-    let stdout = child.stdout.take().context("No stdout")?;
-    let sender = tokio::spawn(async move {
-        while let Some(l) = krx.recv().await {
-            let _ = stdin.write_all(l.as_bytes()).await;
-            let _ = stdin.write_u8(b'\n').await;
-        }
-    });
-    let receiver = tokio::spawn(async move {
-        let mut lines = BufReader::new(stdout).lines();
-        while let Ok(Some(l)) = lines.next_line().await {
-            if let Ok(v) = serde_json::from_str(&l) {
-                let n = notify.as_ref().map(Arc::clone);
-                let r = reg.clone();
-                tokio::task::spawn_blocking(move || {
-                    let _ = finalize(v, target, n, &r);
-                });
-            }
-        }
-    });
-    let _ = sender.await;
-    let _ = receiver.await;
-    let _ = child.wait().await;
-    Ok(())
 }
 
 fn strip_empty_values(value: &mut Value) {

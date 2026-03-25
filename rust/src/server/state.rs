@@ -17,4 +17,5 @@ pub struct AppConfig {
     pub library_root: PathBuf,
     pub thumbnail_root: Option<PathBuf>,
     pub thumbnail_size: u32,
+    pub shader: Option<crate::config::ShaderConfig>,
 }

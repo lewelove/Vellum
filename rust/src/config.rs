@@ -10,11 +10,8 @@ use toml::Value;
 pub struct AppConfig {
     pub storage: StorageConfig,
     pub theme: Option<ThemeConfig>,
-    pub generate: Option<GenerateConfig>,
-    pub extensions: Option<ExtensionsConfig>,
+    pub manifest: Option<ManifestConfig>,
     pub compiler: Option<CompilerConfig>,
-    pub compiler_registry: Option<HashMap<String, Value>>,
-    pub manifest_layout: Option<IndexMap<String, Value>>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -27,28 +24,29 @@ pub struct StorageConfig {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ThemeConfig {
     pub thumbnail_size: u32,
+    pub shader: Option<ShaderConfig>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct GenerateConfig {
+pub struct ShaderConfig {
+    pub path: Option<String>,
+    pub speed: Option<f32>,
+    pub zoom: Option<f32>,
+    pub blur: Option<f32>,
+    pub edge_blur: Option<f32>,
+    pub grain: Option<f32>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ManifestConfig {
     pub supported_extensions: Vec<String>,
-    pub grouping_keys: Vec<String>,
-    pub naming_separator: String,
-    pub naming_sanitization_char: String,
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct ExtensionsConfig {
-    pub folder: String,
-    pub functions_folder: String,
-    pub flake: String,
-    pub kernel_command: String,
+    pub keys: Option<IndexMap<String, Value>>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct CompilerConfig {
-    pub legacy_extensions_folder: String,
     pub scan_depth: Option<usize>,
+    pub keys: Option<HashMap<String, Value>>,
 }
 
 impl AppConfig {
@@ -64,17 +62,17 @@ impl AppConfig {
     }
 
     fn resolve_config_path() -> Option<PathBuf> {
+        if let Some(home_config) = dirs::home_dir().map(|h| h.join(".config/vellum/config.toml")) {
+            if home_config.exists() {
+                return Some(home_config);
+            }
+        }
+
         if let Ok(env_path) = std::env::var("VELLUM_CONFIG_PATH") {
             let p = PathBuf::from(env_path);
             if p.exists() {
                 return Some(p);
             }
-        }
-
-        if let Some(home_config) = dirs::home_dir().map(|h| h.join(".config/vellum/config.toml"))
-            && home_config.exists()
-        {
-            return Some(home_config);
         }
 
         let mut curr = std::env::current_dir().ok()?;

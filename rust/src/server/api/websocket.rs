@@ -22,7 +22,8 @@ async fn handle_socket(mut socket: WebSocket, state: Arc<AppState>) {
             "data": lib_data,
             "ui_state": ui_data,
             "config": {
-                "thumbnail_size": state.config.thumbnail_size
+                "thumbnail_size": state.config.thumbnail_size,
+                "shader": state.config.shader
             }
         })
         .to_string()

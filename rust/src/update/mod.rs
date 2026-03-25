@@ -37,7 +37,6 @@ pub async fn run(
     target_path: Option<PathBuf>,
     force: bool,
     jobs: Option<usize>,
-    no_extensions: bool,
 ) -> Result<()> {
     let (config, _, _) = AppConfig::load().context("Failed to load config")?;
     let library_root = expand_path(&config.storage.library_root)
@@ -113,7 +112,6 @@ pub async fn run(
             mode: compile::CompileMode::Standard,
             target: compile::ExportTarget::File,
             pretty: false,
-            no_extensions,
         },
     };
 
@@ -246,7 +244,7 @@ fn get_mtime_sum(dir: &Path, meta: &Path) -> u64 {
         .unwrap_or(0);
 
     let mut c_mtime = 0;
-    let cover_candidates = ["cover.jpg", "cover.png", "folder.jpg", "front.jpg"];
+    let cover_candidates =["cover.jpg", "cover.png", "folder.jpg", "front.jpg"];
 
     for c in cover_candidates {
         let cp = dir.join(c);

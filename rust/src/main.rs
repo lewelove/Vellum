@@ -45,8 +45,6 @@ enum Commands {
         pretty: bool,
         #[arg(long, value_delimiter = ',')]
         flags: Vec<String>,
-        #[arg(long)]
-        no_extensions: bool,
     },
     Update {
         #[arg(value_name = "PATH")]
@@ -55,8 +53,6 @@ enum Commands {
         force: bool,
         #[arg(long, short = 'j')]
         jobs: Option<usize>,
-        #[arg(long)]
-        no_extensions: bool,
     },
     Manifest {
         #[arg(long)]
@@ -125,7 +121,6 @@ async fn main() -> Result<()> {
             intermediary,
             pretty,
             flags,
-            no_extensions,
         } => {
             let expanded = expand_path(&path);
             let options = compile::CompileOptions {
@@ -146,7 +141,6 @@ async fn main() -> Result<()> {
                         compile::ExportTarget::File
                     },
                     pretty,
-                    no_extensions,
                 },
             };
             compile::run(options).await
@@ -155,10 +149,9 @@ async fn main() -> Result<()> {
             path,
             force,
             jobs,
-            no_extensions,
         } => {
             let expanded = path.map(|p| expand_path(&p));
-            update::run(expanded, force, jobs, no_extensions).await
+            update::run(expanded, force, jobs).await
         }
         Commands::Manifest { force } => manifest::run(force).await,
     }

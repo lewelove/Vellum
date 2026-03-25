@@ -16,10 +16,9 @@ pub fn build(
     album_root: &Path,
     project_root: &Path,
     config: &Value,
-    gen_cfg: &Value,
+    manifest_cfg: &Value,
     _active_flags: &[String],
-    no_extensions: bool,
-) -> Result<(Value, bool)> {
+) -> Result<Value> {
     let metadata_path = album_root.join("metadata.toml");
     let meta = std::fs::metadata(&metadata_path)?;
     let meta_mtime = meta
@@ -37,7 +36,7 @@ pub fn build(
     let loaded_image =
         assets::load_or_create_thumbnail(config, album_root, c_path.as_deref(), &c_hash);
 
-    let exts: Vec<&str> = gen_cfg
+    let exts: Vec<&str> = manifest_cfg
         .get("supported_extensions")
         .and_then(Value::as_array)
         .map_or_else(
@@ -72,21 +71,21 @@ pub fn build(
         .unwrap_or_else(|_| expand_path(lib_root_raw));
 
     let registry = config
-        .get("compiler_registry")
+        .get("compiler")
+        .and_then(|c| c.get("keys"))
         .and_then(Value::as_object)
-        .ok_or_else(|| anyhow!("Missing registry"))?;
+        .ok_or_else(|| anyhow!("Missing registry keys"))?;
 
     let empty_obj = json!({});
     let album_source = metadata_json.get("album").unwrap_or(&empty_obj);
 
-    let (final_tracks, harvested_cache, requires_ext) = process_tracks(
+    let (final_tracks, harvested_cache) = process_tracks(
         audio_files,
         track_entries,
         album_source,
         album_root,
         &library_root,
         registry,
-        no_extensions,
     )?;
 
     let album_ctx = AlbumContext {
@@ -103,7 +102,7 @@ pub fn build(
         cover_image: loaded_image.as_ref(),
     };
 
-    let (album_obj, a_ext) = build_album(&album_ctx, registry, requires_ext, no_extensions);
+    let album_obj = build_album(&album_ctx, registry);
 
     let final_json = json!({
         "album": album_obj,
@@ -120,7 +119,7 @@ pub fn build(
         }
     });
 
-    Ok((final_json, a_ext))
+    Ok(final_json)
 }
 
 fn process_tracks(
@@ -130,8 +129,7 @@ fn process_tracks(
     album_root: &Path,
     library_root: &Path,
     registry: &serde_json::Map<String, Value>,
-    no_extensions: bool,
-) -> Result<(Vec<Value>, Vec<Value>, bool)> {
+) -> Result<(Vec<Value>, Vec<Value>)> {
     let mut harvested_spine = Vec::new();
     for path in audio_files {
         harvested_spine.push(harvest::harvest_file(&path)?);
@@ -152,7 +150,6 @@ fn process_tracks(
     )
     .unwrap_or(u32::MAX);
 
-    let mut requires_ext = false;
     let mut final_tracks = Vec::new();
     let mut harvested_cache = Vec::new();
 
@@ -167,15 +164,12 @@ fn process_tracks(
             library_root,
         };
 
-        let (t_obj, t_ext) = build_track(&t_ctx, total_discs, registry, no_extensions);
-        if t_ext {
-            requires_ext = true;
-        }
+        let t_obj = build_track(&t_ctx, total_discs, registry);
         final_tracks.push(t_obj);
         harvested_cache.push(serde_json::to_value(h_data)?);
     }
 
-    Ok((final_tracks, harvested_cache, requires_ext))
+    Ok((final_tracks, harvested_cache))
 }
 
 fn validate_track_indices(entries: &[Value], root: &Path) -> Result<()> {
@@ -313,8 +307,7 @@ fn build_track(
     ctx: &TrackContext,
     total_discs: u32,
     registry: &serde_json::Map<String, Value>,
-    no_ext: bool,
-) -> (Value, bool) {
+) -> Value {
     let mut obj = serde_json::Map::new();
 
     let track_number = ctx
@@ -359,23 +352,17 @@ fn build_track(
     obj.insert("DISCNUMBER".to_string(), json!(disc_number));
 
     let mut tags = serde_json::Map::new();
-    let mut ext = false;
     for (key, meta) in registry {
         if meta.get("level").and_then(Value::as_str) != Some("tracks") {
             continue;
         }
         let val = ctx.source.get(key).cloned().unwrap_or_else(|| {
-            if !no_ext && meta.get("provider").and_then(Value::as_str) == Some("extension") {
-                ext = true;
-                json!(null)
-            } else {
-                resolvers::resolve_track_key(key, ctx).unwrap_or(Value::Null)
-            }
+            resolvers::resolve_track_key(key, ctx).unwrap_or(Value::Null)
         });
         tags.insert(key.to_uppercase(), val);
     }
     obj.insert("tags".to_string(), Value::Object(tags));
-    (Value::Object(obj), ext)
+    Value::Object(obj)
 }
 
 fn construct_album_info(ctx: &AlbumContext) -> Value {
@@ -427,9 +414,7 @@ fn construct_album_info(ctx: &AlbumContext) -> Value {
 fn build_album(
     ctx: &AlbumContext,
     registry: &serde_json::Map<String, Value>,
-    ext_flag: bool,
-    no_ext: bool,
-) -> (Value, bool) {
+) -> Value {
     let mut obj = serde_json::Map::new();
 
     obj.insert("info".to_string(), construct_album_info(ctx));
@@ -487,21 +472,15 @@ fn build_album(
     );
 
     let mut tags = serde_json::Map::new();
-    let mut ext = ext_flag;
     for (key, meta) in registry {
         if meta.get("level").and_then(Value::as_str) != Some("album") {
             continue;
         }
         let val = ctx.source.get(key).cloned().unwrap_or_else(|| {
-            if !no_ext && meta.get("provider").and_then(Value::as_str) == Some("extension") {
-                ext = true;
-                json!(null)
-            } else {
-                resolvers::resolve_album_key(key, ctx).unwrap_or(Value::Null)
-            }
+            resolvers::resolve_album_key(key, ctx).unwrap_or(Value::Null)
         });
         tags.insert(key.to_uppercase(), val);
     }
     obj.insert("tags".to_string(), Value::Object(tags));
-    (Value::Object(obj), ext)
+    Value::Object(obj)
 }

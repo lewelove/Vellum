@@ -14,14 +14,13 @@ uniform int iColors[NUM_COLORS];
 uniform float iRatios[NUM_COLORS];
 uniform int iCount;
 
-out vec4 fragColor;
+uniform float iSpeed;
+uniform float iZoom;
+uniform float iBlur;
+uniform float iEdgeBlur;
+uniform float iGrain;
 
-// --- TUNABLE PARAMETERS ---
-const float ZOOM = 0.9;
-const float SPEED = 0.006;
-const float GRAIN_AMOUNT = 0.02;
-const float MAX_SOFTNESS = 0.66;
-const float SOFTNESS_SCALE = 0.66;
+out vec4 fragColor;
 
 vec3 hexToRgb(int hex) {
     float r = float((hex >> 16) & 0xFF) / 255.0;
@@ -30,7 +29,6 @@ vec3 hexToRgb(int hex) {
     return vec3(r, g, b);
 }
 
-// Optimized Simplex 3D Noise by Ian McEwan, Ashima Arts.
 vec4 permute(vec4 x){return mod(((x*34.0)+1.0)*x, 289.0);}
 vec4 taylorInvSqrt(vec4 r){return 1.79284291400159 - 0.85373472095314 * r;}
 
@@ -104,13 +102,8 @@ float fbm(vec3 p) {
         a *= 0.5;
     }
     
-    // Normalize absolute bounds to [-1, 1]
     v = v / 0.875;
-    
-    // Shift to [0, 1]
     v = v * 0.5 + 0.5;
-    
-    // Apply trigonometric expansion twice.
     v = 0.5 - 0.5 * cos(3.14159265 * v);
     v = 0.5 - 0.5 * cos(3.14159265 * v);
     
@@ -123,11 +116,10 @@ void main() {
     vec2 p = (uv - 0.5);
     p.x *= aspect;
     
-    float t = (iTime + iRandom) * SPEED;
+    float t = (iTime + iRandom) * iSpeed;
 
-    float val = fbm(vec3(p * ZOOM, t));
+    float val = fbm(vec3(p * iZoom, t));
 
-    // Normalize ratios
     float totalWeight = 0.0;
     for(int i = 0; i < NUM_COLORS; i++) {
         totalWeight += iRatios[i];
@@ -137,21 +129,18 @@ void main() {
     vec3 finalColor = vec3(0.0);
     float cumulative = 0.00;
     
-    // Track the edge softness from the previous boundary so both masks match perfectly
     float currentEdgeSoftness = 0.0;
 
     for(int i = 0; i < NUM_COLORS; i++) {
         float weight = iRatios[i] / totalWeight;
         float nextCumulative = cumulative + weight;
         
-        // Peek at the next weight to calculate the shared boundary softness
         float nextWeight = 0.0;
         if (i + 1 < NUM_COLORS) {
             nextWeight = iRatios[i+1] / totalWeight;
         }
         
-        // Base the boundary softness on the smallest of the two adjacent bands
-        float nextEdgeSoftness = min(MAX_SOFTNESS, min(weight, nextWeight) * SOFTNESS_SCALE); 
+        float nextEdgeSoftness = min(iBlur, min(weight, nextWeight) * iEdgeBlur); 
         
         float startMask = (i == 0) ? 1.0 : smoothstep(cumulative - currentEdgeSoftness, cumulative + currentEdgeSoftness, val);
         float endMask = (i == NUM_COLORS - 1) ? 0.0 : smoothstep(nextCumulative - nextEdgeSoftness, nextCumulative + nextEdgeSoftness, val);
@@ -161,11 +150,10 @@ void main() {
         finalColor += hexToRgb(iColors[i]) * max(0.0, weightMask);
         
         cumulative = nextCumulative;
-        currentEdgeSoftness = nextEdgeSoftness; // Pass exact curve shape to the next band
+        currentEdgeSoftness = nextEdgeSoftness;
     }
     
-    // Add high frequency grain to prevent banding over large smoothstep gradients
-    float grain = (fract(sin(dot(uv, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) * GRAIN_AMOUNT;
+    float grain = (fract(sin(dot(uv, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) * iGrain;
     finalColor += grain;
     
     fragColor = vec4(finalColor, 1.0);

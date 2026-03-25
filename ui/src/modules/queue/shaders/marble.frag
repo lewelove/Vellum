@@ -10,16 +10,16 @@ uniform int iColors[24];
 uniform float iRatios[24];
 uniform int iCount;
 
+uniform float iSpeed;
+uniform float iZoom;
+uniform float iBlur;
+uniform float iEdgeBlur;
+uniform float iGrain;
+
 out vec4 fragColor;
 
-// --- TUNABLE PARAMETERS ---
-const float ZOOM = 0.3;             // How far zoomed in the noise is (lower = more zoomed in)
-const float SPEED = 0.001;          // How fast the noise evolves over time
-const float GRAIN_AMOUNT = 0.02;    // Intensity of the high-frequency dither grain
-const float WARP_STRENGTH_1 = 1.1;  // First pass domain warping intensity (the "folds")
-const float WARP_STRENGTH_2 = 1.0;  // Second pass domain warping intensity (the fine "swirls")
-const float MAX_SOFTNESS = 0.66;    // Maximum blur radius for color transitions
-const float SOFTNESS_SCALE = 0.66;   // Multiplier for dynamically shrinking the blur on small bands
+const float WARP_STRENGTH_1 = 1.1;
+const float WARP_STRENGTH_2 = 1.0;
 
 vec3 hexToRgb(int hex) {
     float r = float((hex >> 16) & 0xFF) / 255.0;
@@ -28,7 +28,6 @@ vec3 hexToRgb(int hex) {
     return vec3(r, g, b);
 }
 
-// Optimized Simplex 3D Noise by Ian McEwan, Ashima Arts.
 vec4 permute(vec4 x){return mod(((x*34.0)+1.0)*x, 289.0);}
 vec4 taylorInvSqrt(vec4 r){return 1.79284291400159 - 0.85373472095314 * r;}
 
@@ -101,7 +100,6 @@ float fbm_raw(vec3 p) {
         p *= 2.0;
         a *= 0.5;
     }
-    // Normalize absolute bounds to roughly [-1, 1]
     return v / 0.875;
 }
 
@@ -111,12 +109,10 @@ void main() {
     vec2 p = (uv - 0.5);
     p.x *= aspect;
     
-    float t = (iTime + iRandom) * SPEED;
+    float t = (iTime + iRandom) * iSpeed;
 
-    // Scale up slightly to see the marble fluid folds better
-    vec3 p3 = vec3(p * ZOOM, t);
+    vec3 p3 = vec3(p * iZoom, t);
 
-    // Domain Warping using 3D Simplex
     vec3 q = vec3(
         fbm_raw(p3 + vec3(0.0, 0.0, t * 0.2)),
         fbm_raw(p3 + vec3(5.2, 1.3, t * 0.2)),
@@ -129,22 +125,14 @@ void main() {
         0.0
     );
     
-    // Evaluate the final noise using the severely warped domain
     float val = fbm_raw(p3 + WARP_STRENGTH_2 * r);
 
-    // Shift to [0, 1]
     val = val * 0.5 + 0.5;
-    
-    // Apply trigonometric expansion twice.
-    // This forcibly spreads the clumped center of the noise outwards toward 0 and 1,
-    // flattening the Gaussian bell curve into a much more uniform distribution 
-    // so colors appear exactly relative to their ratios.
     val = 0.5 - 0.5 * cos(3.14159265 * val);
     val = 0.5 - 0.5 * cos(3.14159265 * val);
     
     val = clamp(val, 0.0, 1.0);
 
-    // Normalize ratios
     float totalWeight = 0.0;
     for(int i = 0; i < 24; i++) {
         if (i >= iCount) break;
@@ -161,11 +149,8 @@ void main() {
         float weight = iRatios[i] / totalWeight;
         float nextCumulative = cumulative + weight;
         
-        // Dynamically scale softness based on the band size so tiny bands aren't swallowed.
-        // The softness is slightly higher here compared to standard simplex to aid the liquid "vein" blending.
-        float currentSoftness = min(MAX_SOFTNESS, weight * SOFTNESS_SCALE); 
+        float currentSoftness = min(iBlur, weight * iEdgeBlur); 
         
-        // Unconditionally pin the absolute edges to 1.0/0.0 to prevent bleed
         float startMask = (i == 0) ? 1.0 : smoothstep(cumulative - currentSoftness, cumulative + currentSoftness, val);
         float endMask = (i == iCount - 1) ? 0.0 : smoothstep(nextCumulative - currentSoftness, nextCumulative + currentSoftness, val);
         
@@ -175,8 +160,7 @@ void main() {
         cumulative = nextCumulative;
     }
     
-    // Add high frequency grain to prevent banding over large smoothstep gradients
-    float grain = (fract(sin(dot(uv, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) * GRAIN_AMOUNT;
+    float grain = (fract(sin(dot(uv, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) * iGrain;
     finalColor += grain;
     
     fragColor = vec4(finalColor, 1.0);

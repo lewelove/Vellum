@@ -2,6 +2,7 @@ pub mod api;
 pub mod library;
 pub mod mpd;
 pub mod state;
+pub mod watchdog;
 
 use anyhow::{Context, Result};
 use std::net::SocketAddr;
@@ -14,7 +15,7 @@ use crate::config::AppConfig;
 use crate::expand_path;
 
 pub async fn run(port: u16) -> Result<()> {
-    let (config, _, _) = AppConfig::load().context("Failed to load application configuration")?;
+    let (config, _, config_path) = AppConfig::load().context("Failed to load application configuration")?;
 
     let lib_root_str = &config.storage.library_root;
     let thumb_root_str = config.storage.thumbnail_cache_folder.as_deref();
@@ -28,6 +29,7 @@ pub async fn run(port: u16) -> Result<()> {
         library_root: library_root.clone(),
         thumbnail_root: thumb_root_str.map(expand_path),
         thumbnail_size: thumb_size,
+        shader: config.theme.as_ref().and_then(|t| t.shader.clone()),
     });
 
     let state_file = expand_path("~/.vellum/state.json");
@@ -65,6 +67,8 @@ pub async fn run(port: u16) -> Result<()> {
         config: (*server_config).clone(),
         mpd_engine,
     });
+
+    watchdog::start(config_path, Arc::clone(&app_state));
 
     let cors = CorsLayer::new()
         .allow_origin(Any)
