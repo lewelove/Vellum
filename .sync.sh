@@ -1,1 +1,2 @@
-repomix --quiet --include "~/.config/vellum/**" || true
+cd ~
+repomix ".config/vellum"
