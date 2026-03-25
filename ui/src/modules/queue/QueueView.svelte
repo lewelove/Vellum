@@ -11,6 +11,7 @@
   import ModalDrawerCover from "../album-grid/ModalDrawerCover.svelte";
   import QueueBackgroundShader from "./QueueBackgroundShader.svelte";
   import NavBar from "../navigation/NavBar.svelte";
+  import GrainOverlay from "./GrainOverlay.svelte";
 
   let activeId = $derived(player.currentAlbumId);
   let activeAlbum = $derived(activeId ? library.albumCache.get(activeId) : null);
@@ -105,7 +106,6 @@
     <div class="queue-modules">
       {#if panels.lyrics}
         <div class="module-panel">
-        <!-- <div class="module-panel" in:fade={{ duration: 150 }} out:fade={{ duration: 150 }}> -->
           <div class="panel-inner">
             <Lyrics />
           </div>
@@ -140,7 +140,6 @@
 
       {#if panels.tracks}
         <div class="module-panel">
-        <!-- <div class="module-panel" in:fade={{ duration: 150 }} out:fade={{ duration: 150 }}> -->
           <div class="panel-inner">
             <QueueTracks />
           </div>
@@ -190,11 +189,12 @@
   }
 
   .module-panel {
-    flex: 1 1 240px;
+    position: relative;
+    flex: 1 0 auto;
     min-width: 240px;
     height: 100%;
-    background-color: #24242432;
-    backdrop-filter: blur(128px);
+    background-color: #24242466;
+    backdrop-filter: blur(2px);
     border-radius: 12px;
     /* border: 1px solid #FFFFFF11; */
     box-shadow: 0 0 16px rgba(0, 0, 0, 0.1), 0 0 16px rgba(0, 0, 0, 0.2), 0 0 10px rgba(0, 0, 0, 0.2);
@@ -204,6 +204,8 @@
   }
 
   .panel-inner {
+    position: relative;
+    z-index: 2;
     flex: 1;
     padding: 24px 24px;
     overflow: hidden;
@@ -218,7 +220,7 @@
     cursor: default;
     outline: none;
     background-color: #24242432;
-    backdrop-filter: blur(4px);
+    backdrop-filter: blur(2px);
     /* border-radius: 0px !important; */
   }
 
