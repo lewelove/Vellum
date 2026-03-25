@@ -26,6 +26,8 @@
     tracks: true
   });
 
+  let anyPanelActive = $derived(panels.tracks || panels.lyrics);
+
   function togglePanel(key) {
     panels[key] = !panels[key];
   }
@@ -127,23 +129,25 @@
         </div>
       </div>
 
-      <div class="right-column">
-        {#if panels.tracks}
-          <div class="module-panel tracks-panel" class:constrained={panels.lyrics}>
-            <div class="panel-inner">
-              <QueueTracks />
+      {#if anyPanelActive}
+        <div class="right-column">
+          {#if panels.tracks}
+            <div class="module-panel tracks-panel" class:constrained={panels.lyrics}>
+              <div class="panel-inner">
+                <QueueTracks />
+              </div>
             </div>
-          </div>
-        {/if}
+          {/if}
 
-        {#if panels.lyrics}
-          <div class="module-panel lyrics-panel">
-            <div class="panel-inner">
-              <Lyrics />
+          {#if panels.lyrics}
+            <div class="module-panel lyrics-panel">
+              <div class="panel-inner">
+                <Lyrics />
+              </div>
             </div>
-          </div>
-        {/if}
-      </div>
+          {/if}
+        </div>
+      {/if}
     </div>
 
   </div>
@@ -199,7 +203,7 @@
 
   .module-panel {
     min-width: 240px;
-    backdrop-filter: blur(32px) brightness(0.8) saturate(0.75);
+    backdrop-filter: blur(32px) brightness(0.7) saturate(0.7);
     border-radius: 12px;
     box-shadow: 0 0 16px rgba(0, 0, 0, 0.1), 0 0 16px rgba(0, 0, 0, 0.2), 0 0 10px rgba(0, 0, 0, 0.2);
     border: 1px solid rgba(255, 255, 255, 0.08);
