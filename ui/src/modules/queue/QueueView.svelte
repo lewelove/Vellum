@@ -26,8 +26,6 @@
     tracks: true
   });
 
-  let anyPanelActive = $derived(panels.tracks || panels.lyrics);
-
   function togglePanel(key) {
     panels[key] = !panels[key];
   }
@@ -101,7 +99,6 @@
   {/if}
   
   <div class="view-content-wrapper">
-    
     <div class="queue-modules">
       <div 
         class="module-panel module-cover" 
@@ -112,7 +109,7 @@
         tabindex="0"
         onkeydown={(e) => { if(e.key === 'Enter') toggleExpand(); }}
       >
-        <div class="panel-inner cover-inner" style="padding: {coverPadding}px;">
+        <div class="panel-inner cover-inner">
           <div class="cover-absolute-wrapper" style="inset: {coverPadding}px;">
             {#if coverUrl}
               <ModalDrawerCover 
@@ -129,10 +126,10 @@
         </div>
       </div>
 
-      {#if anyPanelActive}
+      {#if panels.tracks || panels.lyrics}
         <div class="right-column">
           {#if panels.tracks}
-            <div class="module-panel tracks-panel" class:constrained={panels.lyrics}>
+            <div class="module-panel tracks-panel">
               <div class="panel-inner">
                 <QueueTracks />
               </div>
@@ -149,7 +146,6 @@
         </div>
       {/if}
     </div>
-
   </div>
 
   <QueueBar {panels} onToggle={togglePanel} />
@@ -176,7 +172,6 @@
     z-index: 1;
     display: flex;
     flex-direction: column;
-    gap: 32px;
     overflow: hidden;
   }
 
@@ -198,6 +193,7 @@
     gap: 16px;
     height: 100%;
     min-width: 0;
+    /* Aligns items to the top so they don't stretch to fill vertical space unless told to */
     justify-content: flex-start;
   }
 
@@ -212,23 +208,37 @@
     overflow: hidden;
   }
 
+  /* TRACKS PANEL SIZING */
   .tracks-panel {
-    flex: 0 1 auto;
+    /* flex: 0 1 auto means: 
+       - 0: Don't grow aggressively beyond content 
+       - 1: Allow shrinking if container is small 
+       - auto: Size based on contents (the track list) */
+    flex: 0 1 auto; 
     min-height: 0;
   }
 
-  .tracks-panel.constrained {
+  /* NATIVE CSS LOGIC: 
+     Apply 50% max-height ONLY if lyrics panel exists in the column */
+  .tracks-panel:not(:only-child) {
     max-height: 50%;
   }
 
+  /* If it's the only child, let it fill the whole column */
+  .tracks-panel:only-child {
+    flex: 0 1 auto;
+  }
+
+  /* LYRICS PANEL SIZING */
   .lyrics-panel {
-    flex: 1 1 0%;
+    /* 1: Fill all remaining vertical space */
+    flex: 1;
     min-height: 0;
   }
 
   .panel-inner {
     flex: 1;
-    padding: 24px 24px;
+    padding: 24px;
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -236,7 +246,7 @@
   }
 
   .module-cover {
-    flex: 0 0 auto;
+    flex: 0 1 auto;
     height: 100%;
     width: auto;
     aspect-ratio: 1 / 1;
