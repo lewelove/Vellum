@@ -5,8 +5,8 @@
   // import fragmentShaderSource from "./shaders/silk_harmonics.frag?raw";
   // import fragmentShaderSource from "./shaders/cell_fluid.frag?raw";
   // import fragmentShaderSource from "./shaders/marble.frag?raw";
-  import fragmentShaderSource from "./shaders/simplex.frag?raw";
-  // import fragmentShaderSource from "./shaders/simplex_marble.frag?raw";
+  // import fragmentShaderSource from "./shaders/simplex.frag?raw";
+  import fragmentShaderSource from "./shaders/simplex_marble.frag?raw";
 
   let { colors = [], coverSize = 0, visible = false, isPlaying = false } = $props();
 
