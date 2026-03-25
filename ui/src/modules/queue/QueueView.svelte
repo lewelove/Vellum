@@ -30,11 +30,9 @@
     panels[key] = !panels[key];
   }
 
-  // Padding configuration
   const coverPadding = 12;
   let moduleWidth = $state(0);
   
-  // Explicit calculation: subtract padding from both sides
   let coverSize = $derived(Math.max(0, moduleWidth - (coverPadding * 2)));
 
   let isExpanded = $state(false);
@@ -103,14 +101,6 @@
   <div class="view-content-wrapper">
     
     <div class="queue-modules">
-      {#if panels.lyrics}
-        <div class="module-panel">
-          <div class="panel-inner">
-            <Lyrics />
-          </div>
-        </div>
-      {/if}
-
       <div 
         class="module-panel module-cover" 
         class:clickable={!!coverUrl}
@@ -137,13 +127,23 @@
         </div>
       </div>
 
-      {#if panels.tracks}
-        <div class="module-panel greedy">
-          <div class="panel-inner">
-            <QueueTracks />
+      <div class="right-column">
+        {#if panels.tracks}
+          <div class="module-panel tracks-panel" class:constrained={panels.lyrics}>
+            <div class="panel-inner">
+              <QueueTracks />
+            </div>
           </div>
-        </div>
-      {/if}
+        {/if}
+
+        {#if panels.lyrics}
+          <div class="module-panel lyrics-panel">
+            <div class="panel-inner">
+              <Lyrics />
+            </div>
+          </div>
+        {/if}
+      </div>
     </div>
 
   </div>
@@ -184,14 +184,21 @@
     flex-direction: row;
     gap: 16px;
     justify-content: center;
-    align-items: flex-start;
+    align-items: stretch;
+  }
+
+  .right-column {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    gap: 16px;
+    height: 100%;
+    min-width: 0;
+    justify-content: flex-start;
   }
 
   .module-panel {
-    flex: 0 1 auto;
     min-width: 240px;
-    height: auto;
-    max-height: 100%;
     backdrop-filter: blur(32px) brightness(0.8) saturate(0.75);
     border-radius: 12px;
     box-shadow: 0 0 16px rgba(0, 0, 0, 0.1), 0 0 16px rgba(0, 0, 0, 0.2), 0 0 10px rgba(0, 0, 0, 0.2);
@@ -201,8 +208,18 @@
     overflow: hidden;
   }
 
-  .module-panel.greedy {
-    flex: 1 1 0;
+  .tracks-panel {
+    flex: 0 1 auto;
+    min-height: 0;
+  }
+
+  .tracks-panel.constrained {
+    max-height: 50%;
+  }
+
+  .lyrics-panel {
+    flex: 1 1 0%;
+    min-height: 0;
   }
 
   .panel-inner {
@@ -215,7 +232,7 @@
   }
 
   .module-cover {
-    flex: 0 1 auto;
+    flex: 0 0 auto;
     height: 100%;
     width: auto;
     aspect-ratio: 1 / 1;
@@ -224,7 +241,6 @@
     background-color: #24242442;
     backdrop-filter: blur(4px);
     border: transparent;
-    /* border-radius: 0px !important; */
   }
 
   .module-cover.clickable {
@@ -235,7 +251,6 @@
     position: relative;
     width: 100%;
     height: 100%;
-    /* Override global padding to use local variable */
     padding: 0 !important; 
   }
   
