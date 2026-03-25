@@ -187,9 +187,9 @@ pub fn resolve_cover_palette(ctx: &AlbumContext) -> Option<Value> {
     }
 
     // 2. Run K-Means with k=24
-    let k = 24;
+    let k = 8;
     let max_iter = 20;
-    let convergence = 0.005;
+    let convergence = 0.000;
     let result = get_kmeans_hamerly(k, max_iter, convergence, false, &pixels, 42);
     let total_px = 65536.0_f32; // 256 * 256
 

@@ -13,14 +13,13 @@ uniform int iCount;
 out vec4 fragColor;
 
 // --- TUNABLE PARAMETERS ---
-// const float ZOOM = 1.5;
-const float ZOOM = 0.9;
-const float SPEED = 0.006;
-const float GRAIN_AMOUNT = 0.02;
-// const float MAX_SOFTNESS = 0.01;
-const float MAX_SOFTNESS = 0.66;
-// const float SOFTNESS_SCALE = 0.06;
-const float SOFTNESS_SCALE = 0.66;
+const float ZOOM = 1.5;             // How far zoomed in the noise is (lower = more zoomed in)
+const float SPEED = 0.005;          // How fast the noise evolves over time
+const float GRAIN_AMOUNT = 0.03;    // Intensity of the high-frequency dither grain
+const float WARP_STRENGTH_1 = 1.5;  // First pass domain warping intensity (the "folds")
+const float WARP_STRENGTH_2 = 2.0;  // Second pass domain warping intensity (the fine "swirls")
+const float MAX_SOFTNESS = 0.15;    // Maximum blur radius for color transitions
+const float SOFTNESS_SCALE = 0.6;   // Multiplier for dynamically shrinking the blur on small bands
 
 vec3 hexToRgb(int hex) {
     float r = float((hex >> 16) & 0xFF) / 255.0;
@@ -94,7 +93,7 @@ float snoise(vec3 v){
                                 dot(p2,x2), dot(p3,x3) ) );
 }
 
-float fbm(vec3 p) {
+float fbm_raw(vec3 p) {
     float v = 0.0;
     float a = 0.5;
     for (int i = 0; i < 3; i++) {
@@ -102,21 +101,8 @@ float fbm(vec3 p) {
         p *= 2.0;
         a *= 0.5;
     }
-    
-    // Normalize absolute bounds to [-1, 1]
-    v = v / 0.875;
-    
-    // Shift to [0, 1]
-    v = v * 0.5 + 0.5;
-    
-    // Apply trigonometric expansion twice.
-    // This forcibly spreads the clumped center of the noise outwards toward 0 and 1,
-    // flattening the Gaussian bell curve into a much more uniform distribution 
-    // so colors appear exactly relative to their ratios.
-    v = 0.5 - 0.5 * cos(3.14159265 * v);
-    v = 0.5 - 0.5 * cos(3.14159265 * v);
-    
-    return clamp(v, 0.0, 1.0);
+    // Normalize absolute bounds to roughly [-1, 1]
+    return v / 0.875;
 }
 
 void main() {
@@ -127,7 +113,36 @@ void main() {
     
     float t = (iTime + iRandom) * SPEED;
 
-    float val = fbm(vec3(p * ZOOM, t));
+    // Scale up slightly to see the marble fluid folds better
+    vec3 p3 = vec3(p * ZOOM, t);
+
+    // Domain Warping using 3D Simplex
+    vec3 q = vec3(
+        fbm_raw(p3 + vec3(0.0, 0.0, t * 0.2)),
+        fbm_raw(p3 + vec3(5.2, 1.3, t * 0.2)),
+        0.0
+    );
+    
+    vec3 r = vec3(
+        fbm_raw(p3 + WARP_STRENGTH_1 * q + vec3(1.7, 9.2, t * 0.5)),
+        fbm_raw(p3 + WARP_STRENGTH_1 * q + vec3(8.3, 2.8, -t * 0.5)),
+        0.0
+    );
+    
+    // Evaluate the final noise using the severely warped domain
+    float val = fbm_raw(p3 + WARP_STRENGTH_2 * r);
+
+    // Shift to [0, 1]
+    val = val * 0.5 + 0.5;
+    
+    // Apply trigonometric expansion twice.
+    // This forcibly spreads the clumped center of the noise outwards toward 0 and 1,
+    // flattening the Gaussian bell curve into a much more uniform distribution 
+    // so colors appear exactly relative to their ratios.
+    val = 0.5 - 0.5 * cos(3.14159265 * val);
+    val = 0.5 - 0.5 * cos(3.14159265 * val);
+    
+    val = clamp(val, 0.0, 1.0);
 
     // Normalize ratios
     float totalWeight = 0.0;
@@ -139,9 +154,6 @@ void main() {
 
     vec3 finalColor = vec3(0.0);
     float cumulative = 0.00;
-    
-    // Track the edge softness from the previous boundary so both masks match perfectly
-    float currentEdgeSoftness = 0.0;
 
     for(int i = 0; i < 24; i++) {
         if (i >= iCount) break;
@@ -149,24 +161,18 @@ void main() {
         float weight = iRatios[i] / totalWeight;
         float nextCumulative = cumulative + weight;
         
-        // Peek at the next weight to calculate the shared boundary softness
-        float nextWeight = 0.0;
-        if (i + 1 < iCount) {
-            nextWeight = iRatios[i+1] / totalWeight;
-        }
+        // Dynamically scale softness based on the band size so tiny bands aren't swallowed.
+        // The softness is slightly higher here compared to standard simplex to aid the liquid "vein" blending.
+        float currentSoftness = min(MAX_SOFTNESS, weight * SOFTNESS_SCALE); 
         
-        // Base the boundary softness on the smallest of the two adjacent bands
-        float nextEdgeSoftness = min(MAX_SOFTNESS, min(weight, nextWeight) * SOFTNESS_SCALE); 
-        
-        float startMask = (i == 0) ? 1.0 : smoothstep(cumulative - currentEdgeSoftness, cumulative + currentEdgeSoftness, val);
-        float endMask = (i == iCount - 1) ? 0.0 : smoothstep(nextCumulative - nextEdgeSoftness, nextCumulative + nextEdgeSoftness, val);
+        // Unconditionally pin the absolute edges to 1.0/0.0 to prevent bleed
+        float startMask = (i == 0) ? 1.0 : smoothstep(cumulative - currentSoftness, cumulative + currentSoftness, val);
+        float endMask = (i == iCount - 1) ? 0.0 : smoothstep(nextCumulative - currentSoftness, nextCumulative + currentSoftness, val);
         
         float weightMask = startMask - endMask;
         
         finalColor += hexToRgb(iColors[i]) * max(0.0, weightMask);
-        
         cumulative = nextCumulative;
-        currentEdgeSoftness = nextEdgeSoftness; // Pass exact curve shape to the next band
     }
     
     // Add high frequency grain to prevent banding over large smoothstep gradients
