@@ -193,7 +193,6 @@
     gap: 16px;
     height: 100%;
     min-width: 0;
-    /* Aligns items to the top so they don't stretch to fill vertical space unless told to */
     justify-content: flex-start;
   }
 
@@ -208,30 +207,20 @@
     overflow: hidden;
   }
 
-  /* TRACKS PANEL SIZING */
   .tracks-panel {
-    /* flex: 0 1 auto means: 
-       - 0: Don't grow aggressively beyond content 
-       - 1: Allow shrinking if container is small 
-       - auto: Size based on contents (the track list) */
     flex: 0 1 auto; 
     min-height: 0;
   }
 
-  /* NATIVE CSS LOGIC: 
-     Apply 50% max-height ONLY if lyrics panel exists in the column */
   .tracks-panel:not(:only-child) {
     max-height: 50%;
   }
 
-  /* If it's the only child, let it fill the whole column */
   .tracks-panel:only-child {
     flex: 0 1 auto;
   }
 
-  /* LYRICS PANEL SIZING */
   .lyrics-panel {
-    /* 1: Fill all remaining vertical space */
     flex: 1;
     min-height: 0;
   }

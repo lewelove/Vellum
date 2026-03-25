@@ -171,12 +171,19 @@ pub fn resolve_cover_entropy(ctx: &AlbumContext) -> Option<Value> {
 }
 
 pub fn resolve_cover_palette(ctx: &AlbumContext) -> Option<Value> {
+    let sample_dim = 512;
+    let n_pixels = sample_dim * sample_dim;
+    let k = 10;
+    let max_iter = 20;
+    let convergence = 0.000;
+    let seed = 42;
+    let discard_threshold = 0.0000_f32;
+
     let cover_path = ctx.cover_path?;
     let img = image::open(ctx.album_root.join(cover_path)).ok()?;
 
-    // 1. Downsample to 256p using Nearest Neighbor to preserve raw color clusters
-    let img_small = img.resize_exact(256, 256, FilterType::Nearest);
-    let mut pixels: Vec<Lab> = Vec::with_capacity(256 * 256);
+    let img_small = img.resize_exact(sample_dim, sample_dim, FilterType::Nearest);
+    let mut pixels: Vec<Lab> = Vec::with_capacity(n_pixels as usize);
 
     for (_, _, p) in img_small.pixels() {
         pixels.push(Lab::from_color(Srgb::new(
@@ -186,16 +193,9 @@ pub fn resolve_cover_palette(ctx: &AlbumContext) -> Option<Value> {
         )));
     }
 
-    // 2. Run K-Means with k=8
-    let k = 8;
-    let max_iter = 20;
-    let convergence = 0.000;
-    let result = get_kmeans_hamerly(k, max_iter, convergence, false, &pixels, 42);
-    let total_px = 65536.0_f32; // 256 * 256
+    let result = get_kmeans_hamerly(k, max_iter, convergence, false, &pixels, seed);
+    let total_px = n_pixels as f32;
 
-    // 3. Noise Cleaning: Identify clusters with very low representation
-    // Threshold is ~32 pixels (0.0005)
-    let discard_threshold = 0.0005_f32;
     let mut counts = vec![0_usize; k];
     for &idx in &result.indices {
         counts[idx as usize] += 1;
@@ -213,7 +213,6 @@ pub fn resolve_cover_palette(ctx: &AlbumContext) -> Option<Value> {
         }
     }
 
-    // Fallback: Ensure at least one cluster exists
     if keep_indices.is_empty() {
         let max_idx = counts.iter().enumerate()
             .max_by_key(|&(_, count)| count)
@@ -223,7 +222,6 @@ pub fn resolve_cover_palette(ctx: &AlbumContext) -> Option<Value> {
         discard_indices.retain(|&i| i != max_idx);
     }
 
-    // 4. Remapping: Transfer mass of discarded clusters to their nearest neighbors
     let mut final_counts = counts.clone();
     for &d_idx in &discard_indices {
         let d_lab = result.centroids[d_idx];
@@ -244,7 +242,6 @@ pub fn resolve_cover_palette(ctx: &AlbumContext) -> Option<Value> {
         final_counts[best_target] += counts[d_idx];
     }
 
-    // 5. Generate and Sort Palette
     let mut palette: Vec<(Lab, f32)> = keep_indices.iter()
         .map(|&i| (result.centroids[i], final_counts[i] as f32 / total_px))
         .collect();
