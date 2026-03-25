@@ -194,9 +194,10 @@ pub fn resolve_cover_palette(ctx: &AlbumContext) -> Option<Value> {
     }
 
     let result = get_kmeans_hamerly(k, max_iter, convergence, false, &pixels, seed);
+    let actual_k = result.centroids.len();
     let total_px = n_pixels as f32;
 
-    let mut counts = vec![0_usize; k];
+    let mut counts = vec![0_usize; actual_k];
     for &idx in &result.indices {
         counts[idx as usize] += 1;
     }
@@ -204,7 +205,7 @@ pub fn resolve_cover_palette(ctx: &AlbumContext) -> Option<Value> {
     let mut keep_indices = Vec::new();
     let mut discard_indices = Vec::new();
 
-    for i in 0..k {
+    for i in 0..actual_k {
         let ratio = counts[i] as f32 / total_px;
         if ratio >= discard_threshold {
             keep_indices.push(i);

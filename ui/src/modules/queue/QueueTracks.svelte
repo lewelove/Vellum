@@ -217,7 +217,6 @@
   .tracks-list {
     flex: 1;
     overflow-y: auto;
-    padding: 0 0 12px 0;
     min-height: 0;
   }
 

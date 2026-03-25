@@ -30,7 +30,7 @@
     panels[key] = !panels[key];
   }
 
-  const coverPadding = 12;
+  const coverPadding = 0;
   let moduleWidth = $state(0);
   
   let coverSize = $derived(Math.max(0, moduleWidth - (coverPadding * 2)));
@@ -243,6 +243,7 @@
     outline: none;
     background-color: #24242442;
     backdrop-filter: blur(4px);
+    border-radius: 0px;
     border: transparent;
   }
 
@@ -285,7 +286,7 @@
     position: fixed;
     inset: 0;
     z-index: 9999;
-    background-color: rgba(0, 0, 0, 0.0);
+    background-color: rgba(0, 0, 0, 0.2);
     backdrop-filter: blur(16px);
     display: flex;
     align-items: center;

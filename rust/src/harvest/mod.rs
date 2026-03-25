@@ -3,6 +3,7 @@ use lofty::config::ParseOptions;
 use lofty::file::AudioFile;
 use lofty::prelude::*;
 use lofty::probe::Probe;
+use lofty::tag::TagType;
 use rayon::prelude::*;
 use serde::Serialize;
 use std::collections::HashMap;
@@ -34,7 +35,7 @@ pub struct PhysicsData {
 }
 
 pub fn run(roots: Vec<PathBuf>, pretty: bool) {
-    let extensions =["flac", "mp3", "m4a", "ogg", "wav", "opus"];
+    let extensions = ["flac", "mp3", "m4a", "ogg", "wav", "opus"];
     let mut files = Vec::new();
 
     for root in roots {
@@ -107,6 +108,15 @@ pub fn harvest_file(path: &Path) -> Result<TrackJson> {
         .options(ParseOptions::new().read_cover_art(false))
         .read()
         .context("Read failed")?;
+
+    if let Some(lofty::file::FileType::Flac) = file_type {
+        if tagged_file.tag(TagType::Id3v2).is_some() {
+            log::warn!(
+                "ID3v2 tag encountered in FLAC (incompatible with standards): {}",
+                path.display()
+            );
+        }
+    }
 
     let properties = tagged_file.properties();
 
