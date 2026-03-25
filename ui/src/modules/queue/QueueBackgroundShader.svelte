@@ -77,7 +77,7 @@
       }
 
       if (clampedIndex !== -1) {
-        rawRatios[clampedIndex] = 0.3;
+        rawRatios[clampedIndex] = 0.5;
 
         // Find the sum of all remaining, unclamped elements
         let remainingSum = 0;

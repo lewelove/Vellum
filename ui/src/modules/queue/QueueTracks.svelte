@@ -181,7 +181,7 @@
   .track-title,
   .track-artist,
   .track-meta {
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
   }
 
   .header-album,

@@ -193,8 +193,8 @@
     flex: 1 1 240px;
     min-width: 240px;
     height: 100%;
-    background-color: #24242480;
-    backdrop-filter: blur(4px);
+    background-color: #24242432;
+    backdrop-filter: blur(12px);
     border-radius: 12px;
     /* border: 1px solid #FFFFFF11; */
     box-shadow: 0 0 16px rgba(0, 0, 0, 0.1), 0 0 16px rgba(0, 0, 0, 0.2), 0 0 10px rgba(0, 0, 0, 0.2);
@@ -218,6 +218,7 @@
     cursor: default;
     outline: none;
     background-color: #24242432;
+    backdrop-filter: blur(4px);
     /* border-radius: 0px !important; */
   }
 
