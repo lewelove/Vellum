@@ -191,7 +191,7 @@ fn finalize(
     mut v: Value,
     target: ExportTarget,
     notify_tx: Option<Arc<mpsc::Sender<PathBuf>>>,
-    registry: &HashMap<String, Value>,
+    global_registry: &HashMap<String, Value>,
 ) -> Result<()> {
     let ctx = v
         .as_object_mut()
@@ -200,7 +200,12 @@ fn finalize(
     let harvest = ctx.get("harvest").cloned().unwrap_or_else(|| json!([]));
     let h_arr = harvest.as_array().map_or(&[][..], Vec::as_slice);
 
-    let is_match = verify::calculate_file_tag_subset_match(&v, h_arr, registry);
+    let local_registry = ctx.get("registry")
+        .and_then(Value::as_object)
+        .map(|o| o.clone().into_iter().collect::<HashMap<String, Value>>())
+        .unwrap_or_else(|| global_registry.clone());
+
+    let is_match = verify::calculate_file_tag_subset_match(&v, h_arr, &local_registry);
     if let Some(info) = v
         .get_mut("album")
         .and_then(|a| a.get_mut("info"))

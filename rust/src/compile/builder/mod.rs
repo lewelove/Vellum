@@ -70,11 +70,41 @@ pub fn build(
         .canonicalize()
         .unwrap_or_else(|_| expand_path(lib_root_raw));
 
-    let registry = config
+    let mut registry = config
         .get("compiler")
         .and_then(|c| c.get("keys"))
         .and_then(Value::as_object)
-        .ok_or_else(|| anyhow!("Missing registry keys"))?;
+        .ok_or_else(|| anyhow!("Missing registry keys"))?
+        .clone();
+
+    let local_config_path = album_root.join("config.toml");
+    if local_config_path.exists() {
+        if let Ok(local_content) = std::fs::read_to_string(&local_config_path) {
+            if let Ok(local_toml) = toml::from_str::<toml::Value>(&local_content) {
+                if let Ok(local_json) = serde_json::to_value(local_toml) {
+                    if let Some(local_keys) = local_json
+                        .get("compiler")
+                        .and_then(|c| c.get("keys"))
+                        .and_then(Value::as_object)
+                    {
+                        for (k, v) in local_keys {
+                            if let Some(existing) = registry.get_mut(k) {
+                                if let (Some(existing_obj), Some(new_obj)) = (existing.as_object_mut(), v.as_object()) {
+                                    for (nk, nv) in new_obj {
+                                        existing_obj.insert(nk.clone(), nv.clone());
+                                    }
+                                } else {
+                                    registry.insert(k.clone(), v.clone());
+                                }
+                            } else {
+                                registry.insert(k.clone(), v.clone());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     let empty_obj = json!({});
     let album_source = metadata_json.get("album").unwrap_or(&empty_obj);
@@ -85,7 +115,7 @@ pub fn build(
         album_source,
         album_root,
         &library_root,
-        registry,
+        &registry,
     )?;
 
     let album_ctx = AlbumContext {
@@ -102,13 +132,14 @@ pub fn build(
         cover_image: loaded_image.as_ref(),
     };
 
-    let album_obj = build_album(&album_ctx, registry);
+    let album_obj = build_album(&album_ctx, &registry);
 
     let final_json = json!({
         "album": album_obj,
         "tracks": final_tracks,
         "ctx": {
             "config": config,
+            "registry": registry,
             "metadata": metadata_json,
             "harvest": harvested_cache,
             "paths": {
@@ -342,6 +373,9 @@ fn build_track(
         if meta.get("level").and_then(Value::as_str) != Some("tracks") && meta.get("level").and_then(Value::as_str) != Some("track") {
             continue;
         }
+        if key == "title" || key == "artist" || key == "tracknumber" || key == "discnumber" {
+            continue;
+        }
         let val = resolvers::resolve_track_key(key, meta, ctx).unwrap_or(Value::Null);
         tags.insert(key.to_uppercase(), val);
     }
@@ -413,6 +447,9 @@ fn build_album(
     let mut tags = serde_json::Map::new();
     for (key, meta) in registry {
         if meta.get("level").and_then(Value::as_str) != Some("album") {
+            continue;
+        }
+        if["album", "albumartist", "date", "genre", "comment", "original_yyyy_mm", "release_yyyy_mm"].contains(&key.as_str()) {
             continue;
         }
         let val = resolvers::resolve_album_key(key, meta, ctx).unwrap_or(Value::Null);
