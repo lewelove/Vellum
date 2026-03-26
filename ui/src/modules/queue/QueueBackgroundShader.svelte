@@ -5,7 +5,7 @@
   import vertexShaderSource from "./shaders/quad.vert?raw";
   import internalFragmentShader from "./shaders/marble.frag?raw";
 
-  let { colors = [], coverSize = 0, visible = false, isPlaying = false } = $props();
+  let { colors =[], coverSize = 0, visible = false, isPlaying = false } = $props();
 
   let canvasEl;
   let gl;
@@ -17,13 +17,41 @@
   let isTabVisible = $state(true);
   let randomOffset = Math.random() * 1000.0;
 
-  const intColors = new Int32Array(24);
+  const floatColorsOklab = new Float32Array(24 * 3);
   const floatRatios = new Float32Array(24);
   let activeColorCount = 0;
-  const DEFAULT_PALETTE = ["#242424"];
+  const DEFAULT_PALETTE =["#242424"];
 
   let needsRedraw = true;
   let shaderSource = $state(internalFragmentShader);
+
+  function hexToOklab(hex) {
+    if (hex.startsWith('#')) hex = hex.slice(1);
+    if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+    
+    const r = parseInt(hex.slice(0, 2), 16) / 255.0;
+    const g = parseInt(hex.slice(2, 4), 16) / 255.0;
+    const b = parseInt(hex.slice(4, 6), 16) / 255.0;
+    
+    const lin = c => c >= 0.04045 ? Math.pow((c + 0.055) / 1.055, 2.4) : c / 12.92;
+    const lr = lin(r);
+    const lg = lin(g);
+    const lb = lin(b);
+    
+    const l = 0.4122214708 * lr + 0.5363325363 * lg + 0.0514459929 * lb;
+    const m = 0.2119034982 * lr + 0.6806995451 * lg + 0.1073969566 * lb;
+    const s = 0.0883024619 * lr + 0.2817188376 * lg + 0.6299787005 * lb;
+    
+    const l_ = Math.cbrt(l);
+    const m_ = Math.cbrt(m);
+    const s_ = Math.cbrt(s);
+    
+    const L = 0.2104542553 * l_ + 0.7936177850 * m_ - 0.0040720468 * s_;
+    const A = 1.9779984951 * l_ - 2.4285922050 * m_ + 0.4505937099 * s_;
+    const B = 0.0259040371 * l_ + 0.7827717662 * m_ - 0.8086757660 * s_;
+    
+    return [L, A, B];
+  }
 
   async function loadExternalShader(path) {
     if (!path) {
@@ -92,10 +120,16 @@
       if (i < activeColorCount) {
         const c = palette[i];
         const hex = Array.isArray(c) ? c[0] : (c.hex || c);
-        intColors[i] = parseInt(hex.replace("#", ""), 16);
+        const [L, a, b] = hexToOklab(hex);
+        
+        floatColorsOklab[i * 3 + 0] = L;
+        floatColorsOklab[i * 3 + 1] = a;
+        floatColorsOklab[i * 3 + 2] = b;
         floatRatios[i] = rawRatios[i];
       } else {
-        intColors[i] = 0;
+        floatColorsOklab[i * 3 + 0] = 0.0;
+        floatColorsOklab[i * 3 + 1] = 0.0;
+        floatColorsOklab[i * 3 + 2] = 0.0;
         floatRatios[i] = 0.0;
       }
     }
@@ -107,7 +141,6 @@
     gl.shaderSource(shader, source);
     gl.compileShader(shader);
     if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-      console.error(gl.getShaderInfoLog(shader));
       gl.deleteShader(shader);
       return null;
     }
@@ -189,7 +222,7 @@
       const dpr = window.devicePixelRatio || 1;
       gl.uniform1f(gl.getUniformLocation(program, "iCoverSize"), coverSize * dpr);
 
-      gl.uniform1iv(gl.getUniformLocation(program, "iColors"), intColors);
+      gl.uniform3fv(gl.getUniformLocation(program, "iColorsOklab"), floatColorsOklab);
       gl.uniform1fv(gl.getUniformLocation(program, "iRatios"), floatRatios);
       gl.uniform1i(gl.getUniformLocation(program, "iCount"), activeColorCount);
 

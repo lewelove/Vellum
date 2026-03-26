@@ -3,14 +3,14 @@ precision highp float;
 precision highp int;
 
 #ifndef NUM_COLORS
-#define NUM_COLORS 24
+#define NUM_COLORS 10
 #endif
 
 uniform float iTime;
 uniform float iRandom;
 uniform vec2 iResolution;
 uniform float iCoverSize;
-uniform int iColors[NUM_COLORS];
+uniform vec3 iColorsOklab[NUM_COLORS];
 uniform float iRatios[NUM_COLORS];
 uniform int iCount;
 
@@ -22,11 +22,24 @@ uniform float iGrain;
 
 out vec4 fragColor;
 
-vec3 hexToRgb(int hex) {
-    float r = float((hex >> 16) & 0xFF) / 255.0;
-    float g = float((hex >> 8) & 0xFF) / 255.0;
-    float b = float(hex & 0xFF) / 255.0;
-    return vec3(r, g, b);
+vec3 oklab_to_srgb(vec3 c) {
+    float l_ = c.x + 0.3963377774 * c.y + 0.2158037573 * c.z;
+    float m_ = c.x - 0.1055613458 * c.y - 0.0638541728 * c.z;
+    float s_ = c.x - 0.0894841775 * c.y - 1.2914855480 * c.z;
+
+    float l = l_ * l_ * l_;
+    float m = m_ * m_ * m_;
+    float s = s_ * s_ * s_;
+
+    float r = +4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s;
+    float g = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s;
+    float b = -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s;
+
+    r = r >= 0.0031308 ? 1.055 * pow(r, 1.0 / 2.4) - 0.055 : 12.92 * r;
+    g = g >= 0.0031308 ? 1.055 * pow(g, 1.0 / 2.4) - 0.055 : 12.92 * g;
+    b = b >= 0.0031308 ? 1.055 * pow(b, 1.0 / 2.4) - 0.055 : 12.92 * b;
+
+    return clamp(vec3(r, g, b), 0.0, 1.0);
 }
 
 vec4 permute(vec4 x){return mod(((x*34.0)+1.0)*x, 289.0);}
@@ -126,7 +139,7 @@ void main() {
     }
     if (totalWeight <= 0.0) totalWeight = 1.0; 
 
-    vec3 finalColor = vec3(0.0);
+    vec3 finalOklab = vec3(0.0);
     float cumulative = 0.00;
     
     float currentEdgeSoftness = 0.0;
@@ -147,14 +160,19 @@ void main() {
         
         float weightMask = startMask - endMask;
         
-        finalColor += hexToRgb(iColors[i]) * max(0.0, weightMask);
+        finalOklab += iColorsOklab[i] * max(0.0, weightMask);
         
         cumulative = nextCumulative;
         currentEdgeSoftness = nextEdgeSoftness;
     }
     
+    finalOklab = mix(finalOklab, vec3(0.5, 0.0, 0.0), 0.2);
+    
+    vec3 finalColor = oklab_to_srgb(finalOklab);
+
     float grain = (fract(sin(dot(uv, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) * iGrain;
     finalColor += grain;
     
     fragColor = vec4(finalColor, 1.0);
 }
+
