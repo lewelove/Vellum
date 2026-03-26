@@ -109,10 +109,10 @@ pub fn resolve_cover_entropy(ctx: &AlbumContext, _args: &str) -> Option<Value> {
     Some(json!(buf.len()))
 }
 
-pub fn resolve_cover_palette(ctx: &AlbumContext, _args: &str) -> Option<Value> {
+pub fn resolve_cover_palette(ctx: &AlbumContext, args: &str) -> Option<Value> {
     let sample_dim = 512;
     let n_pixels = sample_dim * sample_dim;
-    let k = 10;
+    let k = args.parse::<usize>().unwrap_or(10).clamp(1, 24);
     let max_iter = 20;
     let convergence = 0.000;
     let seed = 42;
