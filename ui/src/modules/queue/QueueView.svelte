@@ -198,7 +198,7 @@
 
   .module-panel {
     min-width: 240px;
-    backdrop-filter: blur(32px) brightness(0.7) saturate(0.9);
+    backdrop-filter: blur(16px) brightness(0.7) saturate(0.9);
     border-radius: 12px;
     box-shadow: 0 0 16px rgba(0, 0, 0, 0.1), 0 0 16px rgba(0, 0, 0, 0.2), 0 0 10px rgba(0, 0, 0, 0.2);
     border: 1px solid rgba(255, 255, 255, 0.08);

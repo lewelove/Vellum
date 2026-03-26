@@ -232,7 +232,7 @@
       gl.uniform1f(gl.getUniformLocation(program, "iBlur"), s.blur ?? 0.66);
       
       const baseEdgeBlur = s.edge_blur ?? 0.66;
-      const edgeBlurFactor = activeColorCount > 0 ? (activeColorCount / 5.0) : 1.0;
+      const edgeBlurFactor = activeColorCount > 0 ? (activeColorCount / 24.0) : 1.0;
       gl.uniform1f(gl.getUniformLocation(program, "iEdgeBlur"), baseEdgeBlur * edgeBlurFactor);
 
       gl.uniform1f(gl.getUniformLocation(program, "iGrain"), s.grain ?? 0.02);
