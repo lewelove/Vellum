@@ -44,7 +44,7 @@
   .nav-icon {
     width: 24px;
     height: 24px;
-    opacity: 0.3;
+    opacity: 0.5;
     transition: opacity 0.2s ease;
   }
 

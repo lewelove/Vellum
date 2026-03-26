@@ -181,7 +181,7 @@
     min-height: 0;
     display: flex;
     flex-direction: row;
-    gap: 16px;
+    gap: 24px;
     justify-content: center;
     align-items: stretch;
   }
@@ -201,7 +201,7 @@
     backdrop-filter: blur(16px) brightness(0.7) saturate(0.9);
     border-radius: 12px;
     box-shadow: 0 0 16px rgba(0, 0, 0, 0.1), 0 0 16px rgba(0, 0, 0, 0.2), 0 0 10px rgba(0, 0, 0, 0.2);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    /* border: 1px solid rgba(255, 255, 255, 0.08); */
     display: flex;
     flex-direction: column;
     overflow: hidden;

@@ -295,6 +295,6 @@
     z-index: 0;
     pointer-events: none;
     opacity: {library.isShaderEnabled ? 1 : 0};
-    transition: opacity 0.2s ease;
+    transition: opacity 0.3s ease;
   "
 ></canvas>

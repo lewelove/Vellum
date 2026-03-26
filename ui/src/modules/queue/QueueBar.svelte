@@ -38,27 +38,6 @@
 <div class="queue-bar">
   <div class="nav-group top">
     <QueueNavButton 
-      icon="icons/24px/colors.svg" 
-      label="Toggle Shader" 
-      active={library.isShaderEnabled}
-      onclick={() => library.toggleShader()} 
-    />
-    <QueueNavButton 
-      icon="icons/24px/format_list_bulleted.svg" 
-      label="Track List" 
-      active={panels.tracks}
-      onclick={() => onToggle('tracks')} 
-    />
-    <QueueNavButton 
-      icon="icons/24px/lyrics.svg" 
-      label="Lyrics" 
-      active={panels.lyrics}
-      onclick={() => onToggle('lyrics')} 
-    />
-  </div>
-
-  <div class="nav-group bottom">
-    <QueueNavButton 
       icon="icons/24px/code.svg" 
       label="Open Data Object" 
       disabled={!activeId}
@@ -81,6 +60,27 @@
       label="Update Album" 
       disabled={!activeId}
       onclick={handleUpdate} 
+    />
+  </div>
+
+  <div class="nav-group bottom">
+    <QueueNavButton 
+      icon="icons/24px/lyrics.svg" 
+      label="Lyrics" 
+      active={panels.lyrics}
+      onclick={() => onToggle('lyrics')} 
+    />
+    <QueueNavButton 
+      icon="icons/24px/format_list_bulleted.svg" 
+      label="Track List" 
+      active={panels.tracks}
+      onclick={() => onToggle('tracks')} 
+    />
+    <QueueNavButton 
+      icon="icons/24px/colors.svg" 
+      label="Toggle Shader" 
+      active={library.isShaderEnabled}
+      onclick={() => library.toggleShader()} 
     />
   </div>
 </div>
