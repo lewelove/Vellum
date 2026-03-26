@@ -35,6 +35,7 @@ pub struct ShaderConfig {
     pub blur: Option<f32>,
     pub edge_blur: Option<f32>,
     pub grain: Option<f32>,
+    pub equalize: Option<f32>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]

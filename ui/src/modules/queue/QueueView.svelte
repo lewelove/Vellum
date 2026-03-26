@@ -167,7 +167,7 @@
     position: relative;
     height: 100%;
     min-width: 0;
-    padding: 24px; 
+    padding: 24px 32px; 
     box-sizing: border-box;
     z-index: 1;
     display: flex;
@@ -217,7 +217,7 @@
   }
 
   .tracks-panel:only-child {
-    flex: 0 1 auto;
+    flex: 1 1 auto;
   }
 
   .lyrics-panel {

@@ -81,32 +81,11 @@
       }
     }
 
-    if (activeColorCount > 1) {
-      let clampedIndex = -1;
-      for (let i = 0; i < activeColorCount; i++) {
-        if (rawRatios[i] > 0.5) {
-          clampedIndex = i;
-          break; 
-        }
-      }
-      if (clampedIndex !== -1) {
-        rawRatios[clampedIndex] = 0.5;
-        let remainingSum = 0;
-        for (let i = 0; i < activeColorCount; i++) {
-          if (i !== clampedIndex) remainingSum += rawRatios[i];
-        }
-        if (remainingSum > 0) {
-          const scale = 0.5 / remainingSum;
-          for (let i = 0; i < activeColorCount; i++) {
-            if (i !== clampedIndex) rawRatios[i] *= scale;
-          }
-        } else {
-          const share = 0.5 / (activeColorCount - 1);
-          for (let i = 0; i < activeColorCount; i++) {
-            if (i !== clampedIndex) rawRatios[i] = share;
-          }
-        }
-      }
+    const equalize = library.config.shader?.equalize ?? 0;
+    const avgRatio = 1.0 / activeColorCount;
+
+    for (let i = 0; i < activeColorCount; i++) {
+      rawRatios[i] = (rawRatios[i] * (1.0 - equalize)) + (avgRatio * equalize);
     }
 
     for (let i = 0; i < 24; i++) {
@@ -170,7 +149,6 @@
     startLoop();
   }
 
-  // Watch for source changes to recompile
   $effect(() => {
     if (shaderSource) initGL();
   });
@@ -221,6 +199,7 @@
       gl.uniform1f(gl.getUniformLocation(program, "iBlur"), s.blur ?? 0.66);
       gl.uniform1f(gl.getUniformLocation(program, "iEdgeBlur"), s.edge_blur ?? 0.66);
       gl.uniform1f(gl.getUniformLocation(program, "iGrain"), s.grain ?? 0.02);
+      gl.uniform1f(gl.getUniformLocation(program, "iEqualize"), s.equalize ?? 0.0);
 
       gl.drawArrays(gl.TRIANGLES, 0, 6);
       needsRedraw = false;

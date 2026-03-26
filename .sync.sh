@@ -1,2 +1,2 @@
 cd ~
-repomix ".config/vellum"
+repomix --quiet ".config/vellum"
