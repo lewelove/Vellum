@@ -37,7 +37,7 @@ pub struct CompileOptions {
 }
 
 pub async fn run(mut options: CompileOptions) -> Result<()> {
-    let (config, raw, path) = AppConfig::load().context("Config failed")?;
+    let (config, _raw, path) = AppConfig::load().context("Config failed")?;
     let project_root = path.parent().unwrap().to_path_buf();
     if !options.flags.contains(&"default".to_string()) {
         options.flags.push("default".to_string());
@@ -53,7 +53,7 @@ pub async fn run(mut options: CompileOptions) -> Result<()> {
     if albums.is_empty() {
         return Ok(());
     }
-    let config_json = serde_json::to_value(&raw)?;
+    let config_json = serde_json::to_value(&config)?;
     let manifest_cfg = config_json
         .get("manifest")
         .cloned()

@@ -47,8 +47,25 @@ pub struct ManifestConfig {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct CompilerConfig {
     pub scan_depth: Option<usize>,
-    pub keys: Option<HashMap<String, Value>>,
+    pub keys: Option<HashMap<String, KeyConfig>>,
 }
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct KeyConfig {
+    #[serde(default = "default_class")]
+    pub class: String,
+    #[serde(rename = "type", default = "default_type")]
+    pub type_: String,
+    #[serde(default)]
+    pub args: String,
+    pub level: String,
+    #[serde(default = "default_true")]
+    pub sync: bool,
+}
+
+fn default_class() -> String { "generic".to_string() }
+fn default_type() -> String { "string".to_string() }
+fn default_true() -> bool { true }
 
 impl AppConfig {
     pub fn load() -> Result<(Self, Value, PathBuf)> {

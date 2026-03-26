@@ -332,33 +332,17 @@ fn build_track(
 
     obj.insert("info".to_string(), construct_track_info(ctx, total_discs));
 
-    obj.insert(
-        "TITLE".to_string(),
-        ctx.source
-            .get("title")
-            .cloned()
-            .unwrap_or_else(|| resolvers::resolve_track_key("title", ctx).unwrap_or(Value::Null)),
-    );
-
-    obj.insert(
-        "ARTIST".to_string(),
-        ctx.source
-            .get("artist")
-            .cloned()
-            .unwrap_or_else(|| resolvers::resolve_track_key("artist", ctx).unwrap_or(Value::Null)),
-    );
-
+    obj.insert("TITLE".to_string(), resolvers::resolve_top_level_track_key("TITLE", ctx));
+    obj.insert("ARTIST".to_string(), resolvers::resolve_top_level_track_key("ARTIST", ctx));
     obj.insert("TRACKNUMBER".to_string(), json!(track_number));
     obj.insert("DISCNUMBER".to_string(), json!(disc_number));
 
     let mut tags = serde_json::Map::new();
     for (key, meta) in registry {
-        if meta.get("level").and_then(Value::as_str) != Some("tracks") {
+        if meta.get("level").and_then(Value::as_str) != Some("tracks") && meta.get("level").and_then(Value::as_str) != Some("track") {
             continue;
         }
-        let val = ctx.source.get(key).cloned().unwrap_or_else(|| {
-            resolvers::resolve_track_key(key, ctx).unwrap_or(Value::Null)
-        });
+        let val = resolvers::resolve_track_key(key, meta, ctx).unwrap_or(Value::Null);
         tags.insert(key.to_uppercase(), val);
     }
     obj.insert("tags".to_string(), Value::Object(tags));
@@ -386,7 +370,7 @@ fn construct_album_info(ctx: &AlbumContext) -> Value {
     );
     info.insert(
         "unix_added".to_string(),
-        json!(resolvers::native::resolve_album_info_unix_added(ctx)),
+        json!(resolvers::native::resolve_album_info_unix_added(ctx, "")),
     );
     info.insert("album_duration".to_string(), json!(dur));
     info.insert(
@@ -418,67 +402,20 @@ fn build_album(
     let mut obj = serde_json::Map::new();
 
     obj.insert("info".to_string(), construct_album_info(ctx));
-    obj.insert(
-        "ALBUM".to_string(),
-        ctx.source
-            .get("album")
-            .cloned()
-            .unwrap_or_else(|| resolvers::resolve_album_key("album", ctx).unwrap_or(Value::Null)),
-    );
-    obj.insert(
-        "ALBUMARTIST".to_string(),
-        ctx.source.get("albumartist").cloned().unwrap_or_else(|| {
-            resolvers::resolve_album_key("albumartist", ctx).unwrap_or(Value::Null)
-        }),
-    );
-    obj.insert(
-        "DATE".to_string(),
-        ctx.source
-            .get("date")
-            .cloned()
-            .unwrap_or_else(|| resolvers::resolve_album_key("date", ctx).unwrap_or(Value::Null)),
-    );
-    obj.insert(
-        "GENRE".to_string(),
-        ctx.source
-            .get("genre")
-            .cloned()
-            .unwrap_or_else(|| resolvers::resolve_album_key("genre", ctx).unwrap_or(Value::Null)),
-    );
-    obj.insert(
-        "COMMENT".to_string(),
-        ctx.source
-            .get("comment")
-            .cloned()
-            .unwrap_or_else(|| resolvers::resolve_album_key("comment", ctx).unwrap_or(Value::Null)),
-    );
-    obj.insert(
-        "ORIGINAL_YYYY_MM".to_string(),
-        ctx.source
-            .get("original_yyyy_mm")
-            .cloned()
-            .unwrap_or_else(|| {
-                resolvers::resolve_album_key("original_yyyy_mm", ctx).unwrap_or(Value::Null)
-            }),
-    );
-    obj.insert(
-        "RELEASE_YYYY_MM".to_string(),
-        ctx.source
-            .get("release_yyyy_mm")
-            .cloned()
-            .unwrap_or_else(|| {
-                resolvers::resolve_album_key("release_yyyy_mm", ctx).unwrap_or(Value::Null)
-            }),
-    );
+    obj.insert("ALBUM".to_string(), resolvers::resolve_top_level_album_key("ALBUM", ctx));
+    obj.insert("ALBUMARTIST".to_string(), resolvers::resolve_top_level_album_key("ALBUMARTIST", ctx));
+    obj.insert("DATE".to_string(), resolvers::resolve_top_level_album_key("DATE", ctx));
+    obj.insert("GENRE".to_string(), resolvers::resolve_top_level_album_key("GENRE", ctx));
+    obj.insert("COMMENT".to_string(), resolvers::resolve_top_level_album_key("COMMENT", ctx));
+    obj.insert("ORIGINAL_YYYY_MM".to_string(), resolvers::resolve_top_level_album_key("ORIGINAL_YYYY_MM", ctx));
+    obj.insert("RELEASE_YYYY_MM".to_string(), resolvers::resolve_top_level_album_key("RELEASE_YYYY_MM", ctx));
 
     let mut tags = serde_json::Map::new();
     for (key, meta) in registry {
         if meta.get("level").and_then(Value::as_str) != Some("album") {
             continue;
         }
-        let val = ctx.source.get(key).cloned().unwrap_or_else(|| {
-            resolvers::resolve_album_key(key, ctx).unwrap_or(Value::Null)
-        });
+        let val = resolvers::resolve_album_key(key, meta, ctx).unwrap_or(Value::Null);
         tags.insert(key.to_uppercase(), val);
     }
     obj.insert("tags".to_string(), Value::Object(tags));

@@ -5,64 +5,10 @@ use image::imageops::FilterType;
 use kmeans_colors::get_kmeans_hamerly;
 use palette::{FromColor, Lab, Srgb};
 use serde_json::{Value, json};
-use std::collections::HashSet;
 use std::path::Path;
 
-pub fn resolve_date(ctx: &AlbumContext) -> String {
-    ctx.source
-        .get("date")
-        .or_else(|| ctx.source.get("year"))
-        .or_else(|| ctx.source.get("originalyear"))
-        .and_then(Value::as_str)
-        .unwrap_or("0000")
-        .to_string()
-}
-
-pub fn resolve_yyyy_mm(ctx: &AlbumContext, key: &str) -> String {
-    if let Some(v) = ctx.source.get(key).and_then(Value::as_str) {
-        return v.to_string();
-    }
-    let d = resolve_date(ctx);
-    if d.len() >= 4 {
-        format!("{}-00", &d[0..4])
-    } else {
-        "0000-00".to_string()
-    }
-}
-
-pub fn resolve_genre(ctx: &AlbumContext) -> Vec<String> {
-    let raw = ctx.source.get("genre").cloned().unwrap_or(json!(null));
-    let mut parts = Vec::new();
-    match raw {
-        Value::Array(arr) => {
-            for v in arr {
-                if let Some(s) = v.as_str() {
-                    parts.push(s.trim().to_string());
-                }
-            }
-        }
-        Value::String(s) => {
-            for p in s.split(';') {
-                let t = p.trim();
-                if !t.is_empty() {
-                    parts.push(t.to_string());
-                }
-            }
-        }
-        _ => {}
-    }
-    if parts.is_empty() {
-        parts.push("Unknown".to_string());
-    }
-    let mut seen = HashSet::new();
-    parts
-        .into_iter()
-        .filter(|p| seen.insert(p.clone()))
-        .collect()
-}
-
 pub fn calculate_total_discs(tracks: &[Value]) -> u32 {
-    let mut discs = HashSet::new();
+    let mut discs = std::collections::HashSet::new();
     for t in tracks {
         let val = match t.get("DISCNUMBER") {
             Some(Value::Number(n)) => n.as_u64().unwrap_or(0),
@@ -85,39 +31,32 @@ pub fn calculate_total_discs(tracks: &[Value]) -> u32 {
     }
 }
 
-pub fn resolve_album_info_unix_added(ctx: &AlbumContext) -> u64 {
-    let keys =[
-        "unix_added_primary",
-        "unixtimeyoutube",
-        "unixtimeapple",
-        "unixtimefoobar",
-        "unix_added_youtube",
-        "unix_added_applemusic",
-        "unix_added_foobar",
-        "unix_added_local",
-    ];
+pub fn resolve_album_info_unix_added(ctx: &AlbumContext, args: &str) -> u64 {
+    let keys: Vec<&str> = if args.is_empty() {
+        vec![
+            "unix_added_primary",
+            "unixtimeyoutube",
+            "unixtimeapple",
+            "unixtimefoobar",
+            "unix_added_youtube",
+            "unix_added_applemusic",
+            "unix_added_foobar",
+            "unix_added_local",
+        ]
+    } else {
+        args.split(',').map(str::trim).filter(|s| !s.is_empty()).collect()
+    };
     for key in keys {
         if let Some(val) = ctx.source.get(key).and_then(Value::as_str)
             && let Ok(ts) = val.parse::<u64>()
         {
             return ts;
         }
-    }
-    0
-}
-
-pub fn resolve_custom_albumartist(ctx: &AlbumContext) -> String {
-    let keys =[
-        "custom_albumartist",
-        "artistartist",
-        "albumartist",
-    ];
-    for k in keys {
-        if let Some(v) = ctx.source.get(k).and_then(Value::as_str) {
-            return v.to_string();
+        if let Some(val) = ctx.source.get(key).and_then(Value::as_u64) {
+            return val;
         }
     }
-    "Unknown".to_string()
+    0
 }
 
 pub fn rel_path(target: &Path, base: &Path) -> String {
@@ -127,7 +66,7 @@ pub fn rel_path(target: &Path, base: &Path) -> String {
     )
 }
 
-pub fn resolve_cover_chroma(ctx: &AlbumContext) -> Option<Value> {
+pub fn resolve_cover_chroma(ctx: &AlbumContext, _args: &str) -> Option<Value> {
     let img = ctx.cover_image?;
     let (width, height) = img.dimensions();
     let total = f64::from(width * height);
@@ -161,7 +100,7 @@ pub fn resolve_cover_chroma(ctx: &AlbumContext) -> Option<Value> {
     Some(json!(0.3f64.mul_add(mean_root, std_root)))
 }
 
-pub fn resolve_cover_entropy(ctx: &AlbumContext) -> Option<Value> {
+pub fn resolve_cover_entropy(ctx: &AlbumContext, _args: &str) -> Option<Value> {
     let img = ctx.cover_image?;
     let gray = img.grayscale();
     let mut buf = Vec::new();
@@ -170,7 +109,7 @@ pub fn resolve_cover_entropy(ctx: &AlbumContext) -> Option<Value> {
     Some(json!(buf.len()))
 }
 
-pub fn resolve_cover_palette(ctx: &AlbumContext) -> Option<Value> {
+pub fn resolve_cover_palette(ctx: &AlbumContext, _args: &str) -> Option<Value> {
     let sample_dim = 512;
     let n_pixels = sample_dim * sample_dim;
     let k = 10;
@@ -264,20 +203,20 @@ pub fn resolve_cover_palette(ctx: &AlbumContext) -> Option<Value> {
     Some(json!(palette_json))
 }
 
-pub fn resolve_comment(ctx: &AlbumContext) -> String {
+pub fn resolve_comment(ctx: &AlbumContext, _args: &str) -> String {
     if let Some(v) = ctx.source.get("comment").and_then(Value::as_str)
         && !v.is_empty()
     {
         return v.to_string();
     }
 
-    let country = standard::get_raw(ctx.source, "country", "");
-    let label = standard::get_raw(ctx.source, "label", "");
-    let cat = standard::get_raw(ctx.source, "catalognumber", "");
+    let country = standard::resolve_generic_string(ctx.source, "country", "", "").as_str().unwrap_or("").to_string();
+    let label = standard::resolve_generic_string(ctx.source, "label", "", "").as_str().unwrap_or("").to_string();
+    let cat = standard::resolve_generic_string(ctx.source, "catalognumber", "", "").as_str().unwrap_or("").to_string();
     if country.is_empty() && label.is_empty() && cat.is_empty() {
         return String::new();
     }
-    let yyyy_mm = resolve_yyyy_mm(ctx, "release_yyyy_mm");
+    let yyyy_mm = resolve_yyyy_mm(ctx, "release_yyyy_mm", "");
     let year = if yyyy_mm.len() >= 4 {
         &yyyy_mm[0..4]
     } else {
@@ -297,6 +236,18 @@ pub fn resolve_comment(ctx: &AlbumContext) -> String {
         .copied()
         .collect::<Vec<_>>()
         .join(" ")
+}
+
+pub fn resolve_yyyy_mm(ctx: &AlbumContext, key: &str, _args: &str) -> String {
+    if let Some(v) = ctx.source.get(key).and_then(Value::as_str) {
+        return v.to_string();
+    }
+    let d = standard::resolve_generic_string(ctx.source, "date", "year,originalyear", "0000").as_str().unwrap_or("0000").to_string();
+    if d.len() >= 4 {
+        format!("{}-00", &d[0..4])
+    } else {
+        "0000-00".to_string()
+    }
 }
 
 pub fn resolve_lyrics_path(
