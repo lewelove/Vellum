@@ -112,11 +112,17 @@ pub fn resolve_cover_entropy(ctx: &AlbumContext, _args: &str) -> Option<Value> {
 pub fn resolve_cover_palette(ctx: &AlbumContext, args: &str) -> Option<Value> {
     let sample_dim = 512;
     let n_pixels = sample_dim * sample_dim;
-    let k = args.parse::<usize>().unwrap_or(10).clamp(1, 24);
     let max_iter = 20;
     let convergence = 0.000;
     let seed = 42;
     let discard_threshold = 0.0000_f32;
+    
+    let k = args.split(',')
+        .find(|s| s.trim().starts_with("k="))
+        .and_then(|s| s.trim().strip_prefix("k="))
+        .and_then(|val| val.parse::<usize>().ok())
+        .unwrap_or(10)
+        .clamp(1, 24);
 
     let cover_path = ctx.cover_path?;
     let img = image::open(ctx.album_root.join(cover_path)).ok()?;
