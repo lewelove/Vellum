@@ -19,6 +19,7 @@ class LibraryState {
   albumCache = $state(new Map());
   trackPathMap = $state(new Map());
   pinnedTextures = $state(new Map());
+  isShaderEnabled = $state(true);
 
   config = $state({
     thumbnail_size: 200,
@@ -175,6 +176,7 @@ class LibraryState {
       this.activeSort = { key: this.userSortPreference, order: this.userSortOrder };
       this.activeSidebarGrouper = state.groupKey || "genre";
       this.activeFilter = state.filter || { key: null, val: null };
+      this.isShaderEnabled = state.isShaderEnabled ?? true;
   }
 
   persistState() {
@@ -186,7 +188,8 @@ class LibraryState {
               sortKey: this.userSortPreference,
               sortOrder: this.userSortOrder,
               groupKey: this.activeSidebarGrouper,
-              filter: $state.snapshot(this.activeFilter)
+              filter: $state.snapshot(this.activeFilter),
+              isShaderEnabled: this.isShaderEnabled
           })
       }).catch(err => console.error("Failed to persist state:", err));
   }
@@ -217,7 +220,7 @@ class LibraryState {
         this.worker.postMessage({ type: "GROUP", payload: { key } });
         return [];
     }
-    return this.sidebarGroups.get(key) || [];
+    return this.sidebarGroups.get(key) ||[];
   }
 
   getTrackByPath(path) {
@@ -305,6 +308,11 @@ class LibraryState {
 
   closeFocus() {
     this.focusedAlbum = null;
+  }
+  
+  toggleShader() {
+    this.isShaderEnabled = !this.isShaderEnabled;
+    this.persistState();
   }
 }
 

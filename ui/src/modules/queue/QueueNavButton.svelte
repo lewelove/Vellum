@@ -36,11 +36,10 @@
   .queue-nav-button.active {
     background-color: rgba(255, 255, 255, 0.1);
     border-color: rgba(255, 255, 255, 0.1);
-    box-shadow: var(--button-shadow);
   }
 
   .nav-icon {
-    opacity: 0.3;
+    opacity: 0.5;
     transition: opacity 0.2s ease;
     width: 24px;
     height: 24px;

@@ -5,7 +5,7 @@
   import vertexShaderSource from "./shaders/quad.vert?raw";
   import internalFragmentShader from "./shaders/marble.frag?raw";
 
-  let { colors = [], coverSize = 0, visible = false, isPlaying = false } = $props();
+  let { colors =[], coverSize = 0, visible = false, isPlaying = false } = $props();
 
   let canvasEl;
   let gl;
@@ -195,7 +195,7 @@
   function render() {
     if (!gl || !program) return;
 
-    if (!visible || !isTabVisible) {
+    if (!visible || !isTabVisible || !library.isShaderEnabled) {
       animationFrame = requestAnimationFrame(render);
       return;
     }
@@ -294,5 +294,7 @@
     height: 100%;
     z-index: 0;
     pointer-events: none;
+    opacity: {library.isShaderEnabled ? 1 : 0};
+    transition: opacity 0.2s ease;
   "
 ></canvas>
