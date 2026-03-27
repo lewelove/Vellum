@@ -1,153 +1,158 @@
 use image::{imageops::FilterType, GenericImageView};
-use kmeans_colors::get_kmeans_hamerly;
 use minifb::{Key, Window, WindowOptions};
 use palette::{FromColor, Lab, Srgb};
 
-const DISCARD_THRESHOLD: f32 = 0.0000; // Roughly < 33 pixels in a 256x256 image
+fn parse_arg<T: std::str::FromStr>(args: &str, key: &str, default: T) -> T {
+    args.split(',')
+        .find(|s| s.trim().starts_with(key))
+        .and_then(|s| s.split('=').nth(1))
+        .and_then(|v| v.trim().parse::<T>().ok())
+        .unwrap_or(default)
+}
 
-pub fn run_pure_kmeans(path: &str) {
+pub fn run_pure_kmeans(path: &str, arg_str: &str) {
+    let k = parse_arg(arg_str, "k", 10);
+    let pow = parse_arg(arg_str, "pow", 1.0f32);
+    let dim = parse_arg(arg_str, "dim", 512u32);
+    let max_iter = parse_arg(arg_str, "iter", 20);
+    let eps = parse_arg(arg_str, "eps", 0.00f32);
+
     let img = image::open(path).expect("Failed to open image");
     let start = std::time::Instant::now();
 
-    // 1. 256p Nearest Resize
-    let img_small = img.resize_exact(256, 256, FilterType::Nearest);
-    let mut pixels = Vec::with_capacity(256 * 256);
+    let img_small = img.resize_exact(dim, dim, FilterType::Nearest);
+    let mut pixels = Vec::with_capacity((dim * dim) as usize);
+    let mut weights = Vec::with_capacity((dim * dim) as usize);
+
     for (_, _, p) in img_small.pixels() {
-        pixels.push(Lab::from_color(Srgb::new(
+        let lab = Lab::from_color(Srgb::new(
             p[0] as f32 / 255.0,
             p[1] as f32 / 255.0,
             p[2] as f32 / 255.0,
-        )));
+        ));
+
+        let chroma = (lab.a.powi(2) + lab.b.powi(2)).sqrt();
+        let gravity = chroma.powf(pow) + 0.01;
+
+        pixels.push(lab);
+        weights.push(gravity);
     }
 
-    // 2. Initial K-Means k=32
-    let k = 24;
-    let result = get_kmeans_hamerly(k, 20, 0.005, false, &pixels, 42);
-    let total_px = (256 * 256) as f32;
-
-    // 3. First Pass: Calculate counts and identify clusters to discard
-    let mut counts = vec![0_usize; k];
-    for &idx in &result.indices {
-        counts[idx as usize] += 1;
-    }
-
-    let mut keep_indices = Vec::new();
-    let mut discard_indices = Vec::new();
-
+    let mut centroids = Vec::with_capacity(k);
     for i in 0..k {
-        let ratio = counts[i] as f32 / total_px;
-        if ratio >= DISCARD_THRESHOLD {
-            keep_indices.push(i);
-        } else {
-            discard_indices.push(i);
+        centroids.push(pixels[i * (pixels.len() / k)]);
+    }
+
+    let mut assignments = vec![0usize; pixels.len()];
+
+    for _ in 0..max_iter {
+        for (i, pixel) in pixels.iter().enumerate() {
+            let mut min_dist = f32::MAX;
+            let mut best_idx = 0;
+            for (c_idx, centroid) in centroids.iter().enumerate() {
+                let dist = (pixel.l - centroid.l).powi(2)
+                    + (pixel.a - centroid.a).powi(2)
+                    + (pixel.b - centroid.b).powi(2);
+                if dist < min_dist {
+                    min_dist = dist;
+                    best_idx = c_idx;
+                }
+            }
+            assignments[i] = best_idx;
         }
-    }
 
-    // Fallback: If everything is below threshold (unlikely), keep the largest cluster
-    if keep_indices.is_empty() {
-        let max_idx = counts.iter().enumerate()
-            .max_by_key(|&(_, count)| count)
-            .map(|(i, _)| i)
-            .unwrap_or(0);
-        keep_indices.push(max_idx);
-        discard_indices.retain(|&i| i != max_idx);
-    }
+        let mut new_sums = vec![(0.0f32, 0.0f32, 0.0f32); k];
+        let mut weight_sums = vec![0.0f32; k];
 
-    // 4. Second Pass: Merge discarded clusters into the nearest kept cluster
-    let mut final_counts = counts.clone();
-    let mut cluster_remap = (0..k).collect::<Vec<usize>>();
+        for (i, &c_idx) in assignments.iter().enumerate() {
+            let p = &pixels[i];
+            let w = weights[i];
+            new_sums[c_idx].0 += p.l * w;
+            new_sums[c_idx].1 += p.a * w;
+            new_sums[c_idx].2 += p.b * w;
+            weight_sums[c_idx] += w;
+        }
 
-    for &d_idx in &discard_indices {
-        let d_lab = result.centroids[d_idx];
-        
-        // Find nearest "keep" centroid in Lab space
-        let mut best_target = keep_indices[0];
-        let mut min_dist_sq = f32::MAX;
-
-        for &k_idx in &keep_indices {
-            let k_lab = result.centroids[k_idx];
-            let dist_sq = (d_lab.l - k_lab.l).powi(2) 
-                        + (d_lab.a - k_lab.a).powi(2) 
-                        + (d_lab.b - k_lab.b).powi(2);
-            
-            if dist_sq < min_dist_sq {
-                min_dist_sq = dist_sq;
-                best_target = k_idx;
+        let mut max_shift = 0.0f32;
+        for i in 0..k {
+            if weight_sums[i] > 0.0 {
+                let next_c = Lab::new(
+                    new_sums[i].0 / weight_sums[i],
+                    new_sums[i].1 / weight_sums[i],
+                    new_sums[i].2 / weight_sums[i],
+                );
+                let shift = (next_c.l - centroids[i].l).powi(2)
+                    + (next_c.a - centroids[i].a).powi(2)
+                    + (next_c.b - centroids[i].b).powi(2);
+                if shift > max_shift {
+                    max_shift = shift;
+                }
+                centroids[i] = next_c;
             }
         }
 
-        // Transfer mass
-        final_counts[best_target] += counts[d_idx];
-        final_counts[d_idx] = 0;
-        cluster_remap[d_idx] = best_target;
+        if max_shift < eps {
+            break;
+        }
     }
 
-    println!("K-Means (k=32) + Re-mapped Discards took: {:?}", start.elapsed());
-    println!("Significant clusters remaining: {}", keep_indices.len());
+    let mut counts = vec![0usize; k];
+    for &idx in &assignments {
+        counts[idx] += 1;
+    }
 
-    // 5. Generate Final Palette
-    let mut palette: Vec<(Lab, f32)> = keep_indices.iter()
-        .map(|&i| (result.centroids[i], final_counts[i] as f32 / total_px))
+    let total_px = pixels.len() as f32;
+    let mut palette: Vec<(Lab, f32)> = centroids.iter().enumerate()
+        .map(|(i, &lab)| (lab, counts[i] as f32 / total_px))
         .collect();
-    
+
     palette.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
 
-    println!("\nCleaned Palette:");
+    println!("Weighted K-Means took: {:?}", start.elapsed());
+    println!("\nGravity Palette (k={}, pow={}, dim={}):", k, pow, dim);
     for (i, (lab, ratio)) in palette.iter().enumerate() {
         println!("  {}: {} | Ratio: {:.4}", i + 1, lab_to_hex(*lab), ratio);
     }
 
-    // 6. Visualization (1536x512: Orig | Re-mapped | Ratio Sorted)
-    let mut buffer = vec![0u32; 1536 * 512];
+    let window_w = (dim * 3) as usize;
+    let window_h = dim as usize;
+    let mut buffer = vec![0u32; window_w * window_h];
 
-    let draw_block = |buf: &mut Vec<u32>, px_x: usize, px_y: usize, panel_offset: usize, color: u32| {
-        let start_x = panel_offset + (px_x * 2);
-        let start_y = px_y * 2;
-        for dy in 0..2 {
-            for dx in 0..2 {
-                buf[(start_y + dy) * 1536 + (start_x + dx)] = color;
-            }
-        }
-    };
-
-    for y in 0..256 {
-        for x in 0..256 {
-            let idx = y * 256 + x;
-            
-            // Panel 1: Original
+    for y in 0..(dim as usize) {
+        for x in 0..(dim as usize) {
+            let idx = y * (dim as usize) + x;
             let p = img_small.get_pixel(x as u32, y as u32);
             let orig_col = ((p[0] as u32) << 16) | ((p[1] as u32) << 8) | (p[2] as u32);
-            draw_block(&mut buffer, x, y, 0, orig_col);
+            buffer[y * window_w + x] = orig_col;
 
-            // Panel 2: Re-mapped (Noise Cleaned)
-            let original_cluster = result.indices[idx] as usize;
-            let cleaned_cluster = cluster_remap[original_cluster];
-            let mapped_col = lab_to_u32(result.centroids[cleaned_cluster]);
-            draw_block(&mut buffer, x, y, 512, mapped_col);
+            let c_idx = assignments[idx];
+            let mapped_col = lab_to_u32(centroids[c_idx]);
+            buffer[y * window_w + (x + dim as usize)] = mapped_col;
         }
     }
 
-    // Panel 3: Pixels Sorted by Ratio
     let mut curr_ratio_px = 0;
     for (lab, ratio) in &palette {
-        let count = (ratio * 256.0 * 256.0).round() as usize;
+        let count = (ratio * (dim as f32) * (dim as f32)).round() as usize;
         let color = lab_to_u32(*lab);
         for _ in 0..count {
-            if curr_ratio_px >= 256 * 256 { break; }
-            draw_block(&mut buffer, curr_ratio_px % 256, curr_ratio_px / 256, 1024, color);
+            if curr_ratio_px >= (dim * dim) as usize { break; }
+            let rx = curr_ratio_px % (dim as usize);
+            let ry = curr_ratio_px / (dim as usize);
+            buffer[ry * window_w + (rx + (dim as usize) * 2)] = color;
             curr_ratio_px += 1;
         }
     }
 
     let mut window = Window::new(
-        "K-Means Cleaned: Orig | Cleaned | Ratio Sorted",
-        1536,
-        512,
+        "K-Means Manual Weighted: Orig | Weighted | Sorted",
+        window_w,
+        window_h,
         WindowOptions::default(),
     ).unwrap();
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
-        window.update_with_buffer(&buffer, 1536, 512).unwrap();
+        window.update_with_buffer(&buffer, window_w, window_h).unwrap();
     }
 }
 

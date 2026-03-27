@@ -27,7 +27,7 @@
 
   .nav-bar.glass {
     background-color: #24242442;
-    backdrop-filter: blur(16px) brightness(0.9) saturate(0.9);
+    backdrop-filter: blur(16px) brightness(0.7);
   }
   
   .nav-group {
