@@ -1,24 +1,27 @@
 use image::{imageops::FilterType, GenericImageView};
 use kmeans_colors::get_kmeans_hamerly;
 use palette::{FromColor, Lab, Srgb};
+use rand::{SeedableRng, rngs::StdRng};
+use rand_distr::{Distribution, Normal};
 
-pub fn run_pure_kmeans(path: &str, arg_str: &str) -> Vec<(Lab, f32)> {
+pub fn run_kmeans_wn(path: &str, noise_std_dev: Option<f32>, arg_str: &str) -> Vec<(Lab, f32)> {
     let k = parse_arg(arg_str, "k=", 10).clamp(1, 24);
+    let noise_std_dev = noise_std_dev.unwrap_or(0.01);
 
     let start = std::time::Instant::now();
-    let palette = extract_palette(path, k);
-    println!("K-Means (CIELAB) took: {:?}", start.elapsed());
+    let palette = extract_palette_wn(path, k, noise_std_dev);
+    println!("K-Means WN (CIELAB) took: {:?}", start.elapsed());
 
     println!("\nPalette:");
     for (i, (lab, ratio)) in palette.iter().enumerate() {
-        let hex = lab_to_hex(*lab);
+        let hex = crate::kmeans::lab_to_hex(*lab);
         println!("  {}: {} | Ratio: {:.4}", i + 1, hex, ratio);
     }
     
     palette
 }
 
-pub fn extract_palette(path: &str, k: usize) -> Vec<(Lab, f32)> {
+pub fn extract_palette_wn(path: &str, k: usize, noise_std_dev: f32) -> Vec<(Lab, f32)> {
     let sample_dim = 512;
     let n_pixels = sample_dim * sample_dim;
     let max_iter = 20;
@@ -30,12 +33,23 @@ pub fn extract_palette(path: &str, k: usize) -> Vec<(Lab, f32)> {
     let img_small = img.resize_exact(sample_dim, sample_dim, FilterType::Nearest);
     let mut pixels: Vec<Lab> = Vec::with_capacity(n_pixels as usize);
 
+    // Use a deterministic RNG to ensure reproducible metadata compilations
+    let mut rng = StdRng::seed_from_u64(seed);
+    let normal = Normal::new(0.0, noise_std_dev).unwrap();
+
     for (_, _, p) in img_small.pixels() {
-        pixels.push(Lab::from_color(Srgb::new(
+        let noise = normal.sample(&mut rng);
+        let mut srgb = Srgb::new(
             f32::from(p[0]) / 255.0,
             f32::from(p[1]) / 255.0,
             f32::from(p[2]) / 255.0,
-        )));
+        );
+        
+        srgb.red = (srgb.red + noise).clamp(0.0, 1.0);
+        srgb.green = (srgb.green + noise).clamp(0.0, 1.0);
+        srgb.blue = (srgb.blue + noise).clamp(0.0, 1.0);
+
+        pixels.push(Lab::from_color(srgb));
     }
 
     let result = get_kmeans_hamerly(k, max_iter, convergence, false, &pixels, seed);
@@ -94,15 +108,6 @@ pub fn extract_palette(path: &str, k: usize) -> Vec<(Lab, f32)> {
     
     palette.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
     palette
-}
-
-pub fn lab_to_hex(lab: Lab) -> String {
-    let srgb = Srgb::from_color(lab);
-    format!("#{:02X}{:02X}{:02X}", 
-        (srgb.red.clamp(0.0, 1.0) * 255.0).round() as u8,
-        (srgb.green.clamp(0.0, 1.0) * 255.0).round() as u8,
-        (srgb.blue.clamp(0.0, 1.0) * 255.0).round() as u8
-    )
 }
 
 fn parse_arg<T: std::str::FromStr>(args: &str, key: &str, default: T) -> T {

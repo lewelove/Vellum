@@ -3,7 +3,10 @@ use crate::compile::resolvers::standard;
 use image::GenericImageView;
 use image::imageops::FilterType;
 use kmeans_colors::get_kmeans_hamerly;
-use palette::{FromColor, Lab, Srgb};
+use palette::{FromColor, Lab, Oklch, Srgb};
+use rand::SeedableRng;
+use rand::rngs::StdRng;
+use rand::distr::{Distribution, Uniform};
 use serde_json::{Value, json};
 use std::path::Path;
 
@@ -113,16 +116,28 @@ pub fn resolve_cover_palette(ctx: &AlbumContext, args: &str) -> Option<Value> {
     let sample_dim = 512;
     let n_pixels = sample_dim * sample_dim;
     let max_iter = 20;
-    let convergence = 0.000;
     let seed = 42;
     let discard_threshold = 0.0000_f32;
     
+    let conv = args.split(',')
+        .find(|s| s.trim().starts_with("conv="))
+        .and_then(|s| s.trim().strip_prefix("conv="))
+        .and_then(|val| val.parse::<f32>().ok())
+        .unwrap_or(0.000)
+        .clamp(0.0, 1.0);
+
     let k = args.split(',')
         .find(|s| s.trim().starts_with("k="))
         .and_then(|s| s.trim().strip_prefix("k="))
         .and_then(|val| val.parse::<usize>().ok())
         .unwrap_or(10)
         .clamp(1, 24);
+
+    let noise = args.split(',')
+        .find(|s| s.trim().starts_with("noise="))
+        .and_then(|s| s.trim().strip_prefix("noise="))
+        .and_then(|val| val.parse::<f32>().ok())
+        .unwrap_or(0.0);
 
     let cover_path = ctx.cover_path?;
     let img = image::open(ctx.album_root.join(cover_path)).ok()?;
@@ -138,7 +153,17 @@ pub fn resolve_cover_palette(ctx: &AlbumContext, args: &str) -> Option<Value> {
         )));
     }
 
-    let result = get_kmeans_hamerly(k, max_iter, convergence, false, &pixels, seed);
+    if noise > 0.0 {
+        let mut rng = StdRng::seed_from_u64(seed as u64);
+        if let Ok(dist) = Uniform::new_inclusive(-noise, noise) {
+            for pixel in &mut pixels {
+                let offset = dist.sample(&mut rng);
+                pixel.l = (pixel.l + offset).clamp(0.0, 100.0);
+            }
+        }
+    }
+
+    let result = get_kmeans_hamerly(k, max_iter, conv, false, &pixels, seed);
     let actual_k = result.centroids.len();
     let total_px = n_pixels as f32;
 
@@ -187,7 +212,7 @@ pub fn resolve_cover_palette(ctx: &AlbumContext, args: &str) -> Option<Value> {
         }
         final_counts[best_target] += counts[d_idx];
     }
-
+    
     let mut palette: Vec<(Lab, f32)> = keep_indices.iter()
         .map(|&i| (result.centroids[i], final_counts[i] as f32 / total_px))
         .collect();
@@ -195,8 +220,8 @@ pub fn resolve_cover_palette(ctx: &AlbumContext, args: &str) -> Option<Value> {
     palette.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
 
     let palette_json: Vec<Value> = palette.iter()
-        .map(|(lab, ratio)| {
-            let srgb = Srgb::from_color(*lab);
+        .map(|(oklch, ratio)| {
+            let srgb = Srgb::from_color(*oklch);
             let hex = format!("#{:02X}{:02X}{:02X}", 
                 (srgb.red.clamp(0.0, 1.0) * 255.0).round() as u8,
                 (srgb.green.clamp(0.0, 1.0) * 255.0).round() as u8,

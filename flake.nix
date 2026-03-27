@@ -11,6 +11,16 @@
       let
         pkgs = import nixpkgs { inherit system; };
 
+        runtimeLibs = with pkgs; [
+          libGL
+          libxkbcommon
+          wayland
+          xorg.libX11
+          xorg.libXcursor
+          xorg.libXi
+          xorg.libXrandr
+        ];
+
         lyricsgenius = ps: ps.buildPythonPackage rec {
           pname = "lyricsgenius";
           version = "3.7.6";
@@ -118,7 +128,6 @@
                 echo "  harvest         : Harvest raw metadata to JSON"
                 echo "  write           : Sync metadata to audio tags"
                 echo "  report          : Generate listening reports"
-                echo "  test [flags]    : Run tests"
                 echo "    --lint        : Run clippy with -D warnings"
                 echo "    --fmt         : Run fmt check"
                 echo "    --deny        : Run cargo-deny check"
@@ -143,18 +152,15 @@
           clippy
           rustfmt
           cargo-deny
-          libGL
           glib
           gtk3
-          xorg.libX11
-        ];
+        ] ++ runtimeLibs;
       in
       {
         devShells.default = pkgs.mkShell {
           buildInputs = devPackages;
           shellHook = ''
-            export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath [ pkgs.libGL pkgs.glib pkgs.gtk3 pkgs.xorg.libX11 ]}:$LD_LIBRARY_PATH"
-
+            export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath runtimeLibs}:$LD_LIBRARY_PATH"
             export PYTHONDONTWRITEBYTECODE=1
             export PATH="$PWD/ui/node_modules/.bin:$PATH"
           '';
