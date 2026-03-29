@@ -1,5 +1,6 @@
 pub mod native;
 pub mod standard;
+pub mod cover_palette;
 
 use crate::compile::builder::context::{AlbumContext, TrackContext};
 use serde_json::{Value, json};

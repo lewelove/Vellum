@@ -45,3 +45,4 @@ indicatif = "0.18.4"
 indexmap = { version = "2.13.0", features = ["serde"] }
 notify = "8.2.0"
 rand = "0.10.0"
+mcu-material-color = "0.2.2"
