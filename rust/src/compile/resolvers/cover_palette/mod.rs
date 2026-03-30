@@ -1,4 +1,5 @@
 pub mod kmeans;
+pub mod kmeans_filtered;
 pub mod mcu_material;
 pub mod mean_shift;
 
@@ -14,7 +15,7 @@ pub fn resolve(ctx: &AlbumContext, args: &str) -> Option<Value> {
         .find(|s| s.trim().starts_with("dim="))
         .and_then(|s| s.trim().strip_prefix("dim="))
         .and_then(|val| val.parse::<u32>().ok())
-        .unwrap_or(256);
+        .unwrap_or(512);
 
     let img_small = img.resize_exact(sample_dim, sample_dim, FilterType::Nearest);
 
@@ -24,8 +25,9 @@ pub fn resolve(ctx: &AlbumContext, args: &str) -> Option<Value> {
         .unwrap_or("kmeans");
 
     let mut palette = match algo_type {
-        "mean_shift" => mean_shift::extract(&img_small, args),
-        "mcu_material" => mcu_material::extract(&img_small, args),
+        "msc" => mean_shift::extract(&img_small, args),
+        "material" => mcu_material::extract(&img_small, args),
+        "kmeans_filtered" => kmeans_filtered::extract(&img_small, args),
         "kmeans" | _ => kmeans::extract(&img_small, args),
     };
 
