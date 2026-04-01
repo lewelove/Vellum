@@ -33,7 +33,6 @@ pub struct ShaderConfig {
     pub speed: Option<f32>,
     pub zoom: Option<f32>,
     pub blur: Option<f32>,
-    pub edge_blur: Option<f32>,
     pub grain: Option<f32>,
     pub equalize: Option<f32>,
 }
