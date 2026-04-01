@@ -44,7 +44,7 @@ pub fn extract(img: &DynamicImage, args: &str) -> Vec<(String, f32)> {
 
     // HCT Filter Bounds - Parsed as f64 to match Hct internal types
     let hb = args.split(',').find(|s| s.trim().starts_with("Hb=")).and_then(|s| s.trim().strip_prefix("Hb=")).and_then(|v| v.parse::<f64>().ok()).unwrap_or(35.0);
-    let ht = args.split(',').find(|s| s.trim().starts_with("Ht=")).and_then(|s| s.trim().strip_prefix("Ht=")).and_then(|v| v.parse::<f64>().ok()).unwrap_or(111.0);
+    let ht = args.split(',').find(|s| s.trim().starts_with("Ht=")).and_then(|s| s.trim().strip_prefix("Ht=")).and_then(|v| v.parse::<f64>().ok()).unwrap_or(100.0);
     let cb = args.split(',').find(|s| s.trim().starts_with("Cb=")).and_then(|s| s.trim().strip_prefix("Cb=")).and_then(|v| v.parse::<f64>().ok()).unwrap_or(12.0);
     let ct = args.split(',').find(|s| s.trim().starts_with("Ct=")).and_then(|s| s.trim().strip_prefix("Ct=")).and_then(|v| v.parse::<f64>().ok()).unwrap_or(60.0);
     let tb = args.split(',').find(|s| s.trim().starts_with("Tb=")).and_then(|s| s.trim().strip_prefix("Tb=")).and_then(|v| v.parse::<f64>().ok()).unwrap_or(0.0);
