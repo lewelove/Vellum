@@ -17,13 +17,15 @@ async fn handle_socket(mut socket: WebSocket, state: Arc<AppState>) {
     let init_payload = {
         let lib_data = state.library.read().await.albums.clone();
         let ui_data = state.ui_state.read().await.clone();
+        let config_guard = state.config.read().await;
+        
         json!({
             "type": "INIT",
             "data": lib_data,
             "ui_state": ui_data,
             "config": {
-                "thumbnail_size": state.config.thumbnail_size,
-                "shader": state.config.shader
+                "thumbnail_size": config_guard.thumbnail_size,
+                "shader": config_guard.shader
             }
         })
         .to_string()

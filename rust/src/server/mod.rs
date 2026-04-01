@@ -40,13 +40,13 @@ pub async fn run(port: u16) -> Result<()> {
         };
     }
 
-    let server_config = Arc::new(ServerConfig {
+    let server_config = ServerConfig {
         library_root: library_root.clone(),
         thumbnail_root: thumb_root_str.map(expand_path),
         thumbnail_size: thumb_size,
         shader: shader_cfg,
-        resolved_shader_path: Arc::new(RwLock::new(resolved_path)),
-    });
+        resolved_shader_path: resolved_path,
+    };
 
     let state_file = expand_path("~/.vellum/state.json");
     let ui_state_val = if state_file.exists() {
@@ -73,14 +73,14 @@ pub async fn run(port: u16) -> Result<()> {
     let mpd_engine = mpd::start_actor(
         tx.clone(),
         Arc::clone(&library_arc),
-        Arc::clone(&server_config),
+        Arc::new(server_config.clone()),
     );
 
     let app_state = Arc::new(AppState {
         library: library_arc,
         ui_state: RwLock::new(ui_state_val),
         tx,
-        config: (*server_config).clone(),
+        config: RwLock::new(server_config),
         mpd_engine,
     });
 

@@ -31,8 +31,8 @@ pub fn start(config_path: PathBuf, state: Arc<AppState>) {
         let mut current_watched_shader: Option<PathBuf> = None;
 
         let initial_shader_path = {
-            let guard = state.config.resolved_shader_path.read().await;
-            guard.clone()
+            let guard = state.config.read().await;
+            guard.resolved_shader_path.clone()
         };
 
         if let Some(ref p) = initial_shader_path {
@@ -78,8 +78,10 @@ pub fn start(config_path: PathBuf, state: Arc<AppState>) {
                     }
 
                     {
-                        let mut path_guard = state.config.resolved_shader_path.write().await;
-                        *path_guard = resolved_path;
+                        let mut config_guard = state.config.write().await;
+                        config_guard.thumbnail_size = thumb_size;
+                        config_guard.shader = shader_cfg.clone();
+                        config_guard.resolved_shader_path = resolved_path.clone();
                     }
 
                     let payload = json!({

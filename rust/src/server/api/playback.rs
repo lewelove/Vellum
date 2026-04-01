@@ -74,6 +74,7 @@ async fn get_tracks_internal(
     disc_filter: Option<String>,
 ) -> Vec<String> {
     let lib = state.library.read().await;
+    let config_guard = state.config.read().await;
     let mut paths = Vec::new();
 
     let target_disc = disc_filter.and_then(|s| s.parse::<u32>().ok());
@@ -88,7 +89,7 @@ async fn get_tracks_internal(
 
             let tp = &track.info.track_library_path;
             if let Some(abs) = lib.track_map.get(tp)
-                && let Ok(rel) = abs.strip_prefix(&state.config.library_root)
+                && let Ok(rel) = abs.strip_prefix(&config_guard.library_root)
                 && let Some(s) = rel.to_str()
             {
                 paths.push(s.to_string());

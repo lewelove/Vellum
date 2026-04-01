@@ -8,7 +8,7 @@ pub struct AppState {
     pub library: Arc<RwLock<Library>>,
     pub ui_state: RwLock<serde_json::Value>,
     pub tx: broadcast::Sender<String>,
-    pub config: AppConfig,
+    pub config: RwLock<AppConfig>,
     pub mpd_engine: MpdEngine,
 }
 
@@ -18,5 +18,5 @@ pub struct AppConfig {
     pub thumbnail_root: Option<PathBuf>,
     pub thumbnail_size: u32,
     pub shader: Option<crate::config::ShaderConfig>,
-    pub resolved_shader_path: Arc<RwLock<Option<PathBuf>>>,
+    pub resolved_shader_path: Option<PathBuf>,
 }
