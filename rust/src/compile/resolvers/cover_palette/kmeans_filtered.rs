@@ -3,16 +3,20 @@ use kmeans_colors::get_kmeans_hamerly;
 use mcu_hct::Hct;
 use palette::{FromColor, Lab, Srgb};
 
-fn is_disliked(hct: &Hct) -> bool {
-    let hue_passes = hct.hue().round() >= 35.0 && hct.hue().round() <= 111.0;
-    let chroma_passes = hct.chroma().round() > 16.0;
-    let tone_passes = hct.tone().round() < 65.0;
+fn is_disliked(hct: &Hct, hb: f64, ht: f64, cb: f64, ct: f64, tb: f64, tt: f64) -> bool {
+    let hue = hct.hue();
+    let chroma = hct.chroma();
+    let tone = hct.tone();
+
+    let hue_passes = hue >= hb && hue <= ht;
+    let chroma_passes = chroma >= cb && chroma <= ct;
+    let tone_passes = tone >= tb && tone <= tt;
 
     hue_passes && chroma_passes && tone_passes
 }
 
-fn fix_if_disliked(hct: &Hct) -> Hct {
-    if is_disliked(hct) {
+fn fix_if_disliked(hct: &Hct, hb: f64, ht: f64, cb: f64, ct: f64, tb: f64, tt: f64) -> Hct {
+    if is_disliked(hct, hb, ht, cb, ct, tb, tt) {
         Hct::from(hct.hue(), hct.chroma(), 70.0)
     } else {
         *hct
@@ -37,6 +41,14 @@ pub fn extract(img: &DynamicImage, args: &str) -> Vec<(String, f32)> {
         .find(|s| s.trim().starts_with("mode="))
         .and_then(|s| s.trim().strip_prefix("mode="))
         .unwrap_or("cut");
+
+    // HCT Filter Bounds - Parsed as f64 to match Hct internal types
+    let hb = args.split(',').find(|s| s.trim().starts_with("Hb=")).and_then(|s| s.trim().strip_prefix("Hb=")).and_then(|v| v.parse::<f64>().ok()).unwrap_or(35.0);
+    let ht = args.split(',').find(|s| s.trim().starts_with("Ht=")).and_then(|s| s.trim().strip_prefix("Ht=")).and_then(|v| v.parse::<f64>().ok()).unwrap_or(111.0);
+    let cb = args.split(',').find(|s| s.trim().starts_with("Cb=")).and_then(|s| s.trim().strip_prefix("Cb=")).and_then(|v| v.parse::<f64>().ok()).unwrap_or(12.0);
+    let ct = args.split(',').find(|s| s.trim().starts_with("Ct=")).and_then(|s| s.trim().strip_prefix("Ct=")).and_then(|v| v.parse::<f64>().ok()).unwrap_or(60.0);
+    let tb = args.split(',').find(|s| s.trim().starts_with("Tb=")).and_then(|s| s.trim().strip_prefix("Tb=")).and_then(|v| v.parse::<f64>().ok()).unwrap_or(0.0);
+    let tt = args.split(',').find(|s| s.trim().starts_with("Tt=")).and_then(|s| s.trim().strip_prefix("Tt=")).and_then(|v| v.parse::<f64>().ok()).unwrap_or(50.0);
 
     let pixels: Vec<Lab> = img.to_rgb8().pixels().map(|p| {
         Lab::from_color(Srgb::new(
@@ -77,9 +89,9 @@ pub fn extract(img: &DynamicImage, args: &str) -> Vec<(String, f32)> {
     let mut total_filtered_ratio = 0.0;
 
     for (r, g, b, hct, ratio) in &all_colors {
-        if is_disliked(hct) {
+        if is_disliked(hct, hb, ht, cb, ct, tb, tt) {
             if mode == "fix" {
-                let fixed = fix_if_disliked(hct);
+                let fixed = fix_if_disliked(hct, hb, ht, cb, ct, tb, tt);
                 let fixed_argb = fixed.to_int();
                 let hex = format!("#{:06X}", fixed_argb & 0xFFFFFF);
                 filtered_palette.push((hex, *ratio));
