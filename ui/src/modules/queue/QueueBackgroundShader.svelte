@@ -227,16 +227,16 @@
       gl.uniform1i(gl.getUniformLocation(program, "iCount"), activeColorCount);
 
       const s = library.config.shader || {};
-      gl.uniform1f(gl.getUniformLocation(program, "iSpeed"), s.speed ?? 0.001);
-      gl.uniform1f(gl.getUniformLocation(program, "iZoom"), s.zoom ?? 0.3);
-      gl.uniform1f(gl.getUniformLocation(program, "iBlur"), s.blur ?? 0.66);
+      gl.uniform1f(gl.getUniformLocation(program, "iSpeed"), s.speed ?? 0.003);
+      gl.uniform1f(gl.getUniformLocation(program, "iZoom"), s.zoom ?? 0.5);
+      gl.uniform1f(gl.getUniformLocation(program, "iBlur"), s.blur ?? 0.9);
       
-      const baseEdgeBlur = s.edge_blur ?? 0.66;
-      const edgeBlurFactor = activeColorCount > 0 ? (activeColorCount / 24.0) : 1.0;
-      gl.uniform1f(gl.getUniformLocation(program, "iEdgeBlur"), baseEdgeBlur * edgeBlurFactor);
+      // const baseEdgeBlur = s.edge_blur ?? 0.66;
+      // const edgeBlurFactor = activeColorCount > 0 ? (activeColorCount / 24.0) : 1.0;
+      // gl.uniform1f(gl.getUniformLocation(program, "iEdgeBlur"), baseEdgeBlur * edgeBlurFactor);
 
-      gl.uniform1f(gl.getUniformLocation(program, "iGrain"), s.grain ?? 0.02);
-      gl.uniform1f(gl.getUniformLocation(program, "iEqualize"), s.equalize ?? 0.0);
+      gl.uniform1f(gl.getUniformLocation(program, "iGrain"), s.grain ?? 0.01);
+      gl.uniform1f(gl.getUniformLocation(program, "iEqualize"), s.equalize ?? 1.0);
 
       gl.drawArrays(gl.TRIANGLES, 0, 6);
       needsRedraw = false;
