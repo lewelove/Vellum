@@ -3,7 +3,7 @@
   import { library } from "../../library.svelte.js";
   
   import vertexShaderSource from "./shaders/quad.vert?raw";
-  import internalFragmentShader from "./shaders/marble.frag?raw";
+  import internalFragmentShader from "./shaders/mountain.frag?raw";
 
   let { colors =[], coverSize = 0, visible = false, isPlaying = false } = $props();
 
@@ -53,6 +53,14 @@
     return [L, A, B];
   }
 
+  function shuffle(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
+  }
+
   async function loadExternalShader(path) {
     if (!path) {
         shaderSource = internalFragmentShader;
@@ -75,7 +83,7 @@
   });
 
   $effect(() => {
-    const palette = (colors && colors.length > 0) ? colors : DEFAULT_PALETTE;
+    const palette = (colors && colors.length > 0) ? shuffle([...colors]) : [...DEFAULT_PALETTE];
     activeColorCount = Math.min(palette.length, 24);
     
     let hasRatios = false;
@@ -227,9 +235,9 @@
       gl.uniform1i(gl.getUniformLocation(program, "iCount"), activeColorCount);
 
       const s = library.config.shader || {};
-      gl.uniform1f(gl.getUniformLocation(program, "iSpeed"), s.speed ?? 0.003);
-      gl.uniform1f(gl.getUniformLocation(program, "iZoom"), s.zoom ?? 0.5);
-      gl.uniform1f(gl.getUniformLocation(program, "iBlur"), s.blur ?? 0.9);
+      gl.uniform1f(gl.getUniformLocation(program, "iSpeed"), s.speed ?? 0.007);
+      gl.uniform1f(gl.getUniformLocation(program, "iZoom"), s.zoom ?? 0.4);
+      gl.uniform1f(gl.getUniformLocation(program, "iBlur"), s.blur ?? 0.8);
       
       // const baseEdgeBlur = s.edge_blur ?? 0.66;
       // const edgeBlurFactor = activeColorCount > 0 ? (activeColorCount / 24.0) : 1.0;

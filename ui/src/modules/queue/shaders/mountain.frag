@@ -2,24 +2,24 @@
 precision highp float;
 precision highp int;
 
+#ifndef NUM_COLORS
+#define NUM_COLORS 24
+#endif
+
 uniform float iTime;
 uniform float iRandom;
 uniform vec2 iResolution;
 uniform float iCoverSize;
-uniform vec3 iColorsOklab[24];
-uniform float iRatios[24];
+uniform vec3 iColorsOklab[NUM_COLORS];
+uniform float iRatios[NUM_COLORS];
 uniform int iCount;
 
 uniform float iSpeed;
 uniform float iZoom;
 uniform float iBlur;
-uniform float iEdgeBlur;
 uniform float iGrain;
 
 out vec4 fragColor;
-
-const float WARP_STRENGTH_1 = 1.1;
-const float WARP_STRENGTH_2 = 1.0;
 
 vec3 oklab_to_srgb(vec3 c) {
     float l_ = c.x + 0.3963377774 * c.y + 0.2158037573 * c.z;
@@ -105,7 +105,7 @@ float snoise(vec3 v){
                                 dot(p2,x2), dot(p3,x3) ) );
 }
 
-float fbm_raw(vec3 p) {
+float fbm(vec3 p) {
     float v = 0.0;
     float a = 0.5;
     for (int i = 0; i < 3; i++) {
@@ -113,7 +113,13 @@ float fbm_raw(vec3 p) {
         p *= 2.0;
         a *= 0.5;
     }
-    return v / 0.875;
+    
+    v = v / 0.875;
+    v = v * 0.5 + 0.5;
+    v = 0.5 - 0.5 * cos(3.14159265 * v);
+    v = 0.5 - 0.5 * cos(3.14159265 * v);
+    
+    return clamp(v, 0.0, 1.0);
 }
 
 void main() {
@@ -124,56 +130,41 @@ void main() {
     
     float t = (iTime + iRandom) * iSpeed;
 
-    vec3 p3 = vec3(p * iZoom, t);
-
-    vec3 q = vec3(
-        fbm_raw(p3 + vec3(0.0, 0.0, t * 0.2)),
-        fbm_raw(p3 + vec3(5.2, 1.3, t * 0.2)),
-        0.0
-    );
-    
-    vec3 r = vec3(
-        fbm_raw(p3 + WARP_STRENGTH_1 * q + vec3(1.7, 9.2, t * 0.5)),
-        fbm_raw(p3 + WARP_STRENGTH_1 * q + vec3(8.3, 2.8, -t * 0.5)),
-        0.0
-    );
-    
-    float val = fbm_raw(p3 + WARP_STRENGTH_2 * r);
-
-    val = val * 0.5 + 0.5;
-    val = 0.5 - 0.5 * cos(3.14159265 * val);
-    val = 0.5 - 0.5 * cos(3.14159265 * val);
-    
-    val = clamp(val, 0.0, 1.0);
+    float val = fbm(vec3(p * iZoom, t));
 
     float totalWeight = 0.0;
-    for(int i = 0; i < 24; i++) {
-        if (i >= iCount) break;
+    for(int i = 0; i < NUM_COLORS; i++) {
         totalWeight += iRatios[i];
     }
     if (totalWeight <= 0.0) totalWeight = 1.0; 
 
     vec3 finalOklab = vec3(0.0);
     float cumulative = 0.00;
+    float currentEdgeSoftness = 0.0;
 
-    for(int i = 0; i < 24; i++) {
-        if (i >= iCount) break;
-        
+    for(int i = 0; i < NUM_COLORS; i++) {
         float weight = iRatios[i] / totalWeight;
         float nextCumulative = cumulative + weight;
         
-        float currentSoftness = min(iBlur, weight * iEdgeBlur); 
+        float nextWeight = 0.0;
+        if (i + 1 < NUM_COLORS) {
+            nextWeight = iRatios[i+1] / totalWeight;
+        }
         
-        float startMask = (i == 0) ? 1.0 : smoothstep(cumulative - currentSoftness, cumulative + currentSoftness, val);
-        float endMask = (i == iCount - 1) ? 0.0 : smoothstep(nextCumulative - currentSoftness, nextCumulative + currentSoftness, val);
+        float nextEdgeSoftness = iBlur * min(weight, nextWeight); 
+        
+        float startMask = (i == 0) ? 1.0 : smoothstep(cumulative - currentEdgeSoftness, cumulative + currentEdgeSoftness, val);
+        float endMask = (i == NUM_COLORS - 1) ? 0.0 : smoothstep(nextCumulative - nextEdgeSoftness, nextCumulative + nextEdgeSoftness, val);
         
         float weightMask = startMask - endMask;
         
         finalOklab += iColorsOklab[i] * max(0.0, weightMask);
+        
         cumulative = nextCumulative;
+        currentEdgeSoftness = nextEdgeSoftness;
     }
     
-    finalOklab = mix(finalOklab, vec3(0.5, 0.0, 0.0), 0.1);
+    finalOklab.x = 0.1 + (finalOklab.x * 0.8);
     
     vec3 finalColor = oklab_to_srgb(finalOklab);
 
@@ -182,5 +173,4 @@ void main() {
     
     fragColor = vec4(finalColor, 1.0);
 }
-
 
