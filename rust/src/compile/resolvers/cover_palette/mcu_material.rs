@@ -1,7 +1,8 @@
 use image::DynamicImage;
 use mcu_material_color::prelude::*;
+use palette::Srgb;
 
-pub fn extract(img: &DynamicImage, args: &str) -> Vec<(String, f32)> {
+pub fn extract(img: &DynamicImage, args: &str) -> Vec<(Srgb, f32)> {
     let k = args.split(',')
         .find(|s| s.trim().starts_with("k="))
         .and_then(|s| s.trim().strip_prefix("k="))
@@ -32,9 +33,11 @@ pub fn extract(img: &DynamicImage, args: &str) -> Vec<(String, f32)> {
     if total_selected_population > 0.0 {
         for color in ranked_colors {
             if let Some(&count) = color_counts.get(&color) {
-                let hex = format!("#{:06X}", color & 0xFFFFFF);
+                let r = ((color >> 16) & 0xFF) as f32 / 255.0;
+                let g = ((color >> 8) & 0xFF) as f32 / 255.0;
+                let b = (color & 0xFF) as f32 / 255.0;
                 let ratio = count as f32 / total_selected_population;
-                result.push((hex, ratio));
+                result.push((Srgb::new(r, g, b), ratio));
             }
         }
     }

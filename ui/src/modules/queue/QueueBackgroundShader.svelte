@@ -83,7 +83,34 @@
   });
 
   $effect(() => {
-    const palette = (colors && colors.length > 0) ? shuffle([...colors]) : [...DEFAULT_PALETTE];
+    let palette = (colors && colors.length > 0) ? [...colors] : [...DEFAULT_PALETTE];
+    
+    const order = library.config.shader?.order || "random";
+
+    if (order === "random") {
+      shuffle(palette);
+    } else if (order === "ratio") {
+      palette.sort((a, b) => {
+        const rA = Array.isArray(a) ? parseFloat(a[a.length - 1]) : 0;
+        const rB = Array.isArray(b) ? parseFloat(b[b.length - 1]) : 0;
+        return rB - rA; 
+      });
+    } else if (order.startsWith("oklch,")) {
+      const comp = order.split(",")[1];
+      palette.sort((a, b) => {
+        if (!Array.isArray(a) || !Array.isArray(b) || a.length < 2 || b.length < 2) return 0;
+        
+        const parse = (str) => {
+          const m = str.match(/oklch\(([\d.]+)%\s+([\d.]+)\s+([\d.]+)\)/);
+          return m ? { L: parseFloat(m[1]), C: parseFloat(m[2]), H: parseFloat(m[3]) } : { L:0, C:0, H:0 };
+        };
+        
+        const valA = parse(a[1])[comp] || 0;
+        const valB = parse(b[1])[comp] || 0;
+        return valA - valB;
+      });
+    }
+
     activeColorCount = Math.min(palette.length, 24);
     
     let hasRatios = false;
@@ -100,7 +127,7 @@
     for (let i = 0; i < activeColorCount; i++) {
       const c = palette[i];
       if (hasRatios) {
-        rawRatios[i] = Array.isArray(c) ? parseFloat(c[1]) : 0.0;
+        rawRatios[i] = Array.isArray(c) ? parseFloat(c[c.length - 1]) : 0.0;
       } else {
         rawRatios[i] = 1.0 / (i + 1.0);
       }
@@ -238,10 +265,6 @@
       gl.uniform1f(gl.getUniformLocation(program, "iSpeed"), s.speed ?? 0.007);
       gl.uniform1f(gl.getUniformLocation(program, "iZoom"), s.zoom ?? 0.4);
       gl.uniform1f(gl.getUniformLocation(program, "iBlur"), s.blur ?? 0.8);
-      
-      // const baseEdgeBlur = s.edge_blur ?? 0.66;
-      // const edgeBlurFactor = activeColorCount > 0 ? (activeColorCount / 24.0) : 1.0;
-      // gl.uniform1f(gl.getUniformLocation(program, "iEdgeBlur"), baseEdgeBlur * edgeBlurFactor);
 
       gl.uniform1f(gl.getUniformLocation(program, "iGrain"), s.grain ?? 0.01);
       gl.uniform1f(gl.getUniformLocation(program, "iEqualize"), s.equalize ?? 1.0);

@@ -1,7 +1,7 @@
 use image::DynamicImage;
 use palette::{FromColor, Lab, Srgb};
 
-pub fn extract(img: &DynamicImage, args: &str) -> Vec<(String, f32)> {
+pub fn extract(img: &DynamicImage, args: &str) -> Vec<(Srgb, f32)> {
     let bw = args.split(',')
         .find(|s| s.trim().starts_with("bw="))
         .and_then(|s| s.trim().strip_prefix("bw="))
@@ -107,15 +107,10 @@ pub fn extract(img: &DynamicImage, args: &str) -> Vec<(String, f32)> {
     }
     
     let full_total = full_pixels.len() as f32;
-    let result: Vec<(String, f32)> = centers.into_iter().zip(counts.into_iter()).map(|(lab, count)| {
+    let result: Vec<(Srgb, f32)> = centers.into_iter().zip(counts.into_iter()).map(|(lab, count)| {
         let srgb = Srgb::from_color(lab);
-        let hex = format!("#{:02X}{:02X}{:02X}", 
-            (srgb.red.clamp(0.0, 1.0) * 255.0).round() as u8,
-            (srgb.green.clamp(0.0, 1.0) * 255.0).round() as u8,
-            (srgb.blue.clamp(0.0, 1.0) * 255.0).round() as u8
-        );
         let ratio = count as f32 / full_total;
-        (hex, ratio)
+        (srgb, ratio)
     }).collect();
     
     result

@@ -23,7 +23,7 @@ fn fix_if_disliked(hct: &Hct, hb: f64, ht: f64, cb: f64, ct: f64, tb: f64, tt: f
     }
 }
 
-pub fn extract(img: &DynamicImage, args: &str) -> Vec<(String, f32)> {
+pub fn extract(img: &DynamicImage, args: &str) -> Vec<(Srgb, f32)> {
     let k = args.split(',')
         .find(|s| s.trim().starts_with("k="))
         .and_then(|s| s.trim().strip_prefix("k="))
@@ -42,7 +42,6 @@ pub fn extract(img: &DynamicImage, args: &str) -> Vec<(String, f32)> {
         .and_then(|s| s.trim().strip_prefix("mode="))
         .unwrap_or("cut");
 
-    // HCT Filter Bounds - Parsed as f64 to match Hct internal types
     let hb = args.split(',').find(|s| s.trim().starts_with("Hb=")).and_then(|s| s.trim().strip_prefix("Hb=")).and_then(|v| v.parse::<f64>().ok()).unwrap_or(35.0);
     let ht = args.split(',').find(|s| s.trim().starts_with("Ht=")).and_then(|s| s.trim().strip_prefix("Ht=")).and_then(|v| v.parse::<f64>().ok()).unwrap_or(100.0);
     let cb = args.split(',').find(|s| s.trim().starts_with("Cb=")).and_then(|s| s.trim().strip_prefix("Cb=")).and_then(|v| v.parse::<f64>().ok()).unwrap_or(12.0);
@@ -93,21 +92,27 @@ pub fn extract(img: &DynamicImage, args: &str) -> Vec<(String, f32)> {
             if mode == "fix" {
                 let fixed = fix_if_disliked(hct, hb, ht, cb, ct, tb, tt);
                 let fixed_argb = fixed.to_int();
-                let hex = format!("#{:06X}", fixed_argb & 0xFFFFFF);
-                filtered_palette.push((hex, *ratio));
+                let fr = ((fixed_argb >> 16) & 0xFF) as f32 / 255.0;
+                let fg = ((fixed_argb >> 8) & 0xFF) as f32 / 255.0;
+                let fb = (fixed_argb & 0xFF) as f32 / 255.0;
+                filtered_palette.push((Srgb::new(fr, fg, fb), *ratio));
                 total_filtered_ratio += ratio;
             }
         } else {
-            let hex = format!("#{:02X}{:02X}{:02X}", r, g, b);
-            filtered_palette.push((hex, *ratio));
+            let fr = *r as f32 / 255.0;
+            let fg = *g as f32 / 255.0;
+            let fb = *b as f32 / 255.0;
+            filtered_palette.push((Srgb::new(fr, fg, fb), *ratio));
             total_filtered_ratio += ratio;
         }
     }
 
     if filtered_palette.is_empty() && !all_colors.is_empty() {
         let (r, g, b, _, ratio) = &all_colors[0];
-        let hex = format!("#{:02X}{:02X}{:02X}", r, g, b);
-        filtered_palette.push((hex, *ratio));
+        let fr = *r as f32 / 255.0;
+        let fg = *g as f32 / 255.0;
+        let fb = *b as f32 / 255.0;
+        filtered_palette.push((Srgb::new(fr, fg, fb), *ratio));
         total_filtered_ratio += ratio;
     }
 
