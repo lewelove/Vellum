@@ -3,8 +3,8 @@
 </script>
 
 <button class="sidebar-item" class:active {onclick}>
-  <span class="label" title={label}>{label}</span>
-  <span class="count">{count}</span>
+  <span class="v-truncate label" title={label}>{label}</span>
+  <span class="v-mono count">{count}</span>
 </button>
 
 <style>
@@ -42,15 +42,11 @@
 
   .label {
     flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
     margin-right: 8px;
   }
 
   .count {
     opacity: 0.5;
     font-size: 13px;
-    font-feature-settings: "tnum";
   }
 </style>

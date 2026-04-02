@@ -23,67 +23,35 @@
   let trackCount = $derived(parseInt(album.total_tracks || "0"));
 
   async function handlePlay() {
-    try {
-      await playAlbum(album.id);
-    } catch (err) {
-      console.error("Failed to play album:", err);
-    }
+    try { await playAlbum(album.id); } catch (err) { console.error(err); }
   }
 
   async function handleQueue() {
-    try {
-      await queueAlbum(album.id);
-    } catch (err) {
-      console.error("Failed to queue album:", err);
-    }
+    try { await queueAlbum(album.id); } catch (err) { console.error(err); }
   }
 
   async function handleOpenFolder() {
-    try {
-      await openAlbumFolder(album.id);
-    } catch (err) {
-      console.error("Failed to open folder:", err);
-    }
+    try { await openAlbumFolder(album.id); } catch (err) { console.error(err); }
   }
 
   async function handleOpenLock() {
-    try {
-      await openLockFile(album.id);
-    } catch (err) {
-      console.error("Failed to open lock file:", err);
-    }
+    try { await openLockFile(album.id); } catch (err) { console.error(err); }
   }
 
   async function handleOpenManifest() {
-    try {
-      await openManifestFile(album.id);
-    } catch (err) {
-      console.error("Failed to open manifest file:", err);
-    }
+    try { await openManifestFile(album.id); } catch (err) { console.error(err); }
   }
 
   async function handleUpdate() {
-    try {
-      await updateAlbum(album.id);
-    } catch (err) {
-      console.error("Failed to update album:", err);
-    }
+    try { await updateAlbum(album.id); } catch (err) { console.error(err); }
   }
 
   async function handlePlayTrack(index) {
-    try {
-      await playAlbum(album.id, index);
-    } catch (err) {
-      console.error("Failed to play track:", err);
-    }
+    try { await playAlbum(album.id, index); } catch (err) { console.error(err); }
   }
 
   async function handlePlayDisc(discNumber) {
-    try {
-      await playDisc(album.id, discNumber);
-    } catch (err) {
-      console.error("Failed to play disc:", err);
-    }
+    try { await playDisc(album.id, discNumber); } catch (err) { console.error(err); }
   }
 
   function handleBackdropClick(e) {
@@ -99,7 +67,7 @@
   role="presentation"
   transition:fade={{ duration: 100 }}
 >
-  <div class="modal-chassis">
+  <div class="modal-chassis v-panel">
     <div class="modal-content">
       
       <div class="column-left" bind:clientWidth={leftColumnWidth}>
@@ -118,33 +86,21 @@
           <h3 class="album-artist">{album.artist}</h3>
 
           {#if album.DATE}
-            <span class="meta-date">{album.DATE}</span>
+            <span class="v-mono meta-date">{album.DATE}</span>
           {/if}
           
           <div class="meta-stack">
-
-            <div class="meta-row">
-              <span class="meta-val">{album.album_duration_time || "--:--"}</span>
+            <div class="v-mono meta-row">
+              <span class="v-truncate meta-val">{album.album_duration_time || "--:--"}</span>
               
               {#if discCount > 1}
                 <span class="meta-sep">•</span>
-                <span class="meta-val">{discCount} Discs</span>
+                <span class="v-truncate meta-val">{discCount} Discs</span>
               {/if}
 
               <span class="meta-sep">•</span>
-              <span class="meta-val">{trackCount} Tracks</span>
+              <span class="v-truncate meta-val">{trackCount} Tracks</span>
             </div>
-
-            <!-- <div class="meta-row"> -->
-
-              <!-- {#if album.DATE && genreString} -->
-              <!--   <span class="meta-sep">•</span> -->
-              <!-- {/if} -->
-              <!---->
-              <!-- {#if genreString} -->
-              <!--   <span class="meta-val genre">{genreString}</span> -->
-              <!-- {/if} -->
-            <!-- </div> -->
           </div>
         </div>
       </div>
@@ -152,28 +108,28 @@
       <div class="column-right">
         <div class="button-bar">
           <div class="bar-group">
-            <button class="icon-btn" onclick={handleUpdate} title="Update Album">
+            <button class="v-btn-icon icon-btn" onclick={handleUpdate} title="Update Album">
               <img src="/icons/24px/refresh.svg" alt="Update"/>
             </button>
-            <button class="icon-btn" onclick={handleOpenFolder} title="Open Local Folder">
+            <button class="v-btn-icon icon-btn" onclick={handleOpenFolder} title="Open Local Folder">
               <img src="/icons/24px/folder.svg" alt="Open"/>
             </button>
-            <button class="icon-btn" onclick={handleOpenManifest} title="Open Manifest">
+            <button class="v-btn-icon icon-btn" onclick={handleOpenManifest} title="Open Manifest">
               <img src="/icons/24px/edit_document.svg" alt="Manifest"/>
             </button>
-            <button class="icon-btn" onclick={handleOpenLock} title="Open Data Object">
+            <button class="v-btn-icon icon-btn" onclick={handleOpenLock} title="Open Data Object">
               <img src="/icons/24px/code.svg" alt="Data Object"/>
             </button>
           </div>
 
           <div class="bar-group right">
-            <button class="icon-btn" onclick={handlePlay} title="Play Album">
+            <button class="v-btn-icon icon-btn" onclick={handlePlay} title="Play Album">
               <img src="/icons/24px/play_arrow.svg" alt="" />
             </button>
           </div>
         </div>
         <div class="tracks-scroll-area">
-          <div class="scroll-fade-overlay-top"></div>
+          <div class="v-scroll-fade-top"></div>
           <ModalDrawerTracks 
             tracks={album.tracks} 
             totalDiscs={album.total_discs} 
@@ -181,7 +137,7 @@
             onplay={handlePlayTrack} 
             onplaydisc={handlePlayDisc}
           />
-          <div class="scroll-fade-overlay-bottom"></div>
+          <div class="v-scroll-fade-bottom"></div>
         </div>
       </div>
 
@@ -224,10 +180,6 @@
   .modal-chassis {
     width: 80vw;
     height: 85vh;
-    background-color: #242424;
-    box-shadow: 0 0 64px rgba(0, 0, 0, 0.1), 0 0 48px rgba(0, 0, 0, 0.3), 0 0 32px rgba(0, 0, 0, 0.5);
-    border-radius: 16px;
-    overflow: hidden;
   }
 
   .modal-content {
@@ -268,7 +220,7 @@
     margin: 0;
     font-size: 25px;
     font-weight: 400;
-    color: #ffffff;
+    color: var(--text-main);
     word-wrap: break-word;
   }
 
@@ -276,7 +228,7 @@
     margin: 5px 0 0 0;
     font-size: 20px;
     font-weight: 400;
-    color: #CCCCCC;
+    color: var(--text-muted);
     word-wrap: break-word;
   }
 
@@ -288,25 +240,15 @@
   }
 
   .meta-row, .meta-date {
-    font-feature-settings: "tnum";
     display: flex;
     align-items: center;
     font-size: 16px;
     color: #888888;
     gap: 12px;
-    white-space: nowrap;
-    overflow: hidden;
-    /* min-height: 20px; */
   }
-
 
   .meta-date {
     margin: 12px 0 0 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .meta-val {
     overflow: hidden;
     text-overflow: ellipsis;
   }
@@ -325,39 +267,17 @@
     min-height: 0;
     height: 100%;
     box-sizing: border-box;
-    background-color: #242424;
+    background-color: var(--background-drawer);
   }
 
   .icon-btn {
     width: 36px;
     height: 36px;
-    background-color: rgba(255, 255, 255, 0.01);
-    border: 2px solid rgba(255, 255, 255, 0.08);
-    padding: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    border-radius: 8px;
-    box-shadow: var(--button-shadow);
-    transition: background-color 0.1s, border-color 0.1s;
-  }
-
-  .icon-btn:hover {
-    background-color: rgba(255, 255, 255, 0.03);
-    border-color: rgba(255, 255, 255, 0.1);
   }
 
   .icon-btn img {
     width: 20px;
     height: 20px;
-    opacity: 0.7;
-    pointer-events: none;
-    transition: opacity 0.1s;
-  }
-
-  .icon-btn:hover img {
-    opacity: 1;
   }
 
   .tracks-scroll-area {
@@ -365,31 +285,9 @@
     flex: 1;
     overflow-y: scroll;
     min-height: 0;
-    background-color: #242424;
+    background-color: var(--background-drawer);
     transform: translateZ(0);
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  }
-
-  .scroll-fade-overlay-top {
-    position: sticky;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 12px;
-    background: linear-gradient(to bottom, #242424 0%, transparent 100%);
-    z-index: 10;
-    pointer-events: none;
-  }
-
-  .scroll-fade-overlay-bottom {
-    position: sticky;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 12px;
-    background: linear-gradient(to top, #242424 0%, transparent 100%);
-    z-index: 10;
-    pointer-events: none;
   }
 
   .tracks-scroll-area::-webkit-scrollbar {

@@ -1,14 +1,39 @@
 @import url('https://rsms.me/inter/inter.css');
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Noto+Music&family=Noto+Sans+Arabic:wght@400;700&family=Noto+Sans+JP:wght@400;700&family=Noto+Sans+KR:wght@400;700&family=Noto+Sans+SC:wght@400;700&family=Noto+Sans+TC:wght@400;700&display=swap');
 
-button:focus,
-input:focus,
-textarea:focus,
-select:focus {
-  outline: none;
-}
-
 :root {
+  --palette-100: #242424;
+  --palette-200: #323232;
+  --palette-300: #424242;
+  --palette-400: #CCCCCC;
+  --palette-500: #FFFFFF;
+
+  --background-main: var(--palette-200);
+  --background-drawer: var(--palette-100);
+  --text-main: var(--palette-500);
+  --text-muted: var(--palette-400);
+  --border-muted: var(--palette-300);
+
+  --font-size-title: 14px;
+  --font-weight-title: 400;
+  --font-size-artist: 12px;
+  --font-weight-artist: 400;
+
+  --crease-height: 20px;
+  --gap-x: 30px;
+  --gap-y: 16px;
+  --cover-size: 190px;
+  --text-gap-main: 11px;
+  --text-gap-lesser: 2px;
+  --font-line-height-title: 16px;
+  --font-line-height-artist: 14px;
+  
+  --album-cover-shadow: 0px 0px 10px -1px rgba(0,0,0,0.3), 0px 0px 8px 0px rgba(0,0,0,0.4);
+  --modal-shadow: 0px 0px 8px 0px rgba(0,0,0,0.2), 0px 0px 6px 0px rgba(0,0,0,0.2);
+  --panel-shadow: 0px 0px 8px 0px rgba(0,0,0,0.2), 0px 0px 6px 0px rgba(0,0,0,0.2);
+  --button-shadow: 0px 0px 4px 0px rgba(0,0,0,0.3), 0px 0px 2px 0px rgba(0,0,0,0.3),  0px 0px 1px 0px rgba(0,0,0,0.3);
+  --button-shadow-lesser: 0px 0px 4px 0px rgba(0,0,0,0.2), 0px 0px 2px 0px rgba(0,0,0,0.2);
+
   --font-stack: 
     'Inter', 
     'Noto Sans', 
@@ -19,36 +44,23 @@ select:focus {
     'system-ui', 
     sans-serif;
 
-    --font-mono: 'Inter', monospace;
-    --font-mono-weight: 400;
+  --font-mono: 'Inter', monospace;
+  --font-mono-weight: 400;
 }
 
-.vga-line,
-code, 
-pre {
-  font-family: var(--font-mono) !important;
-  font-weight: var(--font-mono-weight) !important;
-  font-style: normal !important;
-  font-size: 14px !important;
-  font-feature-settings: "tnum";
-  text-shadow: 0 0 4px rgba(255, 255, 255, 0.2);
-}
-
-.col-index, 
-code, 
-pre {
-  font-family: var(--font-stack) !important;
-  font-weight: 400;
-  font-style: normal !important;
-  font-size: 13px !important;
-  opacity: 1 !important;
+/* Base resets */
+button:focus,
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
 }
 
 html, body, #app {
   margin: 0;
   padding: 0;
-  background-color: #111;
-  color: #ccc;
+  background-color: var(--background-main);
+  color: var(--text-muted);
   font-family: var(--font-stack);
   overflow: hidden; 
   height: 100%; 
@@ -60,8 +72,8 @@ html, body, #app {
 }
 
 ::selection {
-  background: transparent;
-  color: inherit;
+  background-color: var(--border-muted);
+  color: var(--text-main);
 }
 
 main {
@@ -81,7 +93,111 @@ main {
   flex-direction: column;
 }
 
-::selection {
-  background-color: var(--border-muted);
+/* Global Utility Classes */
+.v-mono {
+  font-family: var(--font-mono) !important;
+  font-weight: var(--font-mono-weight) !important;
+  font-style: normal !important;
+  font-feature-settings: "tnum";
+}
+
+.v-panel {
+  background-color: var(--background-drawer);
+  box-shadow: 0 0 64px rgba(0, 0, 0, 0.1), 0 0 48px rgba(0, 0, 0, 0.3), 0 0 32px rgba(0, 0, 0, 0.5);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.v-glass {
+  backdrop-filter: blur(16px) brightness(0.7) contrast(0.9);
+  box-shadow: 0 0 16px rgba(0, 0, 0, 0.1), 0 0 16px rgba(0, 0, 0, 0.2), 0 0 10px rgba(0, 0, 0, 0.2);
+  background-color: rgba(36, 36, 36, 0.26); /* #24242442 approx */
+}
+
+.v-btn-icon {
+  background-color: rgba(255, 255, 255, 0.01);
+  border: 2px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.1s ease;
+  box-shadow: var(--button-shadow);
+  box-sizing: border-box;
+  border-radius: 8px;
+}
+
+.v-btn-icon:hover {
+  background-color: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.v-btn-icon.active {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.v-btn-icon img {
+  opacity: 0.5;
+  transition: opacity 0.1s ease;
+  pointer-events: none;
+}
+
+.v-btn-icon:hover img, .v-btn-icon.active img {
+  opacity: 1;
+}
+
+.v-scroll-fade-top {
+  position: sticky;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 12px;
+  background: linear-gradient(to bottom, var(--background-drawer) 0%, transparent 100%);
+  z-index: 10;
+  pointer-events: none;
+}
+
+.v-scroll-fade-bottom {
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 12px;
+  background: linear-gradient(to top, var(--background-drawer) 0%, transparent 100%);
+  z-index: 10;
+  pointer-events: none;
+}
+
+.v-track-row {
+  display: flex;
+  align-items: flex-start;
+  font-size: 14px;
   color: var(--text-main);
+  cursor: default;
+  outline: none;
+  user-select: none;
+  background-color: transparent;
+  contain: layout;
+  box-sizing: border-box;
+  border-radius: 8px;
+  transition: background-color 0.1s ease, border-color 0.1s ease;
+  border: 1px solid transparent;
+}
+
+.v-track-row:hover {
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+.v-track-row.active {
+  background-color: rgba(255, 255, 255, 0.02);
+  border-color: rgba(255, 255, 255, 0.05);
+}
+
+.v-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  word-break: keep-all;
+  overflow-wrap: break-word;
 }

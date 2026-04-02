@@ -119,12 +119,12 @@
           />
           <div class="header-content">
             <div class="header-row">
-              <span class="header-album">{group.albumMeta.ALBUM}</span>
-              <span class="header-meta">{group.albumMeta.ORIGINAL_YEAR || group.albumMeta.DATE?.substring(0,4)}</span>
+              <span class="v-truncate header-album">{group.albumMeta.ALBUM}</span>
+              <span class="v-mono header-meta">{group.albumMeta.ORIGINAL_YEAR || group.albumMeta.DATE?.substring(0,4)}</span>
             </div>
             <div class="header-row">
-              <span class="header-artist">{group.albumMeta.ALBUMARTIST}</span>
-              <span class="header-meta">{group.albumMeta.album_duration_time}</span>
+              <span class="v-truncate header-artist">{group.albumMeta.ALBUMARTIST}</span>
+              <span class="v-mono header-meta">{group.albumMeta.album_duration_time}</span>
             </div>
           </div>
         </div>
@@ -142,20 +142,20 @@
           <div class="disc-header-row" class:first-disc={i === 0}>
             <span class="disc-label">Disc {track.discNo}</span>
             <div class="disc-header-right">
-              <span class="disc-duration-label">{getDiscDuration(group.tracks, track.discNo)}</span>
+              <span class="v-mono disc-duration-label">{getDiscDuration(group.tracks, track.discNo)}</span>
             </div>
           </div>
         {/if}
 
-        <div class="track-row" class:active={track.isPlaying}>
-          <span class="track-index">{track.trackNo}</span>
+        <div class="v-track-row track-row" class:active={track.isPlaying}>
+          <span class="v-mono track-index">{track.trackNo}</span>
           <div class="track-body">
-            <span class="track-title">{track.title}</span>
+            <span class="v-truncate track-title">{track.title}</span>
             {#if track.artist && group.albumMeta && track.artist.toLowerCase() !== group.albumMeta.ALBUMARTIST.toLowerCase()}
-              <span class="track-artist">{track.artist}</span>
+              <span class="v-truncate track-artist">{track.artist}</span>
             {/if}
           </div>
-          <span class="track-meta">
+          <span class="v-mono track-meta">
             {#if track.isPlaying}
               {formatSeconds(tickingElapsed)} / {formatDuration(track.duration)}
             {:else}
@@ -171,7 +171,6 @@
 <style>
   .header-row,
   .disc-header-row,
-  .track-row,
   .header-album,
   .header-artist,
   .header-meta,
@@ -185,7 +184,6 @@
   }
 
   .header-album,
-  .track-row,
   .track-title {
     color: #ffffff;
   }
@@ -256,25 +254,15 @@
 
   .header-album {
     font-size: 16px;
-    white-space: nowrap;
-    overflow: hidden;
-    word-break: keep-all;
-    overflow-wrap: break-word;
   }
 
   .header-artist {
     font-size: 14px;
-    white-space: nowrap;
-    overflow: hidden;
-    word-break: keep-all;
-    overflow-wrap: break-word;
   }
 
   .header-meta {
     font-size: 13px;
-    white-space: nowrap;
     margin-left: 8px;
-    font-feature-settings: "tnum";
   }
 
   .disc-separator {
@@ -318,44 +306,19 @@
   }
 
   .disc-duration-label {
-    font-feature-settings: "tnum";
     font-weight: 400;
   }
 
   .track-row {
-    position: relative;
-    display: flex;
-    align-items: flex-start;
     padding: 4px 0px;
-    font-size: 14px;
-    cursor: default;
-    user-select: none;
-    background-color: transparent;
-    /* background-color: rgba(36, 36, 36, 0.16); */
-    border-radius: 8px;
-    border: 1px solid transparent;
-    /* border: 1px solid rgba(255, 255, 255, 0.1); */
     margin: 0 0px;
-    /* transition: background-color 0.1s ease; */
-    overflow: hidden;
   }
 
   .track-row + .track-row {
     margin-top: 4px;
   }
 
-  .track-row:hover {
-    background-color: rgba(255, 255, 255, 0.01);
-    border-color: rgba(255, 255, 255, 0.04);
-  }
-
-  .track-row.active {
-    background-color: rgba(255, 255, 255, 0.02);
-    border-color: rgba(255, 255, 255, 0.05);
-  }
-
   .track-index {
-    font-feature-settings: "tnum";
     position: relative;
     z-index: 1;
     flex: 0 0 44px;
@@ -378,16 +341,12 @@
   .track-title {
     font-size: 14px;
     line-height: 18px;
-    word-break: keep-all;
-    overflow-wrap: break-word;
   }
 
   .track-artist {
     font-size: 13px;
     margin-top: 4px;
     line-height: 16px;
-    word-break: keep-all;
-    overflow-wrap: break-word;
   }
 
   .track-meta {
@@ -395,7 +354,6 @@
     z-index: 1;
     text-align: right;
     font-size: 13px;
-    font-feature-settings: "tnum";
     padding-right: 18px;
     min-width: 44px;
     line-height: 18px;

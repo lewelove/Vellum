@@ -62,7 +62,7 @@
       <div class="button-wrapper flex-grow">
         <button class="sidebar-btn" onclick={toggleSortMenu} class:active={isSortMenuOpen} title="Sort By">
           <img src="icons/20px/swap_vert.svg" alt="" class="btn-icon" />
-          <span class="btn-label">{sortLabel}</span>
+          <span class="v-truncate btn-label">{sortLabel}</span>
           <img 
             src={isSortMenuOpen ? "icons/24px/arrow_drop_up.svg" : "icons/24px/arrow_drop_down.svg"} 
             class="chevron" 
@@ -99,7 +99,7 @@
       <div class="button-wrapper flex-grow">
         <button class="sidebar-btn" onclick={toggleGroupMenu} class:active={isGroupMenuOpen} title="Group By">
           <img src="icons/20px/stack.svg" alt="" class="btn-icon" />
-          <span class="btn-label">{groupLabel}</span>
+          <span class="v-truncate btn-label">{groupLabel}</span>
           <img 
             src={isGroupMenuOpen ? "icons/24px/arrow_drop_up.svg" : "icons/24px/arrow_drop_down.svg"}  
             class="chevron" 
@@ -125,7 +125,7 @@
   </div>
 
   <div class="sidebar-scroll">
-    <div class="scroll-fade-overlay-top"></div>
+    <div class="v-scroll-fade-top"></div>
     {#each items as item}
       <SidebarItem 
         label={item.label} 
@@ -135,7 +135,7 @@
       />
     {/each}
     <div class="scroll-spacer"></div>
-    <div class="scroll-fade-overlay-bottom"></div>
+    <div class="v-scroll-fade-bottom"></div>
   </div>
 </div>
 
@@ -240,8 +240,6 @@
   }
 
   .btn-icon {
-    /* width: 20px; */
-    /* height: 20px; */
     opacity: 0.7;
     margin-right: 8px;
     flex-shrink: 0;
@@ -263,9 +261,6 @@
   .btn-label {
     flex: 1;
     text-align: left;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
     text-transform: lowercase;
   }
 
@@ -338,36 +333,6 @@
 
   .sidebar-scroll::-webkit-scrollbar {
     display: none;
-  }
-
-  .scroll-fade-overlay-top {
-    position: sticky;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 12px;
-    background: linear-gradient(
-      to bottom, 
-      var(--background-drawer) 0%, 
-      transparent 100%
-    );
-    z-index: 10;
-    pointer-events: none;
-  }
-
-  .scroll-fade-overlay-bottom {
-    position: sticky;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 12px;
-    background: linear-gradient(
-      to top, 
-      var(--background-drawer) 0%, 
-      transparent 100%
-    );
-    z-index: 10;
-    pointer-events: none;
   }
 
   .scroll-spacer {

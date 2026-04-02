@@ -4,7 +4,7 @@
   let { variant = "solid" } = $props();
 </script>
 
-<nav class="nav-bar" class:glass={variant === 'glass'}>
+<nav class="nav-bar" class:v-glass={variant === 'glass'}>
   <div class="nav-group top">
     <NavButton icon="icons/24px/house.svg" tab="home" />
     <NavButton icon="icons/24px/queue_music.svg" tab="queue" />
@@ -23,11 +23,6 @@
     box-sizing: border-box;
     z-index: 100;
     flex-shrink: 0;
-  }
-
-  .nav-bar.glass {
-    background-color: #24242442;
-    backdrop-filter: blur(16px) brightness(0.7) contrast(0.9);
   }
   
   .nav-group {

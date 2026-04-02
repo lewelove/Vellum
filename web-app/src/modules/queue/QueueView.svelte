@@ -101,7 +101,7 @@
   <div class="view-content-wrapper">
     <div class="queue-modules">
       <div 
-        class="module-panel module-cover" 
+        class="module-panel module-cover v-glass" 
         class:clickable={!!coverUrl}
         bind:clientWidth={moduleWidth}
         onclick={toggleExpand}
@@ -129,7 +129,7 @@
       {#if panels.tracks || panels.lyrics}
         <div class="right-column">
           {#if panels.tracks}
-            <div class="module-panel tracks-panel">
+            <div class="module-panel tracks-panel v-glass">
               <div class="panel-inner">
                 <QueueTracks />
               </div>
@@ -137,7 +137,7 @@
           {/if}
 
           {#if panels.lyrics}
-            <div class="module-panel lyrics-panel">
+            <div class="module-panel lyrics-panel v-glass">
               <div class="panel-inner">
                 <Lyrics />
               </div>
@@ -198,10 +198,7 @@
 
   .module-panel {
     min-width: 240px;
-    backdrop-filter: blur(32px) brightness(0.7) contrast(0.9);
     border-radius: 12px;
-    box-shadow: 0 0 16px rgba(0, 0, 0, 0.1), 0 0 16px rgba(0, 0, 0, 0.2), 0 0 10px rgba(0, 0, 0, 0.2);
-    /* border: 1px solid rgba(255, 255, 255, 0.08); */
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -241,8 +238,6 @@
     aspect-ratio: 1 / 1;
     cursor: default;
     outline: none;
-    background-color: #24242442;
-    backdrop-filter: blur(4px);
     border-radius: 0px;
     border: transparent;
   }

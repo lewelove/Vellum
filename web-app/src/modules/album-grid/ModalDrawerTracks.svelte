@@ -84,9 +84,9 @@
         <span class="disc-label">Disc {track.DISCNUMBER}</span>
         
         <div class="disc-header-right">
-          <span class="disc-duration-label">{getDiscDuration(track.DISCNUMBER)}</span>
+          <span class="v-mono disc-duration-label">{getDiscDuration(track.DISCNUMBER)}</span>
           <button 
-            class="disc-play-btn" 
+            class="v-btn-icon disc-play-btn" 
             onclick={() => handlePlayDisc(track.DISCNUMBER)}
             title="Play Disc {track.DISCNUMBER}"
           >
@@ -97,8 +97,8 @@
     {/if}
 
     <div 
-      class="track-row" 
-      class:selected={selectedIndex === i}
+      class="v-track-row track-row" 
+      class:active={selectedIndex === i}
       tabindex="0"
       onclick={() => handleSelect(i)}
       ondblclick={() => handlePlay(i)}
@@ -106,14 +106,14 @@
       role="button"
       aria-label="Track {track.TRACKNUMBER}: {track.TITLE}"
     >
-      <span class="track-index">{track.TRACKNUMBER}</span>
+      <span class="v-mono track-index">{track.TRACKNUMBER}</span>
       <div class="track-body">
-        <span class="track-title">{track.TITLE}</span>
+        <span class="v-truncate track-title">{track.TITLE}</span>
         {#if track.ARTIST && albumArtist && track.ARTIST.toLowerCase() !== albumArtist.toLowerCase()}
-          <span class="track-artist">{track.ARTIST}</span>
+          <span class="v-truncate track-artist">{track.ARTIST}</span>
         {/if}
       </div>
-      <span class="track-meta">{formatDuration(track.track_duration_time)}</span>
+      <span class="v-mono track-meta">{formatDuration(track.track_duration_time)}</span>
     </div>
   {/each}
 </div>
@@ -123,8 +123,12 @@
     display: flex;
     flex-direction: column;
     width: 100%;
-    background-color: #242424;
+    background-color: transparent;
     box-sizing: border-box;
+  }
+
+  .track-row {
+    padding: 6px 0px;
   }
 
   .track-row + .track-row {
@@ -167,66 +171,21 @@
   }
 
   .disc-duration-label {
-    font-feature-settings: "tnum";
-    display: flex;
-    align-items: center;
-    padding: 0 12px;
-    font-size: 12px;
     font-weight: 400;
   }
 
   .disc-play-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
     width: 36px;
     height: 24px;
-    cursor: pointer;
-    background-color: rgba(255, 255, 255, 0.01);
-    border: 2px solid rgba(255, 255, 255, 0.08);
-    box-shadow: var(--button-shadow);
     border-radius: 8px;
-    transition: background-color 0.1s;
-    box-sizing: border-box;
-  }
-
-  .disc-play-btn:hover {
-    background-color: rgba(255, 255, 255, 0.03);
-    border-color: rgba(255, 255, 255, 0.1);
   }
 
   .disc-play-btn img {
     width: 18px;
     height: 18px;
-    opacity: 0.4;
-  }
-
-  .disc-play-btn:hover img {
-    opacity: 1;
-  }
-
-  .track-row {
-    display: flex;
-    align-items: flex-start;
-    padding: 6px 0px;
-    font-size: 14px;
-    color: #ffffff;
-    cursor: default;
-    outline: none;
-    user-select: none;
-    background-color: transparent;
-    contain: layout;
-    box-sizing: border-box;
-    border-radius: 8px;
-    transition: background-color 0.1s ease, border-color 0.1s ease;
-  }
-
-  .track-row:hover {
-    background-color: rgba(255, 255, 255, 0.03);
   }
 
   .track-index {
-    font-feature-settings: "tnum";
     flex: 0 0 44px;
     text-align: center;
     color: #888888;
@@ -251,17 +210,14 @@
   .track-artist {
     font-size: 13px;
     color: #999999;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
     margin-top: 4px;
   }
 
   .track-meta {
-    font-feature-settings: "tnum";
     color: #888888;
     padding-right: 18px;
     text-align: right;
     font-size: 13px;
+    min-width: 44px;
   }
 </style>
