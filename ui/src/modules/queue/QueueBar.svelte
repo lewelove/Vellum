@@ -88,7 +88,7 @@
 <style>
   .queue-bar {
     height: 100%;
-    backdrop-filter: blur(16px) brightness(0.7);
+    backdrop-filter: blur(16px) brightness(0.7) contrast(0.9);
     box-shadow: 0 0 16px rgba(0, 0, 0, 0.1), 0 0 16px rgba(0, 0, 0, 0.2), 0 0 10px rgba(0, 0, 0, 0.2);
     display: flex;
     flex-direction: column;
