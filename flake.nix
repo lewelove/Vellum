@@ -83,10 +83,10 @@
                 cd "$ROOT/rust" && cargo build --release
                 ;;
               ui)
-                cd "$ROOT/ui" && bun run dev
+                cd "$ROOT/web-app" && bun run dev
                 ;;
               ui-npm)
-                cd "$ROOT/ui" && npm run dev
+                cd "$ROOT/web-app" && npm run dev
                 ;;
               server|compile|update|harvest)
                 if [ ! -f "$BIN" ]; then
@@ -162,7 +162,7 @@
           shellHook = ''
             export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath runtimeLibs}:$LD_LIBRARY_PATH"
             export PYTHONDONTWRITEBYTECODE=1
-            export PATH="$PWD/ui/node_modules/.bin:$PATH"
+            export PATH="$PWD/web-app/node_modules/.bin:$PATH"
           '';
         };
       }
