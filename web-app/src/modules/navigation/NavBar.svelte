@@ -24,6 +24,10 @@
     z-index: 100;
     flex-shrink: 0;
   }
+
+  .nav-bar.v-glass {
+    background-color: transparent;
+  }
   
   .nav-group {
     display: flex;

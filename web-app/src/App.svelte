@@ -2,15 +2,12 @@
   import { onMount } from "svelte";
   import { library } from "./library.svelte.js";
   import { nav, setTab } from "./navigation.svelte.js";
-  import { getThemeVariables } from "./theme.svelte.js";
   
   import AlbumGrid from "./modules/album-grid/AlbumGrid.svelte";
   import Sidebar from "./modules/sidebar/Sidebar.svelte";
   import QueueView from "./modules/queue/QueueView.svelte";
   import ModalDrawer from "./modules/album-grid/ModalDrawer.svelte";
   import NavBar from "./modules/navigation/NavBar.svelte";
-
-  let themeStyles = $derived(getThemeVariables());
   
   let sidebarMode = $state("dynamic");
   let sidebarWidth = $state(160);
@@ -83,7 +80,7 @@
   });
 </script>
 
-<main style="{themeStyles} --sidebar-width: {sidebarWidth}px;">
+<main style="--sidebar-width: {sidebarWidth}px;">
   
   <div class="view-layer home">
     <NavBar />

@@ -35,11 +35,6 @@ export const theme = $state({
     "drawer-gap-main": 0,
     "drawer-chevron-height": 12,
     "drawer-chevron-width": 24,
-    "album-cover-shadow": "0px 0px 10px -1px rgba(0,0,0,0.3), 0px 0px 8px 0px rgba(0,0,0,0.4)",
-    "modal-shadow": "0px 0px 8px 0px rgba(0,0,0,0.2), 0px 0px 6px 0px rgba(0,0,0,0.2)",
-    "panel-shadow": "0px 0px 8px 0px rgba(0,0,0,0.2), 0px 0px 6px 0px rgba(0,0,0,0.2)",
-    "button-shadow": "0px 0px 4px 0px rgba(0,0,0,0.3), 0px 0px 2px 0px rgba(0,0,0,0.3),  0px 0px 1px 0px rgba(0,0,0,0.3)",
-    "button-shadow-lesser": "0px 0px 4px 0px rgba(0,0,0,0.2), 0px 0px 2px 0px rgba(0,0,0,0.2)",
   },
 
   drawer: {
@@ -54,29 +49,3 @@ export const theme = $state({
   }
 
 });
-
-export function getThemeVariables() {
-  let styles = "";
-
-  for (const [key, value] of Object.entries(theme.palette)) {
-    styles += `--palette-${key}: ${value}; `;
-  }
-
-  for (const [key, paletteKey] of Object.entries(theme.colors)) {
-    styles += `--${key}: var(--palette-${paletteKey}); `;
-  }
-
-  const numericCategories = ["typography", "albumGrid", "drawer"];
-  
-  for (const cat of numericCategories) {
-    for (const [key, value] of Object.entries(theme[cat])) {
-      if (key.includes("weight") || key.includes("shadow")) {
-        styles += `--${key}: ${value}; `;
-      } else {
-        styles += `--${key}: ${value}px; `;
-      }
-    }
-  }
-
-  return styles;
-}
