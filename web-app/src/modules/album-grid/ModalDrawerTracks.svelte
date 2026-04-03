@@ -143,7 +143,7 @@
     justify-content: space-between;
     align-items: center;
     user-select: none;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
   }
 
   .disc-header-right {

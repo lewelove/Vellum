@@ -79,7 +79,7 @@
     text-wrap: balance;
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
     font-family: var(--font-stack);
-    font-size: 16px;
+    font-size: 15px;
     line-height: 1.4;
     color: var(--text-main);
     text-align: left;

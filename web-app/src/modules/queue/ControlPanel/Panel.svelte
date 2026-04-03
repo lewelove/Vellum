@@ -67,7 +67,6 @@
 
   .artist {
     color: var(--text-main);
-    font-weight: 500;
     overflow: hidden;
     text-overflow: ellipsis;
   }

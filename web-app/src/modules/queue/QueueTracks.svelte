@@ -276,8 +276,7 @@
     justify-content: space-between;
     align-items: center;
     padding: 0 0px;
-    margin-bottom: 8px;
-    margin-top: 8px;
+    margin: 10px;
   }
 
   .disc-header-row.first-disc {
@@ -338,7 +337,7 @@
   }
 
   .track-title {
-    font-size: 14px;
+    /* font-size: 15px; */
     line-height: 18px;
   }
 

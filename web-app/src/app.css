@@ -31,8 +31,8 @@
   --album-cover-shadow: 0px 0px 10px -1px rgba(0,0,0,0.3), 0px 0px 8px 0px rgba(0,0,0,0.4);
   --modal-shadow: 0px 0px 8px 0px rgba(0,0,0,0.2), 0px 0px 6px 0px rgba(0,0,0,0.2);
   --panel-shadow: 0px 0px 8px 0px rgba(0,0,0,0.2), 0px 0px 6px 0px rgba(0,0,0,0.2);
-  --button-shadow: 0px 0px 4px 0px rgba(0,0,0,0.2), 0px 0px 2px 0px rgba(0,0,0,0.2);
-  /* --button-shadow-lesser: 0px 0px 4px 0px rgba(0,0,0,0.2), 0px 0px 2px 0px rgba(0,0,0,0.2); */
+  --button-shadow: 0px 0px 4px 0px rgba(0,0,0,0.1), 0px 0px 2px 0px rgba(0,0,0,0.1);
+  --button-shadow-lesser: 0px 0px 4px 0px rgba(0,0,0,0.1), 0px 0px 2px 0px rgba(0,0,0,0.1);
 
   --font-stack: 
     'Inter', 
@@ -109,7 +109,7 @@ main {
 }
 
 .v-glass {
-  backdrop-filter: blur(0px) brightness(0.6) contrast(0.9);
+  backdrop-filter: blur(4px) brightness(0.6) contrast(0.9);
   box-shadow: 0 0 12px rgba(0, 0, 0, 0.1), 0 0 8px rgba(0, 0, 0, 0.2), 0 0 4px rgba(0, 0, 0, 0.2);
 }
 
@@ -171,7 +171,7 @@ main {
 .v-track-row {
   display: flex;
   align-items: flex-start;
-  font-size: 14px;
+  font-size: 15px;
   color: var(--text-main);
   cursor: default;
   outline: none;
@@ -180,7 +180,7 @@ main {
   contain: layout;
   box-sizing: border-box;
   border-radius: 8px;
-  padding: 4px 0px;
+  padding: 5px 0px;
   transition: background-color 0.1s ease, border-color 0.1s ease;
   border: 1px solid transparent;
 }
@@ -197,6 +197,7 @@ main {
 .v-truncate {
   overflow: hidden;
   white-space: pre-wrap;
+  text-wrap: balance;
   word-break: keep-all;
   overflow-wrap: break-word;
 }
