@@ -11,6 +11,7 @@
   import ModalDrawerCover from "../album-grid/ModalDrawerCover.svelte";
   import QueueBackgroundShader from "./QueueBackgroundShader.svelte";
   import NavBar from "../navigation/NavBar.svelte";
+  import Panel from "./ControlPanel/Panel.svelte";
 
   let activeId = $derived(player.currentAlbumId);
   let activeAlbum = $derived(activeId ? library.albumCache.get(activeId) : null);
@@ -146,6 +147,8 @@
         </div>
       {/if}
     </div>
+    
+    <Panel />
   </div>
 
   <QueueBar {panels} onToggle={togglePanel} />
@@ -167,7 +170,7 @@
     position: relative;
     height: 100%;
     min-width: 0;
-    padding: 24px 32px; 
+    padding: 24px 32px 16px; 
     box-sizing: border-box;
     z-index: 1;
     display: flex;
@@ -181,7 +184,7 @@
     min-height: 0;
     display: flex;
     flex-direction: row;
-    gap: 24px;
+    gap: 16px;
     justify-content: center;
     align-items: stretch;
   }
@@ -224,7 +227,7 @@
 
   .panel-inner {
     flex: 1;
-    padding: 24px;
+    padding: 16px;
     overflow: hidden;
     display: flex;
     flex-direction: column;
