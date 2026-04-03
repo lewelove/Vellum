@@ -101,6 +101,17 @@
   
   <div class="view-content-wrapper">
     <div class="queue-modules">
+      
+      {#if panels.lyrics}
+        <div class="side-column">
+          <div class="module-panel lyrics-panel v-glass">
+            <div class="panel-inner">
+              <Lyrics />
+            </div>
+          </div>
+        </div>
+      {/if}
+
       <div 
         class="module-panel module-cover v-glass" 
         class:clickable={!!coverUrl}
@@ -127,25 +138,16 @@
         </div>
       </div>
 
-      {#if panels.tracks || panels.lyrics}
-        <div class="right-column">
-          {#if panels.tracks}
-            <div class="module-panel tracks-panel v-glass">
-              <div class="panel-inner">
-                <QueueTracks />
-              </div>
+      {#if panels.tracks}
+        <div class="side-column">
+          <div class="module-panel tracks-panel v-glass">
+            <div class="panel-inner">
+              <QueueTracks />
             </div>
-          {/if}
-
-          {#if panels.lyrics}
-            <div class="module-panel lyrics-panel v-glass">
-              <div class="panel-inner">
-                <Lyrics />
-              </div>
-            </div>
-          {/if}
+          </div>
         </div>
       {/if}
+
     </div>
     
     <Panel />
@@ -189,7 +191,7 @@
     align-items: stretch;
   }
 
-  .right-column {
+  .side-column {
     display: flex;
     flex-direction: column;
     flex: 1;
@@ -208,16 +210,8 @@
   }
 
   .tracks-panel {
-    flex: 0 1 auto; 
+    flex: 1;
     min-height: 0;
-  }
-
-  .tracks-panel:not(:only-child) {
-    max-height: 50%;
-  }
-
-  .tracks-panel:only-child {
-    flex: 1 1 auto;
   }
 
   .lyrics-panel {
@@ -227,7 +221,7 @@
 
   .panel-inner {
     flex: 1;
-    padding: 20px 24px;
+    padding: 20px;
     overflow: hidden;
     display: flex;
     flex-direction: column;

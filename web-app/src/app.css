@@ -109,8 +109,8 @@ main {
 }
 
 .v-glass {
-  backdrop-filter: blur(16px) brightness(0.6) contrast(0.9);
-  box-shadow: 0 0 16px rgba(0, 0, 0, 0.1), 0 0 16px rgba(0, 0, 0, 0.2), 0 0 10px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(0px) brightness(0.6) contrast(0.9);
+  box-shadow: 0 0 12px rgba(0, 0, 0, 0.1), 0 0 8px rgba(0, 0, 0, 0.2), 0 0 4px rgba(0, 0, 0, 0.2);
 }
 
 .v-btn-icon {
@@ -196,8 +196,7 @@ main {
 
 .v-truncate {
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: pre-wrap;
   word-break: keep-all;
   overflow-wrap: break-word;
 }

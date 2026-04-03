@@ -15,7 +15,6 @@
   .nav-bar {
     height: 100%;
     background-color: var(--background-drawer);
-    box-shadow: var(--album-cover-shadow);
     display: flex;
     flex-direction: column;
     align-items: center;
