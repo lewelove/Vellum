@@ -127,10 +127,6 @@
     box-sizing: border-box;
   }
 
-  .track-row {
-    padding: 6px 0px;
-  }
-
   .track-row + .track-row {
     margin-top: 4px;
   }
