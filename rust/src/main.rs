@@ -6,6 +6,7 @@ mod compile;
 mod config;
 mod harvest;
 mod manifest;
+mod run;
 mod server;
 mod update;
 
@@ -57,6 +58,14 @@ enum Commands {
     Manifest {
         #[arg(long)]
         force: bool,
+    },
+    Run {
+        #[arg(value_name = "COMMAND", required = true)]
+        script_cmd: String,
+        #[arg(value_name = "PATH")]
+        path: Option<String>,
+        #[arg(long)]
+        playing: bool,
     },
 }
 
@@ -154,5 +163,6 @@ async fn main() -> Result<()> {
             update::run(expanded, force, jobs).await
         }
         Commands::Manifest { force } => manifest::run(force).await,
+        Commands::Run { script_cmd, path, playing } => run::execute(script_cmd, path, playing).await,
     }
 }

@@ -88,12 +88,12 @@
               ui-npm)
                 cd "$ROOT/web-app" && npm run dev
                 ;;
-              server|compile|update|harvest)
+              server|compile|update|harvest|run)
                 if [ ! -f "$BIN" ]; then
                   echo "Error: vellum binary not found at $BIN. Run 'vellum build' first."
                   exit 1
                 fi
-                "$BIN" "$COMMAND" "$@"
+                cd "$ROOT" && "$BIN" "$COMMAND" "$@"
                 ;;
               generate)
                 cd "$ROOT" && python -m python.generate "$@"
@@ -128,6 +128,7 @@
                 echo "  harvest         : Harvest raw metadata to JSON"
                 echo "  write           : Sync metadata to audio tags"
                 echo "  report          : Generate listening reports"
+                echo "  run             : Run defined scripts via runtime router"
                 echo "    --lint        : Run clippy with -D warnings"
                 echo "    --fmt         : Run fmt check"
                 echo "    --deny        : Run cargo-deny check"

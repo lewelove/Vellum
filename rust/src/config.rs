@@ -12,6 +12,7 @@ pub struct AppConfig {
     pub theme: Option<ThemeConfig>,
     pub manifest: Option<ManifestConfig>,
     pub compiler: Option<CompilerConfig>,
+    pub run: Option<HashMap<String, String>>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -19,6 +20,7 @@ pub struct StorageConfig {
     pub library_root: String,
     pub library_export: Option<String>,
     pub thumbnail_cache_folder: Option<String>,
+    pub environment: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
