@@ -310,7 +310,7 @@
   }
 
   .track-row {
-    padding: 4px 0px;
+    padding: 6px 0px;
     margin: 0 0px;
   }
 
