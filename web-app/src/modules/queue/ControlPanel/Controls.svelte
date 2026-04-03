@@ -17,13 +17,33 @@
 </script>
 
 <div class="controls">
-  <button class="ctrl-btn" onclick={prev}>
-    <img src="/icons/24px/skip_previous.svg" alt="Previous" />
+  <button class="v-btn-icon control-btn" onclick={prev} title="Previous">
+    <img src="/icons/24px/skip_previous.svg" alt="" />
   </button>
-  <button class="ctrl-btn main" onclick={togglePlay}>
-    <img src={isPlaying ? "/icons/24px/pause.svg" : "/icons/24px/play_arrow.svg"} alt="Toggle Play" />
+  <button class="v-btn-icon control-btn" onclick={togglePlay} title="Toggle Play">
+    <img src={isPlaying ? "/icons/24px/pause.svg" : "/icons/24px/play_arrow.svg"} alt="" />
   </button>
-  <button class="ctrl-btn" onclick={next}>
-    <img src="/icons/24px/skip_next.svg" alt="Next" />
+  <button class="v-btn-icon control-btn" onclick={next} title="Next">
+    <img src="/icons/24px/skip_next.svg" alt="" />
   </button>
 </div>
+
+<style>
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .control-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    flex-shrink: 0;
+  }
+
+  .control-btn img {
+    width: 24px;
+    height: 24px;
+  }
+</style>

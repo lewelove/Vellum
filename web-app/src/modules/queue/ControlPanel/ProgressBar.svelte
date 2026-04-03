@@ -39,3 +39,50 @@
   </div>
   <span class="v-mono time">{formatTime(duration)}</span>
 </div>
+
+<style>
+  .progress-wrapper {
+    display: flex;
+    align-items: end;
+    width: 100%;
+    gap: 12px;
+  }
+
+  .time {
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+
+  .time:first-child {
+    text-align: right;
+  }
+
+  .time:last-child {
+    text-align: left;
+  }
+
+  .track-container {
+    flex: 1;
+    height: 16px;
+    display: flex;
+    align-items: center;
+  }
+
+  .progress-track {
+    position: relative;
+    width: 100%;
+    height: 4px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    background-color: var(--text-main);
+    border-radius: 2px;
+  }
+</style>

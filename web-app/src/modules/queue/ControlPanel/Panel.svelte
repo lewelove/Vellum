@@ -22,48 +22,47 @@
         <span class="title" title={title}>{title}</span>
       {/if}
     </div>
-    <ProgressBar />
+    <div class="telemetry">
+      <ProgressBar />
+    </div>
   </div>
 </div>
 
 <style>
   .control-panel {
     display: flex;
-    justify-content: space-between;
     align-items: center;
     width: 100%;
-    height: 54px;
-    padding: 0 32px;
+    height: 64px;
+    padding: 12px 24px;
     box-sizing: border-box;
     border-radius: 12px;
     margin-top: 16px;
     flex-shrink: 0;
+    gap: 24px;
   }
 
   .left-zone {
-    display: flex;
-    align-items: center;
+    flex-shrink: 0;
   }
 
   .right-zone {
+    flex: 1;
     display: flex;
     flex-direction: column;
-    align-items: flex-end;
     justify-content: center;
-    width: 450px;
-    max-width: 60%;
-    gap: 8px;
+    min-width: 0;
+    gap: 5px;
   }
 
   .metadata {
     display: flex;
-    align-items: center;
+    justify-content: flex-start;
     gap: 8px;
-    font-size: 14px;
+    font-size: 15px;
     white-space: nowrap;
     overflow: hidden;
     width: 100%;
-    justify-content: flex-end;
   }
 
   .artist {
@@ -85,83 +84,7 @@
     text-overflow: ellipsis;
   }
 
-  /* --- Scoped Global Overrides for Subcomponents --- */
-
-  :global(.control-panel .controls) {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-  }
-
-  :global(.control-panel .ctrl-btn) {
-    background: none;
-    border: none;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 4px;
-    opacity: 0.6;
-    transition: opacity 0.2s;
-  }
-
-  :global(.control-panel .ctrl-btn:hover) {
-    opacity: 1;
-  }
-
-  :global(.control-panel .ctrl-btn img) {
-    width: 24px;
-    height: 24px;
-  }
-
-  :global(.control-panel .ctrl-btn.main img) {
-    width: 32px;
-    height: 32px;
-  }
-
-  :global(.control-panel .progress-wrapper) {
-    display: flex;
-    align-items: center;
+  .telemetry {
     width: 100%;
-    gap: 12px;
-  }
-
-  :global(.control-panel .time) {
-    font-size: 12px;
-    color: var(--text-muted);
-    min-width: 40px;
-  }
-
-  :global(.control-panel .time:first-child) {
-    text-align: right;
-  }
-
-  :global(.control-panel .time:last-child) {
-    text-align: left;
-  }
-
-  :global(.control-panel .track-container) {
-    flex: 1;
-    height: 24px;
-    display: flex;
-    align-items: center;
-  }
-
-  :global(.control-panel .progress-track) {
-    position: relative;
-    width: 100%;
-    height: 4px;
-    background-color: rgba(255, 255, 255, 0.1);
-    border-radius: 2px;
-    overflow: hidden;
-  }
-
-  :global(.control-panel .progress-fill) {
-    position: absolute;
-    top: 0;
-    left: 0;
-    height: 100%;
-    background-color: var(--text-main);
-    border-radius: 2px;
   }
 </style>
