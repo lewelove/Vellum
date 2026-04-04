@@ -155,8 +155,8 @@ void main() {
         return;
     }
 
-    vec3 finalOklab = vec3(0.0);
     float totalWeight = 0.0001;
+    vec3 finalOklab = iColorsOklab[0] * totalWeight;
     
     // Convert the 0.0-1.0 iBlur parameter into an exponential power factor.
     // Higher power creates sharper "islands" of color; lower power creates a misty blend.

@@ -157,7 +157,7 @@
           </div>
           <span class="v-mono track-meta">
             {#if track.isPlaying}
-              {formatSeconds(tickingElapsed)} / {formatDuration(track.duration)}
+              {formatDuration(track.duration)}
             {:else}
               {formatDuration(track.duration)}
             {/if}
@@ -169,19 +169,19 @@
 </div>
 
 <style>
-  .header-row,
-  .disc-header-row,
-  .header-album,
-  .header-artist,
-  .header-meta,
-  .disc-label,
-  .disc-duration-label,
-  .track-index,
-  .track-title,
-  .track-artist,
-  .track-meta {
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
-  }
+  /* .header-row, */
+  /* .disc-header-row, */
+  /* .header-album, */
+  /* .header-artist, */
+  /* .header-meta, */
+  /* .disc-label, */
+  /* .disc-duration-label, */
+  /* .track-index, */
+  /* .track-title, */
+  /* .track-artist, */
+  /* .track-meta { */
+  /*   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5); */
+  /* } */
 
   .header-album,
   .track-title {
@@ -261,7 +261,7 @@
   }
 
   .header-meta {
-    font-size: 13px;
+    font-size: 14px;
     margin-left: 8px;
   }
 
@@ -321,7 +321,7 @@
     z-index: 1;
     flex: 0 0 44px;
     text-align: center;
-    font-size: 12px;
+    font-size: 13px;
     line-height: 18px;
   }
 
@@ -342,7 +342,7 @@
   }
 
   .track-artist {
-    font-size: 13px;
+    font-size: 14px;
     margin-top: 4px;
     line-height: 16px;
   }
@@ -351,7 +351,7 @@
     position: relative;
     z-index: 1;
     text-align: right;
-    font-size: 13px;
+    font-size: 14px;
     padding-right: 18px;
     min-width: 44px;
     line-height: 18px;

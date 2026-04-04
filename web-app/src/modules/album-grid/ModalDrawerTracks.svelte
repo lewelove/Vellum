@@ -185,7 +185,7 @@
     flex: 0 0 44px;
     text-align: center;
     color: #888888;
-    font-size: 12px;
+    font-size: 13px;
     line-height: 18px;
   }
 
@@ -213,7 +213,7 @@
     color: #888888;
     padding-right: 18px;
     text-align: right;
-    font-size: 13px;
+    font-size: 14px;
     min-width: 44px;
   }
 </style>

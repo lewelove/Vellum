@@ -3,7 +3,7 @@
   import { library } from "../../library.svelte.js";
   
   import vertexShaderSource from "./shaders/quad.vert?raw";
-  import internalFragmentShader from "./shaders/mountain.frag?raw";
+  import internalFragmentShader from "./shaders/simplex.frag?raw";
 
   let { colors =[], coverSize = 0, visible = false, isPlaying = false } = $props();
 

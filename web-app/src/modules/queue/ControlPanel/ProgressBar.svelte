@@ -31,13 +31,12 @@
 </script>
 
 <div class="progress-wrapper">
-  <span class="v-mono time">{formatTime(tickingElapsed)}</span>
   <div class="track-container">
     <div class="progress-track">
       <div class="progress-fill" style="width: {progress}%"></div>
     </div>
   </div>
-  <span class="v-mono time">{formatTime(duration)}</span>
+  <span class="v-mono time">{formatTime(tickingElapsed)} / {formatTime(duration)}</span>
 </div>
 
 <style>
@@ -49,7 +48,7 @@
   }
 
   .time {
-    font-size: 13px;
+    font-size: 14px;
     color: var(--text-muted);
   }
 
@@ -82,7 +81,7 @@
     top: 0;
     left: 0;
     height: 100%;
-    background-color: var(--text-main);
+    background-color: var(--text-muted);
     border-radius: 2px;
   }
 </style>

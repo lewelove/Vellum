@@ -78,7 +78,7 @@
   }
 
   .title {
-    color: var(--text-muted);
+    color: var(--text-main);
     overflow: hidden;
     text-overflow: ellipsis;
   }
