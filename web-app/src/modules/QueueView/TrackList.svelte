@@ -171,12 +171,12 @@
 <style>
   .header-album,
   .track-title {
-    color: #ffffff;
+    color: oklch(100% 0 0);
   }
 
   .header-artist,
   .track-artist {
-    color: rgba(255, 255, 255, 0.8);
+    color: oklch(100% 0 0 / 0.7);
   }
 
   .header-meta,
@@ -184,7 +184,7 @@
   .disc-duration-label,
   .track-index,
   .track-meta {
-    color: rgba(255, 255, 255, 0.7);
+    color: oklch(100% 0 0 / 0.7);
   }
 
   .tracks-list-container {
@@ -221,7 +221,7 @@
     height: 40px;
     object-fit: cover;
     background-color: #000;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    box-shadow: 0 2px 4px oklch(0% 0 0 / 0.2);
   }
 
   .header-content {
@@ -253,7 +253,7 @@
 
   .disc-separator {
     height: 1px;
-    background-color: rgba(255, 255, 255, 0.05);
+    background-color: oklch(100% 0 0 / 0.05);
     margin: 12px 20px;
   }
 
@@ -280,7 +280,7 @@
     align-items: center;
     padding: 0 12px;
     font-size: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    border: 1px solid oklch(100% 0 0 / 0.05);
     border-radius: 8px;
     height: 24px;
     box-sizing: border-box;

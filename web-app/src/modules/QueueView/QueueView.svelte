@@ -11,7 +11,7 @@
   import ModalDrawerCover from "../HomeView/ModalDrawer/ModalDrawerCover.svelte";
   import BackgroundShader from "./BackgroundShader.svelte";
   import NavBar from "../NavigationBar/NavBar.svelte";
-  import Panel from "./ControlPanel/Panel.svelte";
+  import ControlPanel from "./ControlPanel.svelte";
 
   let activeId = $derived(player.currentAlbumId);
   let activeAlbum = $derived(activeId ? library.albumCache.get(activeId) : null);
@@ -150,7 +150,7 @@
 
     </div>
     
-    <Panel />
+    <ControlPanel />
   </div>
 
   <Sidebar {panels} onToggle={togglePanel} />
