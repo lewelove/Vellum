@@ -52,13 +52,13 @@
 <div class="control-panel v-glass">
   <div class="left-zone">
     <button class="v-btn-icon control-btn" onclick={prev} title="Previous">
-      <img src="/icons/24px/skip_previous.svg" alt="" />
+      <img src="/icons/outlined/24px/skip_previous.svg" alt="" />
     </button>
     <button class="v-btn-icon control-btn" onclick={togglePlay} title="Toggle Play">
-      <img src={isPlaying ? "/icons/24px/pause.svg" : "/icons/24px/play_arrow.svg"} alt="" />
+      <img src={isPlaying ? "/icons/outlined/24px/pause.svg" : "/icons/outlined/24px/play_arrow.svg"} alt="" />
     </button>
     <button class="v-btn-icon control-btn" onclick={next} title="Next">
-      <img src="/icons/24px/skip_next.svg" alt="" />
+      <img src="/icons/outlined/24px/skip_next.svg" alt="" />
     </button>
   </div>
   
@@ -87,7 +87,7 @@
     height: 64px;
     padding: 12px 24px;
     box-sizing: border-box;
-    border-radius: 12px;
+    border-radius: 8px;
     margin-top: 16px;
     flex-shrink: 0;
     gap: 24px;
@@ -103,7 +103,7 @@
   .control-btn {
     width: 40px;
     height: 40px;
-    border-radius: 10px;
+    border-radius: 40px;
     flex-shrink: 0;
   }
 
