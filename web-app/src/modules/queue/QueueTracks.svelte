@@ -148,14 +148,14 @@
         {/if}
 
         <div class="v-track-row track-row" class:active={track.isPlaying}>
-          <span class="v-mono track-index">{track.trackNo}</span>
-          <div class="track-body">
-            <span class="v-truncate track-title">{track.title}</span>
+          <span class="v-mono v-track-index track-index">{track.trackNo}</span>
+          <div class="v-track-body track-body">
+            <span class="v-truncate v-track-title track-title">{track.title}</span>
             {#if track.artist && group.albumMeta && track.artist.toLowerCase() !== group.albumMeta.ALBUMARTIST.toLowerCase()}
-              <span class="v-truncate track-artist">{track.artist}</span>
+              <span class="v-truncate v-track-artist track-artist">{track.artist}</span>
             {/if}
           </div>
-          <span class="v-mono track-meta">
+          <span class="v-mono v-track-meta track-meta">
             {#if track.isPlaying}
               {formatDuration(track.duration)}
             {:else}
@@ -198,7 +198,7 @@
   .disc-duration-label,
   .track-index,
   .track-meta {
-    color: rgba(255, 255, 255, 0.6);
+    color: rgba(255, 255, 255, 0.7);
   }
 
   .tracks-list-container {
@@ -316,44 +316,4 @@
     margin-top: 4px;
   }
 
-  .track-index {
-    position: relative;
-    z-index: 1;
-    flex: 0 0 44px;
-    text-align: center;
-    font-size: 13px;
-    line-height: 18px;
-  }
-
-  .track-body {
-    position: relative;
-    z-index: 1;
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    margin-right: 16px;
-    min-width: 0;
-  }
-
-  .track-title {
-    /* font-size: 15px; */
-    line-height: 18px;
-  }
-
-  .track-artist {
-    font-size: 14px;
-    margin-top: 4px;
-    line-height: 16px;
-  }
-
-  .track-meta {
-    position: relative;
-    z-index: 1;
-    text-align: right;
-    font-size: 14px;
-    padding-right: 18px;
-    min-width: 44px;
-    line-height: 18px;
-  }
 </style>

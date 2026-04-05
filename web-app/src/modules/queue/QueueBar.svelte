@@ -65,13 +65,13 @@
 
   <div class="nav-group bottom">
     <QueueNavButton 
-      icon="icons/24px/lyrics.svg" 
+      icon="icons/outlined/20px/menu_book.svg" 
       label="Lyrics" 
       active={panels.lyrics}
       onclick={() => onToggle('lyrics')} 
     />
     <QueueNavButton 
-      icon="icons/24px/format_list_bulleted.svg" 
+      icon="icons/outlined/24px/format_list_bulleted.svg" 
       label="Track List" 
       active={panels.tracks}
       onclick={() => onToggle('tracks')} 

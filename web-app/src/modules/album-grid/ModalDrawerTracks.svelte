@@ -106,14 +106,14 @@
       role="button"
       aria-label="Track {track.TRACKNUMBER}: {track.TITLE}"
     >
-      <span class="v-mono track-index">{track.TRACKNUMBER}</span>
-      <div class="track-body">
-        <span class="v-truncate track-title">{track.TITLE}</span>
+      <span class="v-mono v-track-index track-index">{track.TRACKNUMBER}</span>
+      <div class="v-track-body track-body">
+        <span class="v-truncate v-track-title track-title">{track.TITLE}</span>
         {#if track.ARTIST && albumArtist && track.ARTIST.toLowerCase() !== albumArtist.toLowerCase()}
-          <span class="v-truncate track-artist">{track.ARTIST}</span>
+          <span class="v-truncate v-track-artist track-artist">{track.ARTIST}</span>
         {/if}
       </div>
-      <span class="v-mono track-meta">{formatDuration(track.track_duration_time)}</span>
+      <span class="v-mono v-track-meta track-meta">{formatDuration(track.track_duration_time)}</span>
     </div>
   {/each}
 </div>
@@ -182,20 +182,20 @@
   }
 
   .track-index {
-    flex: 0 0 44px;
-    text-align: center;
     color: #888888;
-    font-size: 13px;
-    line-height: 18px;
+    /* flex: 0 0 44px; */
+    /* text-align: center; */
+    /* font-size: 13px; */
+    /* line-height: 18px; */
   }
 
   .track-body {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    margin-right: 16px;
-    line-height: 18px;
+    /* flex: 1; */
+    /* display: flex; */
+    /* flex-direction: column; */
+    /* overflow: hidden; */
+    /* margin-right: 16px; */
+    /* line-height: 18px; */
   }
 
   .track-title {
@@ -204,16 +204,14 @@
   }
 
   .track-artist {
-    font-size: 13px;
     color: #999999;
-    margin-top: 4px;
   }
 
   .track-meta {
     color: #888888;
-    padding-right: 18px;
-    text-align: right;
-    font-size: 14px;
-    min-width: 44px;
+    /* padding-right: 18px; */
+    /* text-align: right; */
+    /* font-size: 14px; */
+    /* min-width: 44px; */
   }
 </style>
