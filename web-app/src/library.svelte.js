@@ -154,12 +154,21 @@ class LibraryState {
         
         if (!url || this.pinnedTextures.has(url)) continue;
 
-        const img = new Image();
-        img.src = url;
-        
         try {
+          // 1. Fetch the compressed image directly into RAM
+          const res = await fetch(url);
+          const blob = await res.blob();
+          
+          // 2. Create a local memory pointer to this RAM blob
+          const blobUrl = URL.createObjectURL(blob);
+
+          // 3. Optional: Decode it once to warm VRAM for immediate use
+          const img = new Image();
+          img.src = blobUrl;
           await img.decode();
-          this.pinnedTextures.set(url, img);
+          
+          // 4. Store the BLOB URL, not the Image object
+          this.pinnedTextures.set(url, blobUrl);
           this.pinnedTextures = new Map(this.pinnedTextures);
         } catch (err) {}
       }

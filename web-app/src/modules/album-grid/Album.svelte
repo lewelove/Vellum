@@ -4,8 +4,8 @@
 
   let { album, active, onclick, scrollY = 0, rowY = 0 } = $props();
 
-  let coverUrl = $derived(library.getThumbnailUrl(album));
-  let prewarmed = $derived(library.pinnedTextures.get(coverUrl));
+  let originalUrl = $derived(library.getThumbnailUrl(album));
+  let coverUrl = $derived(library.pinnedTextures.get(originalUrl) || originalUrl);
 
   const coverSize = $derived(theme.albumGrid["cover-size"]);
   const gapY = $derived(theme.albumGrid["gap-y"]);
@@ -129,7 +129,7 @@
       <img 
         src={coverUrl} 
         alt="" 
-        decoding={prewarmed ? "sync" : "async"}
+        decoding="async"
         draggable="false"
       />
     {/if}
