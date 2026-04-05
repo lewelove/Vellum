@@ -152,7 +152,7 @@
     flex-direction: row;
     transition: transform 0.25s cubic-bezier(0.2, 0, 0, 1);
     box-sizing: border-box;
-    box-shadow: var(--album-cover-shadow);
+    box-shadow: var(--panel-shadow);
     overflow: visible;
   }
 

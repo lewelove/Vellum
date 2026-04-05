@@ -2,11 +2,11 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Noto+Music&family=Noto+Sans+Arabic:wght@400;700&family=Noto+Sans+JP:wght@400;700&family=Noto+Sans+KR:wght@400;700&family=Noto+Sans+SC:wght@400;700&family=Noto+Sans+TC:wght@400;700&display=swap');
 
 :root {
-  --palette-100: #242424;
-  --palette-200: #323232;
-  --palette-300: #424242;
-  --palette-400: #CCCCCC;
-  --palette-500: #FFFFFF;
+  --palette-100: oklch(28% 0 0);
+  --palette-200: oklch(32% 0 0);
+  --palette-300: oklch(38% 0 0);
+  --palette-400: oklch(82% 0 0);
+  --palette-500: oklch(100% 0 0);
 
   --background-main: var(--palette-200);
   --background-drawer: var(--palette-100);

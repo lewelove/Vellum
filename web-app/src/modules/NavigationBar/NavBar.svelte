@@ -1,20 +1,30 @@
 <script>
-  import NavButton from "./NavButton.svelte";
+  import { nav, setTab } from "../../navigation.svelte.js";
 
   let { variant = "solid" } = $props();
 </script>
 
+{#snippet NavButton({ icon, tab })}
+  <button 
+    class="v-btn-icon nav-button" 
+    class:active={nav.activeTab === tab} 
+    onclick={() => setTab(tab)}
+    title={tab}
+  >
+    <img src="/{icon}" alt={tab} class="nav-icon" />
+  </button>
+{/snippet}
+
 <nav class="nav-bar" class:v-glass={variant === 'glass'}>
   <div class="nav-group top">
-    <NavButton icon="icons/24px/house.svg" tab="home" />
-    <NavButton icon="icons/24px/queue_music.svg" tab="queue" />
+    {@render NavButton({ icon: "icons/24px/house.svg", tab: "home" })}
+    {@render NavButton({ icon: "icons/24px/queue_music.svg", tab: "queue" })}
   </div>
 </nav>
 
 <style>
   .nav-bar {
     height: 100%;
-    background-color: var(--background-drawer);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -25,13 +35,27 @@
     flex-shrink: 0;
   }
 
-  .nav-bar.v-glass {
-    /* background-color: oklch(0% 0 0 / 0.3) !important; */
+  .nav-bar:not(:global(.v-glass)) {
+    background-color: var(--background-drawer);
   }
   
   .nav-group {
     display: flex;
     flex-direction: column;
     gap: 12px;
+  }
+
+  .nav-button {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    box-shadow: var(--button-shadow-lesser);
+    flex-shrink: 0;
+    pointer-events: auto;
+  }
+
+  .nav-icon {
+    width: 24px;
+    height: 24px;
   }
 </style>
