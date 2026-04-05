@@ -20,12 +20,13 @@
     align-items: center;
     padding: 12px;
     box-sizing: border-box;
+    box-shadow: var(--panel-shadow);
     z-index: 100;
     flex-shrink: 0;
   }
 
   .nav-bar.v-glass {
-    background-color: transparent;
+    background-color: oklch(0% 0 0 / 0.3);
   }
   
   .nav-group {

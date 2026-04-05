@@ -27,12 +27,31 @@
   --text-gap-lesser: 2px;
   --font-line-height-title: 16px;
   --font-line-height-artist: 14px;
+
+  --album-cover-shadow-thumbnail:
+    0px 0px 10px -1px oklch(0% 0 0 / 0.3),
+    0px 0px 8px 0px oklch(0% 0 0 / 0.4);
   
-  --album-cover-shadow: 0px 0px 10px -1px rgba(0,0,0,0.3), 0px 0px 8px 0px rgba(0,0,0,0.4);
-  --modal-shadow: 0px 0px 8px 0px rgba(0,0,0,0.2), 0px 0px 6px 0px rgba(0,0,0,0.2);
-  --panel-shadow: 0px 0px 8px 0px rgba(0,0,0,0.2), 0px 0px 6px 0px rgba(0,0,0,0.2);
-  --button-shadow: 0px 0px 4px 0px rgba(0,0,0,0.1), 0px 0px 2px 0px rgba(0,0,0,0.1);
-  --button-shadow-lesser: 0px 0px 4px 0px rgba(0,0,0,0.1), 0px 0px 2px 0px rgba(0,0,0,0.1);
+  --album-cover-shadow:
+    0px 0px 10px -1px oklch(0% 0 0 / 0.3),
+    0px 0px 8px 0px oklch(0% 0 0 / 0.4);
+
+  --modal-shadow:
+    0px 0px 8px 0px oklch(0% 0 0 / 0.2),
+    0px 0px 6px 0px oklch(0% 0 0 / 0.2);
+
+  --panel-shadow:
+    0 0 12px oklch(0% 0 0 / 0.1),
+    0 0 8px oklch(0% 0 0 / 0.2),
+    0 0 4px oklch(0% 0 0 / 0.1);
+
+  --button-shadow:
+    0px 0px 4px 0px oklch(0% 0 0 / 0.1),
+    0px 0px 2px 0px oklch(0% 0 0 / 0.1);
+  
+  --button-shadow-lesser:
+    0px 0px 4px 0px oklch(0% 0 0 / 0.1),
+    0px 0px 2px 0px oklch(0% 0 0 / 0.1);
 
   --font-stack: 
     'Inter', 
@@ -109,9 +128,10 @@ main {
 }
 
 .v-glass {
-  backdrop-filter: blur(0px) brightness(0.7) contrast(0.8);
-  box-shadow: 0 0 12px rgba(0, 0, 0, 0.1), 0 0 8px rgba(0, 0, 0, 0.2), 0 0 4px rgba(0, 0, 0, 0.2);
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  /* backdrop-filter: blur(0px) brightness(0.7) contrast(0.8); */
+  background-color: oklch(0% 0 0 / 0.3);
+  box-shadow: var(--panel-shadow);
+  text-shadow: 0 1px 3px oklch(0% 0 0 / 0.3);
 }
 
 .v-btn-icon {

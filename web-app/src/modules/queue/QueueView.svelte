@@ -203,7 +203,7 @@
 
   .module-panel {
     min-width: 240px;
-    border-radius: 12px;
+    border-radius: 8px;
     display: flex;
     flex-direction: column;
     overflow: hidden;

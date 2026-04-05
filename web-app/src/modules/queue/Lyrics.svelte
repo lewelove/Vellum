@@ -17,8 +17,6 @@
     isLoading = true;
     try {
         const encodedId = encodeURIComponent(meta.albumId);
-        // Path might contain slashes, but they shouldn't be encoded individually if part of path structure
-        // However, the router expects {*path}, so we pass the relative path string
         const pathPart = meta.lyrics_path; 
         const url = `/api/assets/lyrics/${encodedId}/${pathPart}`;
         
@@ -29,7 +27,6 @@
             lyricsText = "";
         }
     } catch (e) {
-        console.error("Lyrics fetch failed", e);
         lyricsText = "";
     } finally {
         isLoading = false;
@@ -46,7 +43,9 @@
     <div class="status-msg">Loading...</div>
   {:else if lyricsText}
     <div class="lyrics-content">
-      {lyricsText}
+      {#each lyricsText.split(/\r?\n/) as line}
+        <p class="lyric-line">{line}</p>
+      {/each}
     </div>
   {:else}
     <div class="status-msg">
@@ -67,7 +66,6 @@
     background-color: transparent;
     box-sizing: border-box;
     display: flex;
-    /* flex-direction: column; */
   }
 
   .lyrics-container::-webkit-scrollbar {
@@ -75,15 +73,21 @@
   }
 
   .lyrics-content {
-    white-space: pre-wrap;
-    text-wrap: balance;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    /* text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); */
     font-family: var(--font-stack);
     font-size: 15px;
-    line-height: 1.4;
+    line-height: 1.3;
     color: var(--text-main);
     text-align: left;
     margin: 0 auto;
+    width: 100%;
+    max-width: 300px;
+  }
+
+  .lyric-line {
+    margin: 5px 0;
+    min-height: 1.0em;
+    text-wrap: balance;
   }
 
   .status-msg {
