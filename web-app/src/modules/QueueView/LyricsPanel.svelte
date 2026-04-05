@@ -73,7 +73,6 @@
   }
 
   .lyrics-content {
-    /* text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); */
     font-family: var(--font-stack);
     font-size: 15px;
     line-height: 1.3;

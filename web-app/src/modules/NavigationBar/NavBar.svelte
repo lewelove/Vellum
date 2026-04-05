@@ -26,7 +26,7 @@
   }
 
   .nav-bar.v-glass {
-    background-color: oklch(0% 0 0 / 0.3);
+    /* background-color: oklch(0% 0 0 / 0.3) !important; */
   }
   
   .nav-group {

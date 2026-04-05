@@ -1,6 +1,6 @@
 <script>
   import { onMount, onDestroy } from "svelte";
-  import { pica } from "../../pica.js";
+  import { pica } from "../../../pica.js";
 
   let { src, width, height } = $props();
 
@@ -62,13 +62,11 @@
 
 <div class="modal-drawer-cover-wrapper" style="width: {width}px; height: {height}px;">
   <div class="cover-block" class:visible={isLoaded}>
-    <!-- Background img layer -->
     <img
       {src}
       class="cover-image"
       alt=""
     />
-    <!-- Foreground canvas - pica rendered -->
     <canvas
       bind:this={canvasEl}
       class="output-canvas"

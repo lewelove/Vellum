@@ -1,6 +1,6 @@
 <script>
-  import { theme } from "../../theme.svelte.js";
-  import { library } from "../../library.svelte.js";
+  import { theme } from "../../../theme.svelte.js";
+  import { library } from "../../../library.svelte.js";
 
   let { album, active, onclick, scrollY = 0, rowY = 0 } = $props();
 

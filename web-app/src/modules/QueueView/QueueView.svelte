@@ -5,12 +5,12 @@
   import { nav } from "../../navigation.svelte.js";
   import { fade } from "svelte/transition";
   
-  import QueueTracks from "./QueueTracks.svelte";
-  import QueueBar from "./QueueBar.svelte";
-  import Lyrics from "./Lyrics.svelte";
-  import ModalDrawerCover from "../album-grid/ModalDrawerCover.svelte";
-  import QueueBackgroundShader from "./QueueBackgroundShader.svelte";
-  import NavBar from "../navigation/NavBar.svelte";
+  import TrackList from "./TrackList.svelte";
+  import Sidebar from "./Sidebar.svelte";
+  import LyricsPanel from "./LyricsPanel.svelte";
+  import ModalDrawerCover from "../HomeView/ModalDrawer/ModalDrawerCover.svelte";
+  import BackgroundShader from "./BackgroundShader.svelte";
+  import NavBar from "../NavigationBar/NavBar.svelte";
   import Panel from "./ControlPanel/Panel.svelte";
 
   let activeId = $derived(player.currentAlbumId);
@@ -69,7 +69,7 @@
 <svelte:window bind:innerWidth={windowWidth} bind:innerHeight={windowHeight} />
 
 <div class="queue-view-container">
-  <QueueBackgroundShader colors={palette} coverSize={coverSize} visible={isViewVisible} {isPlaying} />
+  <BackgroundShader colors={palette} coverSize={coverSize} visible={isViewVisible} {isPlaying} />
 
   <NavBar variant="glass" />
 
@@ -106,7 +106,7 @@
         <div class="side-column">
           <div class="module-panel lyrics-panel v-glass">
             <div class="panel-inner">
-              <Lyrics />
+              <LyricsPanel />
             </div>
           </div>
         </div>
@@ -142,7 +142,7 @@
         <div class="side-column">
           <div class="module-panel tracks-panel v-glass">
             <div class="panel-inner">
-              <QueueTracks />
+              <TrackList />
             </div>
           </div>
         </div>
@@ -153,7 +153,7 @@
     <Panel />
   </div>
 
-  <QueueBar {panels} onToggle={togglePanel} />
+  <Sidebar {panels} onToggle={togglePanel} />
 </div>
 
 <style>

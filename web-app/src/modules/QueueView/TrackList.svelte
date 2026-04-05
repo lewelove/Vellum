@@ -169,20 +169,6 @@
 </div>
 
 <style>
-  /* .header-row, */
-  /* .disc-header-row, */
-  /* .header-album, */
-  /* .header-artist, */
-  /* .header-meta, */
-  /* .disc-label, */
-  /* .disc-duration-label, */
-  /* .track-index, */
-  /* .track-title, */
-  /* .track-artist, */
-  /* .track-meta { */
-  /*   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5); */
-  /* } */
-
   .header-album,
   .track-title {
     color: #ffffff;

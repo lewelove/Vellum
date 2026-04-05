@@ -128,8 +128,8 @@ main {
 }
 
 .v-glass {
-  /* backdrop-filter: blur(0px) brightness(0.7) contrast(0.8); */
-  background-color: oklch(0% 0 0 / 0.3);
+  /* backdrop-filter: blur(0px) contrast(0.8); */
+  background-color: oklch(20% 0 0 / 0.3);
   box-shadow: var(--panel-shadow);
   text-shadow: 0 1px 3px oklch(0% 0 0 / 0.3);
 }

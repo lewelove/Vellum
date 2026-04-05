@@ -2,8 +2,8 @@
   import { onMount, onDestroy } from "svelte";
   import { library } from "../../library.svelte.js";
   
-  import vertexShaderSource from "./shaders/quad.vert?raw";
-  import internalFragmentShader from "./shaders/simplex.frag?raw";
+  import vertexShaderSource from "./Shaders/Quad.vert?raw";
+  import internalFragmentShader from "./Shaders/Simplex.frag?raw";
 
   let { colors =[], coverSize = 0, visible = false, isPlaying = false } = $props();
 

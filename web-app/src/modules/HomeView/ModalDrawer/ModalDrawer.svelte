@@ -8,8 +8,8 @@
     openLockFile,
     openManifestFile,
     updateAlbum
-  } from "../../api.js";
-  import { library } from "../../library.svelte.js";
+  } from "../../../api.js";
+  import { library } from "../../../library.svelte.js";
   import ModalDrawerCover from "./ModalDrawerCover.svelte";
   import ModalDrawerTracks from "./ModalDrawerTracks.svelte";
 

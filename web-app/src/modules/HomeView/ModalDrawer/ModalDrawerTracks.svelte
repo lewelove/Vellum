@@ -183,19 +183,6 @@
 
   .track-index {
     color: #888888;
-    /* flex: 0 0 44px; */
-    /* text-align: center; */
-    /* font-size: 13px; */
-    /* line-height: 18px; */
-  }
-
-  .track-body {
-    /* flex: 1; */
-    /* display: flex; */
-    /* flex-direction: column; */
-    /* overflow: hidden; */
-    /* margin-right: 16px; */
-    /* line-height: 18px; */
   }
 
   .track-title {
@@ -209,9 +196,5 @@
 
   .track-meta {
     color: #888888;
-    /* padding-right: 18px; */
-    /* text-align: right; */
-    /* font-size: 14px; */
-    /* min-width: 44px; */
   }
 </style>

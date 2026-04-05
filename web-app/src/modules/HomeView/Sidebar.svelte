@@ -2,7 +2,6 @@
   import { library } from "../../library.svelte.js";
   import { GROUPER_LABELS } from "../../logic/groupers.js";
   import { SORTER_LABELS } from "../../logic/sorters.js";
-  import SidebarItem from "./SidebarItem.svelte";
 
   let isSortMenuOpen = $state(false);
   let isGroupMenuOpen = $state(false);
@@ -46,6 +45,13 @@
     library.toggleSortOrder();
   }
 </script>
+
+{#snippet Item({ label, count, active, onclick })}
+  <button class="sidebar-item" class:active {onclick}>
+    <span class="v-truncate label" title={label}>{label}</span>
+    <span class="v-mono count">{count}</span>
+  </button>
+{/snippet}
 
 <div class="sidebar-container">
   <div class="sidebar-nav">
@@ -127,12 +133,12 @@
   <div class="sidebar-scroll">
     <div class="v-scroll-fade-top"></div>
     {#each items as item}
-      <SidebarItem 
-        label={item.label} 
-        count={item.count}
-        active={library.activeFilter.key === item.filterTarget && library.activeFilter.val === item.value}
-        onclick={() => library.applyFilter(item.filterTarget, item.value)}
-      />
+      {@render Item({
+        label: item.label,
+        count: item.count,
+        active: library.activeFilter.key === item.filterTarget && library.activeFilter.val === item.value,
+        onclick: () => library.applyFilter(item.filterTarget, item.value)
+      })}
     {/each}
     <div class="scroll-spacer"></div>
     <div class="v-scroll-fade-bottom"></div>
@@ -338,5 +344,47 @@
   .scroll-spacer {
     height: 12px;
     flex-shrink: 0;
+  }
+
+  .sidebar-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    background-color: transparent;
+    border: none;
+    padding: 6px 12px;
+    margin-bottom: 2px;
+    cursor: default;
+    color: var(--text-muted);
+    font-family: var(--font-stack);
+    font-size: 14px;
+    text-align: left;
+    transition: background-color 0.1s ease;
+    outline: none;
+    border-radius: 8px;
+    box-sizing: border-box;
+    user-select: none;
+  }
+
+  .sidebar-item:hover {
+    background-color: rgba(255, 255, 255, 0.03);
+    color: var(--text-main);
+    cursor: pointer;
+  }
+
+  .sidebar-item.active {
+    background-color: rgba(255, 255, 255, 0.05);
+    color: var(--text-main);
+  }
+
+  .label {
+    flex: 1;
+    margin-right: 8px;
+  }
+
+  .count {
+    opacity: 0.5;
+    font-size: 13px;
   }
 </style>
