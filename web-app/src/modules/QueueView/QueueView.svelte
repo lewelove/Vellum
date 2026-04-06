@@ -28,6 +28,8 @@
     tracks: true
   });
 
+  let noSidePanels = $derived(!panels.lyrics && !panels.tracks);
+
   $effect(() => {
     if (!hasLyrics && panels.lyrics) {
       panels.lyrics = false;
@@ -157,7 +159,13 @@
 
     </div>
     
-    <ControlPanel />
+    <div 
+      class="control-wrapper" 
+      class:constrained={noSidePanels && moduleWidth > 0} 
+      style="--cover-width: {moduleWidth}px;"
+    >
+      <ControlPanel />
+    </div>
   </div>
 
   <Sidebar {panels} {hasLyrics} onToggle={togglePanel} />
@@ -279,6 +287,18 @@
     color: #444;
     font-size: 12px;
     letter-spacing: 2px;
+  }
+
+  .control-wrapper {
+    width: 100%;
+    margin: 0 auto;
+    display: flex;
+    flex-shrink: 0;
+    transition: max-width 0.2s cubic-bezier(0.2, 0, 0, 1);
+  }
+
+  .control-wrapper.constrained {
+    max-width: var(--cover-width);
   }
 
   .expanded-backdrop {
