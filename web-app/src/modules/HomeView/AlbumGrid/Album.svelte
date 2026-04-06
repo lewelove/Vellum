@@ -5,7 +5,7 @@
   let { album, active, onclick, scrollY = 0, rowY = 0 } = $props();
 
   let originalUrl = $derived(library.getThumbnailUrl(album));
-  let coverUrl = $derived(library.pinnedTextures.get(originalUrl) || originalUrl);
+  let coverBitmap = $derived(library.pinnedTextures.get(originalUrl));
 
   const coverSize = $derived(theme.albumGrid["cover-size"]);
   const gapY = $derived(theme.albumGrid["gap-y"]);
@@ -28,6 +28,7 @@
   });
 
   let canvas;
+  let coverCanvas;
   
   const lhTitle = $derived(theme.albumGrid["font-line-height-title"]);
   const gapLesser = $derived(theme.albumGrid["text-gap-lesser"]);
@@ -65,14 +66,15 @@
     if (w <= 0 || h <= 0) return;
 
     canvas.width = w * dpr;
-    canvas.height = h * dpr;
+    canvas.height = (h + 2) * dpr;
     
     const ctx = canvas.getContext('2d', { alpha: false });
     ctx.scale(dpr, dpr);
+    ctx.translate(0, 1);
     
     const bgHex = theme.palette[theme.colors["background-main"]] || "#323232";
     ctx.fillStyle = bgHex;
-    ctx.fillRect(0, 0, w, h);
+    ctx.fillRect(0, -1, w, h + 2);
     
     const fontStack = "Inter, 'Noto Sans', system-ui, sans-serif";
     
@@ -115,6 +117,24 @@
     };
     renderText();
   });
+
+  $effect(() => {
+    if (coverCanvas && coverBitmap) {
+      const ctx = coverCanvas.getContext('2d', { alpha: false });
+      const dpr = window.devicePixelRatio || 1;
+      coverCanvas.width = coverSize * dpr;
+      coverCanvas.height = (coverSize + 2) * dpr;
+      
+      ctx.scale(dpr, dpr);
+      ctx.translate(0, 1);
+      
+      const bgHex = theme.palette[theme.colors["background-main"]] || "#323232";
+      ctx.fillStyle = bgHex;
+      ctx.fillRect(0, -1, coverSize, coverSize + 2);
+      
+      ctx.drawImage(coverBitmap, 0, 0, coverSize, coverSize);
+    }
+  });
 </script>
 
 <div class="album-unit">
@@ -125,11 +145,16 @@
     {onclick}
     aria-label="Select album {album.title}"
   >
-    {#if coverUrl}
+    {#if coverBitmap}
+      <canvas 
+        bind:this={coverCanvas}
+        style="width: 100%; height: calc(100% + 2px); position: absolute; top: -1px; left: 0; display: block; pointer-events: none;"
+      ></canvas>
+    {:else if originalUrl}
       <img 
-        src={coverUrl} 
+        src={originalUrl} 
         alt="" 
-        decoding="async"
+        decoding="sync"
         draggable="false"
       />
     {/if}
@@ -148,7 +173,10 @@
       bind:this={canvas}
       style="
         width: {coverSize}px;
-        height: {textBlockHeight}px;
+        height: calc(100% + 2px);
+        position: absolute;
+        top: -1px;
+        left: 0;
         display: block;
         image-rendering: -webkit-optimize-contrast;
       "
@@ -181,7 +209,7 @@
     box-shadow: var(--album-cover-shadow);
     transition: transform 0.2s ease, box-shadow 0.2s ease;
     pointer-events: auto;
-    overflow: hidden;
+    overflow: visible;
   }
 
   .album-cover img {
