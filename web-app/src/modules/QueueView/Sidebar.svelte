@@ -40,12 +40,18 @@
   </button>
 {/snippet}
 
+{#snippet ActButton({ icon, label, disabled, active, onclick })}
+  <button class="v-btn-icon queue-act-button" class:active {disabled} {onclick} title={label}>
+    <img src="/{icon}" alt={label} class="nav-icon" />
+  </button>
+{/snippet}
+
 <div class="queue-bar v-glass">
   <div class="nav-group top">
-    {@render NavButton({ icon: "icons/outlined/24px/code.svg", label: "Open Data Object", disabled: !activeId, onclick: handleOpenLock })}
-    {@render NavButton({ icon: "icons/outlined/24px/edit_document.svg", label: "Open Manifest", disabled: !activeId, onclick: handleOpenManifest })}
-    {@render NavButton({ icon: "icons/outlined/24px/folder.svg", label: "Open Local Folder", disabled: !activeId, onclick: handleOpenFolder })}
-    {@render NavButton({ icon: "icons/outlined/24px/refresh.svg", label: "Update Album", disabled: !activeId, onclick: handleUpdate })}
+    {@render ActButton({ icon: "icons/outlined/24px/code.svg", label: "Open Data Object", disabled: !activeId, onclick: handleOpenLock })}
+    {@render ActButton({ icon: "icons/outlined/24px/edit_document.svg", label: "Open Manifest", disabled: !activeId, onclick: handleOpenManifest })}
+    {@render ActButton({ icon: "icons/outlined/24px/folder.svg", label: "Open Local Folder", disabled: !activeId, onclick: handleOpenFolder })}
+    {@render ActButton({ icon: "icons/outlined/24px/refresh.svg", label: "Update Album", disabled: !activeId, onclick: handleUpdate })}
   </div>
 
   <div class="nav-group bottom">
@@ -75,6 +81,15 @@
   }
 
   .queue-nav-button {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    box-shadow: var(--button-shadow-lesser);
+    flex-shrink: 0;
+    pointer-events: auto;
+  }
+
+  .queue-act-button {
     width: 40px;
     height: 40px;
     border-radius: 10px;
