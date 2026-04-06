@@ -4,42 +4,56 @@
   let { coverUrl = "", onclick, width = $bindable(0) } = $props();
 </script>
 
-<div 
-  class="cover-panel" 
-  class:clickable={!!coverUrl}
-  bind:clientWidth={width}
-  {onclick}
-  role="button"
-  tabindex="0"
-  onkeydown={(e) => { if(e.key === 'Enter') onclick?.(); }}
->
-  <div class="cover-absolute-wrapper">
-    {#if coverUrl && width > 0}
-      <ModalDrawerCover 
-        src={coverUrl} 
-        width={width} 
-        height={width} 
-      />
-    {:else if !coverUrl}
-      <div class="empty-cover">
-        <span>NO SIGNAL</span>
-      </div>
-    {/if}
+<div class="cover-wrapper">
+  <div 
+    class="cover-panel" 
+    class:clickable={!!coverUrl}
+    bind:clientWidth={width}
+    {onclick}
+    role="button"
+    tabindex="0"
+    onkeydown={(e) => { if(e.key === 'Enter') onclick?.(); }}
+  >
+    <div class="cover-absolute-wrapper">
+      {#if coverUrl && width > 0}
+        <ModalDrawerCover 
+          src={coverUrl} 
+          width={width} 
+          height={width} 
+        />
+      {:else if !coverUrl}
+        <div class="empty-cover">
+          <span>NO SIGNAL</span>
+        </div>
+      {/if}
+    </div>
   </div>
 </div>
 
 <style>
-  .cover-panel {
+  .cover-wrapper {
     flex: 0 1 auto;
     height: 100%;
+    max-height: 100%;
+    max-width: 60%;
     aspect-ratio: 1 / 1;
-    max-width: 60vw;
     align-self: center;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .cover-panel {
+    width: 100%;
+    height: 100%;
     background-color: transparent;
     position: relative;
     cursor: default;
     outline: none;
     border: none;
+    box-sizing: border-box;
   }
 
   .cover-panel.clickable {
