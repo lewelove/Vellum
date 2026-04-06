@@ -12,6 +12,7 @@
   import BackgroundShader from "./BackgroundShader.svelte";
   import NavBar from "../NavigationBar/NavBar.svelte";
   import ControlPanel from "./ControlPanel.svelte";
+  import CoverPanel from "./CoverPanel.svelte";
 
   let activeId = $derived(player.currentAlbumId);
   let activeAlbum = $derived(activeId ? library.albumCache.get(activeId) : null);
@@ -40,10 +41,7 @@
     panels[key] = !panels[key];
   }
 
-  const coverPadding = 0;
   let moduleWidth = $state(0);
-  
-  let coverSize = $derived(Math.max(0, moduleWidth - (coverPadding * 2)));
 
   let isExpanded = $state(false);
   let windowWidth = $state(0);
@@ -78,7 +76,7 @@
 <svelte:window bind:innerWidth={windowWidth} bind:innerHeight={windowHeight} />
 
 <div class="queue-view-container">
-  <BackgroundShader colors={palette} coverSize={coverSize} visible={isViewVisible} {isPlaying} />
+  <BackgroundShader colors={palette} coverSize={moduleWidth} visible={isViewVisible} {isPlaying} />
 
   <NavBar variant="glass" />
 
@@ -121,31 +119,11 @@
         </div>
       {/if}
 
-      <div 
-        class="module-panel module-cover v-glass" 
-        class:clickable={!!coverUrl}
-        bind:clientWidth={moduleWidth}
-        onclick={toggleExpand}
-        role="button"
-        tabindex="0"
-        onkeydown={(e) => { if(e.key === 'Enter') toggleExpand(); }}
-      >
-        <div class="panel-inner cover-inner">
-          <div class="cover-absolute-wrapper" style="inset: {coverPadding}px;">
-            {#if coverUrl}
-              <ModalDrawerCover 
-                src={coverUrl} 
-                width={coverSize} 
-                height={coverSize} 
-              />
-            {:else}
-              <div class="empty-cover">
-                <span>NO SIGNAL</span>
-              </div>
-            {/if}
-          </div>
-        </div>
-      </div>
+      <CoverPanel 
+        {coverUrl} 
+        bind:width={moduleWidth} 
+        onclick={toggleExpand} 
+      />
 
       {#if panels.tracks}
         <div class="side-column">
@@ -241,52 +219,6 @@
     display: flex;
     flex-direction: column;
     min-height: 0;
-  }
-
-  .module-cover {
-    flex: 0 1 auto;
-    height: 100%;
-    width: auto;
-    aspect-ratio: 1 / 1;
-    cursor: default;
-    outline: none;
-    border-radius: 0px;
-    border: transparent;
-  }
-
-  .module-cover.clickable {
-    cursor: pointer;
-  }
-
-  .cover-inner {
-    position: relative;
-    width: 100%;
-    height: 100%;
-    padding: 0 !important; 
-  }
-  
-  .cover-absolute-wrapper {
-    position: absolute;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .empty-cover {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    box-sizing: border-box;
-  }
-
-  .empty-cover span {
-    font-family: var(--font-mono);
-    color: #444;
-    font-size: 12px;
-    letter-spacing: 2px;
   }
 
   .control-wrapper {
