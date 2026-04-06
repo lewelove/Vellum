@@ -18,6 +18,7 @@
   let coverUrl = $derived(activeId ? library.getAlbumCoverUrl(activeId) : "");
   
   let palette = $derived(activeAlbum?.tags?.COVER_PALETTE || []);
+  let hasLyrics = $derived(activeAlbum?.tracks?.some(t => !!t.lyrics_path) ?? false);
 
   let isViewVisible = $derived(nav.activeTab === 'queue');
   let isPlaying = $derived(player.state === "play");
@@ -25,6 +26,12 @@
   let panels = $state({
     lyrics: false,
     tracks: true
+  });
+
+  $effect(() => {
+    if (!hasLyrics && panels.lyrics) {
+      panels.lyrics = false;
+    }
   });
 
   function togglePanel(key) {
@@ -153,7 +160,7 @@
     <ControlPanel />
   </div>
 
-  <Sidebar {panels} onToggle={togglePanel} />
+  <Sidebar {panels} {hasLyrics} onToggle={togglePanel} />
 </div>
 
 <style>
