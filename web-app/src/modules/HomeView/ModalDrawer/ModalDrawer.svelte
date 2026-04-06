@@ -10,7 +10,7 @@
     updateAlbum
   } from "../../../api.js";
   import { library } from "../../../library.svelte.js";
-  import ModalDrawerCover from "./ModalDrawerCover.svelte";
+  import ClearCover from "../../ClearCover.svelte";
   import ModalDrawerTracks from "./ModalDrawerTracks.svelte";
 
   let { album, onclose } = $props();
@@ -73,7 +73,7 @@
       <div class="column-left" bind:clientWidth={leftColumnWidth}>
         <div class="cover-container" style="height: {leftColumnWidth - 64}px;">
           {#if leftColumnWidth > 0}
-            <ModalDrawerCover 
+            <ClearCover 
               src={coverUrl} 
               width={leftColumnWidth - 64} 
               height={leftColumnWidth - 64} 
@@ -169,7 +169,7 @@
   .modal-backdrop {
     position: fixed;
     inset: 0;
-    background-color: rgba(0, 0, 0, 0.5);
+    background-color: oklch(0% 0 0 / 0.5);
     backdrop-filter: blur(2px);
     display: flex;
     align-items: center;

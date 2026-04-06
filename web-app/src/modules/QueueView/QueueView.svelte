@@ -8,7 +8,7 @@
   import TrackList from "./TrackList.svelte";
   import Sidebar from "./Sidebar.svelte";
   import LyricsPanel from "./LyricsPanel.svelte";
-  import ModalDrawerCover from "../HomeView/ModalDrawer/ModalDrawerCover.svelte";
+  import ClearCover from "../ClearCover.svelte";
   import BackgroundShader from "./BackgroundShader.svelte";
   import NavBar from "../NavigationBar/NavBar.svelte";
   import ControlPanel from "./ControlPanel.svelte";
@@ -96,7 +96,7 @@
         role="presentation"
       >
         <div in:fade={{ duration: 100 }}>
-          <ModalDrawerCover 
+          <ClearCover 
             src={coverUrl} 
             width={expandedSize} 
             height={expandedSize} 

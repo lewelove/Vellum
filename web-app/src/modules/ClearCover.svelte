@@ -1,6 +1,6 @@
 <script>
-  import { onMount, onDestroy } from "svelte";
-  import { pica } from "../../../pica.js";
+  import { onDestroy } from "svelte";
+  import { pica } from "../pica.js";
 
   let { src, width, height } = $props();
 
@@ -10,13 +10,17 @@
   let lastRenderedDim = "";
 
   async function processImage(url, w, h) {
-    if (!url || !w || !h) return;
+    if (!url || !w || !h) {
+      isLoaded = false;
+      return;
+    }
     
     const dimKey = `${url}-${w}-${h}`;
     if (dimKey === lastRenderedDim) return;
     
     lastRenderedDim = dimKey;
     currentSrc = url;
+    isLoaded = false;
 
     try {
       const response = await fetch(url);
@@ -60,25 +64,34 @@
   });
 </script>
 
-<div class="modal-drawer-cover-wrapper" style="width: {width}px; height: {height}px;">
-  <div class="cover-block" class:visible={isLoaded}>
-    <img
-      {src}
-      class="cover-image"
-      alt=""
-    />
-    <canvas
-      bind:this={canvasEl}
-      class="output-canvas"
-      style="width: {width}px; height: {height}px;"
-    ></canvas>
-  </div>
+<div class="clear-cover-wrapper" style="width: {width}px; height: {height}px;">
+  {#if src}
+    <div class="cover-block" class:visible={isLoaded}>
+      <img
+        {src}
+        class="cover-image"
+        alt=""
+      />
+      <canvas
+        bind:this={canvasEl}
+        class="output-canvas"
+        style="width: {width}px; height: {height}px;"
+      ></canvas>
+    </div>
+  {:else}
+    <div class="empty-cover">
+      <span>NO SIGNAL</span>
+    </div>
+  {/if}
 </div>
 
 <style>
-  .modal-drawer-cover-wrapper {
+  .clear-cover-wrapper {
     position: relative;
     overflow: visible;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .cover-block {
@@ -110,6 +123,23 @@
   }
 
   .cover-block.visible .output-canvas {
-    box-shadow: 0 0 16px rgba(0, 0, 0, 0.1), 0 0 16px rgba(0, 0, 0, 0.2), 0 0 10px rgba(0, 0, 0, 0.2);
+    box-shadow: var(--panel-shadow);
+  }
+
+  .empty-cover {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    box-sizing: border-box;
+  }
+
+  .empty-cover span {
+    font-family: var(--font-mono);
+    color: #444;
+    font-size: 12px;
+    letter-spacing: 2px;
   }
 </style>

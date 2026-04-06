@@ -1,5 +1,5 @@
 <script>
-  import ModalDrawerCover from "../HomeView/ModalDrawer/ModalDrawerCover.svelte";
+  import ClearCover from "../ClearCover.svelte";
 
   let { coverUrl = "", onclick, width = $bindable(0) } = $props();
 </script>
@@ -15,16 +15,12 @@
     onkeydown={(e) => { if(e.key === 'Enter') onclick?.(); }}
   >
     <div class="cover-absolute-wrapper">
-      {#if coverUrl && width > 0}
-        <ModalDrawerCover 
+      {#if width > 0}
+        <ClearCover 
           src={coverUrl} 
           width={width} 
           height={width} 
         />
-      {:else if !coverUrl}
-        <div class="empty-cover">
-          <span>NO SIGNAL</span>
-        </div>
       {/if}
     </div>
   </div>
@@ -66,22 +62,5 @@
     display: flex;
     align-items: center;
     justify-content: center;
-  }
-
-  .empty-cover {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    box-sizing: border-box;
-  }
-
-  .empty-cover span {
-    font-family: var(--font-mono);
-    color: #444;
-    font-size: 12px;
-    letter-spacing: 2px;
   }
 </style>

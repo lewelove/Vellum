@@ -187,6 +187,11 @@
     color: oklch(100% 0 0 / 0.7);
   }
 
+  .disc-label,
+  .disc-duration-label {
+    color: oklch(100% 0 0 / 0.6);
+  }
+
   .tracks-list-container {
     width: 100%;
     height: 100%;
@@ -209,7 +214,7 @@
   }
 
   .album-group-header {
-    padding: 0px 0px 12px 0px;
+    padding: 0px 0px 16px 0px;
     display: flex;
     align-items: center;
     gap: 12px;
@@ -253,8 +258,8 @@
 
   .disc-separator {
     height: 1px;
-    background-color: oklch(100% 0 0 / 0.05);
-    margin: 12px 20px;
+    background-color: oklch(100% 0 0 / 0.07);
+    margin: 10px 0 12px 0;
   }
 
   .disc-header-row {
@@ -262,7 +267,7 @@
     justify-content: space-between;
     align-items: center;
     padding: 0 0px;
-    margin: 10px;
+    margin: 10px 0px 8px 0;
   }
 
   .disc-header-row.first-disc {
@@ -280,14 +285,14 @@
     align-items: center;
     padding: 0 12px;
     font-size: 12px;
-    border: 1px solid oklch(100% 0 0 / 0.05);
+    border: 1px solid oklch(100% 0 0 / 0.07);
     border-radius: 8px;
     height: 24px;
     box-sizing: border-box;
   }
 
   .disc-label {
-    font-weight: 600;
+    font-weight: 500;
   }
 
   .disc-duration-label {
