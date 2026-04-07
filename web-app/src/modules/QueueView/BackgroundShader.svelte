@@ -98,11 +98,13 @@
 
   $effect(() => {
     let palette = (colors && colors.length > 0) ? [...colors] : [...DEFAULT_PALETTE];
-    
-    palette.sort((a, b) => getChroma(b) - getChroma(a));
-    palette = palette.slice(0, PALETTE_SIZE_LIMIT);
-
     const order = library.config.shader?.order || "random";
+    
+    if (order !== "original") {
+      palette.sort((a, b) => getChroma(b) - getChroma(a));
+    }
+    
+    palette = palette.slice(0, PALETTE_SIZE_LIMIT);
 
     if (order === "random") {
       shuffle(palette);

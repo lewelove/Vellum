@@ -162,7 +162,7 @@
 
   .time {
     font-size: 14px;
-    color: oklch(100% 0 0 / 0.7);
+    color: oklch(100% 0 0 / 0.8);
     flex-shrink: 0;
   }
 

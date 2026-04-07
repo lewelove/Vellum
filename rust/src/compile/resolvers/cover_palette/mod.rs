@@ -37,6 +37,8 @@ pub fn resolve(ctx: &AlbumContext, args: &str) -> Option<Value> {
     };
 
     let mut candidate_colors = Vec::new();
+    let mut manually_provided = false;
+    
     if let Some(arr) = ctx.source.get("cover_palette").and_then(|v| v.as_array()) {
         for v in arr {
             if let Some(s) = v.as_str() {
@@ -44,6 +46,9 @@ pub fn resolve(ctx: &AlbumContext, args: &str) -> Option<Value> {
                     candidate_colors.push(srgb);
                 }
             }
+        }
+        if !candidate_colors.is_empty() {
+            manually_provided = true;
         }
     }
 
@@ -92,8 +97,13 @@ pub fn resolve(ctx: &AlbumContext, args: &str) -> Option<Value> {
 
     let total_pixels = counts.iter().sum::<usize>() as f32;
     let mut palette: Vec<(Srgb, f32)> = candidate_colors.into_iter().zip(counts.into_iter()).filter_map(|(color, count)| {
-        let ratio = count as f32 / total_pixels;
-        if ratio > 0.0 {
+        let ratio = if total_pixels > 0.0 {
+            count as f32 / total_pixels
+        } else {
+            0.0
+        };
+        
+        if manually_provided || ratio > 0.0 {
             Some((color, ratio))
         } else {
             None
@@ -106,19 +116,30 @@ pub fn resolve(ctx: &AlbumContext, args: &str) -> Option<Value> {
         .and_then(|val| val.parse::<f32>().ok())
         .unwrap_or(0.001);
 
-    palette.retain(|&(_, ratio)| ratio >= threshold);
+    if !manually_provided {
+        palette.retain(|&(_, ratio)| ratio >= threshold);
+    }
 
     let final_total: f32 = palette.iter().map(|(_, r)| r).sum();
     if final_total > 0.0 {
         for item in &mut palette {
             item.1 /= final_total;
         }
+    } else if manually_provided && !palette.is_empty() {
+        let even = 1.0 / palette.len() as f32;
+        for item in &mut palette {
+            item.1 = even;
+        }
     }
 
-    let sort_type = args.split(',')
-        .find(|s| s.trim().starts_with("sort="))
-        .and_then(|s| s.trim().strip_prefix("sort="))
-        .unwrap_or("ratio");
+    let sort_type = if manually_provided {
+        "original"
+    } else {
+        args.split(',')
+            .find(|s| s.trim().starts_with("sort="))
+            .and_then(|s| s.trim().strip_prefix("sort="))
+            .unwrap_or("ratio")
+    };
 
     match sort_type {
         "L" => palette.sort_by(|a, b| {
@@ -136,6 +157,7 @@ pub fn resolve(ctx: &AlbumContext, args: &str) -> Option<Value> {
             let h_b = Oklch::from_color(b.0).hue.into_raw_degrees();
             h_a.partial_cmp(&h_b).unwrap_or(std::cmp::Ordering::Equal)
         }),
+        "original" => {},
         "ratio" | _ => palette.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal)),
     }
 
