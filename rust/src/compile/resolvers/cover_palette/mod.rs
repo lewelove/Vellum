@@ -8,7 +8,7 @@ pub mod palette_extract_crate;
 use crate::compile::builder::context::AlbumContext;
 use image::imageops::FilterType;
 use mcu_hct::Hct;
-use palette::{FromColor, Oklch, Srgb};
+use palette::{FromColor, Oklch};
 use serde_json::{Value, json};
 
 pub fn resolve(ctx: &AlbumContext, args: &str) -> Option<Value> {
