@@ -267,7 +267,7 @@
   .btn-label {
     flex: 1;
     text-align: left;
-    text-transform: lowercase;
+    /* text-transform: lowercase; */
   }
 
   .chevron {
@@ -308,7 +308,7 @@
     color: var(--text-muted);
     font-family: var(--font-stack);
     font-size: 13px;
-    text-transform: lowercase;
+    /* text-transform: lowercase; */
     cursor: pointer;
     border-radius: 8px;
     outline: none;

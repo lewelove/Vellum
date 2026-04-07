@@ -158,6 +158,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1505bd5d3d116872e7271a6d4e16d81d0c8570876c8de68093a09ac269d8aac0"
 
 [[package]]
+name = "auto-palette"
+version = "0.9.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3d3a3dd8bb9a7414943e5ccc56d75083721bf2286f2b25e6e2eb9eda8ac97d7f"
+dependencies = [
+ "image",
+ "num-traits",
+ "rustc-hash",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "autocfg"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2077,6 +2089,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "palette_extract"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "37152de66c36e76d4637af2a51310ede2c0e42b80357fa517bf1b595b56489a4"
+
+[[package]]
 name = "parking_lot"
 version = "0.12.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3463,6 +3481,7 @@ version = "0.1.0"
 dependencies = [
  "alphanumeric-sort",
  "anyhow",
+ "auto-palette",
  "axum",
  "base64",
  "chrono",
@@ -3482,6 +3501,7 @@ dependencies = [
  "mpd_client",
  "notify",
  "palette",
+ "palette_extract",
  "parking_lot",
  "rand 0.10.0",
  "rayon",

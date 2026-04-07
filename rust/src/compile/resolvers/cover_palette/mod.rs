@@ -1,12 +1,14 @@
+pub mod auto_palette_crate;
 pub mod kmeans;
 pub mod kmeans_filtered;
 pub mod mcu_material;
 pub mod mean_shift;
+pub mod palette_extract_crate;
 
 use crate::compile::builder::context::AlbumContext;
 use image::imageops::FilterType;
 use mcu_hct::Hct;
-use palette::{FromColor, Oklch};
+use palette::{FromColor, Oklch, Srgb};
 use serde_json::{Value, json};
 
 pub fn resolve(ctx: &AlbumContext, args: &str) -> Option<Value> {
@@ -19,7 +21,11 @@ pub fn resolve(ctx: &AlbumContext, args: &str) -> Option<Value> {
         .and_then(|val| val.parse::<u32>().ok())
         .unwrap_or(512);
 
-    let img_small = img.resize_exact(sample_dim, sample_dim, FilterType::Nearest);
+    let img_to_process = if sample_dim == 0 {
+        img
+    } else {
+        img.resize_exact(sample_dim, sample_dim, FilterType::Nearest)
+    };
 
     let algo_type = args.split(',')
         .find(|s| s.trim().starts_with("type="))
@@ -27,13 +33,37 @@ pub fn resolve(ctx: &AlbumContext, args: &str) -> Option<Value> {
         .unwrap_or("kmeans");
 
     let mut palette = match algo_type {
-        "msc" => mean_shift::extract(&img_small, args),
-        "material" => mcu_material::extract(&img_small, args),
-        "kmeans_filtered" => kmeans_filtered::extract(&img_small, args),
-        "kmeans" | _ => kmeans::extract(&img_small, args),
+        "auto" => auto_palette_crate::extract(&img_to_process, args),
+        "msc" => mean_shift::extract(&img_to_process, args),
+        "material" => mcu_material::extract(&img_to_process, args),
+        "kmeans_filtered" => kmeans_filtered::extract(&img_to_process, args),
+        "mmcq" => palette_extract_crate::extract(&img_to_process, args),
+        "kmeans" | _ => kmeans::extract(&img_to_process, args),
     };
 
-    palette.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+    let sort_type = args.split(',')
+        .find(|s| s.trim().starts_with("sort="))
+        .and_then(|s| s.trim().strip_prefix("sort="))
+        .unwrap_or("ratio");
+
+    match sort_type {
+        "L" => palette.sort_by(|a, b| {
+            let l_a = Oklch::from_color(a.0).l;
+            let l_b = Oklch::from_color(b.0).l;
+            l_b.partial_cmp(&l_a).unwrap_or(std::cmp::Ordering::Equal)
+        }),
+        "C" => palette.sort_by(|a, b| {
+            let c_a = Oklch::from_color(a.0).chroma;
+            let c_b = Oklch::from_color(b.0).chroma;
+            c_b.partial_cmp(&c_a).unwrap_or(std::cmp::Ordering::Equal)
+        }),
+        "H" => palette.sort_by(|a, b| {
+            let h_a = Oklch::from_color(a.0).hue.into_raw_degrees();
+            let h_b = Oklch::from_color(b.0).hue.into_raw_degrees();
+            h_a.partial_cmp(&h_b).unwrap_or(std::cmp::Ordering::Equal)
+        }),
+        "ratio" | _ => palette.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal)),
+    }
 
     let palette_json: Vec<Value> = palette.into_iter()
         .map(|(srgb, ratio)| {

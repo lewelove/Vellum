@@ -197,7 +197,7 @@
 
   .module-panel {
     min-width: 240px;
-    border-radius: 8px;
+    border-radius: 16px;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -215,7 +215,7 @@
 
   .panel-inner {
     flex: 1;
-    padding: 20px;
+    padding: 24px;
     overflow: hidden;
     display: flex;
     flex-direction: column;

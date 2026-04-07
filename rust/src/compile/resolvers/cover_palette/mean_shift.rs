@@ -1,18 +1,18 @@
 use image::DynamicImage;
-use palette::{FromColor, Lab, Srgb};
+use palette::{FromColor, Oklab, Srgb};
 
 pub fn extract(img: &DynamicImage, args: &str) -> Vec<(Srgb, f32)> {
     let bw = args.split(',')
         .find(|s| s.trim().starts_with("bw="))
         .and_then(|s| s.trim().strip_prefix("bw="))
         .and_then(|val| val.parse::<f32>().ok())
-        .unwrap_or(12.0);
+        .unwrap_or(0.12);
         
     let eps = args.split(',')
         .find(|s| s.trim().starts_with("eps="))
         .and_then(|s| s.trim().strip_prefix("eps="))
         .and_then(|val| val.parse::<f32>().ok())
-        .unwrap_or(0.01);
+        .unwrap_or(0.0001);
         
     let max_iter = args.split(',')
         .find(|s| s.trim().starts_with("iter="))
@@ -20,9 +20,33 @@ pub fn extract(img: &DynamicImage, args: &str) -> Vec<(Srgb, f32)> {
         .and_then(|val| val.parse::<usize>().ok())
         .unwrap_or(20);
 
+    let threshold = args.split(',')
+        .find(|s| s.trim().starts_with("t="))
+        .and_then(|s| s.trim().strip_prefix("t="))
+        .and_then(|val| val.parse::<f32>().ok())
+        .unwrap_or(0.005);
+
+    let merge_threshold = args.split(',')
+        .find(|s| s.trim().starts_with("mt="))
+        .and_then(|s| s.trim().strip_prefix("mt="))
+        .and_then(|val| val.parse::<f32>().ok())
+        .unwrap_or(0.10);
+
+    let chroma_gravity = args.split(',')
+        .find(|s| s.trim().starts_with("cg="))
+        .and_then(|s| s.trim().strip_prefix("cg="))
+        .and_then(|val| val.parse::<f32>().ok())
+        .unwrap_or(0.0);
+
+    let k = args.split(',')
+        .find(|s| s.trim().starts_with("k="))
+        .and_then(|s| s.trim().strip_prefix("k="))
+        .and_then(|val| val.parse::<usize>().ok())
+        .unwrap_or(0);
+
     let img_small = img.resize_exact(64, 64, image::imageops::FilterType::Nearest);
-    let sample_pixels: Vec<Lab> = img_small.to_rgb8().pixels().map(|p| {
-        Lab::from_color(Srgb::new(
+    let sample_pixels: Vec<Oklab> = img_small.to_rgb8().pixels().map(|p| {
+        Oklab::from_color(Srgb::new(
             p[0] as f32 / 255.0,
             p[1] as f32 / 255.0,
             p[2] as f32 / 255.0,
@@ -43,15 +67,18 @@ pub fn extract(img: &DynamicImage, args: &str) -> Vec<(Srgb, f32)> {
             for &p in &sample_pixels {
                 let dist_sq = (current.l - p.l).powi(2) + (current.a - p.a).powi(2) + (current.b - p.b).powi(2);
                 if dist_sq < bw_sq {
-                    sum_l += p.l;
-                    sum_a += p.a;
-                    sum_b += p.b;
-                    total_weight += 1.0;
+                    let chroma = p.a.hypot(p.b);
+                    let weight = 1.0 + (chroma_gravity * chroma);
+                    
+                    sum_l += p.l * weight;
+                    sum_a += p.a * weight;
+                    sum_b += p.b * weight;
+                    total_weight += weight;
                 }
             }
             
             if total_weight > 0.0 {
-                let next = Lab::new(sum_l / total_weight, sum_a / total_weight, sum_b / total_weight);
+                let next = Oklab::new(sum_l / total_weight, sum_a / total_weight, sum_b / total_weight);
                 let shift_sq = (next.l - current.l).powi(2) + (next.a - current.a).powi(2) + (next.b - current.b).powi(2);
                 current = next;
                 if shift_sq < eps {
@@ -64,10 +91,9 @@ pub fn extract(img: &DynamicImage, args: &str) -> Vec<(Srgb, f32)> {
         converged.push(current);
     }
     
-    let merge_threshold = 10.0_f32;
     let merge_threshold_sq = merge_threshold * merge_threshold;
     
-    let mut centers: Vec<Lab> = Vec::new();
+    let mut centers: Vec<Oklab> = Vec::new();
     
     for pos in converged {
         let mut found = false;
@@ -83,15 +109,15 @@ pub fn extract(img: &DynamicImage, args: &str) -> Vec<(Srgb, f32)> {
         }
     }
     
-    let full_pixels: Vec<Lab> = img.to_rgb8().pixels().map(|p| {
-        Lab::from_color(Srgb::new(
+    let full_pixels: Vec<Oklab> = img.to_rgb8().pixels().map(|p| {
+        Oklab::from_color(Srgb::new(
             p[0] as f32 / 255.0,
             p[1] as f32 / 255.0,
             p[2] as f32 / 255.0,
         ))
     }).collect();
 
-    let mut counts = vec![0; centers.len()];
+    let mut counts = vec![0.0_f32; centers.len()];
     for p in full_pixels.iter() {
         let mut best_idx = 0;
         let mut min_dist_sq = f32::MAX;
@@ -103,15 +129,39 @@ pub fn extract(img: &DynamicImage, args: &str) -> Vec<(Srgb, f32)> {
                 best_idx = i;
             }
         }
-        counts[best_idx] += 1;
+        
+        let chroma = p.a.hypot(p.b);
+        let weight = 1.0 + (chroma_gravity * chroma);
+        counts[best_idx] += weight;
     }
     
-    let full_total = full_pixels.len() as f32;
-    let result: Vec<(Srgb, f32)> = centers.into_iter().zip(counts.into_iter()).map(|(lab, count)| {
-        let srgb = Srgb::from_color(lab);
-        let ratio = count as f32 / full_total;
+    let full_total: f32 = counts.iter().sum();
+    let mut result: Vec<(Srgb, f32)> = centers.into_iter().zip(counts.into_iter()).map(|(oklab, count)| {
+        let srgb = Srgb::from_color(oklab);
+        let ratio = if full_total > 0.0 { count / full_total } else { 0.0 };
         (srgb, ratio)
     }).collect();
+
+    result.retain(|&(_, ratio)| ratio >= threshold);
+
+    result.sort_by(|a, b| {
+        let lab_a = Oklab::from_color(a.0);
+        let lab_b = Oklab::from_color(b.0);
+        let chroma_a = lab_a.a.hypot(lab_a.b);
+        let chroma_b = lab_b.a.hypot(lab_b.b);
+        chroma_b.partial_cmp(&chroma_a).unwrap_or(std::cmp::Ordering::Equal)
+    });
+
+    if k > 0 && result.len() > k {
+        result.truncate(k);
+        
+        let new_total: f32 = result.iter().map(|(_, r)| r).sum();
+        if new_total > 0.0 {
+            for item in &mut result {
+                item.1 /= new_total;
+            }
+        }
+    }
     
     result
 }

@@ -78,7 +78,7 @@
   .lyrics-content {
     font-family: var(--font-stack);
     font-size: 15px;
-    line-height: 1.3;
+    line-height: 1.2;
     color: var(--text-main);
     text-align: center;
     text-align: left;
@@ -89,8 +89,8 @@
   }
 
   .lyric-line {
-    margin: 5px 0;
-    min-height: 1.0em;
+    margin: 6px 0;
+    min-height: 0.4em;
     text-wrap: balance;
   }
 

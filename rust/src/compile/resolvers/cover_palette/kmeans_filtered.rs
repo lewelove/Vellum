@@ -82,8 +82,6 @@ pub fn extract(img: &DynamicImage, args: &str) -> Vec<(Srgb, f32)> {
         }
     }
 
-    all_colors.sort_by(|a, b| b.4.partial_cmp(&a.4).unwrap_or(std::cmp::Ordering::Equal));
-
     let mut filtered_palette = Vec::new();
     let mut total_filtered_ratio = 0.0;
 

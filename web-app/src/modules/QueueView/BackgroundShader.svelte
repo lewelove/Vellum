@@ -7,6 +7,8 @@
 
   let { colors =[], coverSize = 0, visible = false, isPlaying = false } = $props();
 
+  const PALETTE_SIZE_LIMIT = 12;
+
   let canvasEl;
   let gl;
   let program;
@@ -53,6 +55,18 @@
     return [L, A, B];
   }
 
+  function parseOklch(str) {
+    const m = str.match(/oklch\(([\d.]+)%\s+([\d.]+)\s+([\d.]+)\)/);
+    return m ? { L: parseFloat(m[1]), C: parseFloat(m[2]), H: parseFloat(m[3]) } : { L: 0, C: 0, H: 0 };
+  }
+
+  function getChroma(c) {
+    if (Array.isArray(c) && c.length > 1) {
+      return parseOklch(c[1]).C;
+    }
+    return 0;
+  }
+
   function shuffle(array) {
     for (let i = array.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -85,6 +99,9 @@
   $effect(() => {
     let palette = (colors && colors.length > 0) ? [...colors] : [...DEFAULT_PALETTE];
     
+    palette.sort((a, b) => getChroma(b) - getChroma(a));
+    palette = palette.slice(0, PALETTE_SIZE_LIMIT);
+
     const order = library.config.shader?.order || "random";
 
     if (order === "random") {
@@ -99,19 +116,13 @@
       const comp = order.split(",")[1];
       palette.sort((a, b) => {
         if (!Array.isArray(a) || !Array.isArray(b) || a.length < 2 || b.length < 2) return 0;
-        
-        const parse = (str) => {
-          const m = str.match(/oklch\(([\d.]+)%\s+([\d.]+)\s+([\d.]+)\)/);
-          return m ? { L: parseFloat(m[1]), C: parseFloat(m[2]), H: parseFloat(m[3]) } : { L:0, C:0, H:0 };
-        };
-        
-        const valA = parse(a[1])[comp] || 0;
-        const valB = parse(b[1])[comp] || 0;
+        const valA = parseOklch(a[1])[comp] || 0;
+        const valB = parseOklch(b[1])[comp] || 0;
         return valA - valB;
       });
     }
 
-    activeColorCount = Math.min(palette.length, 24);
+    activeColorCount = palette.length;
     
     let hasRatios = false;
     for (let i = 0; i < activeColorCount; i++) {
