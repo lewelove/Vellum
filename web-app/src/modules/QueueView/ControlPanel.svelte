@@ -103,13 +103,13 @@
   .control-btn {
     width: 40px;
     height: 40px;
-    border-radius: 40px;
+    border-radius: 20px;
     flex-shrink: 0;
   }
 
   .control-btn img {
-    width: 24px;
-    height: 24px;
+    width: 22px;
+    height: 22px;
   }
 
   .right-zone {

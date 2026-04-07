@@ -28,7 +28,7 @@
   });
 
   let canvas;
-  let coverCanvas;
+  let coverCanvas = $state();
   
   const lhTitle = $derived(theme.albumGrid["font-line-height-title"]);
   const gapLesser = $derived(theme.albumGrid["text-gap-lesser"]);
@@ -145,19 +145,19 @@
     {onclick}
     aria-label="Select album {album.title}"
   >
-    {#if coverBitmap}
-      <canvas 
-        bind:this={coverCanvas}
-        style="width: 100%; height: calc(100% + 2px); position: absolute; top: -1px; left: 0; display: block; pointer-events: none;"
-      ></canvas>
-    {:else if originalUrl}
+    {#if originalUrl}
       <img 
         src={originalUrl} 
         alt="" 
         decoding="sync"
         draggable="false"
+        style="opacity: {coverBitmap ? 0 : 1}; position: absolute; inset: 0;"
       />
     {/if}
+    <canvas 
+        bind:this={coverCanvas}
+        style="opacity: {coverBitmap ? 1 : 0}; width: 100%; height: calc(100% + 2px); position: absolute; top: -1px; left: 0; display: block; pointer-events: none;"
+    ></canvas>
   </button>
   
   <div 

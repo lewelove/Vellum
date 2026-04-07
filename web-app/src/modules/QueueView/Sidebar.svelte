@@ -42,7 +42,7 @@
 
 {#snippet ActButton({ icon, label, disabled, active, onclick })}
   <button class="v-btn-icon queue-act-button" class:active {disabled} {onclick} title={label}>
-    <img src="/{icon}" alt={label} class="nav-icon" />
+    <img src="/{icon}" alt={label} class="act-icon" />
   </button>
 {/snippet}
 
@@ -94,7 +94,7 @@
   .queue-act-button {
     width: 40px;
     height: 40px;
-    border-radius: 10px;
+    border-radius: 20px;
     box-shadow: var(--button-shadow-lesser);
     flex-shrink: 0;
     pointer-events: auto;
@@ -103,5 +103,10 @@
   .nav-icon {
     width: 24px;
     height: 24px;
+  }
+
+  .act-icon {
+    width: 22px;
+    height: 22px;
   }
 </style>

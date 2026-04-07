@@ -146,7 +146,15 @@ class LibraryState {
   async orchestratePrewarming(albumData) {
     const concurrencyLimit = 6;
     const queue = [...albumData];
-    
+    let pendingUpdates = false;
+    let lastFlush = Date.now();
+
+    const flush = () => {
+      this.pinnedTextures = new Map(this.pinnedTextures);
+      pendingUpdates = false;
+      lastFlush = Date.now();
+    };
+
     const processor = async () => {
       while (queue.length > 0) {
         const album = queue.shift();
@@ -164,13 +172,20 @@ class LibraryState {
           });
           
           this.pinnedTextures.set(url, bitmap);
-          this.pinnedTextures = new Map(this.pinnedTextures);
+          pendingUpdates = true;
+
+          if (Date.now() - lastFlush > 100) {
+            flush();
+          }
         } catch (err) {}
       }
+      if (pendingUpdates) flush();
     };
 
     const workers = Array.from({ length: concurrencyLimit }, () => processor());
     await Promise.all(workers);
+
+    if (pendingUpdates) flush();
   }
 
   applyPersistedState(state) {
