@@ -267,7 +267,6 @@
   .btn-label {
     flex: 1;
     text-align: left;
-    /* text-transform: lowercase; */
   }
 
   .chevron {

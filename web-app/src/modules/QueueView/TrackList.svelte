@@ -253,15 +253,16 @@
   }
 
   .header-album {
-    font-size: 16px;
+    font-size: 17px;
+    padding-bottom: 1px;
   }
 
   .header-artist {
-    font-size: 14px;
+    font-size: 15px;
   }
 
   .header-meta {
-    font-size: 14px;
+    font-size: 13px;
     margin-left: 8px;
   }
 

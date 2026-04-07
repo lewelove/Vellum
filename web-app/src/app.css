@@ -5,18 +5,11 @@
 @font-face {
   font-family: 'Inter Vellum';
   src: url('/fonts/InterVellumRegular.woff2') format('woff2');
-  /* font-weight: 100 900;  */
-  /* font-style: normal; */
-  /* font-display: swap; */
 }
 
 @font-face {
   font-family: 'Inter Vellum Tnum';
-  src: url('/fonts/InterVellumTnum.woff2') format('woff2');
-  /* font-weight: 100 900;  */
-  /* font-variation-settings: "opsz" 32; */
-  /* font-style: normal; */
-  /* font-display: swap; */
+  src: url('/fonts/InterVellumTnumRegular.woff2') format('woff2');
 }
 
 :root {
@@ -82,12 +75,10 @@
     'system-ui', 
     sans-serif;
 
-  --font-weight: 400;
+  /* --font-weight: 400; */
 
-  --font-mono: 'Inter Tnum', monospace;
-  --font-mono-weight: 400;
-
-  --tracking-standard: 0.05em;
+  --font-mono: monospace;
+  /* --font-mono-weight: 400; */
 }
 
 /* Base resets */
