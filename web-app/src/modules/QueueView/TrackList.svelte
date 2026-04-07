@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import { player } from "../player.svelte.js";
   import { library } from "../../library.svelte.js";
+  import { jumpToQueueIndex } from "../../api.js";
 
   let tickingElapsed = $state(0);
 
@@ -67,6 +68,10 @@
         return acc + (parseInt(meta?.track_duration) || 0);
       }, 0);
     return formatMs(totalMs);
+  }
+
+  async function handleJump(id) {
+    try { await jumpToQueueIndex(id); } catch (e) {}
   }
 
   let mappedTracks = $derived(player.queue.map(item => {
@@ -147,7 +152,11 @@
           </div>
         {/if}
 
-        <div class="v-track-row track-row" class:active={track.isPlaying}>
+        <div 
+          class="v-track-row track-row" 
+          class:active={track.isPlaying}
+          ondblclick={() => handleJump(track.id)}
+        >
           <span class="v-mono v-track-index track-index">{track.trackNo}</span>
           <div class="v-track-body track-body">
             <span class="v-truncate v-track-title track-title">{track.title}</span>

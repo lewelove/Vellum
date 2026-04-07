@@ -26,6 +26,7 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/api/play/{*id}", post(playback::play_album))
         .route("/api/play-disc/{*id}", post(playback::play_disc))
         .route("/api/queue/{*id}", post(playback::queue_album))
+        .route("/api/jump/{index}", post(playback::jump_to_index))
         .route("/api/next", post(playback::next_track))
         .route("/api/prev", post(playback::prev_track))
         .route("/api/stop", post(playback::stop_playback))

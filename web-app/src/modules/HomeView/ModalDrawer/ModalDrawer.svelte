@@ -47,7 +47,21 @@
   }
 
   async function handlePlayTrack(index) {
-    try { await playAlbum(album.id, index); } catch (err) { console.error(err); }
+    try {
+      const track = album.tracks[index];
+      const discNumber = track.DISCNUMBER;
+      
+      let intraDiscOffset = 0;
+      for (let i = 0; i < index; i++) {
+        if (album.tracks[i].DISCNUMBER === discNumber) {
+          intraDiscOffset++;
+        }
+      }
+      
+      await playDisc(album.id, discNumber, intraDiscOffset);
+    } catch (err) { 
+      console.error(err); 
+    }
   }
 
   async function handlePlayDisc(discNumber) {
@@ -273,6 +287,7 @@
   .icon-btn {
     width: 36px;
     height: 36px;
+    border-radius: 18px;
   }
 
   .icon-btn img {

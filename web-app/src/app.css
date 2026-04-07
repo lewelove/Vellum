@@ -144,7 +144,6 @@ main {
   transition: all 0.1s ease;
   box-shadow: var(--button-shadow);
   box-sizing: border-box;
-  border-radius: 8px;
 }
 
 .v-btn-icon:hover {

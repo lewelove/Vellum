@@ -12,6 +12,22 @@
 
   function handleKeydown(e) {
     if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
+    
+    const code = e.code;
+    
+    if (code === 'Space') {
+      e.preventDefault();
+      e.stopPropagation();
+      fetch('/api/toggle-pause', { method: 'POST' }).catch(() => {});
+      return;
+    }
+
+    if (code === 'Enter') {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+
     const key = e.key.toLowerCase();
     
     if (key === 'escape' && isModalVisible) {
@@ -38,8 +54,8 @@
 
   onMount(() => {
     library.init();
-    window.addEventListener("keydown", handleKeydown);
-    return () => window.removeEventListener("keydown", handleKeydown);
+    window.addEventListener("keydown", handleKeydown, { capture: true });
+    return () => window.removeEventListener("keydown", handleKeydown, { capture: true });
   });
 </script>
 

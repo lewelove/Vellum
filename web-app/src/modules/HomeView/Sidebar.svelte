@@ -222,7 +222,7 @@
     align-items: center;
     justify-content: space-between;
     cursor: pointer;
-    border-radius: 8px;
+    border-radius: 10px;
     box-shadow: var(--button-shadow);
     transition: background-color 0.1s, border-color 0.1s;
     font-family: var(--font-stack);

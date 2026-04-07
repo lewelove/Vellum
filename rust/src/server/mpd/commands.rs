@@ -9,6 +9,7 @@ use mpd_client::responses::PlayState;
 pub enum MpdCommand {
     Play { tracks: Vec<String>, offset: usize },
     Queue { tracks: Vec<String> },
+    Jump { index: usize },
     Clear,
     Stop,
     Next,
@@ -35,6 +36,9 @@ pub async fn handle_command(client: &Client, cmd: MpdCommand) -> Result<()> {
                 }
                 client.raw_command_list(list).await?;
             }
+        }
+        MpdCommand::Jump { index } => {
+            client.command(Play::song(SongPosition(index))).await?;
         }
         MpdCommand::Clear => {
             client.raw_command(RawCommand::new("clear")).await?;

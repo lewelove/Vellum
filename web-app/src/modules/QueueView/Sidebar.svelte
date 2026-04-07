@@ -85,7 +85,7 @@
   .queue-nav-button {
     width: 40px;
     height: 40px;
-    border-radius: 10px;
+    border-radius: 12px;
     box-shadow: var(--button-shadow-lesser);
     flex-shrink: 0;
     pointer-events: auto;
@@ -101,12 +101,12 @@
   }
 
   .nav-icon {
-    width: 24px;
-    height: 24px;
+    width: 22px;
+    height: 22px;
   }
 
   .act-icon {
-    width: 22px;
-    height: 22px;
+    width: 20px;
+    height: 20px;
   }
 </style>

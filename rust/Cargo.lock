@@ -3476,7 +3476,6 @@ dependencies = [
  "kmeans_colors",
  "lofty",
  "log",
- "mcu-dislike",
  "mcu-hct",
  "mcu-material-color",
  "mpd",
