@@ -4,7 +4,7 @@ use palette::{FromColor, Lab, Srgb};
 use rand::{SeedableRng, rngs::StdRng};
 use rand::distr::{Distribution, Uniform};
 
-pub fn extract(img: &DynamicImage, args: &str) -> Vec<(Srgb, f32)> {
+pub fn extract(img: &DynamicImage, args: &str) -> Vec<Srgb> {
     let k = args.split(',')
         .find(|s| s.trim().starts_with("k="))
         .and_then(|s| s.trim().strip_prefix("k="))
@@ -32,8 +32,6 @@ pub fn extract(img: &DynamicImage, args: &str) -> Vec<(Srgb, f32)> {
         ))
     }).collect();
 
-    let total_pixels = pixels.len() as f32;
-
     if noise > 0.0 {
         let mut rng = StdRng::seed_from_u64(42);
         if let Ok(dist) = Uniform::new_inclusive(-noise, noise) {
@@ -45,19 +43,6 @@ pub fn extract(img: &DynamicImage, args: &str) -> Vec<(Srgb, f32)> {
     }
 
     let result = get_kmeans_hamerly(k, 20, conv, false, &pixels, 42);
-    let mut counts = vec![0; result.centroids.len()];
-    for &idx in &result.indices {
-        counts[idx as usize] += 1;
-    }
 
-    let mut palette = Vec::new();
-    for i in 0..result.centroids.len() {
-        let ratio = counts[i] as f32 / total_pixels;
-        if ratio > 0.0 {
-            let srgb = Srgb::from_color(result.centroids[i]);
-            palette.push((srgb, ratio));
-        }
-    }
-
-    palette
+    result.centroids.into_iter().map(Srgb::from_color).collect()
 }
