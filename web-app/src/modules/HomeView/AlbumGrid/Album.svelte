@@ -76,7 +76,7 @@
     ctx.fillStyle = bgHex;
     ctx.fillRect(0, -1, w, h + 2);
     
-    const fontStack = "Inter, 'Noto Sans', system-ui, sans-serif";
+    const fontStack = "Inter Vellum, 'Noto Sans', system-ui, sans-serif";
     
     applyEffects(ctx);
 

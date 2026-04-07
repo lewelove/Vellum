@@ -1,5 +1,23 @@
-@import url('https://rsms.me/inter/inter.css');
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Noto+Music&family=Noto+Sans+Arabic:wght@400;700&family=Noto+Sans+JP:wght@400;700&family=Noto+Sans+KR:wght@400;700&family=Noto+Sans+SC:wght@400;700&family=Noto+Sans+TC:wght@400;700&display=swap');
+
+@import url('https://rsms.me/inter/inter.css');
+
+@font-face {
+  font-family: 'Inter Vellum';
+  src: url('/fonts/InterVellumRegular.woff2') format('woff2');
+  /* font-weight: 100 900;  */
+  /* font-style: normal; */
+  /* font-display: swap; */
+}
+
+@font-face {
+  font-family: 'Inter Vellum Tnum';
+  src: url('/fonts/InterVellumTnum.woff2') format('woff2');
+  /* font-weight: 100 900;  */
+  /* font-variation-settings: "opsz" 32; */
+  /* font-style: normal; */
+  /* font-display: swap; */
+}
 
 :root {
   --palette-100: oklch(28% 0 0);
@@ -54,7 +72,8 @@
     0px 0px 2px 0px oklch(0% 0 0 / 0.1);
 
   --font-stack: 
-    'Inter', 
+    'Inter Vellum', 
+    /* 'Inter',  */
     'Noto Sans', 
     'Noto Sans JP', 
     'Noto Sans SC', 
@@ -63,8 +82,12 @@
     'system-ui', 
     sans-serif;
 
-  --font-mono: 'Inter', monospace;
+  --font-weight: 400;
+
+  --font-mono: 'Inter Tnum', monospace;
   --font-mono-weight: 400;
+
+  --tracking-standard: 0.05em;
 }
 
 /* Base resets */
@@ -81,6 +104,7 @@ html, body, #app {
   background-color: var(--background-main);
   color: var(--text-muted);
   font-family: var(--font-stack);
+  font-weight: var(--font-weight) !important;
   overflow: hidden; 
   height: 100%; 
   width: 100%;
@@ -112,10 +136,9 @@ main {
   flex-direction: column;
 }
 
-/* Global Utility Classes */
 .v-mono {
   font-family: var(--font-mono) !important;
-  font-weight: var(--font-mono-weight) !important;
+  font-weight: var(--font-mono-weight);
   font-style: normal !important;
   font-feature-settings: "tnum";
 }
