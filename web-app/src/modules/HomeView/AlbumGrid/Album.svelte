@@ -72,7 +72,7 @@
     ctx.scale(dpr, dpr);
     ctx.translate(0, 1);
     
-    const bgHex = theme.palette[theme.colors["background-main"]] || "#323232";
+    const bgHex = "#333333";
     ctx.fillStyle = bgHex;
     ctx.fillRect(0, -1, w, h + 2);
     
@@ -128,7 +128,7 @@
       ctx.scale(dpr, dpr);
       ctx.translate(0, 1);
       
-      const bgHex = theme.palette[theme.colors["background-main"]] || "#323232";
+      const bgHex = "#292929";
       ctx.fillStyle = bgHex;
       ctx.fillRect(0, -1, coverSize, coverSize + 2);
       

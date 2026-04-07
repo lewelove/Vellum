@@ -291,8 +291,8 @@
   }
 
   .icon-btn img {
-    width: 20px;
-    height: 20px;
+    width: 18px;
+    height: 18px;
   }
 
   .tracks-scroll-area {

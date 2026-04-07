@@ -9,28 +9,35 @@
   let currentMeta = $derived(currentFile ? library.getTrackByPath(currentFile) : null);
 
   async function fetchLyrics(meta) {
-    if (!meta || !meta.lyrics_path) {
+    if (!meta) {
       lyricsText = "";
       return;
     }
 
-    isLoading = true;
-    try {
-        const encodedId = encodeURIComponent(meta.albumId);
-        const pathPart = meta.lyrics_path; 
-        const url = `/api/assets/lyrics/${encodedId}/${pathPart}`;
-        
-        const res = await fetch(url);
-        if (res.ok) {
-            lyricsText = await res.text();
-        } else {
-            lyricsText = "";
-        }
-    } catch (e) {
-        lyricsText = "";
-    } finally {
-        isLoading = false;
+    if (meta.lyrics_path) {
+      isLoading = true;
+      try {
+          const encodedId = encodeURIComponent(meta.albumId);
+          const pathPart = meta.lyrics_path; 
+          const url = `/api/assets/lyrics/${encodedId}/${pathPart}`;
+          
+          const res = await fetch(url);
+          if (res.ok) {
+              lyricsText = await res.text();
+              isLoading = false;
+              return;
+          }
+      } catch (e) {
+      }
     }
+    
+    if (meta.tags && meta.tags.LYRICS) {
+      lyricsText = meta.tags.LYRICS;
+    } else {
+      lyricsText = "";
+    }
+    
+    isLoading = false;
   }
 
   $effect(() => {
@@ -49,11 +56,7 @@
     </div>
   {:else}
     <div class="status-msg">
-      {#if currentMeta && !currentMeta.lyrics_path}
-        No lyrics file linked.
-      {:else}
-        No lyrics available.
-      {/if}
+      No lyrics available.
     </div>
   {/if}
 </div>
@@ -77,10 +80,12 @@
     font-size: 15px;
     line-height: 1.3;
     color: var(--text-main);
+    text-align: center;
     text-align: left;
     margin: 0 auto;
     width: 100%;
     max-width: 300px;
+    max-width: 280px;
   }
 
   .lyric-line {

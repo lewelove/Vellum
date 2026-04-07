@@ -173,12 +173,12 @@
   .disc-play-btn {
     width: 36px;
     height: 24px;
-    border-radius: 8px;
+    border-radius: 18px;
   }
 
   .disc-play-btn img {
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
   }
 
   .track-index {
