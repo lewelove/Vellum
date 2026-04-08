@@ -7,10 +7,17 @@
   let isLoading = $state(false);
   
   let currentMeta = $derived(currentFile ? library.getTrackByPath(currentFile) : null);
+  let isInstrumental = $derived(currentMeta?.tags?.INSTRUMENTAL === true);
 
   async function fetchLyrics(meta) {
     if (!meta) {
       lyricsText = "";
+      return;
+    }
+
+    if (meta.tags?.INSTRUMENTAL === true) {
+      lyricsText = "";
+      isLoading = false;
       return;
     }
 
@@ -48,6 +55,8 @@
 <div class="lyrics-container">
   {#if isLoading}
     <div class="status-msg">Loading...</div>
+  {:else if isInstrumental}
+    <div class="instrumental-msg">[INSTRUMENTAL]</div>
   {:else if lyricsText}
     <div class="lyrics-content">
       {#each lyricsText.split(/\r?\n/) as line}
@@ -80,7 +89,6 @@
     font-size: 15px;
     line-height: 1.2;
     color: var(--text-main);
-    text-align: center;
     text-align: left;
     margin: 0 auto;
     width: 100%;
@@ -97,7 +105,19 @@
   .status-msg {
     margin: auto;
     color: var(--text-muted);
+    font-family: var(--font-mono);
     font-size: 14px;
     font-style: italic;
+  }
+
+  .instrumental-msg {
+    font-family: var(--font-stack);
+    font-family: var(--font-mono);
+    font-size: 15px;
+    line-height: 1.2;
+    color: oklch(100% 0 0 / 0.8);
+    margin: auto;
+    margin: 0 auto;
+    text-align: center;
   }
 </style>

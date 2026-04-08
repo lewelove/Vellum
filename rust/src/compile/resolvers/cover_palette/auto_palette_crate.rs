@@ -20,13 +20,13 @@ pub fn extract(img: &DynamicImage, args: &str) -> Vec<Srgb> {
         .and_then(|s| s.trim().strip_prefix("theme="))
         .unwrap_or("light");
 
-    let theme = match theme_str.to_lowercase().as_str() {
-        "basic" => Theme::Basic,
-        "colorful" => Theme::Colorful,
-        "vivid" => Theme::Vivid,
-        "muted" => Theme::Muted,
-        "dark" => Theme::Dark,
-        "light" | _ => Theme::Light,
+    let theme_opt = match theme_str.to_lowercase().as_str() {
+        "basic" => None,
+        "colorful" => Some(Theme::Colorful),
+        "vivid" => Some(Theme::Vivid),
+        "muted" => Some(Theme::Muted),
+        "dark" => Some(Theme::Dark),
+        "light" | _ => Some(Theme::Light),
     };
 
     let width = img.width();
@@ -41,7 +41,10 @@ pub fn extract(img: &DynamicImage, args: &str) -> Vec<Srgb> {
         .build(&image_data)
         .unwrap();
 
-    let swatches = palette.find_swatches_with_theme(k, theme).unwrap_or_default();
+    let swatches = match theme_opt {
+        Some(theme) => palette.find_swatches_with_theme(k, theme).unwrap_or_default(),
+        None => palette.find_swatches(k).unwrap_or_default(),
+    };
 
     let mut result = Vec::with_capacity(swatches.len());
     

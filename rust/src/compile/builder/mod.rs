@@ -109,6 +109,8 @@ pub fn build(
     let empty_obj = json!({});
     let album_source = metadata_json.get("album").unwrap_or(&empty_obj);
 
+    validate_album_level_keys(album_source, track_entries, &registry, album_root)?;
+
     let (final_tracks, harvested_cache) = process_tracks(
         audio_files,
         track_entries,
@@ -151,6 +153,56 @@ pub fn build(
     });
 
     Ok(final_json)
+}
+
+fn validate_album_level_keys(
+    album_source: &Value,
+    track_entries: &[Value],
+    registry: &serde_json::Map<String, Value>,
+    album_root: &Path,
+) -> Result<()> {
+    for (key, meta) in registry {
+        if meta.get("level").and_then(Value::as_str) != Some("album") {
+            continue;
+        }
+        
+        let key_lower = key.to_lowercase();
+        let mut seen_values: Vec<(Value, String)> = Vec::new();
+        
+        let check_val = |v: &Value| -> bool {
+            match v {
+                Value::Null => false,
+                Value::String(s) => !s.trim().is_empty(),
+                Value::Array(a) => !a.is_empty(),
+                _ => true,
+            }
+        };
+
+        if let Some(v) = album_source.get(&key_lower).filter(|v| check_val(v)) {
+            seen_values.push((v.clone(), "album section".to_string()));
+        }
+
+        for (idx, track) in track_entries.iter().enumerate() {
+            if let Some(v) = track.get(&key_lower).filter(|v| check_val(v)) {
+                if let Some((first_val, source_name)) = seen_values.first() {
+                    if v != first_val {
+                        return Err(anyhow::anyhow!(
+                            "Validation failed in {}: key '{}' is defined as level=\"album\", but conflicting values were found ('{}' in {} vs '{}' in track {}). All tracks must share the same value for album-level keys.",
+                            album_root.display(),
+                            key,
+                            first_val,
+                            source_name,
+                            v,
+                            idx + 1
+                        ));
+                    }
+                } else {
+                    seen_values.push((v.clone(), format!("track {}", idx + 1)));
+                }
+            }
+        }
+    }
+    Ok(())
 }
 
 fn process_tracks(
@@ -370,10 +422,8 @@ fn build_track(
 
     let mut tags = serde_json::Map::new();
     for (key, meta) in registry {
-        if meta.get("level").and_then(Value::as_str) != Some("tracks") && meta.get("level").and_then(Value::as_str) != Some("track") {
-            continue;
-        }
-        if key == "title" || key == "artist" || key == "tracknumber" || key == "discnumber" {
+        let key_lower = key.to_lowercase();
+        if key_lower == "title" || key_lower == "artist" || key_lower == "tracknumber" || key_lower == "discnumber" {
             continue;
         }
         let val = resolvers::resolve_track_key(key, meta, ctx).unwrap_or(Value::Null);
@@ -446,10 +496,8 @@ fn build_album(
 
     let mut tags = serde_json::Map::new();
     for (key, meta) in registry {
-        if meta.get("level").and_then(Value::as_str) != Some("album") {
-            continue;
-        }
-        if["album", "albumartist", "date", "genre", "comment", "original_yyyy_mm", "release_yyyy_mm"].contains(&key.as_str()) {
+        let key_lower = key.to_lowercase();
+        if ["album", "albumartist", "date", "genre", "comment", "original_yyyy_mm", "release_yyyy_mm"].contains(&key_lower.as_str()) {
             continue;
         }
         let val = resolvers::resolve_album_key(key, meta, ctx).unwrap_or(Value::Null);

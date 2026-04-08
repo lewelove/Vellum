@@ -20,6 +20,7 @@ class LibraryState {
   trackPathMap = $state(new Map());
   pinnedTextures = $state(new Map());
   isShaderEnabled = $state(true);
+  queuePanels = $state({ lyrics: false, tracks: true });
 
   config = $state({
     thumbnail_size: 200,
@@ -196,6 +197,7 @@ class LibraryState {
       this.activeSidebarGrouper = state.groupKey || "genre";
       this.activeFilter = state.filter || { key: null, val: null };
       this.isShaderEnabled = state.isShaderEnabled ?? true;
+      this.queuePanels = state.queuePanels || { lyrics: false, tracks: true };
   }
 
   persistState() {
@@ -208,7 +210,8 @@ class LibraryState {
               sortOrder: this.userSortOrder,
               groupKey: this.activeSidebarGrouper,
               filter: $state.snapshot(this.activeFilter),
-              isShaderEnabled: this.isShaderEnabled
+              isShaderEnabled: this.isShaderEnabled,
+              queuePanels: $state.snapshot(this.queuePanels)
           })
       }).catch(err => console.error("Failed to persist state:", err));
   }
@@ -331,6 +334,11 @@ class LibraryState {
   
   toggleShader() {
     this.isShaderEnabled = !this.isShaderEnabled;
+    this.persistState();
+  }
+
+  toggleQueuePanel(key) {
+    this.queuePanels[key] = !this.queuePanels[key];
     this.persistState();
   }
 }

@@ -9,7 +9,7 @@
     updateAlbum 
   } from "../../api.js";
 
-  let { panels, hasLyrics, onToggle } = $props();
+  let { hasLyrics } = $props();
 
   let activeId = $derived(player.currentAlbumId);
 
@@ -56,9 +56,9 @@
 
   <div class="nav-group bottom">
     {#if hasLyrics}
-      {@render NavButton({ icon: "icons/outlined/24px/menu_book.svg", label: "Lyrics", active: panels.lyrics, onclick: () => onToggle('lyrics') })}
+      {@render NavButton({ icon: "icons/outlined/24px/menu_book.svg", label: "Lyrics", active: library.queuePanels.lyrics, onclick: () => library.toggleQueuePanel('lyrics') })}
     {/if}
-    {@render NavButton({ icon: "icons/outlined/24px/format_list_bulleted.svg", label: "Track List", active: panels.tracks, onclick: () => onToggle('tracks') })}
+    {@render NavButton({ icon: "icons/outlined/24px/format_list_bulleted.svg", label: "Track List", active: library.queuePanels.tracks, onclick: () => library.toggleQueuePanel('tracks') })}
     {@render NavButton({ icon: "icons/outlined/24px/colors.svg", label: "Toggle Shader", active: library.isShaderEnabled, onclick: () => library.toggleShader() })}
   </div>
 </div>

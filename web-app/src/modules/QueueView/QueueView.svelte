@@ -5,7 +5,7 @@
   import { nav } from "../../navigation.svelte.js";
   import { fade } from "svelte/transition";
   
-  import TrackList from "./TrackList.svelte";
+  import TracklistPanel from "./TracklistPanel.svelte";
   import Sidebar from "./Sidebar.svelte";
   import LyricsPanel from "./LyricsPanel.svelte";
   import ClearCover from "../ClearCover.svelte";
@@ -19,27 +19,14 @@
   let coverUrl = $derived(activeId ? library.getAlbumCoverUrl(activeId) : "");
   
   let palette = $derived(activeAlbum?.tags?.COVER_PALETTE || []);
-  let hasLyrics = $derived(activeAlbum?.tracks?.some(t => !!t.lyrics_path) ?? false);
+  let hasLyrics = $derived(activeAlbum?.tracks?.some(t => !!t.lyrics_path || t.tags?.INSTRUMENTAL === true) ?? false);
 
   let isViewVisible = $derived(nav.activeTab === 'queue');
   let isPlaying = $derived(player.state === "play");
 
-  let panels = $state({
-    lyrics: false,
-    tracks: true
-  });
-
-  let noSidePanels = $derived(!panels.lyrics && !panels.tracks);
-
-  $effect(() => {
-    if (!hasLyrics && panels.lyrics) {
-      panels.lyrics = false;
-    }
-  });
-
-  function togglePanel(key) {
-    panels[key] = !panels[key];
-  }
+  let showLyricsPanel = $derived(library.queuePanels.lyrics && hasLyrics);
+  let showTracksPanel = $derived(library.queuePanels.tracks);
+  let noSidePanels = $derived(!showLyricsPanel && !showTracksPanel);
 
   let moduleWidth = $state(0);
 
@@ -109,7 +96,7 @@
   <div class="view-content-wrapper">
     <div class="queue-modules">
       
-      {#if panels.lyrics}
+      {#if showLyricsPanel}
         <div class="side-column">
           <div class="module-panel lyrics-panel v-glass">
             <div class="panel-inner">
@@ -125,11 +112,11 @@
         onclick={toggleExpand} 
       />
 
-      {#if panels.tracks}
+      {#if showTracksPanel}
         <div class="side-column">
           <div class="module-panel tracks-panel v-glass">
             <div class="panel-inner">
-              <TrackList />
+              <TracklistPanel />
             </div>
           </div>
         </div>
@@ -146,7 +133,7 @@
     </div>
   </div>
 
-  <Sidebar {panels} {hasLyrics} onToggle={togglePanel} />
+  <Sidebar {hasLyrics} />
 </div>
 
 <style>

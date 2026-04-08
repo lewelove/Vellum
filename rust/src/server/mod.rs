@@ -61,6 +61,10 @@ pub async fn run(port: u16) -> Result<()> {
             "filter": {
                 "key": null,
                 "val": null
+            },
+            "queuePanels": {
+                "lyrics": false,
+                "tracks": true
             }
         })
     };
