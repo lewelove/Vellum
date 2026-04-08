@@ -70,6 +70,9 @@ pub fn render_toml_block(
     }
 
     if let Some(v) = pool.get("UNIX_GENERATED").or_else(|| pool.get("unix_generated")) {
+        if !lines.is_empty() && lines.last().map_or(false, |s| !s.is_empty()) {
+            lines.push(String::new());
+        }
         lines.push(format!("UNIX_GENERATED = {}", format_toml_value(v)));
     }
 

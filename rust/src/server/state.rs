@@ -14,7 +14,6 @@ pub struct AppState {
 
 #[derive(Clone)]
 pub struct AppConfig {
-    pub config_dir: PathBuf,
     pub library_root: PathBuf,
     pub thumbnail_root: Option<PathBuf>,
     pub thumbnail_size: u32,

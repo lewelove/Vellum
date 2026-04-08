@@ -62,7 +62,6 @@ pub async fn run(port: u16) -> Result<()> {
     };
 
     let server_config = ServerConfig {
-        config_dir: config_dir.clone(),
         library_root: library_root.clone(),
         thumbnail_root: thumb_root_str.map(expand_path),
         thumbnail_size: thumb_size,
