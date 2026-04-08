@@ -20,6 +20,9 @@ def clean_genius_lyrics(lyrics, title):
     
     return cleaned
 
+def sanitize_filename(name):
+    return re.sub(r'[<>:"/\\|?*]', '_', name)
+
 def fetch_album_lyrics(album_root_path, access_token):
     root = Path(album_root_path).expanduser().resolve()
     lock_file = root / "metadata.lock.json"
@@ -56,10 +59,12 @@ def fetch_album_lyrics(album_root_path, access_token):
         if not title:
             continue
 
+        safe_title = sanitize_filename(title)
+
         if total_discs > 1:
-            filename = f"{disc_num}.{track_num} - {title}.txt"
+            filename = f"{disc_num}.{track_num} - {safe_title}.txt"
         else:
-            filename = f"{track_num} - {title}.txt"
+            filename = f"{track_num} - {safe_title}.txt"
             
         dest_path = lyrics_dir / filename
 

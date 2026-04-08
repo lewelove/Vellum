@@ -306,7 +306,7 @@
     border: none;
     color: var(--text-muted);
     font-family: var(--font-stack);
-    font-size: 13px;
+    font-size: 14px;
     /* text-transform: lowercase; */
     cursor: pointer;
     border-radius: 8px;
