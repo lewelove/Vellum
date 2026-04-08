@@ -135,7 +135,7 @@ void main() {
     vec3 finalOklab = vec3(0.0);
     
     float segmentWidth = 1.0 / float(max(1, iCount));
-    float edgeSoftness = iBlur * segmentWidth;
+    float edgeSoftness = iBlur * segmentWidth * 1.0;
 
     for(int i = 0; i < NUM_COLORS; i++) {
         if (i >= iCount) break;
@@ -151,7 +151,7 @@ void main() {
         finalOklab += iColorsOklab[i] * max(0.0, weightMask);
     }
     
-    finalOklab.x = 0.1 + (finalOklab.x * 0.9);
+    finalOklab.x = 0.06 + (finalOklab.x * 0.84);
     
     vec3 finalColor = oklab_to_srgb(finalOklab);
 

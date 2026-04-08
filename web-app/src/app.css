@@ -7,7 +7,7 @@
 
 @font-face {
   font-family: 'Commit Mono Vellum';
-  src: url('/fonts/CommitMonoVellumRegular.woff2') format('woff2');
+  src: url('/fonts/CommitMonoVellum-500-Regular.woff2') format('woff2');
 }
 
 :root {
@@ -38,12 +38,13 @@
   --font-line-height-artist: 14px;
 
   --album-cover-shadow-thumbnail:
-    0px 0px 10px -2px oklch(0% 0 0 / 0.3),
+    0px 0px 10px 0px oklch(0% 0 0 / 0.3),
     0px 0px 8px 0px oklch(0% 0 0 / 0.4);
   
   --album-cover-shadow:
-    0px 0px 10px -2px oklch(0% 0 0 / 0.3),
-    0px 0px 8px -2px oklch(0% 0 0 / 0.4);
+    0px 0px 16px 0px oklch(0% 0 0 / 0.3),
+    0px 0px 12px 0px oklch(0% 0 0 / 0.1),
+    0px 0px 6px -1px oklch(0% 0 0 / 0.1);
 
   --modal-shadow:
     0px 0px 8px 0px oklch(0% 0 0 / 0.2),
@@ -51,8 +52,8 @@
 
   --panel-shadow:
     0 0 12px 0px oklch(0% 0 0 / 0.1),
-    0 0 8px -2px oklch(0% 0 0 / 0.2),
-    0 0 4px -2px oklch(0% 0 0 / 0.1);
+    0 0 8px -1px oklch(0% 0 0 / 0.2),
+    0 0 4px -1px oklch(0% 0 0 / 0.2);
 
   --button-shadow:
     0px 0px 4px 0px oklch(0% 0 0 / 0.1),
@@ -64,7 +65,6 @@
 
   --font-stack: 
     'Inter Vellum', 
-    /* 'Inter',  */
     'Noto Sans', 
     'Noto Sans JP', 
     'Noto Sans SC', 
@@ -73,15 +73,11 @@
     'system-ui', 
     sans-serif;
 
-  /* --font-weight: 400; */
-
   --font-mono:
     "Commit Mono Vellum",
     monospace;
-  /* --font-mono-weight: 400; */
 }
 
-/* Base resets */
 button:focus,
 input:focus,
 textarea:focus,
@@ -136,7 +132,10 @@ main {
 
 .v-panel {
   background-color: var(--background-drawer);
-  box-shadow: 0 0 64px rgba(0, 0, 0, 0.1), 0 0 48px rgba(0, 0, 0, 0.3), 0 0 32px rgba(0, 0, 0, 0.5);
+  box-shadow:
+    0 0 64px oklch(0% 0 0 / 0.1),
+    0 0 48px oklch(0% 0 0 / 0.3),
+    0 0 32px oklch(0% 0 0 / 0.5);
   border-radius: 16px;
   overflow: hidden;
 }
@@ -258,12 +257,12 @@ main {
 }
 
 .v-track-row:hover {
-  background-color: rgba(255, 255, 255, 0.03);
+  background-color: oklch(100% 0 0 / 0.02);
 }
 
 .v-track-row.active {
-  background-color: rgba(255, 255, 255, 0.02);
-  border-color: rgba(255, 255, 255, 0.05);
+  background-color: oklch(100% 0 0 / 0.03);
+  border-color: oklch(100% 0 0 / 0.05);
 }
 
 .v-truncate {

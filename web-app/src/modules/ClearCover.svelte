@@ -123,7 +123,7 @@
   }
 
   .cover-block.visible .output-canvas {
-    box-shadow: var(--panel-shadow);
+    box-shadow: var(--album-cover-shadow);
   }
 
   .empty-cover {

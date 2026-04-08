@@ -155,6 +155,49 @@ pub fn resolve(ctx: &AlbumContext, args: &str) -> Option<Value> {
             let h_b = Oklch::from_color(b.0).hue.into_raw_degrees();
             h_a.partial_cmp(&h_b).unwrap_or(std::cmp::Ordering::Equal)
         }),
+        "LC" => palette.sort_by(|a, b| {
+            let oklch_a = Oklch::from_color(a.0);
+            let oklch_b = Oklch::from_color(b.0);
+            let val_a = oklch_a.l * oklch_a.chroma;
+            let val_b = oklch_b.l * oklch_b.chroma;
+            val_b.partial_cmp(&val_a).unwrap_or(std::cmp::Ordering::Equal)
+        }),
+        "gradient" => {
+            if !palette.is_empty() {
+                let mut pool: Vec<(Oklab, Srgb, f32)> = palette.into_iter()
+                    .map(|(srgb, ratio)| (Oklab::from_color(srgb), srgb, ratio))
+                    .collect();
+
+                let mut sorted = Vec::with_capacity(pool.len());
+                
+                let start_idx = pool.iter().enumerate()
+                    .max_by(|(_, (ok_a, _, _)), (_, (ok_b, _, _))| {
+                        ok_a.l.partial_cmp(&ok_b.l).unwrap_or(std::cmp::Ordering::Equal)
+                    })
+                    .map(|(i, _)| i)
+                    .unwrap_or(0);
+
+                let first = pool.remove(start_idx);
+                let mut current_ok = first.0;
+                sorted.push((first.1, first.2));
+
+                while !pool.is_empty() {
+                    let next_idx = pool.iter().enumerate()
+                        .min_by(|(_, (ok_a, _, _)), (_, (ok_b, _, _))| {
+                            let dist_a = (ok_a.l - current_ok.l).powi(2) + (ok_a.a - current_ok.a).powi(2) + (ok_a.b - current_ok.b).powi(2);
+                            let dist_b = (ok_b.l - current_ok.l).powi(2) + (ok_b.a - current_ok.a).powi(2) + (ok_b.b - current_ok.b).powi(2);
+                            dist_a.partial_cmp(&dist_b).unwrap_or(std::cmp::Ordering::Equal)
+                        })
+                        .map(|(i, _)| i)
+                        .unwrap();
+                    
+                    let next = pool.remove(next_idx);
+                    current_ok = next.0;
+                    sorted.push((next.1, next.2));
+                }
+                palette = sorted;
+            }
+        },
         "original" => {},
         "ratio" | _ => palette.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal)),
     }
