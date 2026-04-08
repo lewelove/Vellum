@@ -1,13 +1,11 @@
 <script>
   import { library } from "../../library.svelte.js";
-  import { GROUPER_LABELS } from "../../logic/groupers.js";
-  import { SORTER_LABELS } from "../../logic/sorters.js";
 
   let isSortMenuOpen = $state(false);
   let isGroupMenuOpen = $state(false);
 
-  let groupLabel = $derived(GROUPER_LABELS[library.activeSidebarGrouper] || "Unknown");
-  let sortLabel = $derived(SORTER_LABELS[library.userSortPreference] || "Unknown");
+  let groupLabel = $derived(library.availableFacets[library.activeSidebarGrouper] || "Unknown");
+  let sortLabel = $derived(library.availableSorters[library.userSortPreference] || "Unknown");
 
   let items = $derived(library.getSidebarGroup(library.activeSidebarGrouper));
 
@@ -78,7 +76,7 @@
 
         {#if isSortMenuOpen}
           <div class="control-menu">
-            {#each Object.entries(SORTER_LABELS) as [key, label]}
+            {#each Object.entries(library.availableSorters) as [key, label]}
               <button 
                 class="menu-item" 
                 class:selected={library.userSortPreference === key}
@@ -115,7 +113,7 @@
     
         {#if isGroupMenuOpen}
           <div class="control-menu">
-            {#each Object.entries(GROUPER_LABELS) as [key, label]}
+            {#each Object.entries(library.availableFacets) as [key, label]}
               <button 
                 class="menu-item" 
                 class:selected={library.activeSidebarGrouper === key}
@@ -307,7 +305,6 @@
     color: var(--text-muted);
     font-family: var(--font-stack);
     font-size: 14px;
-    /* text-transform: lowercase; */
     cursor: pointer;
     border-radius: 8px;
     outline: none;

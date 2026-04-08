@@ -14,10 +14,13 @@ pub struct AppState {
 
 #[derive(Clone)]
 pub struct AppConfig {
+    pub config_dir: PathBuf,
     pub library_root: PathBuf,
     pub thumbnail_root: Option<PathBuf>,
     pub thumbnail_size: u32,
     pub shader: Option<crate::config::ShaderConfig>,
     pub resolved_shader_path: Option<PathBuf>,
     pub resolved_css_path: Option<PathBuf>,
+    pub resolved_facets_path: Option<PathBuf>,
+    pub resolved_sorters_path: Option<PathBuf>,
 }

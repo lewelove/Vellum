@@ -50,18 +50,30 @@ pub fn start(config_path: PathBuf, state: Arc<AppState>) {
 
             let mut config_changed = false;
             let mut css_changed = false;
+            let mut logic_changed = false;
 
             for p in &paths {
                 if *p == config_path {
                     config_changed = true;
                 }
-                if p.file_name().and_then(|n| n.to_str()) == Some("vellum.css") {
-                    css_changed = true;
-                    let mut guard = state.config.write().await;
-                    if p.exists() {
-                        guard.resolved_css_path = Some(p.clone());
-                    } else {
-                        guard.resolved_css_path = None;
+                if let Some(name) = p.file_name().and_then(|n| n.to_str()) {
+                    match name {
+                        "vellum.css" => {
+                            css_changed = true;
+                            let mut guard = state.config.write().await;
+                            guard.resolved_css_path = if p.exists() { Some(p.clone()) } else { None };
+                        }
+                        "facets.js" => {
+                            logic_changed = true;
+                            let mut guard = state.config.write().await;
+                            guard.resolved_facets_path = if p.exists() { Some(p.clone()) } else { None };
+                        }
+                        "sorters.js" => {
+                            logic_changed = true;
+                            let mut guard = state.config.write().await;
+                            guard.resolved_sorters_path = if p.exists() { Some(p.clone()) } else { None };
+                        }
+                        _ => {}
                     }
                 }
                 if let Some(ref sp) = current_watched_shader {
@@ -74,6 +86,12 @@ pub fn start(config_path: PathBuf, state: Arc<AppState>) {
             if css_changed {
                 log::info!("Filesystem change: reloading custom CSS...");
                 let payload = json!({ "type": "THEME_UPDATE" }).to_string();
+                let _ = state.tx.send(payload);
+            }
+
+            if logic_changed {
+                log::info!("Filesystem change: reloading user logic...");
+                let payload = json!({ "type": "LOGIC_UPDATE" }).to_string();
                 let _ = state.tx.send(payload);
             }
 

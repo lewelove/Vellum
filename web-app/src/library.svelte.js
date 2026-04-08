@@ -22,6 +22,9 @@ class LibraryState {
   isShaderEnabled = $state(true);
   queuePanels = $state({ lyrics: false, tracks: true });
   themeVersion = $state(Date.now());
+  
+  availableFacets = $state({});
+  availableSorters = $state({});
 
   config = $state({
     thumbnail_size: 200,
@@ -36,9 +39,15 @@ class LibraryState {
     this.worker = new LogicWorker();
     
     this.worker.onmessage = (e) => {
-      const { type, data, ids, timing, result, key, count } = e.data;
+      const { type, data, ids, timing, result, key, count, facets, sorters } = e.data;
 
-      if (type === "INIT_DATA") {
+      if (type === "LOGIC_LOADED") {
+        this.availableFacets = facets;
+        this.availableSorters = sorters;
+        this.refreshSidebar();
+      }
+
+      else if (type === "INIT_DATA") {
         const newTrackMap = new Map();
         const newAlbumCache = new Map();
 
@@ -56,7 +65,6 @@ class LibraryState {
         this.trackPathMap = newTrackMap;
         this.albumCache = newAlbumCache;
 
-        this.refreshSidebar();
         this.orchestratePrewarming(data);
       }
       
@@ -144,6 +152,8 @@ class LibraryState {
       updatePlayerState(json);
     } else if (json.type === "THEME_UPDATE") {
       this.themeVersion = Date.now();
+    } else if (json.type === "LOGIC_UPDATE") {
+      this.worker.postMessage({ type: "RELOAD_LOGIC" });
     }
   }
 

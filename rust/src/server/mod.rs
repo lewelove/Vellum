@@ -47,13 +47,30 @@ pub async fn run(port: u16) -> Result<()> {
         None
     };
 
+    let facets_path = config_dir.join("facets.js");
+    let resolved_facets_path = if facets_path.exists() {
+        Some(facets_path)
+    } else {
+        None
+    };
+
+    let sorters_path = config_dir.join("sorters.js");
+    let resolved_sorters_path = if sorters_path.exists() {
+        Some(sorters_path)
+    } else {
+        None
+    };
+
     let server_config = ServerConfig {
+        config_dir: config_dir.clone(),
         library_root: library_root.clone(),
         thumbnail_root: thumb_root_str.map(expand_path),
         thumbnail_size: thumb_size,
         shader: shader_cfg,
         resolved_shader_path: resolved_path,
         resolved_css_path,
+        resolved_facets_path,
+        resolved_sorters_path,
     };
 
     let state_file = expand_path("~/.vellum/state.json");

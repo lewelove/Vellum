@@ -152,7 +152,7 @@
     position: relative;
     height: 100%;
     min-width: 0;
-    padding: 20px 32px 16px; 
+    padding: 24px 36px 0px; 
     box-sizing: border-box;
     z-index: 1;
     display: flex;
