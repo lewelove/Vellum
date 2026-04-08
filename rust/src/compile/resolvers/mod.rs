@@ -60,19 +60,13 @@ pub fn resolve_album_key(key: &str, meta: &Value, ctx: &AlbumContext) -> Option<
         }
     }
 
-    let source = if standard::get_raw_value(ctx.source, key, args).is_some() {
-        Some(ctx.source)
-    } else {
-        None
-    };
-
-    if let Some(src) = source {
+    if standard::get_raw_value(ctx.source, key, args).is_some() {
         match type_ {
-            "list" => Some(standard::resolve_generic_list(src, key, args)),
-            "integer" => Some(standard::resolve_generic_integer(src, key, args)),
-            "float" => Some(standard::resolve_generic_float(src, key, args)),
-            "bool" => Some(standard::resolve_generic_bool(src, key, args)),
-            "string" | _ => Some(standard::resolve_generic_string(src, key, args, "")),
+            "list" => Some(standard::resolve_generic_list(ctx.source, key, args)),
+            "integer" => Some(standard::resolve_generic_integer(ctx.source, key, args)),
+            "float" => Some(standard::resolve_generic_float(ctx.source, key, args)),
+            "bool" => Some(standard::resolve_generic_bool(ctx.source, key, args)),
+            "string" | _ => Some(standard::resolve_generic_string(ctx.source, key, args, "")),
         }
     } else {
         if let Some(first_track) = ctx.tracks.first() {
@@ -82,14 +76,7 @@ pub fn resolve_album_key(key: &str, meta: &Value, ctx: &AlbumContext) -> Option<
                 }
             }
         }
-        
-        match type_ {
-            "list" => Some(json!([])),
-            "integer" => Some(json!(0)),
-            "float" => Some(json!(0.0)),
-            "bool" => Some(json!(false)),
-            "string" | _ => Some(json!("")),
-        }
+        None
     }
 }
 
@@ -111,16 +98,22 @@ pub fn resolve_track_key(key: &str, meta: &Value, ctx: &TrackContext) -> Option<
     }
 
     let source = if standard::get_raw_value(ctx.source, key, args).is_some() {
-        ctx.source
+        Some(ctx.source)
+    } else if standard::get_raw_value(ctx.album_source, key, args).is_some() {
+        Some(ctx.album_source)
     } else {
-        ctx.album_source
+        None
     };
 
-    match type_ {
-        "list" => Some(standard::resolve_generic_list(source, key, args)),
-        "integer" => Some(standard::resolve_generic_integer(source, key, args)),
-        "float" => Some(standard::resolve_generic_float(source, key, args)),
-        "bool" => Some(standard::resolve_generic_bool(source, key, args)),
-        "string" | _ => Some(standard::resolve_generic_string(source, key, args, "")),
+    if let Some(src) = source {
+        match type_ {
+            "list" => Some(standard::resolve_generic_list(src, key, args)),
+            "integer" => Some(standard::resolve_generic_integer(src, key, args)),
+            "float" => Some(standard::resolve_generic_float(src, key, args)),
+            "bool" => Some(standard::resolve_generic_bool(src, key, args)),
+            "string" | _ => Some(standard::resolve_generic_string(src, key, args, "")),
+        }
+    } else {
+        None
     }
 }

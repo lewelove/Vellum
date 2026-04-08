@@ -422,6 +422,11 @@ fn build_track(
 
     let mut tags = serde_json::Map::new();
     for (key, meta) in registry {
+        let level = meta.get("level").and_then(Value::as_str).unwrap_or("");
+        if level != "tracks" && level != "track" {
+            continue;
+        }
+
         let key_lower = key.to_lowercase();
         if key_lower == "title" || key_lower == "artist" || key_lower == "tracknumber" || key_lower == "discnumber" {
             continue;
@@ -496,6 +501,10 @@ fn build_album(
 
     let mut tags = serde_json::Map::new();
     for (key, meta) in registry {
+        if meta.get("level").and_then(Value::as_str) != Some("album") {
+            continue;
+        }
+
         let key_lower = key.to_lowercase();
         if ["album", "albumartist", "date", "genre", "comment", "original_yyyy_mm", "release_yyyy_mm"].contains(&key_lower.as_str()) {
             continue;
