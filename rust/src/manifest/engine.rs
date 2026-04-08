@@ -39,15 +39,17 @@ pub fn render_toml_block(
                         Some(v) => format_toml_value(v),
                         None => "\"\"".to_string(),
                     };
-                    lines.push(format!("{} = {rendered_val}", s_key));
 
-                    let add_newline = meta_table
-                        .get("add_newline")
+                    let newline = meta_table
+                        .get("newline")
                         .and_then(|v| v.as_bool())
                         .unwrap_or(false);
-                    if add_newline {
+
+                    if newline && !lines.is_empty() {
                         lines.push(String::new());
                     }
+
+                    lines.push(format!("{} = {rendered_val}", s_key));
                 }
             }
         }
