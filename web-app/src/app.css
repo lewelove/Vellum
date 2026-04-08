@@ -11,7 +11,7 @@
 }
 
 :root {
-  --palette-100: oklch(28% 0 0);
+  --palette-100: oklch(26% 0 0);
   --palette-200: oklch(32% 0 0);
   --palette-300: oklch(38% 0 0);
   --palette-400: oklch(82% 0 0);
@@ -22,6 +22,8 @@
   --text-main: var(--palette-500);
   --text-muted: var(--palette-400);
   --border-muted: var(--palette-300);
+
+  --glass-bg: oklch(25% 0 0 / 0.3);
 
   --font-size-title: 14px;
   --font-weight-title: 400;
@@ -142,9 +144,14 @@ main {
 
 .v-glass {
   backdrop-filter: blur(0px);
-  background-color: oklch(25% 0 0 / 0.3);
+  background-color: var(--glass-bg);
   box-shadow: var(--panel-shadow);
   text-shadow: 0 1px 3px oklch(0% 0 0 / 0.3);
+  transition: background-color 0.3s ease;
+}
+
+.shader-off .v-glass {
+  --glass-bg: var(--background-drawer);
 }
 
 .v-btn-icon {
@@ -215,7 +222,6 @@ main {
 }
 
 .v-track-body {
-  /* position: relative; */
   flex: 1;
   display: flex;
   flex-direction: column;

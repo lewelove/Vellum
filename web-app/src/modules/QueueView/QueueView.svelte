@@ -62,7 +62,7 @@
 
 <svelte:window bind:innerWidth={windowWidth} bind:innerHeight={windowHeight} />
 
-<div class="queue-view-container">
+<div class="queue-view-container" class:shader-off={!library.isShaderEnabled}>
   <BackgroundShader colors={palette} coverSize={moduleWidth} visible={isViewVisible} {isPlaying} />
 
   <NavBar variant="glass" />
