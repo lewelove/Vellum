@@ -88,7 +88,7 @@
               ui-npm)
                 cd "$ROOT/web-app" && npm run dev
                 ;;
-              server|compile|update|harvest|run)
+              server|manifest|compile|update|harvest|run)
                 if [ ! -f "$BIN" ]; then
                   echo "Error: vellum binary not found at $BIN. Run 'vellum build' first."
                   exit 1

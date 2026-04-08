@@ -10,6 +10,7 @@ use indicatif::{ProgressBar, ProgressStyle};
 use rayon::prelude::*;
 use std::fs;
 use std::path::PathBuf;
+use std::time::SystemTime;
 use walkdir::WalkDir;
 
 pub async fn run(force: bool) -> Result<()> {
@@ -133,8 +134,17 @@ pub async fn run(force: bool) -> Result<()> {
                 })
                 .collect();
 
-            let (album_pool, track_pools) =
+            let (mut album_pool, track_pools) =
                 compressor::compress(clean_tracks, manifest_layout.as_ref());
+
+            let unix_generated = SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs();
+            album_pool.insert(
+                "UNIX_GENERATED".to_string(),
+                serde_json::Value::Number(serde_json::Number::from(unix_generated)),
+            );
 
             let mut toml_content = String::new();
             toml_content.push_str("[album]\n");

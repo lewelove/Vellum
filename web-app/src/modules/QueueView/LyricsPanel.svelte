@@ -104,7 +104,7 @@
 
   .status-msg {
     margin: auto;
-    color: var(--text-muted);
+    color: oklch(100% 0 0 / 0.8);
     font-family: var(--font-mono);
     font-size: 14px;
     font-style: italic;
@@ -115,9 +115,9 @@
     font-family: var(--font-mono);
     font-size: 15px;
     line-height: 1.2;
-    color: oklch(100% 0 0 / 0.8);
-    margin: auto;
+    color: oklch(100% 0 0);
     margin: 0 auto;
+    margin: auto;
     text-align: center;
   }
 </style>

@@ -53,7 +53,7 @@ pub fn render_toml_block(
 
     let mut appendix_keys: Vec<String> = pool
         .keys()
-        .filter(|k| !layout_keys.contains(&k.to_uppercase()))
+        .filter(|k| !layout_keys.contains(&k.to_uppercase()) && k.to_uppercase() != "UNIX_GENERATED")
         .cloned()
         .collect();
     appendix_keys.sort();
@@ -62,6 +62,10 @@ pub fn render_toml_block(
         if let Some(v) = pool.get(&k) {
             lines.push(format!("{} = {}", k.to_uppercase(), format_toml_value(v)));
         }
+    }
+
+    if let Some(v) = pool.get("UNIX_GENERATED").or_else(|| pool.get("unix_generated")) {
+        lines.push(format!("UNIX_GENERATED = {}", format_toml_value(v)));
     }
 
     lines
