@@ -19,4 +19,5 @@ pub struct AppConfig {
     pub thumbnail_size: u32,
     pub shader: Option<crate::config::ShaderConfig>,
     pub resolved_shader_path: Option<PathBuf>,
+    pub resolved_css_path: Option<PathBuf>,
 }

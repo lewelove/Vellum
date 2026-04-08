@@ -21,6 +21,7 @@ class LibraryState {
   pinnedTextures = $state(new Map());
   isShaderEnabled = $state(true);
   queuePanels = $state({ lyrics: false, tracks: true });
+  themeVersion = $state(Date.now());
 
   config = $state({
     thumbnail_size: 200,
@@ -141,6 +142,8 @@ class LibraryState {
       }
     } else if (json.type === "MPD_STATUS") {
       updatePlayerState(json);
+    } else if (json.type === "THEME_UPDATE") {
+      this.themeVersion = Date.now();
     }
   }
 

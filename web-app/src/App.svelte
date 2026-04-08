@@ -59,6 +59,10 @@
   });
 </script>
 
+<svelte:head>
+  <link rel="stylesheet" href="/api/theme/css?v={library.themeVersion}" />
+</svelte:head>
+
 <main>
   
   <div class="view-layer home">

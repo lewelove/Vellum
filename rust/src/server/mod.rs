@@ -40,12 +40,20 @@ pub async fn run(port: u16) -> Result<()> {
         };
     }
 
+    let css_path = config_dir.join("vellum.css");
+    let resolved_css_path = if css_path.exists() {
+        Some(css_path)
+    } else {
+        None
+    };
+
     let server_config = ServerConfig {
         library_root: library_root.clone(),
         thumbnail_root: thumb_root_str.map(expand_path),
         thumbnail_size: thumb_size,
         shader: shader_cfg,
         resolved_shader_path: resolved_path,
+        resolved_css_path,
     };
 
     let state_file = expand_path("~/.vellum/state.json");
