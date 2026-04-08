@@ -1,4 +1,3 @@
-pub mod auto_palette_crate;
 pub mod kmeans;
 pub mod kmeans_filtered;
 pub mod mcu_material;
@@ -59,7 +58,6 @@ pub fn resolve(ctx: &AlbumContext, args: &str) -> Option<Value> {
             .unwrap_or("kmeans");
 
         candidate_colors = match algo_type {
-            "auto" => auto_palette_crate::extract(&img_to_process, args),
             "msc" => mean_shift::extract(&img_to_process, args),
             "material" => mcu_material::extract(&img_to_process, args),
             "kmeans_filtered" => kmeans_filtered::extract(&img_to_process, args),

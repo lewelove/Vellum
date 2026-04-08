@@ -1,8 +1,8 @@
 use auto_palette::{ImageData, Palette, Theme};
-use image::DynamicImage;
 use palette::Srgb;
+use std::path::Path;
 
-pub fn extract(img: &DynamicImage, args: &str) -> Vec<Srgb> {
+pub fn extract(path: &Path, args: &str) -> Vec<Srgb> {
     let k = args.split(',')
         .find(|s| s.trim().starts_with("k="))
         .and_then(|s| s.trim().strip_prefix("k="))
@@ -23,7 +23,7 @@ pub fn extract(img: &DynamicImage, args: &str) -> Vec<Srgb> {
         "light" | _ => Some(Theme::Light),
     };
 
-    let image_data = ImageData::try_from(img).unwrap();
+    let image_data = ImageData::load(path).expect("Failed to load image via auto-palette load pattern");
     let palette: Palette<f32> = Palette::extract(&image_data).unwrap();
 
     let swatches = match theme_opt {
