@@ -1,3 +1,4 @@
+use crate::harvest::sanitize_key;
 use indexmap::IndexMap;
 use serde_json::Value;
 use std::collections::HashSet;
@@ -19,7 +20,7 @@ pub fn compress(
         for (key, meta) in layout {
             if let Some(table) = meta.as_table() {
                 if table.get("level").and_then(|v| v.as_str()) == Some("track") {
-                    forced_track_keys.insert(key.to_uppercase());
+                    forced_track_keys.insert(sanitize_key(key));
                 }
             }
         }
@@ -41,7 +42,8 @@ pub fn compress(
             .all(|t| t.get(&key) == first_track.get(&key));
 
         if is_identical {
-            if forced_track_keys.contains(&key.to_uppercase()) {
+            let s_key = sanitize_key(&key);
+            if forced_track_keys.contains(&s_key) {
                 continue;
             }
             keys_to_promote.push(key.clone());

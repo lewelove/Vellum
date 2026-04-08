@@ -1,3 +1,4 @@
+use crate::harvest::sanitize_key;
 use indexmap::IndexMap;
 use serde_json::Value;
 use std::collections::HashSet;
@@ -25,19 +26,20 @@ pub fn render_toml_block(
 
     if let Some(lay) = layout {
         for key in lay.keys() {
-            layout_keys.insert(key.to_uppercase());
+            layout_keys.insert(sanitize_key(key));
         }
 
         for (key, meta) in lay {
             if let Some(meta_table) = meta.as_table() {
                 let key_level = meta_table.get("level").and_then(|v| v.as_str()).unwrap_or("");
                 if key_level == level {
-                    let val = pool.get(key).or_else(|| pool.get(&key.to_uppercase()));
+                    let s_key = sanitize_key(key);
+                    let val = pool.get(&s_key).or_else(|| pool.get(key));
                     let rendered_val = match val {
                         Some(v) => format_toml_value(v),
                         None => "\"\"".to_string(),
                     };
-                    lines.push(format!("{} = {rendered_val}", key.to_uppercase()));
+                    lines.push(format!("{} = {rendered_val}", s_key));
 
                     let add_newline = meta_table
                         .get("add_newline")
@@ -53,14 +55,17 @@ pub fn render_toml_block(
 
     let mut appendix_keys: Vec<String> = pool
         .keys()
-        .filter(|k| !layout_keys.contains(&k.to_uppercase()) && k.to_uppercase() != "UNIX_GENERATED")
+        .filter(|k| {
+            let s_k = sanitize_key(k);
+            !layout_keys.contains(&s_k) && s_k != "UNIX_GENERATED"
+        })
         .cloned()
         .collect();
     appendix_keys.sort();
 
     for k in appendix_keys {
         if let Some(v) = pool.get(&k) {
-            lines.push(format!("{} = {}", k.to_uppercase(), format_toml_value(v)));
+            lines.push(format!("{} = {}", sanitize_key(&k), format_toml_value(v)));
         }
     }
 

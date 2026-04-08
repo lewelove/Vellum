@@ -34,6 +34,18 @@ pub struct PhysicsData {
     pub format: String,
 }
 
+pub fn sanitize_key(key: &str) -> String {
+    key.chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() {
+                c.to_ascii_uppercase()
+            } else {
+                '_'
+            }
+        })
+        .collect()
+}
+
 pub fn run(roots: Vec<PathBuf>, pretty: bool) {
     let extensions = ["flac", "mp3", "m4a", "ogg", "wav", "opus"];
     let mut files = Vec::new();
@@ -144,7 +156,7 @@ pub fn harvest_file(path: &Path) -> Result<TrackJson> {
             ) {
                 if let Some(comments) = flac.vorbis_comments() {
                     for (k, v) in comments.items() {
-                        let key = k.to_uppercase();
+                        let key = sanitize_key(k);
                         let value = v.trim();
                         if !key.is_empty() && !value.is_empty() {
                             tags.entry(key)
@@ -168,7 +180,7 @@ pub fn harvest_file(path: &Path) -> Result<TrackJson> {
             ) {
                 let comments = ogg.vorbis_comments();
                 for (k, v) in comments.items() {
-                    let key = k.to_uppercase();
+                    let key = sanitize_key(k);
                     let value = v.trim();
                     if !key.is_empty() && !value.is_empty() {
                         tags.entry(key)
@@ -191,7 +203,7 @@ pub fn harvest_file(path: &Path) -> Result<TrackJson> {
             ) {
                 let comments = opus.vorbis_comments();
                 for (k, v) in comments.items() {
-                    let key = k.to_uppercase();
+                    let key = sanitize_key(k);
                     let value = v.trim();
                     if !key.is_empty() && !value.is_empty() {
                         tags.entry(key)
@@ -217,12 +229,12 @@ pub fn harvest_file(path: &Path) -> Result<TrackJson> {
         {
             let tag_type = tag.tag_type();
             for item in tag.items() {
-                let key = item
+                let key_raw = item
                     .key()
                     .map_key(tag_type)
                     .map(ToString::to_string)
-                    .unwrap_or_else(|| format!("{:?}", item.key()))
-                    .to_uppercase();
+                    .unwrap_or_else(|| format!("{:?}", item.key()));
+                let key = sanitize_key(&key_raw);
 
                 let Some(value) = item.value().text() else {
                     continue;
