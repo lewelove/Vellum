@@ -132,6 +132,7 @@ pub fn build(
         cover_mtime: c_mtime,
         cover_byte_size: c_size,
         cover_image: loaded_image.as_ref(),
+        config,
     };
 
     let album_obj = build_album(&album_ctx, &registry);

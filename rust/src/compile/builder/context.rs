@@ -15,6 +15,7 @@ pub struct AlbumContext<'a> {
     pub cover_mtime: u64,
     pub cover_byte_size: u64,
     pub cover_image: Option<&'a DynamicImage>,
+    pub config: &'a Value,
 }
 
 pub struct TrackContext<'a> {

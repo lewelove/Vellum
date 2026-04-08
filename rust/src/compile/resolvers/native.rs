@@ -30,31 +30,54 @@ pub fn calculate_total_discs(tracks: &[Value]) -> u32 {
 }
 
 pub fn resolve_album_info_unix_added(ctx: &AlbumContext, args: &str) -> u64 {
-    let keys: Vec<&str> = if args.is_empty() {
-        vec![
-            "unix_added_primary",
-            "unixtimeyoutube",
-            "unixtimeapple",
-            "unixtimefoobar",
-            "unix_added_youtube",
-            "unix_added_applemusic",
-            "unix_added_foobar",
-            "unix_added_local",
-        ]
-    } else {
-        args.split(',').map(str::trim).filter(|s| !s.is_empty()).collect()
-    };
-    for key in keys {
-        if let Some(val) = ctx.source.get(key).and_then(Value::as_str)
-            && let Ok(ts) = val.parse::<u64>()
-        {
-            return ts;
-        }
-        if let Some(val) = ctx.source.get(key).and_then(Value::as_u64) {
-            return val;
+    let mut keys = Vec::new();
+    
+    if let Some(fallbacks) = ctx.config.get("compiler").and_then(|c| c.get("unix_added")).and_then(Value::as_array) {
+        for f in fallbacks {
+            if let Some(s) = f.as_str() {
+                keys.push(s.to_string());
+            }
         }
     }
-    0
+    
+    if !args.is_empty() {
+        keys.extend(args.split(',').map(str::trim).filter(|s| !s.is_empty()).map(String::from));
+    }
+
+    let mut found_timestamps = Vec::new();
+
+    for key in &keys {
+        if let Some(val) = ctx.source.get(key).or_else(|| ctx.source.get(&key.to_lowercase())) {
+            if let Some(s) = val.as_str() {
+                if let Ok(ts) = s.parse::<u64>() {
+                    found_timestamps.push(ts);
+                }
+            } else if let Some(u) = val.as_u64() {
+                found_timestamps.push(u);
+            }
+        }
+    }
+
+    let smallest_ts = found_timestamps.into_iter().filter(|&ts| ts > 0).min();
+
+    if let Some(ts) = smallest_ts {
+        return ts;
+    }
+
+    if let Some(val) = ctx.source.get("UNIX_GENERATED").or_else(|| ctx.source.get("unix_generated")) {
+        if let Some(s) = val.as_str() {
+            if let Ok(ts) = s.parse::<u64>() {
+                return ts;
+            }
+        } else if let Some(u) = val.as_u64() {
+            return u;
+        }
+    }
+
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs()
 }
 
 pub fn rel_path(target: &Path, base: &Path) -> String {

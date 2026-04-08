@@ -50,6 +50,7 @@ pub struct ManifestConfig {
 pub struct CompilerConfig {
     pub scan_depth: Option<usize>,
     pub keys: Option<HashMap<String, KeyConfig>>,
+    pub unix_added: Option<Vec<String>>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
