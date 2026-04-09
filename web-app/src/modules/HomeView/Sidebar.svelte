@@ -381,6 +381,6 @@
 
   .count {
     opacity: 0.5;
-    font-size: 13px;
+    /* font-size: 13px; */
   }
 </style>

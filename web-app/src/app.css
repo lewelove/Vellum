@@ -6,8 +6,8 @@
 }
 
 @font-face {
-  font-family: 'Commit Mono Vellum';
-  src: url('/fonts/CommitMonoVellum-500-Regular.woff2') format('woff2');
+  font-family: 'Inter Vellum Tnum';
+  src: url('/fonts/InterVellumTnumRegular.woff2') format('woff2');
 }
 
 :root {
@@ -76,7 +76,15 @@
     sans-serif;
 
   --font-mono:
-    "Commit Mono Vellum",
+    'Inter Vellum Tnum', 
+    'Inter Vellum', 
+    'Noto Sans', 
+    'Noto Sans JP', 
+    'Noto Sans SC', 
+    'Noto Sans TC', 
+    'Noto Sans KR', 
+    'system-ui', 
+    sans-serif,
     monospace;
 }
 
@@ -128,8 +136,7 @@ main {
 .v-mono {
   font-family: var(--font-mono) !important;
   font-weight: var(--font-mono-weight);
-  font-style: normal !important;
-  font-feature-settings: "tnum";
+  font-size: 12px;
 }
 
 .v-panel {
@@ -237,7 +244,7 @@ main {
   z-index: 1;
   flex: 0 0 40px;
   text-align: center;
-  font-size: 13px;
+  /* font-size: 13px; */
   line-height: 18px;
 }
 
@@ -245,7 +252,7 @@ main {
   position: relative;
   z-index: 1;
   text-align: right;
-  font-size: 13px;
+  /* font-size: 13px; */
   padding-right: 14px;
   min-width: 44px;
   line-height: 18px;

@@ -71,7 +71,7 @@
           <span class="title" title={title}>{title}</span>
         {/if}
       </div>
-      <span class="v-mono time">{formatTime(tickingElapsed)} / {formatTime(duration)}</span>
+      <span class="v-mono time">{formatTime(tickingElapsed)}  ∕  {formatTime(duration)}</span>
     </div>
     <div class="progress-track">
       <div class="progress-fill" style="width: {progress}%"></div>
