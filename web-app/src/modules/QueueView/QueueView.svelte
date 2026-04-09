@@ -194,21 +194,25 @@
     flex: 1;
     min-height: 0;
     border-radius: 0 16px 16px 0;
+    border-radius: 0 24px 24px 0;
+    clip-path: inset(-100px -100px -100px 0px);
   }
 
   .lyrics-panel {
     flex: 1;
     min-height: 0;
     border-radius: 16px 0 0 16px;
+    border-radius: 24px 0 0 24px;
   }
 
   .panel-inner {
     flex: 1;
-    padding: 32px;
+    padding: 24px;
     overflow: hidden;
     display: flex;
     flex-direction: column;
     min-height: 0;
+    clip-path: inset(-100px 0px -100px -100px);
   }
 
   .control-wrapper {

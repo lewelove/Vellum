@@ -93,7 +93,7 @@
     margin: 0 auto;
     width: 100%;
     max-width: 300px;
-    max-width: 280px;
+    /* max-width: 280px; */
   }
 
   .lyric-line {
