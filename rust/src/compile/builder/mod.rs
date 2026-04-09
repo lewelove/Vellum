@@ -6,7 +6,7 @@ use crate::compile::builder::context::{AlbumContext, TrackContext};
 use crate::compile::resolvers;
 use crate::expand_path;
 use crate::harvest;
-use anyhow::{Result, anyhow};
+use anyhow::{Result, anyhow, Context};
 use serde_json::{Value, json};
 use sha2::Digest;
 use std::collections::HashSet;
@@ -156,6 +156,35 @@ pub fn build(
     Ok(final_json)
 }
 
+fn extract_strict_u32(val: Option<&Value>, name: &str, default: Option<u32>) -> Result<u32> {
+    let Some(v) = val else {
+        if let Some(d) = default {
+            return Ok(d);
+        }
+        return Err(anyhow::anyhow!("Missing {name}"));
+    };
+    match v {
+        Value::Number(n) => {
+            n.as_u64()
+                .and_then(|i| u32::try_from(i).ok())
+                .ok_or_else(|| anyhow::anyhow!("Invalid {name} number"))
+        }
+        Value::String(s) => {
+            let base = s.split('/').next().unwrap_or("").trim();
+            base.parse::<u32>()
+                .map_err(|_| anyhow::anyhow!("Cannot parse {name} '{s}' as u32"))
+        }
+        Value::Null => {
+            if let Some(d) = default {
+                Ok(d)
+            } else {
+                Err(anyhow::anyhow!("Missing {name}"))
+            }
+        }
+        _ => Err(anyhow::anyhow!("Invalid {name} type")),
+    }
+}
+
 fn validate_album_level_keys(
     album_source: &Value,
     track_entries: &[Value],
@@ -219,28 +248,27 @@ fn process_tracks(
         harvested_spine.push(harvest::harvest_file(&path)?);
     }
 
-    let total_discs = u32::try_from(
-        track_entries
-            .iter()
-            .filter_map(|t| {
-                t.get("discnumber").and_then(|v| match v {
-                    Value::Number(n) => n.as_u64(),
-                    Value::String(s) => s.parse::<u64>().ok(),
-                    _ => None,
-                })
-            })
-            .max()
-            .unwrap_or(1),
-    )
-    .unwrap_or(u32::MAX);
+    let mut total_discs = 1;
+    for t in track_entries {
+        if let Ok(d) = extract_strict_u32(t.get("discnumber"), "discnumber", Some(1)) {
+            if d > total_discs {
+                total_discs = d;
+            }
+        }
+    }
 
     let mut final_tracks = Vec::new();
     let mut harvested_cache = Vec::new();
 
     for (idx, h_data) in harvested_spine.into_iter().enumerate() {
+        let track_number = extract_strict_u32(track_entries[idx].get("tracknumber"), "tracknumber", None)
+            .with_context(|| format!("Track {} in {} has invalid or missing TRACKNUMBER", idx + 1, album_root.display()))?;
+        let disc_number = extract_strict_u32(track_entries[idx].get("discnumber"), "discnumber", Some(1))
+            .with_context(|| format!("Track {} in {} has invalid DISCNUMBER", idx + 1, album_root.display()))?;
+
         let t_ctx = TrackContext {
-            ordinal_track_number: u32::try_from(idx + 1).unwrap_or(u32::MAX),
-            ordinal_disc_number: 1,
+            track_number,
+            disc_number,
             harvest: &h_data,
             source: &track_entries[idx],
             album_source,
@@ -259,23 +287,10 @@ fn process_tracks(
 fn validate_track_indices(entries: &[Value], root: &Path) -> Result<()> {
     let mut seen_ids = HashSet::new();
     for (idx, entry) in entries.iter().enumerate() {
-        let t = entry
-            .get("tracknumber")
-            .and_then(|v| match v {
-                Value::Number(n) => n.as_u64().and_then(|i| u32::try_from(i).ok()),
-                Value::String(s) => s.parse::<u32>().ok(),
-                _ => None,
-            })
-            .unwrap_or_else(|| u32::try_from(idx + 1).unwrap_or(u32::MAX));
-
-        let d = entry
-            .get("discnumber")
-            .and_then(|v| match v {
-                Value::Number(n) => n.as_u64().and_then(|i| u32::try_from(i).ok()),
-                Value::String(s) => s.parse::<u32>().ok(),
-                _ => None,
-            })
-            .unwrap_or(1);
+        let t = extract_strict_u32(entry.get("tracknumber"), "tracknumber", None)
+            .with_context(|| format!("Track {} in {} has invalid or missing TRACKNUMBER", idx + 1, root.display()))?;
+        let d = extract_strict_u32(entry.get("discnumber"), "discnumber", Some(1))
+            .with_context(|| format!("Track {} in {} has invalid DISCNUMBER", idx + 1, root.display()))?;
 
         if !seen_ids.insert((d, t)) {
             return Err(anyhow!(
@@ -306,26 +321,6 @@ fn normalize_keys(v: Value) -> Value {
 fn construct_track_info(ctx: &TrackContext, total_discs: u32) -> Value {
     let mut info = serde_json::Map::new();
 
-    let track_number = ctx
-        .source
-        .get("tracknumber")
-        .and_then(|v| match v {
-            Value::Number(n) => n.as_u64().and_then(|i| u32::try_from(i).ok()),
-            Value::String(s) => s.parse::<u32>().ok(),
-            _ => None,
-        })
-        .unwrap_or(ctx.ordinal_track_number);
-
-    let disc_number = ctx
-        .source
-        .get("discnumber")
-        .and_then(|v| match v {
-            Value::Number(n) => n.as_u64().and_then(|i| u32::try_from(i).ok()),
-            Value::String(s) => s.parse::<u32>().ok(),
-            _ => None,
-        })
-        .unwrap_or(ctx.ordinal_disc_number);
-
     let lyrics_path = ctx
         .source
         .get("lyrics_path")
@@ -334,8 +329,8 @@ fn construct_track_info(ctx: &TrackContext, total_discs: u32) -> Value {
         .or_else(|| {
             resolvers::native::resolve_lyrics_path(
                 ctx.album_root,
-                track_number,
-                disc_number,
+                ctx.track_number,
+                ctx.disc_number,
                 total_discs,
             )
         });
@@ -394,32 +389,12 @@ fn build_track(
 ) -> Value {
     let mut obj = serde_json::Map::new();
 
-    let track_number = ctx
-        .source
-        .get("tracknumber")
-        .and_then(|v| match v {
-            Value::Number(n) => n.as_u64().and_then(|i| u32::try_from(i).ok()),
-            Value::String(s) => s.parse::<u32>().ok(),
-            _ => None,
-        })
-        .unwrap_or(ctx.ordinal_track_number);
-
-    let disc_number = ctx
-        .source
-        .get("discnumber")
-        .and_then(|v| match v {
-            Value::Number(n) => n.as_u64().and_then(|i| u32::try_from(i).ok()),
-            Value::String(s) => s.parse::<u32>().ok(),
-            _ => None,
-        })
-        .unwrap_or(ctx.ordinal_disc_number);
-
     obj.insert("info".to_string(), construct_track_info(ctx, total_discs));
 
     obj.insert("TITLE".to_string(), resolvers::resolve_top_level_track_key("TITLE", ctx));
     obj.insert("ARTIST".to_string(), resolvers::resolve_top_level_track_key("ARTIST", ctx));
-    obj.insert("TRACKNUMBER".to_string(), json!(track_number));
-    obj.insert("DISCNUMBER".to_string(), json!(disc_number));
+    obj.insert("TRACKNUMBER".to_string(), json!(ctx.track_number));
+    obj.insert("DISCNUMBER".to_string(), json!(ctx.disc_number));
 
     let mut tags = serde_json::Map::new();
     for (key, meta) in registry {

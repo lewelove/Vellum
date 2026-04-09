@@ -19,8 +19,8 @@ pub struct AlbumContext<'a> {
 }
 
 pub struct TrackContext<'a> {
-    pub ordinal_track_number: u32,
-    pub ordinal_disc_number: u32,
+    pub track_number: u32,
+    pub disc_number: u32,
     pub harvest: &'a TrackJson,
     pub source: &'a Value,
     pub album_source: &'a Value,

@@ -7,8 +7,8 @@ use serde_json::{Value, json};
 
 pub fn resolve_top_level_album_key(key: &str, ctx: &AlbumContext) -> Value {
     match key {
-        "ALBUM" => standard::resolve_generic_string(ctx.source, "album", "", "Unknown Album"),
-        "ALBUMARTIST" => standard::resolve_generic_string(ctx.source, "albumartist", "artistartist", "Unknown Artist"),
+        "ALBUM" => standard::resolve_generic_string(ctx.source, "album", "", "Untitled"),
+        "ALBUMARTIST" => standard::resolve_generic_string(ctx.source, "albumartist", "artistartist", "Unknown"),
         "DATE" => standard::resolve_generic_string(ctx.source, "date", "year,originalyear", "0000"),
         "GENRE" => {
             let mut list = standard::resolve_generic_list(ctx.source, "genre", "");
@@ -30,7 +30,7 @@ pub fn resolve_top_level_track_key(key: &str, ctx: &TrackContext) -> Value {
     match key {
         "TITLE" => standard::resolve_generic_string(ctx.source, "title", "", "Untitled"),
         "ARTIST" => standard::resolve_generic_string_fallback(
-            ctx.source, ctx.album_source, "artist", "albumartist", "Unknown Artist"
+            ctx.source, ctx.album_source, "artist", "albumartist", "Unknown"
         ),
         _ => Value::Null,
     }

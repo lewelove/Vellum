@@ -132,7 +132,6 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    border: 1px solid rgba(255, 255, 255, 0.05);
     box-sizing: border-box;
   }
 

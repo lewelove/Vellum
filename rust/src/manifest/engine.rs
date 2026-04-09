@@ -16,6 +16,18 @@ fn format_toml_value(val: &Value) -> String {
     }
 }
 
+fn format_toml_value_with_cast(val: &Value, key: &str) -> String {
+    if key == "TRACKNUMBER" || key == "DISCNUMBER" {
+        if let Some(s) = val.as_str() {
+            let clean = s.split('/').next().unwrap_or("").trim();
+            if clean.parse::<u32>().is_ok() {
+                return clean.to_string();
+            }
+        }
+    }
+    format_toml_value(val)
+}
+
 pub fn render_toml_block(
     pool: &serde_json::Map<String, Value>,
     layout: Option<&IndexMap<String, toml::Value>>,
@@ -36,7 +48,7 @@ pub fn render_toml_block(
                     let s_key = sanitize_key(key);
                     let val = pool.get(&s_key).or_else(|| pool.get(key));
                     let rendered_val = match val {
-                        Some(v) => format_toml_value(v),
+                        Some(v) => format_toml_value_with_cast(v, &s_key),
                         None => "\"\"".to_string(),
                     };
 
@@ -67,7 +79,8 @@ pub fn render_toml_block(
 
     for k in appendix_keys {
         if let Some(v) = pool.get(&k) {
-            lines.push(format!("{} = {}", sanitize_key(&k), format_toml_value(v)));
+            let s_k = sanitize_key(&k);
+            lines.push(format!("{} = {}", s_k, format_toml_value_with_cast(v, &s_k)));
         }
     }
 

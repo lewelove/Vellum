@@ -152,7 +152,7 @@
     position: relative;
     height: 100%;
     min-width: 0;
-    padding: 24px 36px 0px; 
+    padding: 24px 32px 0px; 
     box-sizing: border-box;
     z-index: 1;
     display: flex;
@@ -167,7 +167,7 @@
     min-width: 0;
     display: flex;
     flex-direction: row;
-    gap: 16px;
+    /* gap: 20px; */
     justify-content: center;
     align-items: stretch;
   }
@@ -193,16 +193,18 @@
   .tracks-panel {
     flex: 1;
     min-height: 0;
+    border-radius: 0 16px 16px 0;
   }
 
   .lyrics-panel {
     flex: 1;
     min-height: 0;
+    border-radius: 16px 0 0 16px;
   }
 
   .panel-inner {
     flex: 1;
-    padding: 24px;
+    padding: 32px;
     overflow: hidden;
     display: flex;
     flex-direction: column;

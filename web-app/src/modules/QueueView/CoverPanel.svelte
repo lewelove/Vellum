@@ -44,7 +44,6 @@
   .cover-panel {
     width: 100%;
     height: 100%;
-    background-color: transparent;
     position: relative;
     cursor: default;
     outline: none;

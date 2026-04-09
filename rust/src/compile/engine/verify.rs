@@ -112,6 +112,7 @@ fn compare_values(key: &str, compiled: &Value, physical: &str) -> bool {
             s.split('/')
                 .next()
                 .unwrap_or("0")
+                .trim()
                 .parse::<u64>()
                 .unwrap_or(0)
         };
