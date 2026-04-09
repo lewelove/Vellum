@@ -57,7 +57,7 @@ pub fn render_toml_block(
                         .and_then(|v| v.as_bool())
                         .unwrap_or(false);
 
-                    if newline && !lines.is_empty() {
+                    if newline {
                         lines.push(String::new());
                     }
 
