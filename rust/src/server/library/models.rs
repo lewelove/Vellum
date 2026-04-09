@@ -49,6 +49,8 @@ pub struct AlbumInfo {
     #[serde(default)]
     pub unix_added: u64,
     #[serde(default)]
+    pub date_added: String,
+    #[serde(default)]
     pub album_duration: u64,
     #[serde(default)]
     pub album_duration_time: String,

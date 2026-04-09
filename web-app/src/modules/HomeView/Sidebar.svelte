@@ -64,6 +64,34 @@
   <div class="sidebar-controls">
     <div class="control-row">
       <div class="button-wrapper flex-grow">
+        <button class="sidebar-btn" onclick={toggleGroupMenu} class:active={isGroupMenuOpen} title="Group By">
+          <img src="icons/20px/stack.svg" alt="" class="btn-icon" />
+          <span class="v-truncate btn-label">{groupLabel}</span>
+          <img 
+            src={isGroupMenuOpen ? "icons/24px/arrow_drop_up.svg" : "icons/24px/arrow_drop_down.svg"}  
+            class="chevron" 
+            alt="" 
+          />
+        </button>
+    
+        {#if isGroupMenuOpen}
+          <div class="control-menu">
+            {#each Object.entries(library.availableFacets) as [key, label]}
+              <button 
+                class="menu-item" 
+                class:selected={library.activeSidebarGrouper === key}
+                onclick={() => selectGrouper(key)}
+              >
+                {label}
+              </button>
+            {/each}
+          </div>
+        {/if}
+      </div>
+    </div>
+
+    <div class="control-row">
+      <div class="button-wrapper flex-grow">
         <button class="sidebar-btn" onclick={toggleSortMenu} class:active={isSortMenuOpen} title="Sort By">
           <img src="icons/20px/swap_vert.svg" alt="" class="btn-icon" />
           <span class="v-truncate btn-label">{sortLabel}</span>
@@ -97,34 +125,6 @@
           alt="Direction" 
         />
       </button>
-    </div>
-
-    <div class="control-row">
-      <div class="button-wrapper flex-grow">
-        <button class="sidebar-btn" onclick={toggleGroupMenu} class:active={isGroupMenuOpen} title="Group By">
-          <img src="icons/20px/stack.svg" alt="" class="btn-icon" />
-          <span class="v-truncate btn-label">{groupLabel}</span>
-          <img 
-            src={isGroupMenuOpen ? "icons/24px/arrow_drop_up.svg" : "icons/24px/arrow_drop_down.svg"}  
-            class="chevron" 
-            alt="" 
-          />
-        </button>
-    
-        {#if isGroupMenuOpen}
-          <div class="control-menu">
-            {#each Object.entries(library.availableFacets) as [key, label]}
-              <button 
-                class="menu-item" 
-                class:selected={library.activeSidebarGrouper === key}
-                onclick={() => selectGrouper(key)}
-              >
-                {label}
-              </button>
-            {/each}
-          </div>
-        {/if}
-      </div>
     </div>
   </div>
 

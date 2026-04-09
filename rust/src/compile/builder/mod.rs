@@ -437,6 +437,10 @@ fn construct_album_info(ctx: &AlbumContext) -> Value {
         "unix_added".to_string(),
         json!(resolvers::native::resolve_album_info_unix_added(ctx, "")),
     );
+    info.insert(
+        "date_added".to_string(),
+        resolvers::native::resolve_album_info_date_added(ctx, "").unwrap_or_else(|| json!("")),
+    );
     info.insert("album_duration".to_string(), json!(dur));
     info.insert(
         "album_duration_time".to_string(),

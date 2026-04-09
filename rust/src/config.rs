@@ -51,6 +51,7 @@ pub struct CompilerConfig {
     pub scan_depth: Option<usize>,
     pub keys: Option<HashMap<String, KeyConfig>>,
     pub unix_added: Option<Vec<String>>,
+    pub date_added: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]

@@ -80,6 +80,16 @@ pub fn resolve_album_info_unix_added(ctx: &AlbumContext, args: &str) -> u64 {
         .as_secs()
 }
 
+pub fn resolve_album_info_date_added(ctx: &AlbumContext, _args: &str) -> Option<Value> {
+    let ts = resolve_album_info_unix_added(ctx, "");
+    if let Some(fmt) = ctx.config.get("compiler").and_then(|c| c.get("date_added")).and_then(Value::as_str) {
+        if let Some(dt) = chrono::DateTime::from_timestamp(ts as i64, 0) {
+            return Some(json!(dt.format(fmt).to_string()));
+        }
+    }
+    None
+}
+
 pub fn rel_path(target: &Path, base: &Path) -> String {
     target.strip_prefix(base).map_or_else(
         |_| target.to_string_lossy().to_string(),
