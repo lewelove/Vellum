@@ -23,7 +23,7 @@
 
   let tickingElapsed = $state(0);
   let duration = $derived(player.duration || 0);
-  let progress = $derived(duration > 0 ? (tickingElapsed / duration) * 100 : 0);
+  let progress = $derived(duration > 0 ? (Math.floor(tickingElapsed) / duration) * 100 : 0);
 
   function formatTime(totalSeconds) {
     const s = Math.floor(totalSeconds || 0);

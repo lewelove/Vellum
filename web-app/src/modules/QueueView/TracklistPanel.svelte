@@ -183,12 +183,12 @@
     color: oklch(100% 0 0);
   }
 
-  .header-artist,
-  .track-artist {
-    color: oklch(100% 0 0 / 0.7);
+  .header-meta {
+    color: oklch(100% 0 0 / 0.6);
   }
 
-  .header-meta,
+  .header-artist,
+  .track-artist,
   .disc-label,
   .disc-duration-label,
   .track-index,
@@ -231,8 +231,8 @@
   }
 
   .header-thumb {
-    width: 40px;
-    height: 40px;
+    width: 48px;
+    height: 48px;
     object-fit: cover;
     background-color: #000;
     box-shadow: 0 2px 4px oklch(0% 0 0 / 0.2);
@@ -258,11 +258,11 @@
   }
 
   .header-artist {
-    font-size: 15px;
+    font-size: 17px;
   }
 
   .header-meta {
-    font-size: 13px;
+    font-size: 15px;
     margin-left: 8px;
   }
 
