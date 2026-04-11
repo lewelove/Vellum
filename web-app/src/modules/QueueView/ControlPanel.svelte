@@ -161,7 +161,7 @@
   }
 
   .time {
-    font-size: 14px;
+    font-size: 15px;
     color: oklch(100% 0 0 / 0.8);
     flex-shrink: 0;
   }
