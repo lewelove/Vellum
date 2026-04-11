@@ -52,6 +52,7 @@ pub struct CompilerConfig {
     pub keys: Option<HashMap<String, KeyConfig>>,
     pub unix_added: Option<Vec<String>>,
     pub date_added: Option<String>,
+    pub file_subset_match: Option<Vec<String>>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -63,13 +64,10 @@ pub struct KeyConfig {
     #[serde(default)]
     pub args: String,
     pub level: String,
-    #[serde(default = "default_true")]
-    pub sync: bool,
 }
 
 fn default_class() -> String { "generic".to_string() }
 fn default_type() -> String { "string".to_string() }
-fn default_true() -> bool { true }
 
 impl AppConfig {
     pub fn load() -> Result<(Self, Value, PathBuf)> {

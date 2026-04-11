@@ -1,8 +1,7 @@
 use crate::compile::{ExportTarget, builder, engine::verify};
-use anyhow::{Result};
+use anyhow::Result;
 use rayon::prelude::*;
 use serde_json::{Value, json};
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::mpsc;
@@ -21,27 +20,16 @@ pub struct StreamContext {
 pub async fn run(ctx: StreamContext) -> Result<()> {
     let (dtx, mut drx) = mpsc::channel::<Value>(512);
 
-    let reg = Arc::new(
-        ctx.config
-            .get("compiler")
-            .and_then(|c| c.get("keys"))
-            .and_then(Value::as_object)
-            .map(|v| v.clone().into_iter().collect::<HashMap<String, Value>>())
-            .unwrap_or_default(),
-    );
-
     let notify = ctx.notify_tx.clone().map(Arc::new);
     let build_handle = spawn_builders(&ctx, dtx);
 
     let d_notify = notify.clone();
-    let d_reg = reg.clone();
     let target = ctx.target;
     let direct_handle = tokio::spawn(async move {
         while let Some(v) = drx.recv().await {
             let n = d_notify.as_ref().map(Arc::clone);
-            let r = d_reg.clone();
             tokio::task::spawn_blocking(move || {
-                let _ = finalize(v, target, n, &r);
+                let _ = finalize(v, target, n);
             });
         }
     });
@@ -191,7 +179,6 @@ fn finalize(
     mut v: Value,
     target: ExportTarget,
     notify_tx: Option<Arc<mpsc::Sender<PathBuf>>>,
-    global_registry: &HashMap<String, Value>,
 ) -> Result<()> {
     let ctx = v
         .as_object_mut()
@@ -200,12 +187,34 @@ fn finalize(
     let harvest = ctx.get("harvest").cloned().unwrap_or_else(|| json!([]));
     let h_arr = harvest.as_array().map_or(&[][..], Vec::as_slice);
 
-    let local_registry = ctx.get("registry")
-        .and_then(Value::as_object)
-        .map(|o| o.clone().into_iter().collect::<HashMap<String, Value>>())
-        .unwrap_or_else(|| global_registry.clone());
+    let subset_keys_val = ctx
+        .get("config")
+        .and_then(|c| c.get("compiler"))
+        .and_then(|c| c.get("file_subset_match"))
+        .and_then(Value::as_array);
 
-    let is_match = verify::calculate_file_tag_subset_match(&v, h_arr, &local_registry);
+    let default_keys = vec![
+        "ALBUM".to_string(),
+        "ALBUMARTIST".to_string(),
+        "DATE".to_string(),
+        "GENRE".to_string(),
+        "COMMENT".to_string(),
+        "TITLE".to_string(),
+        "ARTIST".to_string(),
+        "TRACKNUMBER".to_string(),
+        "DISCNUMBER".to_string(),
+    ];
+
+    let subset_keys: Vec<String> = if let Some(arr) = subset_keys_val {
+        arr.iter()
+            .filter_map(|val| val.as_str().map(|s| s.to_string()))
+            .collect()
+    } else {
+        default_keys
+    };
+
+    let is_match = verify::calculate_file_tag_subset_match(&v, h_arr, &subset_keys);
+    
     if let Some(info) = v
         .get_mut("album")
         .and_then(|a| a.get_mut("info"))
