@@ -61,6 +61,13 @@ pub async fn run(port: u16) -> Result<()> {
         None
     };
 
+    let shelves_path = config_dir.join("shelves.js");
+    let resolved_shelves_path = if shelves_path.exists() {
+        Some(shelves_path)
+    } else {
+        None
+    };
+
     let server_config = ServerConfig {
         library_root: library_root.clone(),
         thumbnail_root: thumb_root_str.map(expand_path),
@@ -70,6 +77,7 @@ pub async fn run(port: u16) -> Result<()> {
         resolved_css_path,
         resolved_facets_path,
         resolved_sorters_path,
+        resolved_shelves_path,
     };
 
     let state_file = expand_path("~/.vellum/state.json");
@@ -79,6 +87,7 @@ pub async fn run(port: u16) -> Result<()> {
     } else {
         serde_json::json!({
             "activeTab": "home",
+            "activeShelf": "library",
             "sortKey": "default",
             "sortOrder": "default",
             "groupKey": "genre",

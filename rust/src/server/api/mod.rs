@@ -26,6 +26,7 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/api/theme/css", get(assets::get_custom_css))
         .route("/api/theme/facets.js", get(assets::get_custom_facets))
         .route("/api/theme/sorters.js", get(assets::get_custom_sorters))
+        .route("/api/theme/shelves.js", get(assets::get_custom_shelves))
         .route("/api/play/{*id}", post(playback::play_album))
         .route("/api/play-disc/{*id}", post(playback::play_disc))
         .route("/api/queue/{*id}", post(playback::queue_album))

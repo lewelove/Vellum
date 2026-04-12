@@ -204,6 +204,39 @@ pub async fn get_custom_sorters(State(state): State<Arc<AppState>>) -> Response 
     ).into_response()
 }
 
+pub async fn get_custom_shelves(State(state): State<Arc<AppState>>) -> Response {
+    let path_opt = {
+        let guard = state.config.read().await;
+        guard.resolved_shelves_path.clone()
+    };
+
+    if let Some(path) = path_opt {
+        if let Ok(mut file) = File::open(&path).await {
+            let mut buf = String::new();
+            if file.read_to_string(&mut buf).await.is_ok() {
+                return (
+                    [
+                        (
+                            header::CONTENT_TYPE,
+                            HeaderValue::from_static("text/javascript; charset=utf-8"),
+                        ),
+                        (header::CACHE_CONTROL, HeaderValue::from_static("no-cache")),
+                    ],
+                    buf,
+                ).into_response();
+            }
+        }
+    }
+
+    (
+        [
+            (header::CONTENT_TYPE, HeaderValue::from_static("text/javascript; charset=utf-8")),
+            (header::CACHE_CONTROL, HeaderValue::from_static("no-cache")),
+        ],
+        "export const shelves = {};",
+    ).into_response()
+}
+
 async fn serve_image(path: PathBuf) -> Response {
     if let Ok(mut file) = File::open(&path).await {
         let mut buf = Vec::new();

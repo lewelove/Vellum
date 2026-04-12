@@ -1,17 +1,29 @@
 import { coreFacets } from "../logic/core_facets.js";
 import { coreSorters } from "../logic/core_sorters.js";
+import { coreShelves } from "../logic/core_shelves.js";
 
 let rawAlbums = [];
+let shelfFilteredAlbums = null;
+let currentShelfKey = "library";
 
 let currentFilter = { key: null, val: null };
 let currentSort = { key: "default", order: "default" };
 
+let registryShelves = {};
 let registryFacets = {};
 let registrySorters = {};
 
 async function loadRegistries() {
+  registryShelves = { ...coreShelves };
   registryFacets = { ...coreFacets };
   registrySorters = { ...coreSorters };
+
+  try {
+    const userShelves = await import(/* @vite-ignore */ `/api/theme/shelves.js?v=${Date.now()}`);
+    if (userShelves.shelves) {
+      Object.assign(registryShelves, userShelves.shelves);
+    }
+  } catch (e) {}
 
   try {
     const userFacets = await import(/* @vite-ignore */ `/api/theme/facets.js?v=${Date.now()}`);
@@ -27,6 +39,11 @@ async function loadRegistries() {
     }
   } catch (e) {}
 
+  const availableShelves = {};
+  for (const [k, v] of Object.entries(registryShelves)) {
+    availableShelves[k] = { label: v.label || k, facets: v.facets, sorters: v.sorters };
+  }
+
   const availableFacets = {};
   for (const [k, v] of Object.entries(registryFacets)) {
     availableFacets[k] = v.label || k;
@@ -39,6 +56,7 @@ async function loadRegistries() {
 
   postMessage({ 
     type: "LOGIC_LOADED", 
+    shelves: availableShelves,
     facets: availableFacets, 
     sorters: availableSorters 
   });
@@ -119,7 +137,11 @@ self.onmessage = async (e) => {
 
         rawAlbums = data;
 
+        let initialShelf = "library";
         if (payload.ui_state) {
+          if (payload.ui_state.activeShelf) {
+            initialShelf = payload.ui_state.activeShelf;
+          }
           if (payload.ui_state.filter) {
             currentFilter = payload.ui_state.filter;
           }
@@ -137,13 +159,14 @@ self.onmessage = async (e) => {
           count: rawAlbums.length 
         });
 
-        processView(currentFilter, currentSort);
+        processView(initialShelf, currentFilter, currentSort);
         break;
       }
 
       case "RELOAD_LOGIC": {
         await loadRegistries();
-        processView(currentFilter, currentSort);
+        shelfFilteredAlbums = null;
+        processView(currentShelfKey, currentFilter, currentSort);
         break;
       }
 
@@ -168,18 +191,23 @@ self.onmessage = async (e) => {
           rawAlbums.push(albumData);
         }
 
+        shelfFilteredAlbums = null;
         postMessage({ type: "UPDATE_DATA", data: albumData });
-        processView(currentFilter, currentSort);
+        processView(currentShelfKey, currentFilter, currentSort);
         break;
       }
 
       case "PROCESS": {
-        processView(payload.filter, payload.sort);
+        processView(payload.shelf, payload.filter, payload.sort);
         break;
       }
       
       case "GROUP": {
-        const result = generateBuckets(rawAlbums, payload.key);
+        if (!shelfFilteredAlbums) {
+           const shelfDef = registryShelves[currentShelfKey];
+           shelfFilteredAlbums = shelfDef && shelfDef.filter ? rawAlbums.filter(shelfDef.filter) : rawAlbums;
+        }
+        const result = generateBuckets(shelfFilteredAlbums, payload.key);
         postMessage({ type: "GROUP_RESULT", key: payload.key, result });
         break;
       }
@@ -189,23 +217,27 @@ self.onmessage = async (e) => {
   }
 };
 
-function processView(filter, sort) {
+function processView(shelf, filter, sort) {
+  currentShelfKey = shelf || "library";
+  const shelfDef = registryShelves[currentShelfKey];
+  shelfFilteredAlbums = shelfDef && shelfDef.filter ? rawAlbums.filter(shelfDef.filter) : rawAlbums;
+
   currentFilter = filter;
   currentSort = sort;
 
   const tStart = performance.now();
 
-  let result = rawAlbums;
+  let result = shelfFilteredAlbums;
   
   if (filter && filter.key === 'search') {
     const q = filter.val.toLowerCase();
-    result = rawAlbums.filter(a => {
+    result = shelfFilteredAlbums.filter(a => {
       if ((a.ALBUM && a.ALBUM.toLowerCase().includes(q)) || (a.ALBUMARTIST && a.ALBUMARTIST.toLowerCase().includes(q))) return true;
       if (a.tracks && a.tracks.some(t => t.TITLE && t.TITLE.toLowerCase().includes(q))) return true;
       return false;
     });
   } else if (filter && filter.key) {
-    result = rawAlbums.filter(a => isMatch(a, filter.key, filter.val));
+    result = shelfFilteredAlbums.filter(a => isMatch(a, filter.key, filter.val));
   }
 
   result = [...result]; 

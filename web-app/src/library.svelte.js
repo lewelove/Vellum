@@ -10,6 +10,7 @@ class LibraryState {
   isLoading = $state(true);
   isConnected = $state(false);
   focusedAlbum = $state(null);
+  activeShelf = $state("library");
   activeFilter = $state({ key: null, val: null });
   activeSort = $state({ key: "default", order: "default" });
   userSortPreference = $state("default");
@@ -23,6 +24,7 @@ class LibraryState {
   queuePanels = $state({ lyrics: false, tracks: true });
   themeVersion = $state(Date.now());
   
+  availableShelves = $state({});
   availableFacets = $state({});
   availableSorters = $state({});
 
@@ -39,9 +41,10 @@ class LibraryState {
     this.worker = new LogicWorker();
     
     this.worker.onmessage = (e) => {
-      const { type, data, ids, timing, result, key, count, facets, sorters } = e.data;
+      const { type, data, ids, timing, result, key, count, facets, sorters, shelves } = e.data;
 
       if (type === "LOGIC_LOADED") {
+        this.availableShelves = shelves;
         this.availableFacets = facets;
         this.availableSorters = sorters;
         this.refreshSidebar();
@@ -204,6 +207,7 @@ class LibraryState {
 
   applyPersistedState(state) {
       nav.activeTab = state.activeTab || "home";
+      this.activeShelf = state.activeShelf || "library";
       this.userSortPreference = state.sortKey || "default";
       this.userSortOrder = state.sortOrder || "default";
       this.activeSort = { key: this.userSortPreference, order: this.userSortOrder };
@@ -219,6 +223,7 @@ class LibraryState {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
               activeTab: nav.activeTab,
+              activeShelf: this.activeShelf,
               sortKey: this.userSortPreference,
               sortOrder: this.userSortOrder,
               groupKey: this.activeSidebarGrouper,
@@ -236,6 +241,7 @@ class LibraryState {
     this.worker.postMessage({
       type: "PROCESS",
       payload: {
+        shelf: this.activeShelf,
         filter: $state.snapshot(this.activeFilter),
         sort: $state.snapshot(this.activeSort)
       }
@@ -279,6 +285,51 @@ class LibraryState {
     return `/api/assets/cover/${encodeURIComponent(album.id)}?v=${ch}`;
   }
 
+  get visibleFacets() {
+    const shelf = this.availableShelves[this.activeShelf];
+    if (shelf && shelf.facets) {
+      const res = {};
+      for (const k of shelf.facets) {
+        if (this.availableFacets[k]) res[k] = this.availableFacets[k];
+      }
+      return res;
+    }
+    return this.availableFacets;
+  }
+
+  get visibleSorters() {
+    const shelf = this.availableShelves[this.activeShelf];
+    if (shelf && shelf.sorters) {
+      const res = {};
+      for (const k of shelf.sorters) {
+        if (this.availableSorters[k]) res[k] = this.availableSorters[k];
+      }
+      return res;
+    }
+    return this.availableSorters;
+  }
+
+  setShelf(key) {
+    this.activeShelf = key;
+    this.activeFilter = { key: null, val: null };
+    this.focusedAlbum = null;
+
+    const shelf = this.availableShelves[key];
+    if (shelf) {
+        if (shelf.facets && !shelf.facets.includes(this.activeSidebarGrouper)) {
+            this.activeSidebarGrouper = shelf.facets[0] || Object.keys(this.availableFacets)[0] || "genre";
+        }
+        if (shelf.sorters && !shelf.sorters.includes(this.userSortPreference)) {
+            this.userSortPreference = shelf.sorters[0] || Object.keys(this.availableSorters)[0] || "default";
+            this.activeSort = { key: this.userSortPreference, order: this.userSortOrder };
+        }
+    }
+
+    this.refreshView(true);
+    this.refreshSidebar();
+    this.persistState();
+  }
+
   setSidebarGrouper(key) {
     this.activeSidebarGrouper = key;
     this.refreshSidebar();
@@ -293,22 +344,6 @@ class LibraryState {
     }
     this.focusedAlbum = null;
     this.activeSort = { key: this.userSortPreference, order: this.userSortOrder };
-    this.refreshView(true);
-    this.persistState();
-  }
-
-  showRecentlyAdded() {
-    this.activeFilter = { key: null, val: null };
-    this.activeSort = { key: "date_added", order: "default" }; 
-    this.focusedAlbum = null;
-    this.refreshView(true);
-    this.persistState();
-  }
-
-  showMediaLibrary() {
-    this.activeFilter = { key: null, val: null };
-    this.activeSort = { key: this.userSortPreference, order: this.userSortOrder };
-    this.focusedAlbum = null;
     this.refreshView(true);
     this.persistState();
   }

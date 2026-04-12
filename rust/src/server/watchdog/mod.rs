@@ -73,6 +73,11 @@ pub fn start(config_path: PathBuf, state: Arc<AppState>) {
                             let mut guard = state.config.write().await;
                             guard.resolved_sorters_path = if p.exists() { Some(p.clone()) } else { None };
                         }
+                        "shelves.js" => {
+                            logic_changed = true;
+                            let mut guard = state.config.write().await;
+                            guard.resolved_shelves_path = if p.exists() { Some(p.clone()) } else { None };
+                        }
                         _ => {}
                     }
                 }

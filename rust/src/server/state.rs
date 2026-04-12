@@ -22,4 +22,5 @@ pub struct AppConfig {
     pub resolved_css_path: Option<PathBuf>,
     pub resolved_facets_path: Option<PathBuf>,
     pub resolved_sorters_path: Option<PathBuf>,
+    pub resolved_shelves_path: Option<PathBuf>,
 }

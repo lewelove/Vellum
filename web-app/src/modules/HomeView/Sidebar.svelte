@@ -1,32 +1,45 @@
 <script>
   import { library } from "../../library.svelte.js";
 
+  let isShelfMenuOpen = $state(false);
   let isSortMenuOpen = $state(false);
   let isGroupMenuOpen = $state(false);
 
-  let groupLabel = $derived(library.availableFacets[library.activeSidebarGrouper] || "Unknown");
-  let sortLabel = $derived(library.availableSorters[library.userSortPreference] || "Unknown");
+  let shelfLabel = $derived(library.availableShelves[library.activeShelf]?.label || "Unknown");
+  let groupLabel = $derived(library.visibleFacets[library.activeSidebarGrouper] || "Unknown");
+  let sortLabel = $derived(library.visibleSorters[library.userSortPreference] || "Unknown");
 
   let items = $derived(library.getSidebarGroup(library.activeSidebarGrouper));
 
   let isReverse = $derived(library.userSortOrder === "reverse");
 
-  function handleMediaLibrary() {
-    library.showMediaLibrary();
-  }
-
-  function handleRecentlyAdded() {
-    library.showRecentlyAdded();
+  function toggleShelfMenu() {
+    isShelfMenuOpen = !isShelfMenuOpen;
+    if (isShelfMenuOpen) {
+      isSortMenuOpen = false;
+      isGroupMenuOpen = false;
+    }
   }
 
   function toggleSortMenu() {
     isSortMenuOpen = !isSortMenuOpen;
-    if (isSortMenuOpen) isGroupMenuOpen = false;
+    if (isSortMenuOpen) {
+      isGroupMenuOpen = false;
+      isShelfMenuOpen = false;
+    }
   }
 
   function toggleGroupMenu() {
     isGroupMenuOpen = !isGroupMenuOpen;
-    if (isGroupMenuOpen) isSortMenuOpen = false;
+    if (isGroupMenuOpen) {
+      isSortMenuOpen = false;
+      isShelfMenuOpen = false;
+    }
+  }
+
+  function selectShelf(key) {
+    library.setShelf(key);
+    isShelfMenuOpen = false;
   }
 
   function selectSorter(key) {
@@ -52,20 +65,40 @@
 {/snippet}
 
 <div class="sidebar-container">
-  <div class="sidebar-nav">
-    <button class="nav-button" onclick={handleMediaLibrary}>
-      Media Library
-    </button>
-    <button class="nav-button" onclick={handleRecentlyAdded}>
-      Recently Added
-    </button>
-  </div>
 
   <div class="sidebar-controls">
     <div class="control-row">
       <div class="button-wrapper flex-grow">
+        <button class="sidebar-btn" onclick={toggleShelfMenu} class:active={isShelfMenuOpen} title="Shelf">
+          <img src="icons/outlined/20px/auto_stories.svg" alt="" class="btn-icon" />
+          <span class="v-truncate btn-label">{shelfLabel}</span>
+          <img 
+            src={isShelfMenuOpen ? "icons/24px/arrow_drop_up.svg" : "icons/24px/arrow_drop_down.svg"}  
+            class="chevron" 
+            alt="" 
+          />
+        </button>
+    
+        {#if isShelfMenuOpen}
+          <div class="control-menu">
+            {#each Object.entries(library.availableShelves) as [key, shelf]}
+              <button 
+                class="menu-item" 
+                class:selected={library.activeShelf === key}
+                onclick={() => selectShelf(key)}
+              >
+                {shelf.label}
+              </button>
+            {/each}
+          </div>
+        {/if}
+      </div>
+    </div>
+
+    <div class="control-row">
+      <div class="button-wrapper flex-grow">
         <button class="sidebar-btn" onclick={toggleGroupMenu} class:active={isGroupMenuOpen} title="Group By">
-          <img src="icons/20px/stack.svg" alt="" class="btn-icon" />
+          <img src="icons/outlined/20px/stack_group.svg" alt="" class="btn-icon" />
           <span class="v-truncate btn-label">{groupLabel}</span>
           <img 
             src={isGroupMenuOpen ? "icons/24px/arrow_drop_up.svg" : "icons/24px/arrow_drop_down.svg"}  
@@ -76,7 +109,7 @@
     
         {#if isGroupMenuOpen}
           <div class="control-menu">
-            {#each Object.entries(library.availableFacets) as [key, label]}
+            {#each Object.entries(library.visibleFacets) as [key, label]}
               <button 
                 class="menu-item" 
                 class:selected={library.activeSidebarGrouper === key}
@@ -93,7 +126,7 @@
     <div class="control-row">
       <div class="button-wrapper flex-grow">
         <button class="sidebar-btn" onclick={toggleSortMenu} class:active={isSortMenuOpen} title="Sort By">
-          <img src="icons/20px/swap_vert.svg" alt="" class="btn-icon" />
+          <img src="icons/outlined/20px/swap_vert.svg" alt="" class="btn-icon" />
           <span class="v-truncate btn-label">{sortLabel}</span>
           <img 
             src={isSortMenuOpen ? "icons/24px/arrow_drop_up.svg" : "icons/24px/arrow_drop_down.svg"} 
@@ -104,7 +137,7 @@
 
         {#if isSortMenuOpen}
           <div class="control-menu">
-            {#each Object.entries(library.availableSorters) as [key, label]}
+            {#each Object.entries(library.visibleSorters) as [key, label]}
               <button 
                 class="menu-item" 
                 class:selected={library.userSortPreference === key}
@@ -152,37 +185,6 @@
     background-color: var(--background-drawer); 
     padding: 12px; 
     box-sizing: border-box;
-  }
-
-  .sidebar-nav {
-    display: flex;
-    flex-direction: column;
-    padding-bottom: 12px;
-    gap: 4px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    margin-bottom: 12px;
-    flex-shrink: 0;
-  }
-
-  .nav-button {
-    text-align: right;
-    background: transparent;
-    border: none;
-    padding: 6px 12px;
-    color: var(--text-main);
-    font-family: var(--font-stack);
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background-color 0.1s;
-    outline: none; 
-    border-radius: 8px;
-    box-sizing: border-box;
-    width: 100%;
-  }
-
-  .nav-button:hover {
-    background-color: rgba(255, 255, 255, 0.05);
   }
 
   .sidebar-controls {
@@ -244,6 +246,8 @@
   }
 
   .btn-icon {
+    /* height: 20px; */
+    /* width: 20px; */
     opacity: 0.7;
     margin-right: 8px;
     flex-shrink: 0;
@@ -381,6 +385,5 @@
 
   .count {
     opacity: 0.5;
-    /* font-size: 13px; */
   }
 </style>
