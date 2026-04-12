@@ -81,5 +81,4 @@ The `vellum` CLI tool is the central driver for managing your library's state an
 * `vellum update` — The core compiler command. Reads your TOML changes, parses the physical audio properties, calculates visual attributes, and writes the resolved `metadata.lock.json` files.
 * `vellum server` — Starts the Axum backend server and the MPD synchronization watchdog.
 * `vellum ui` — Starts the Vite/Svelte development server for the web interface.
-* `vellum write` — *(Optional)* If you do eventually want to sync your TOML edits back into the physical audio file headers, this command writes the compiled metadata tags to the binary audio.
 * `vellum run <script>` — Executes Python automation scripts against the currently playing (or specified) album, such as fetching lyrics via Genius.
