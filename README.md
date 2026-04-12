@@ -11,11 +11,6 @@ Vellum is an MPD client and album-centric library manager built on plaintext arc
 
 Think of an album folder the same way you think of a code repository. It contains the configuration file (the `metadata.toml` manifest) as well as the source files (audio files, cover art, lyrics, etc.). Just as code needs to be built to run, an album goes through a compiler. The engine reads your intent for an album expressed in the text manifest, scans the physical properties of the audio files (bit depth, duration), analyzes the artwork and links the lyrics. The result of this is the `metadata.lock.json` file. This is the artifact the server actually reads and uses to play the album and register it in the collection.
 
-## Architecture
-
-- **Rust**: The engine. Handles the compilation process, static source analysis and running the Axum web server. Communicates with MPD via an actor model.
-- **Svelte 5**: The interface. Thin client, uses a Web Worker to offload all filtering, sorting, and grouping logic.
-
 ## Getting Started
 
 Vellum is in active development. To ensure a reproducible environment it is managed by Nix.
