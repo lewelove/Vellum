@@ -1,6 +1,4 @@
 **/target/
 **/node_modules/
 .direnv/
-reference-screenshots/
-temp_metadata/
-miscellaneous/
+.repomixignore
