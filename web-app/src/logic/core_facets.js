@@ -1,8 +1,8 @@
 export const coreFacets = {
   genre: {
     label: "Genre",
-    select: "unnest(from_json(COALESCE(data->>'$.GENRE', '[\"Unknown\"]'), '[\"VARCHAR\"]'))",
-    filterWhere: (val) => val === 'Unknown' ? `data->>'$.GENRE' IS NULL` : `list_contains(from_json(data->>'$.GENRE', '[\"VARCHAR\"]'), '${val.replace(/'/g, "''")}')`,
+    select: "unnest(CAST(COALESCE(data->'$.GENRE', '[\"Unknown\"]') AS VARCHAR[]))",
+    filterWhere: (val) => val === 'Unknown' ? `data->'$.GENRE' IS NULL` : `list_contains(CAST(data->'$.GENRE' AS VARCHAR[]), '${val.replace(/'/g, "''")}')`,
     orderBy: "count DESC"
   },
   decade: {
@@ -24,7 +24,7 @@ export const coreFacets = {
     orderBy: "value DESC",
     getLabel: (val) => {
       if (!val) return "Unknown";
-      const [y, m] = val.split('-');
+      const[y, m] = val.split('-');
       const date = new Date(y, parseInt(m) - 1);
       const monthNames =["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
       return `${monthNames[date.getMonth()]} ${y}`;

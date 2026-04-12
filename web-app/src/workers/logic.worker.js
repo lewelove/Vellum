@@ -114,13 +114,16 @@ self.onmessage = async (e) => {
           }
         });
 
+        // Initialize natively typed JSON schema
         await conn.query(`CREATE TABLE IF NOT EXISTS library (id VARCHAR PRIMARY KEY, data JSON)`);
         await conn.query(`DELETE FROM library`);
 
         if (data.length > 0) {
+          // NDJSON is much faster for DuckDB to ingest than a JSON array
           const jsonLines = data.map(a => JSON.stringify(a)).join('\n');
           await db.registerFileText('library.json', jsonLines);
-          await conn.query(`INSERT INTO library SELECT json->>'$.id', json FROM read_json_objects('library.json')`);
+          // CAST to native JSON type enforces binary tree representation instead of VARCHAR
+          await conn.query(`INSERT INTO library SELECT json->>'$.id', CAST(json AS JSON) FROM read_json_objects('library.json', format='newline_delimited')`);
         }
 
         let initialShelf = "library";
@@ -163,7 +166,7 @@ self.onmessage = async (e) => {
         const jsonLines = JSON.stringify(albumData);
         await db.registerFileText('update.json', jsonLines);
         await conn.query(`DELETE FROM library WHERE id = '${albumData.id.replace(/'/g, "''")}'`);
-        await conn.query(`INSERT INTO library SELECT json->>'$.id', json FROM read_json_objects('update.json')`);
+        await conn.query(`INSERT INTO library SELECT json->>'$.id', CAST(json AS JSON) FROM read_json_objects('update.json', format='newline_delimited')`);
 
         postMessage({ type: "UPDATE_DATA", data: albumData });
         await processView(currentShelfKey, currentFilter, currentSort);
@@ -198,6 +201,7 @@ async function processView(shelf, filter, sort) {
   let filterWhere = "1=1";
   if (currentFilter && currentFilter.key === 'search') {
     const q = currentFilter.val.toLowerCase().replace(/'/g, "''");
+    // Text search on tracks is much faster if we don't parse the JSON array at runtime
     filterWhere = `(LOWER(data->>'$.ALBUM') LIKE '%${q}%' OR LOWER(data->>'$.ALBUMARTIST') LIKE '%${q}%' OR LOWER(data->>'$.tracks') LIKE '%${q}%')`;
   } else if (currentFilter && currentFilter.key) {
     const facet = registryFacets[currentFilter.key];
@@ -217,7 +221,12 @@ async function processView(shelf, filter, sort) {
   
   try {
     const arrowResult = await conn.query(query);
-    const viewIds = arrowResult.toArray().map(row => row.id ? row.id.toString() : null).filter(Boolean);
+    
+    // BLAZING FAST ARROW EXTRACTION 
+    // Extracts vector directly without allocating JS Objects via .toArray()
+    const idVector = arrowResult.getChild("id");
+    const viewIds = idVector ? Array.from(idVector).map(id => id.toString()) :[];
+    
     const tEnd = performance.now();
 
     postMessage({ 
@@ -247,6 +256,7 @@ async function handleGroup(key) {
     
     try {
       const arrowResult = await conn.query(query);
+      // toArray() is safe here because grouped results are extremely small (e.g. 50 genres)
       let result = arrowResult.toArray().map(row => ({
         label: facet.getLabel ? facet.getLabel(row.value) : (row.value ? row.value.toString() : "Unknown"),
         value: row.value ? row.value.toString() : "Unknown",
