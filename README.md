@@ -1,0 +1,81 @@
+# Vellum
+
+Vellum is an MPD client and album-centric library manager built on plaintext architecture for archivist-minded collectors.
+
+## Philosophy
+
+- **The Album as the Atomic Unit**. Vellum focuses purely on collection and management of albums. The point is to bring feeling of physical album collecting to the digital landscape. Album is the base unit of Vellum because it's how it is in real life.
+- **Immutable Audio / Mutable Metadata**. A ripped audio file should be a bit-perfect preservation of the original media. Audio files are inherently static; your metadata is inherently dynamic. This is why Vellum treats the audio file strictly as a read-only source and separates everything highly mutable into separate ancillary files. To configure album and tracks titles or provide genre you edit `metadata.toml`; to provide the cover you add `cover.jpg/png` next to it; to provide lyrics you create `lyrics/` directory and place text files in there. Plaintext metadata means your library can be controlled and versioned with Git. Every change to an artist's name or a custom tag can be tracked, reverted, backed up and synced to remote repository, completely independent of the heavy audio files.
+
+## How it works?
+
+Think of an album folder the same way you think of a code repository. It contains configuration file (the `metadata.toml` manifest) and static source files (the audio files, cover art, lyrics, etc.). Just as code needs to be built to run, an album goes through a compiler. The engine reads your intent for an album expressed in the text manifest, scans the physical properties of the audio files (bit depth, duration), analyzes the artwork and links the lyrics. The result of this is the `metadata.lock.json` file. This is the artifact the server actually reads and uses to play the album and register it in the collection.
+
+## Architecture
+
+- **Rust**: The engine. Handles the compilation process, static source analysis and running the Axum web server. Communicates with MPD via an actor model.
+- **Svelte 5**: The interface. Thin client, uses a Web Worker to offload all filtering, sorting, and grouping logic.
+
+## Getting Started
+
+Vellum is in active development. To ensure a reproducible toolchain across Rust, Python, Node, and their respective system dependencies, the development environment is entirely managed via Nix.
+
+**Prerequisites:** 
+* Nix
+* A running `mpd` instance
+
+### 1. Setup the Environment
+Clone the repository and drop into the unified development shell:
+
+```
+git clone https://github.com/lewelove/Vellum.git vellum
+cd vellum
+nix develop
+```
+
+Once inside the Nix shell, install `node_modules` with bun:
+
+```
+cd web-app
+bun install
+```
+
+And build the Rust binary:
+
+```
+vellum build
+```
+
+### 2. Configure Vellum
+
+You create `.config/vellum/config.toml` file:
+- In `[storage]` section you define `library_root = "path/to/your/library"` containing all of your album folders.
+- Optionally in `[compiler.keys]` you define all tags besides standard ones you want to be present in `metadata.lock.json`. Format: `tag_name = { level = "album"/"track" }`. 
+
+### 3. Configure Your Library
+
+You place a folder containing album's audio files in your library. To make it visible to Vellum you create `metadata.toml` file in it or run `vellum manifest` to read embedded tags and generate manifest from them. In this toml you have two sections: `[album]` header and multiple of `[[tracks]]` for each audio file. Tags are expressed in standard `TAGNAME = "Value"` format. The `[album]` header contains metadata *common* across an album (album artist, album title, genre, date, etc.), and each of `[[tracks]]` contains metadata *unique* to each track (track number, disc number, title).
+
+Then you run `vellum update`. It automatically finds all new or changed `metadata.toml` files and compiles them with the source files into a `metadata.lock.json` artifacts.
+
+### 4. Run the Stack
+
+Because Vellum decouples the frontend UI from the backend coordinator, you will run them as separate processes:
+
+```
+# Terminal 1: Start the Rust backend
+vellum server
+
+# Terminal 2: Start the Svelte web interface
+vellum ui
+```
+
+### CLI Usage
+
+The `vellum` CLI tool is the central driver for managing your library's state. 
+
+* `vellum manifest` — Scans your library root for unmanaged audio directories and generates the initial `metadata.toml` anchor files.
+* `vellum update` — The core compiler command. Reads your TOML changes, parses the physical audio properties, calculates visual attributes, and writes the resolved `metadata.lock.json` files.
+* `vellum server` — Starts the Axum backend server and the MPD synchronization watchdog.
+* `vellum ui` — Starts the Vite/Svelte development server for the web interface.
+* `vellum run <script>` — Executes Python automation scripts against the currently playing (or specified) album, such as fetching lyrics via Genius.
