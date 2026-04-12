@@ -1,17 +1,45 @@
+import * as duckdb from '@duckdb/duckdb-wasm';
+import duckdb_wasm from '@duckdb/duckdb-wasm/dist/duckdb-mvp.wasm?url';
+import mvp_worker from '@duckdb/duckdb-wasm/dist/duckdb-browser-mvp.worker.js?url';
+import duckdb_wasm_eh from '@duckdb/duckdb-wasm/dist/duckdb-eh.wasm?url';
+import eh_worker from '@duckdb/duckdb-wasm/dist/duckdb-browser-eh.worker.js?url';
+
 import { coreFacets } from "../logic/core_facets.js";
 import { coreSorters } from "../logic/core_sorters.js";
 import { coreShelves } from "../logic/core_shelves.js";
 
-let rawAlbums = [];
-let shelfFilteredAlbums = null;
-let currentShelfKey = "library";
+let db = null;
+let conn = null;
+let dbInitPromise = null;
 
+let currentShelfKey = "library";
 let currentFilter = { key: null, val: null };
 let currentSort = { key: "default", order: "default" };
 
 let registryShelves = {};
 let registryFacets = {};
 let registrySorters = {};
+
+async function initDuckDB() {
+  try {
+    const MANUAL_BUNDLES = {
+      mvp: { mainModule: duckdb_wasm, mainWorker: mvp_worker },
+      eh: { mainModule: duckdb_wasm_eh, mainWorker: eh_worker },
+    };
+    
+    const bundle = await duckdb.selectBundle(MANUAL_BUNDLES);
+    const worker = new Worker(bundle.mainWorker);
+    const logger = new duckdb.VoidLogger();
+    
+    db = new duckdb.AsyncDuckDB(logger, worker);
+    await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
+    conn = await db.connect();
+  } catch (e) {
+    console.error("Failed to initialize DuckDB:", e);
+  }
+}
+
+dbInitPromise = initDuckDB();
 
 async function loadRegistries() {
   registryShelves = { ...coreShelves };
@@ -20,23 +48,17 @@ async function loadRegistries() {
 
   try {
     const userShelves = await import(/* @vite-ignore */ `/api/theme/shelves.js?v=${Date.now()}`);
-    if (userShelves.shelves) {
-      Object.assign(registryShelves, userShelves.shelves);
-    }
+    if (userShelves.shelves) Object.assign(registryShelves, userShelves.shelves);
   } catch (e) {}
 
   try {
     const userFacets = await import(/* @vite-ignore */ `/api/theme/facets.js?v=${Date.now()}`);
-    if (userFacets.facets) {
-      Object.assign(registryFacets, userFacets.facets);
-    }
+    if (userFacets.facets) Object.assign(registryFacets, userFacets.facets);
   } catch (e) {}
 
   try {
     const userSorters = await import(/* @vite-ignore */ `/api/theme/sorters.js?v=${Date.now()}`);
-    if (userSorters.sorters) {
-      Object.assign(registrySorters, userSorters.sorters);
-    }
+    if (userSorters.sorters) Object.assign(registrySorters, userSorters.sorters);
   } catch (e) {}
 
   const availableShelves = {};
@@ -62,49 +84,8 @@ async function loadRegistries() {
   });
 }
 
-function generateBuckets(albums, facetKey) {
-  const facet = registryFacets[facetKey];
-  if (!facet) return [];
-
-  const map = new Map();
-  
-  albums.forEach(album => {
-    const raw = facet.getValue(album);
-    if (raw === null || raw === undefined) return;
-    
-    const vals = Array.isArray(raw) ? raw : [raw];
-    vals.forEach(v => {
-      if (!map.has(v)) {
-        const label = facet.getLabel ? facet.getLabel(v) : v;
-        map.set(v, { label, value: v, count: 0, filterTarget: facetKey });
-      }
-      map.get(v).count++;
-    });
-  });
-
-  if (facet.sortBuckets) {
-    return facet.sortBuckets(map).map(kv => kv[1]);
-  }
-
-  return Array.from(map.values()).sort((a, b) => 
-    String(a.value).localeCompare(String(b.value), undefined, { numeric: true })
-  );
-}
-
-function isMatch(album, facetKey, filterValue) {
-  const facet = registryFacets[facetKey];
-  if (!facet) return true;
-  
-  if (facet.filter) return facet.filter(album, filterValue);
-
-  const val = facet.getValue(album);
-  if (val === null || val === undefined) return false;
-  
-  if (Array.isArray(val)) return val.includes(filterValue);
-  return val === filterValue;
-}
-
 self.onmessage = async (e) => {
+  await dbInitPromise;
   const { type, payload } = e.data;
 
   try {
@@ -112,7 +93,7 @@ self.onmessage = async (e) => {
       case "INIT": {
         await loadRegistries();
 
-        let data = [];
+        let data =[];
         const sourceData = payload.data || payload;
 
         if (Array.isArray(sourceData)) {
@@ -122,29 +103,30 @@ self.onmessage = async (e) => {
         }
         
         data.forEach(a => {
-          if (a.info) {
-            Object.assign(a, a.info);
-          }
+          if (a.info) Object.assign(a, a.info);
           a.title = a.ALBUM;
           a.artist = a.ALBUMARTIST;
           if (a.tracks) {
             a.tracks.forEach(t => {
-                if (t.info) Object.assign(t, t.info);
-                t.albumId = a.id;
+              if (t.info) Object.assign(t, t.info);
+              t.albumId = a.id;
             });
           }
         });
 
-        rawAlbums = data;
+        await conn.query(`CREATE TABLE IF NOT EXISTS library (id VARCHAR PRIMARY KEY, data JSON)`);
+        await conn.query(`DELETE FROM library`);
+
+        if (data.length > 0) {
+          const jsonLines = data.map(a => JSON.stringify(a)).join('\n');
+          await db.registerFileText('library.json', jsonLines);
+          await conn.query(`INSERT INTO library SELECT json->>'$.id', json FROM read_json_objects('library.json')`);
+        }
 
         let initialShelf = "library";
         if (payload.ui_state) {
-          if (payload.ui_state.activeShelf) {
-            initialShelf = payload.ui_state.activeShelf;
-          }
-          if (payload.ui_state.filter) {
-            currentFilter = payload.ui_state.filter;
-          }
+          if (payload.ui_state.activeShelf) initialShelf = payload.ui_state.activeShelf;
+          if (payload.ui_state.filter) currentFilter = payload.ui_state.filter;
           if (payload.ui_state.sortKey) {
             currentSort = { 
               key: payload.ui_state.sortKey,
@@ -153,20 +135,14 @@ self.onmessage = async (e) => {
           }
         }
 
-        postMessage({ 
-          type: "INIT_DATA", 
-          data: rawAlbums,
-          count: rawAlbums.length 
-        });
-
-        processView(initialShelf, currentFilter, currentSort);
+        postMessage({ type: "INIT_DATA", data, count: data.length });
+        await processView(initialShelf, currentFilter, currentSort);
         break;
       }
 
       case "RELOAD_LOGIC": {
         await loadRegistries();
-        shelfFilteredAlbums = null;
-        processView(currentShelfKey, currentFilter, currentSort);
+        await processView(currentShelfKey, currentFilter, currentSort);
         break;
       }
 
@@ -178,37 +154,29 @@ self.onmessage = async (e) => {
         albumData.artist = albumData.ALBUMARTIST;
 
         if (albumData.tracks) {
-            albumData.tracks.forEach(t => {
-                if (t.info) Object.assign(t, t.info);
-                t.albumId = albumData.id;
-            });
+          albumData.tracks.forEach(t => {
+            if (t.info) Object.assign(t, t.info);
+            t.albumId = albumData.id;
+          });
         }
 
-        const index = rawAlbums.findIndex(a => a.id === payload.id);
-        if (index !== -1) {
-          rawAlbums[index] = albumData;
-        } else {
-          rawAlbums.push(albumData);
-        }
+        const jsonLines = JSON.stringify(albumData);
+        await db.registerFileText('update.json', jsonLines);
+        await conn.query(`DELETE FROM library WHERE id = '${albumData.id.replace(/'/g, "''")}'`);
+        await conn.query(`INSERT INTO library SELECT json->>'$.id', json FROM read_json_objects('update.json')`);
 
-        shelfFilteredAlbums = null;
         postMessage({ type: "UPDATE_DATA", data: albumData });
-        processView(currentShelfKey, currentFilter, currentSort);
+        await processView(currentShelfKey, currentFilter, currentSort);
         break;
       }
 
       case "PROCESS": {
-        processView(payload.shelf, payload.filter, payload.sort);
+        await processView(payload.shelf, payload.filter, payload.sort);
         break;
       }
       
       case "GROUP": {
-        if (!shelfFilteredAlbums) {
-           const shelfDef = registryShelves[currentShelfKey];
-           shelfFilteredAlbums = shelfDef && shelfDef.filter ? rawAlbums.filter(shelfDef.filter) : rawAlbums;
-        }
-        const result = generateBuckets(shelfFilteredAlbums, payload.key);
-        postMessage({ type: "GROUP_RESULT", key: payload.key, result });
+        await handleGroup(payload.key);
         break;
       }
     }
@@ -217,45 +185,77 @@ self.onmessage = async (e) => {
   }
 };
 
-function processView(shelf, filter, sort) {
+async function processView(shelf, filter, sort) {
   currentShelfKey = shelf || "library";
-  const shelfDef = registryShelves[currentShelfKey];
-  shelfFilteredAlbums = shelfDef && shelfDef.filter ? rawAlbums.filter(shelfDef.filter) : rawAlbums;
-
   currentFilter = filter;
   currentSort = sort;
 
   const tStart = performance.now();
 
-  let result = shelfFilteredAlbums;
+  const shelfDef = registryShelves[currentShelfKey];
+  const shelfWhere = shelfDef ? shelfDef.where : "1=1";
+
+  let filterWhere = "1=1";
+  if (currentFilter && currentFilter.key === 'search') {
+    const q = currentFilter.val.toLowerCase().replace(/'/g, "''");
+    filterWhere = `(LOWER(data->>'$.ALBUM') LIKE '%${q}%' OR LOWER(data->>'$.ALBUMARTIST') LIKE '%${q}%' OR LOWER(data->>'$.tracks') LIKE '%${q}%')`;
+  } else if (currentFilter && currentFilter.key) {
+    const facet = registryFacets[currentFilter.key];
+    if (facet && facet.filterWhere) {
+      filterWhere = facet.filterWhere(currentFilter.val);
+    }
+  }
+
+  const sorterObj = registrySorters[currentSort.key] || registrySorters.default;
+  let orderBy = sorterObj ? sorterObj.orderBy : "id ASC";
   
-  if (filter && filter.key === 'search') {
-    const q = filter.val.toLowerCase();
-    result = shelfFilteredAlbums.filter(a => {
-      if ((a.ALBUM && a.ALBUM.toLowerCase().includes(q)) || (a.ALBUMARTIST && a.ALBUMARTIST.toLowerCase().includes(q))) return true;
-      if (a.tracks && a.tracks.some(t => t.TITLE && t.TITLE.toLowerCase().includes(q))) return true;
-      return false;
+  if (currentSort.order === "reverse") {
+    orderBy = orderBy.replace(/\bASC\b/g, '_TMP_').replace(/\bDESC\b/g, 'ASC').replace(/\b_TMP_\b/g, 'DESC');
+  }
+
+  const query = `SELECT id FROM library WHERE (${shelfWhere}) AND (${filterWhere}) ORDER BY ${orderBy}`;
+  
+  try {
+    const arrowResult = await conn.query(query);
+    const viewIds = arrowResult.toArray().map(row => row.id ? row.id.toString() : null).filter(Boolean);
+    const tEnd = performance.now();
+
+    postMessage({ 
+      type: "VIEW_UPDATED", 
+      ids: viewIds, 
+      timing: (tEnd - tStart).toFixed(2)
     });
-  } else if (filter && filter.key) {
-    result = shelfFilteredAlbums.filter(a => isMatch(a, filter.key, filter.val));
+  } catch (err) {
+    console.error("DuckDB Query Error:", err);
   }
+}
 
-  result = [...result]; 
-  
-  const sorterObj = registrySorters[sort.key] || registrySorters.default;
-  const sorterFn = sorterObj ? sorterObj.sort : () => 0;
-  result.sort(sorterFn);
+async function handleGroup(key) {
+  const shelfDef = registryShelves[currentShelfKey];
+  const shelfWhere = shelfDef ? shelfDef.where : "1=1";
+  const facet = registryFacets[key];
 
-  if (sort.order === "reverse") {
-    result.reverse();
+  if (facet) {
+    const query = `
+      SELECT ${facet.select} AS value, COUNT(*) as count 
+      FROM library 
+      WHERE (${shelfWhere}) 
+      GROUP BY value 
+      HAVING value IS NOT NULL
+      ORDER BY ${facet.orderBy || 'count DESC'}
+    `;
+    
+    try {
+      const arrowResult = await conn.query(query);
+      let result = arrowResult.toArray().map(row => ({
+        label: facet.getLabel ? facet.getLabel(row.value) : (row.value ? row.value.toString() : "Unknown"),
+        value: row.value ? row.value.toString() : "Unknown",
+        count: Number(row.count),
+        filterTarget: key
+      }));
+      postMessage({ type: "GROUP_RESULT", key: key, result });
+    } catch (err) {
+      console.error("DuckDB Group Error:", err);
+    }
   }
-
-  const viewIds = result.map(a => a.id);
-  const tEnd = performance.now();
-
-  postMessage({ 
-    type: "VIEW_UPDATED", 
-    ids: viewIds, 
-    timing: (tEnd - tStart).toFixed(2)
-  });
 }

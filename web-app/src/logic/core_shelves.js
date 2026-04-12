@@ -1,6 +1,6 @@
 export const coreShelves = {
   library: {
     label: "Entire Library",
-    filter: () => true
+    where: "1=1"
   }
 };

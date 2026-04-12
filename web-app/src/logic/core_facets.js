@@ -1,68 +1,63 @@
 export const coreFacets = {
   genre: {
     label: "Genre",
-    getValue: (a) => a.GENRE || "Unknown"
+    select: "unnest(from_json(COALESCE(data->>'$.GENRE', '[\"Unknown\"]'), '[\"VARCHAR\"]'))",
+    filterWhere: (val) => val === 'Unknown' ? `data->>'$.GENRE' IS NULL` : `list_contains(from_json(data->>'$.GENRE', '[\"VARCHAR\"]'), '${val.replace(/'/g, "''")}')`,
+    orderBy: "count DESC"
   },
   decade: {
     label: "Decade",
-    getValue: (a) => {
-      if (a.DATE && a.DATE.length >= 4) {
-        return a.DATE.substring(0, 3) + "0s";
-      }
-      return null;
-    }
+    select: "SUBSTR(data->>'$.DATE', 1, 3) || '0s'",
+    filterWhere: (val) => `SUBSTR(data->>'$.DATE', 1, 3) || '0s' = '${val.replace(/'/g, "''")}'`,
+    orderBy: "value DESC"
   },
   year_added: {
     label: "Year Added",
-    getValue: (a) => {
-      const unix = parseInt(a.unix_added || 0);
-      if (unix > 0) {
-        return new Date(unix * 1000).getFullYear().toString();
-      }
-      return null;
-    },
-    sortBuckets: (map) => {
-      return Array.from(map.entries()).sort((a, b) => b[0].localeCompare(a[0]));
-    }
+    select: "strftime(to_timestamp(CAST(COALESCE(data->>'$.unix_added', '0') AS BIGINT)), '%Y')",
+    filterWhere: (val) => `strftime(to_timestamp(CAST(COALESCE(data->>'$.unix_added', '0') AS BIGINT)), '%Y') = '${val.replace(/'/g, "''")}'`,
+    orderBy: "value DESC"
   },
   month_added: {
     label: "Month Added",
-    getValue: (a) => {
-      const unix = parseInt(a.unix_added || 0);
-      if (unix > 0) {
-        const date = new Date(unix * 1000);
-        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-      }
-      return null;
-    },
+    select: "strftime(to_timestamp(CAST(COALESCE(data->>'$.unix_added', '0') AS BIGINT)), '%Y-%m')",
+    filterWhere: (val) => `strftime(to_timestamp(CAST(COALESCE(data->>'$.unix_added', '0') AS BIGINT)), '%Y-%m') = '${val.replace(/'/g, "''")}'`,
+    orderBy: "value DESC",
     getLabel: (val) => {
       if (!val) return "Unknown";
       const [y, m] = val.split('-');
       const date = new Date(y, parseInt(m) - 1);
-      const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      const monthNames =["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
       return `${monthNames[date.getMonth()]} ${y}`;
-    },
-    sortBuckets: (map) => {
-      return Array.from(map.entries()).sort((a, b) => b[0].localeCompare(a[0]));
     }
   },
   totaltracks: {
     label: "Total Tracks",
-    getValue: (a) => String(a.total_tracks || "0")
+    select: "COALESCE(CAST(data->>'$.total_tracks' AS VARCHAR), '0')",
+    filterWhere: (val) => `COALESCE(CAST(data->>'$.total_tracks' AS VARCHAR), '0') = '${val.replace(/'/g, "''")}'`,
+    orderBy: "CAST(value AS INTEGER) ASC"
   },
   chroma: {
     label: "Chroma",
-    getValue: (a) => {
-      const val = parseFloat(a.tags?.COVER_CHROMA || 0);
-      if (val === 0) return "Monochrome";
-      if (val < 15) return "Bleak";
-      if (val < 33) return "Muted";
-      if (val < 60) return "Standard";
-      return "Vibrant";
-    },
-    sortBuckets: (map) => {
-      const order = ["Vibrant", "Standard", "Muted", "Bleak", "Monochrome"];
-      return Array.from(map.entries()).sort((a, b) => order.indexOf(a[0]) - order.indexOf(b[0]));
-    }
+    select: `CASE 
+      WHEN CAST(COALESCE(data->>'$.tags.COVER_CHROMA', '0') AS FLOAT) = 0 THEN 'Monochrome'
+      WHEN CAST(COALESCE(data->>'$.tags.COVER_CHROMA', '0') AS FLOAT) < 15 THEN 'Bleak'
+      WHEN CAST(COALESCE(data->>'$.tags.COVER_CHROMA', '0') AS FLOAT) < 33 THEN 'Muted'
+      WHEN CAST(COALESCE(data->>'$.tags.COVER_CHROMA', '0') AS FLOAT) < 60 THEN 'Standard'
+      ELSE 'Vibrant'
+    END`,
+    filterWhere: (val) => `(CASE 
+      WHEN CAST(COALESCE(data->>'$.tags.COVER_CHROMA', '0') AS FLOAT) = 0 THEN 'Monochrome'
+      WHEN CAST(COALESCE(data->>'$.tags.COVER_CHROMA', '0') AS FLOAT) < 15 THEN 'Bleak'
+      WHEN CAST(COALESCE(data->>'$.tags.COVER_CHROMA', '0') AS FLOAT) < 33 THEN 'Muted'
+      WHEN CAST(COALESCE(data->>'$.tags.COVER_CHROMA', '0') AS FLOAT) < 60 THEN 'Standard'
+      ELSE 'Vibrant'
+    END) = '${val.replace(/'/g, "''")}'`,
+    orderBy: `CASE value 
+      WHEN 'Vibrant' THEN 1 
+      WHEN 'Standard' THEN 2 
+      WHEN 'Muted' THEN 3 
+      WHEN 'Bleak' THEN 4 
+      WHEN 'Monochrome' THEN 5 
+    END ASC`
   }
 };

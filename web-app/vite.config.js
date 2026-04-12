@@ -5,10 +5,6 @@ import net from 'node:net'
 import tls from 'node:tls'
 import { Stream } from 'node:stream'
 
-// --- BUN COMPATIBILITY SHIM ---
-// Vite's proxy uses http-proxy which calls destroySoon().
-// Bun does not implement this legacy Node method. 
-// We patch it globally across all possible socket/stream classes.
 const patch = function () { this.destroy(); };
 [net.Socket, tls.TLSSocket, Stream].forEach((cls) => {
   if (cls && cls.prototype && !cls.prototype.destroySoon) {
@@ -22,6 +18,9 @@ export default defineConfig({
     alias: {
       '$modules': path.resolve(__dirname, './src/modules'),
     }
+  },
+  optimizeDeps: {
+    exclude:['@duckdb/duckdb-wasm']
   },
   server: {
     port: 5173,
