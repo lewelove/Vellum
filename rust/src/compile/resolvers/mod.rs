@@ -45,7 +45,6 @@ pub fn resolve_album_key(key: &str, meta: &Value, ctx: &AlbumContext) -> Option<
         let res = match key {
             "cover_chroma" => native::resolve_cover_chroma(ctx, args),
             "cover_entropy" => native::resolve_cover_entropy(ctx, args),
-            "cover_palette" => native::resolve_cover_palette(ctx, args),
             "original_yyyy_mm" => Some(json!(native::resolve_yyyy_mm(ctx, "original_yyyy_mm", args))),
             "release_yyyy_mm" => Some(json!(native::resolve_yyyy_mm(ctx, "release_yyyy_mm", args))),
             "comment" => Some(json!(native::resolve_comment(ctx, args))),

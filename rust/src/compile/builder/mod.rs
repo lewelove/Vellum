@@ -492,6 +492,13 @@ fn build_album(
         let val = resolvers::resolve_album_key(key, meta, ctx).unwrap_or(Value::Null);
         tags.insert(key.to_uppercase(), val);
     }
+
+    if let Some(palette_cfg) = ctx.config.get("compiler").and_then(|c| c.get("cover_palette")) {
+        if let Some(val) = resolvers::native::resolve_cover_palette(ctx, palette_cfg) {
+            tags.insert("COVER_PALETTE".to_string(), val);
+        }
+    }
+
     obj.insert("tags".to_string(), Value::Object(tags));
     Value::Object(obj)
 }

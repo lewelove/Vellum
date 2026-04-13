@@ -53,7 +53,21 @@ pub struct CompilerConfig {
     pub unix_added: Option<Vec<String>>,
     pub date_added: Option<String>,
     pub file_subset_match: Option<Vec<String>>,
+    pub cover_palette: Option<PaletteConfig>,
 }
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct PaletteConfig {
+    #[serde(rename = "type", default = "default_palette_type")]
+    pub algo_type: String,
+    #[serde(default = "default_palette_sort")]
+    pub sort: String,
+    #[serde(default)]
+    pub args: String,
+}
+
+fn default_palette_type() -> String { "material".to_string() }
+fn default_palette_sort() -> String { "ratio".to_string() }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct KeyConfig {

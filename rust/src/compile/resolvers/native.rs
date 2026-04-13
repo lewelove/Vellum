@@ -140,8 +140,8 @@ pub fn resolve_cover_entropy(ctx: &AlbumContext, _args: &str) -> Option<Value> {
     Some(json!(buf.len()))
 }
 
-pub fn resolve_cover_palette(ctx: &AlbumContext, args: &str) -> Option<Value> {
-    cover_palette::resolve(ctx, args)
+pub fn resolve_cover_palette(ctx: &AlbumContext, cfg: &Value) -> Option<Value> {
+    cover_palette::resolve(ctx, cfg)
 }
 
 pub fn resolve_comment(ctx: &AlbumContext, _args: &str) -> String {

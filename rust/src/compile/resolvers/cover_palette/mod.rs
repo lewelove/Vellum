@@ -19,9 +19,13 @@ fn parse_hex(hex: &str) -> Option<Srgb> {
     Some(Srgb::new(r as f32 / 255.0, g as f32 / 255.0, b as f32 / 255.0))
 }
 
-pub fn resolve(ctx: &AlbumContext, args: &str) -> Option<Value> {
+pub fn resolve(ctx: &AlbumContext, cfg: &Value) -> Option<Value> {
     let cover_path = ctx.cover_path?;
     let img = image::open(ctx.album_root.join(cover_path)).ok()?;
+
+    let algo_type = cfg.get("type").and_then(Value::as_str).unwrap_or("material");
+    let sort_type = cfg.get("sort").and_then(Value::as_str).unwrap_or("ratio");
+    let args = cfg.get("args").and_then(Value::as_str).unwrap_or("");
 
     let sample_dim = args.split(',')
         .find(|s| s.trim().starts_with("dim="))
@@ -38,7 +42,8 @@ pub fn resolve(ctx: &AlbumContext, args: &str) -> Option<Value> {
     let mut candidate_colors = Vec::new();
     let mut manually_provided = false;
     
-    if let Some(arr) = ctx.source.get("cover_palette").and_then(|v| v.as_array()) {
+    let cover_palette_raw = ctx.source.get("COVER_PALETTE").or_else(|| ctx.source.get("cover_palette"));
+    if let Some(arr) = cover_palette_raw.and_then(|v| v.as_array()) {
         for v in arr {
             if let Some(s) = v.as_str() {
                 if let Some(srgb) = parse_hex(s) {
@@ -52,11 +57,6 @@ pub fn resolve(ctx: &AlbumContext, args: &str) -> Option<Value> {
     }
 
     if candidate_colors.is_empty() {
-        let algo_type = args.split(',')
-            .find(|s| s.trim().starts_with("type="))
-            .map(|s| s.trim().strip_prefix("type=").unwrap())
-            .unwrap_or("kmeans");
-
         candidate_colors = match algo_type {
             "msc" => mean_shift::extract(&img_to_process, args),
             "material" => mcu_material::extract(&img_to_process, args),
@@ -130,16 +130,13 @@ pub fn resolve(ctx: &AlbumContext, args: &str) -> Option<Value> {
         }
     }
 
-    let sort_type = if manually_provided {
+    let sort_override = if manually_provided {
         "original"
     } else {
-        args.split(',')
-            .find(|s| s.trim().starts_with("sort="))
-            .and_then(|s| s.trim().strip_prefix("sort="))
-            .unwrap_or("ratio")
+        sort_type
     };
 
-    match sort_type {
+    match sort_override {
         "L" => palette.sort_by(|a, b| {
             let l_a = Oklch::from_color(a.0).l;
             let l_b = Oklch::from_color(b.0).l;
