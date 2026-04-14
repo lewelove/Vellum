@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use crate::egui::theme;
 use cosmic_text::{Attrs, Buffer, Family, FontSystem, Metrics, Shaping, Weight, Wrap};
 use eframe::egui;

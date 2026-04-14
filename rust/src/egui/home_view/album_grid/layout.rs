@@ -28,25 +28,14 @@ impl Default for LayoutManager {
 
 impl LayoutManager {
     pub fn row_height(&self) -> f32 {
-        self.gap_y
-            + self.card_size
-            + self.text_gap_main
-            + self.lh_title
-            + self.text_gap_lesser
-            + self.lh_artist
+        self.gap_y + self.card_size + self.text_gap_main + self.lh_title + self.text_gap_lesser + self.lh_artist
     }
 
     pub fn cols(&self) -> usize {
-        ((self.container_width - 40.0 + self.gap_x) / (self.card_size + self.gap_x))
-            .floor()
-            .max(1.0) as usize
-    }
-
-    pub fn top_offset(&self) -> f32 {
-        self.crease_height - self.gap_y
+        ((self.container_width - 40.0 + self.gap_x) / (self.card_size + self.gap_x)).floor().max(1.0) as usize
     }
 
     pub fn get_row_y(&self, index: usize) -> f32 {
-        (index as f32 * self.row_height()) + self.top_offset()
+        (index as f32 * self.row_height()) + (self.crease_height - self.gap_y)
     }
 }
