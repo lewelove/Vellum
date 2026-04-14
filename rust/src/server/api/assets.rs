@@ -31,6 +31,16 @@ pub async fn get_cover_thumbnail(
     }
 }
 
+pub async fn get_text_bitmap(
+    Path((size, hash)): Path<(String, String)>,
+) -> Response {
+    let path = crate::expand_path("~/.vellum/text_bitmaps")
+        .join(&size)
+        .join(format!("{hash}.png"));
+
+    serve_image(path).await
+}
+
 pub async fn get_album_cover(
     Path(id): Path<String>,
     State(state): State<Arc<AppState>>,
@@ -65,8 +75,7 @@ pub async fn get_lyrics(
     {
         let mut buf = String::new();
         if file.read_to_string(&mut buf).await.is_ok() {
-            return (
-                [
+            return ([
                     (
                         header::CONTENT_TYPE,
                         HeaderValue::from_static("text/plain; charset=utf-8"),
@@ -92,8 +101,7 @@ pub async fn get_custom_shader(State(state): State<Arc<AppState>>) -> Response {
         if let Ok(mut file) = File::open(&path).await {
             let mut buf = String::new();
             if file.read_to_string(&mut buf).await.is_ok() {
-                return (
-                    [
+                return ([
                         (
                             header::CONTENT_TYPE,
                             HeaderValue::from_static("text/x-glsl; charset=utf-8"),
@@ -120,8 +128,7 @@ pub async fn get_custom_css(State(state): State<Arc<AppState>>) -> Response {
         if let Ok(mut file) = File::open(&path).await {
             let mut buf = String::new();
             if file.read_to_string(&mut buf).await.is_ok() {
-                return (
-                    [
+                return ([
                         (
                             header::CONTENT_TYPE,
                             HeaderValue::from_static("text/css; charset=utf-8"),
@@ -148,8 +155,7 @@ pub async fn get_custom_facets(State(state): State<Arc<AppState>>) -> Response {
         if let Ok(mut file) = File::open(&path).await {
             let mut buf = String::new();
             if file.read_to_string(&mut buf).await.is_ok() {
-                return (
-                    [
+                return ([
                         (
                             header::CONTENT_TYPE,
                             HeaderValue::from_static("text/javascript; charset=utf-8"),
@@ -162,8 +168,7 @@ pub async fn get_custom_facets(State(state): State<Arc<AppState>>) -> Response {
         }
     }
 
-    (
-        [
+    ([
             (header::CONTENT_TYPE, HeaderValue::from_static("text/javascript; charset=utf-8")),
             (header::CACHE_CONTROL, HeaderValue::from_static("no-cache")),
         ],
@@ -181,8 +186,7 @@ pub async fn get_custom_sorters(State(state): State<Arc<AppState>>) -> Response 
         if let Ok(mut file) = File::open(&path).await {
             let mut buf = String::new();
             if file.read_to_string(&mut buf).await.is_ok() {
-                return (
-                    [
+                return ([
                         (
                             header::CONTENT_TYPE,
                             HeaderValue::from_static("text/javascript; charset=utf-8"),
@@ -195,8 +199,7 @@ pub async fn get_custom_sorters(State(state): State<Arc<AppState>>) -> Response 
         }
     }
 
-    (
-        [
+    ([
             (header::CONTENT_TYPE, HeaderValue::from_static("text/javascript; charset=utf-8")),
             (header::CACHE_CONTROL, HeaderValue::from_static("no-cache")),
         ],
@@ -214,8 +217,7 @@ pub async fn get_custom_shelves(State(state): State<Arc<AppState>>) -> Response 
         if let Ok(mut file) = File::open(&path).await {
             let mut buf = String::new();
             if file.read_to_string(&mut buf).await.is_ok() {
-                return (
-                    [
+                return ([
                         (
                             header::CONTENT_TYPE,
                             HeaderValue::from_static("text/javascript; charset=utf-8"),
@@ -228,8 +230,7 @@ pub async fn get_custom_shelves(State(state): State<Arc<AppState>>) -> Response 
         }
     }
 
-    (
-        [
+    ([
             (header::CONTENT_TYPE, HeaderValue::from_static("text/javascript; charset=utf-8")),
             (header::CACHE_CONTROL, HeaderValue::from_static("no-cache")),
         ],
@@ -246,8 +247,7 @@ async fn serve_image(path: PathBuf) -> Response {
             } else {
                 "image/jpeg"
             };
-            return (
-                [
+            return ([
                     (header::CONTENT_TYPE, HeaderValue::from_static(mime)),
                     (
                         header::CACHE_CONTROL,

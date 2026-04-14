@@ -21,6 +21,7 @@ pub fn router(state: Arc<AppState>) -> Router {
             get(assets::get_cover_thumbnail),
         )
         .route("/api/assets/cover/{*id}", get(assets::get_album_cover))
+        .route("/api/assets/text/{size}/{hash}", get(assets::get_text_bitmap))
         .route("/api/assets/lyrics/{id}/{*path}", get(assets::get_lyrics))
         .route("/api/theme/shader", get(assets::get_custom_shader))
         .route("/api/theme/css", get(assets::get_custom_css))

@@ -72,6 +72,8 @@ pub struct AlbumInfo {
     pub cover_mtime: u64,
     #[serde(default)]
     pub cover_byte_size: u64,
+    #[serde(default)]
+    pub text_bitmap_hash: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

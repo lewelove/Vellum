@@ -34,7 +34,7 @@ parking_lot = "0.12.5"
 alphanumeric-sort = "1.5.5"
 tempfile = "3.25.0"
 sha2 = "0.10.9"
-xxhash-rust = { version = "0.8.15", features =["xxh64"] }
+xxhash-rust = { version = "0.8.15", features = ["xxh64"] }
 image = "0.25.9"
 chrono = "0.4.43"
 reqwest = { version = "0.13.2", features = ["json", "query"] }
@@ -48,3 +48,6 @@ rand = "0.10.0"
 mcu-material-color = "0.2.2"
 mcu-hct = "0.2.0"
 palette_extract = "0.1.0"
+cosmic-text = "0.18.2"
+swash = "0.2.7"
+tiny-skia = "0.12.0"

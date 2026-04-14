@@ -120,6 +120,13 @@ pub fn build(
         &registry,
     )?;
 
+    let album_title = resolvers::standard::resolve_generic_string(album_source, "album", "", "Untitled")
+        .as_str().unwrap_or("Untitled").to_string();
+    let album_artist = resolvers::standard::resolve_generic_string(album_source, "albumartist", "artistartist", "Unknown")
+        .as_str().unwrap_or("Unknown").to_string();
+
+    let text_bitmap_hash = assets::load_or_create_text_bitmap(config, &album_title, &album_artist, 1.0);
+
     let album_ctx = AlbumContext {
         source: album_source,
         tracks: &final_tracks,
@@ -131,6 +138,7 @@ pub fn build(
         cover_path: c_path.as_deref(),
         cover_mtime: c_mtime,
         cover_byte_size: c_size,
+        text_bitmap_hash: &text_bitmap_hash,
         cover_image: loaded_image.as_ref(),
         config,
     };
@@ -460,6 +468,7 @@ fn construct_album_info(ctx: &AlbumContext) -> Value {
     info.insert("cover_hash".to_string(), json!(ctx.cover_hash));
     info.insert("cover_mtime".to_string(), json!(ctx.cover_mtime));
     info.insert("cover_byte_size".to_string(), json!(ctx.cover_byte_size));
+    info.insert("text_bitmap_hash".to_string(), json!(ctx.text_bitmap_hash));
 
     Value::Object(info)
 }
@@ -486,7 +495,7 @@ fn build_album(
         }
 
         let key_lower = key.to_lowercase();
-        if ["album", "albumartist", "date", "genre", "comment", "original_yyyy_mm", "release_yyyy_mm"].contains(&key_lower.as_str()) {
+        if["album", "albumartist", "date", "genre", "comment", "original_yyyy_mm", "release_yyyy_mm"].contains(&key_lower.as_str()) {
             continue;
         }
         let val = resolvers::resolve_album_key(key, meta, ctx).unwrap_or(Value::Null);
