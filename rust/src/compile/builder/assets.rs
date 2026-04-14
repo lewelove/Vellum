@@ -145,13 +145,13 @@ pub fn render_text_blob(
     scale: f32,
 ) -> Pixmap {
     let width_pts = 190.0;
-    let height_pts = 32.0;
+    let height_pts = 34.0;
     let width = (width_pts * scale).round() as u32;
     let height = (height_pts * scale).round() as u32;
     let mut pixmap = Pixmap::new(width, height).unwrap();
 
     let coverage_gamma = 1.0;
-    let softening = 0.4;
+    let softening = 0.8;
 
     let mut render_line = |text: &str, baseline_y: f32, size: f32, weight: Weight, color: [f32; 3]| {
         let text_srgb = Srgb::new(color[0], color[1], color[2]);
