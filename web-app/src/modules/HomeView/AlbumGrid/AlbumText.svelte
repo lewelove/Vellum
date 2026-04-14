@@ -34,20 +34,19 @@
 
   $effect(() => {
     if (canvas && textBitmap) {
-      const ctx = canvas.getContext('2d', { alpha: false });
+      const ctx = canvas.getContext('2d', { alpha: true });
       const dpr = window.devicePixelRatio || 1;
       
-      canvas.width = coverSize * dpr;
-      canvas.height = (textBlockHeight + 2) * dpr;
+      const targetWidth = coverSize * dpr;
+      const targetHeight = textBlockHeight * dpr;
+
+      if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
+          canvas.width = targetWidth;
+          canvas.height = targetHeight;
+      }
       
-      ctx.scale(dpr, dpr);
-      ctx.translate(0, 1);
-      
-      const bgHex = "#333333";
-      ctx.fillStyle = bgHex;
-      ctx.fillRect(0, -1, coverSize, textBlockHeight + 2);
-      
-      ctx.drawImage(textBitmap, 0, -1, coverSize, textBlockHeight + 2);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(textBitmap, 0, 0, canvas.width, canvas.height);
     }
   });
 </script>
@@ -65,9 +64,9 @@
     bind:this={canvas}
     style="
       width: {coverSize}px;
-      height: calc(100% + 2px);
+      height: {textBlockHeight}px;
       position: absolute;
-      top: -1px;
+      top: 0;
       left: 0;
       display: block;
       image-rendering: -webkit-optimize-contrast;

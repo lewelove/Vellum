@@ -162,78 +162,7 @@ class LibraryState {
     }
   }
 
-  async generateTextBitmap(album) {
-    if (!album) return null;
-    
-    const coverSize = theme.albumGrid["cover-size"] || 190;
-    const lhTitle = theme.albumGrid["font-line-height-title"] || 16;
-    const gapLesser = theme.albumGrid["text-gap-lesser"] || 2;
-    const lhArtist = theme.albumGrid["font-line-height-artist"] || 14;
-    const textBlockHeight = lhTitle + gapLesser + lhArtist;
-
-    const dpr = window.devicePixelRatio || 1;
-    const w = coverSize;
-    const h = textBlockHeight;
-
-    if (w <= 0 || h <= 0) return null;
-
-    const canvas = new OffscreenCanvas(w * dpr, (h + 2) * dpr);
-    const ctx = canvas.getContext('2d', { alpha: false });
-    
-    ctx.scale(dpr, dpr);
-    ctx.translate(0, 1);
-    
-    ctx.fillStyle = "#333333";
-    ctx.fillRect(0, -1, w, h + 2);
-    
-    ctx.shadowColor = "rgba(0, 0, 0, 0.1)";
-    ctx.shadowBlur = 4;
-    ctx.shadowOffsetX = 0;
-    ctx.shadowOffsetY = 0;
-
-    const fontStack = "Inter Vellum, 'Noto Sans', system-ui, sans-serif";
-    
-    const cTitle = theme.palette[theme.colors["text-main"]] || "#ffffff";
-    const sTitle = theme.typography["font-size-title"] || 14;
-    const wTitle = theme.typography["font-weight-title"] || 400;
-
-    ctx.fillStyle = cTitle;
-    ctx.font = `${wTitle} ${sTitle}px ${fontStack}`;
-    ctx.textBaseline = "middle"; 
-    
-    const fitText = (ctx, text, maxWidth) => {
-      if (!text) return "";
-      let ellipsis = "...";
-      let width = ctx.measureText(text).width;
-      if (width <= maxWidth) return text;
-      
-      let len = text.length;
-      while (width > maxWidth && len > 0) {
-        len--;
-        width = ctx.measureText(text.substring(0, len) + ellipsis).width;
-      }
-      return text.substring(0, len) + ellipsis;
-    };
-
-    const titleY = lhTitle / 2;
-    ctx.fillText(fitText(ctx, album.title, w), 0, titleY);
-    
-    const cArtist = theme.palette[theme.colors["text-muted"]] || "#cccccc";
-    const sArtist = theme.typography["font-size-artist"] || 12;
-    const wArtist = theme.typography["font-weight-artist"] || 400;
-
-    ctx.fillStyle = cArtist;
-    ctx.font = `${wArtist} ${sArtist}px ${fontStack}`;
-    
-    const artistY = lhTitle + gapLesser + (lhArtist / 2);
-    ctx.fillText(fitText(ctx, album.artist, w), 0, artistY);
-
-    return canvas.transferToImageBitmap();
-  }
-
   async orchestratePrewarming(albumData) {
-    await document.fonts.ready;
-
     const concurrencyLimit = 6;
     const queue = [...albumData];
     let pendingUpdates = false;
@@ -251,40 +180,53 @@ class LibraryState {
         const album = queue.shift();
         const url = this.getThumbnailUrl(album);
         
-        if (!url || this.pinnedTextures.has(url)) continue;
+        let fetchedAny = false;
 
-        try {
-          const res = await fetch(url);
-          const blob = await res.blob();
-          
-          const bitmap = await createImageBitmap(blob, {
-            premultiplyAlpha: 'none',
-            colorSpaceConversion: 'default'
-          });
-          
-          this.pinnedTextures.set(url, bitmap);
+        if (url && !this.pinnedTextures.has(url)) {
+          try {
+            const res = await fetch(url);
+            const blob = await res.blob();
+            
+            const bitmap = await createImageBitmap(blob, {
+              premultiplyAlpha: 'none',
+              colorSpaceConversion: 'default'
+            });
+            
+            this.pinnedTextures.set(url, bitmap);
+            fetchedAny = true;
+          } catch (err) {}
+        }
 
-          if (!this.pinnedTextTextures.has(album.id)) {
-              const textBitmap = await this.generateTextBitmap(album);
-              if (textBitmap) {
-                  this.pinnedTextTextures.set(album.id, textBitmap);
-              }
-          }
+        if (album.text_bitmap_hash && !this.pinnedTextTextures.has(album.id)) {
+            try {
+                const sizeStr = `${this.config.thumbnail_size}px`;
+                const txtUrl = `/api/assets/text/${sizeStr}/${album.text_bitmap_hash}`;
+                const txtRes = await fetch(txtUrl);
+                if (txtRes.ok) {
+                    const txtBlob = await txtRes.blob();
+                    const txtBitmap = await createImageBitmap(txtBlob, {
+                        premultiplyAlpha: 'none',
+                        colorSpaceConversion: 'default'
+                    });
+                    this.pinnedTextTextures.set(album.id, txtBitmap);
+                    fetchedAny = true;
+                }
+            } catch (e) {}
+        }
 
+        if (fetchedAny) {
           pendingUpdates = true;
-
-          if (Date.now() - lastFlush > 100) {
+          if (Date.now() - lastFlush > 50) {
             flush();
           }
-        } catch (err) {}
+        }
       }
-      if (pendingUpdates) flush();
     };
 
     const workers = Array.from({ length: concurrencyLimit }, () => processor());
     await Promise.all(workers);
 
-    if (pendingUpdates) flush();
+    flush();
   }
 
   applyPersistedState(state) {

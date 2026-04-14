@@ -10,7 +10,7 @@ use std::time::SystemTime;
 use cosmic_text::{Attrs, Buffer, Family, Metrics, Shaping, SubpixelBin, Weight, Wrap, FontSystem, fontdb::Database};
 use palette::{LinSrgb, Srgb};
 use swash::scale::{image::Content, Render, ScaleContext, Source, StrikeWith};
-use tiny_skia::{Color, Pixmap};
+use tiny_skia::{Pixmap};
 use std::sync::OnceLock;
 use xxhash_rust::xxh64::xxh64;
 
@@ -27,7 +27,7 @@ fn get_font_db() -> &'static Database {
 }
 
 pub fn resolve_cover_info(root: &Path) -> (Option<String>, String, u64, u64) {
-    let candidates =["cover.jpg", "cover.png", "folder.jpg", "front.jpg"];
+    let candidates = ["cover.jpg", "cover.png", "folder.jpg", "front.jpg"];
     for c in candidates {
         let p = root.join(c);
         if let Ok(m) = std::fs::metadata(&p) {
@@ -97,7 +97,7 @@ pub fn load_or_create_thumbnail(
     None
 }
 
-fn truncate_with_ellipsis(
+pub fn truncate_with_ellipsis(
     text: &str,
     font_system: &mut FontSystem,
     metrics: Metrics,
@@ -128,11 +128,6 @@ fn truncate_with_ellipsis(
     String::new()
 }
 
-fn blend_channel(src_lin: f32, bg_lin: f32, mask: u8) -> f32 {
-    let alpha = mask as f32 / 255.0;
-    src_lin * alpha + bg_lin * (1.0 - alpha)
-}
-
 fn subpixel_bin_to_float(bin: SubpixelBin) -> f32 {
     match bin {
         SubpixelBin::Zero => 0.0,
@@ -142,34 +137,33 @@ fn subpixel_bin_to_float(bin: SubpixelBin) -> f32 {
     }
 }
 
-fn render_text_blob(
+pub fn render_text_blob(
     title: &str,
     artist: &str,
     font_system: &mut FontSystem,
     swash_context: &mut ScaleContext,
     scale: f32,
 ) -> Pixmap {
-    let width = (190.0 * scale).round() as u32;
-    let height = (32.0 * scale).round() as u32;
+    let width_pts = 190.0;
+    let height_pts = 32.0;
+    let width = (width_pts * scale).round() as u32;
+    let height = (height_pts * scale).round() as u32;
     let mut pixmap = Pixmap::new(width, height).unwrap();
-    
-    let bg_srgb = Srgb::new(51u8, 51, 51);
-    let bg_lin: LinSrgb<f32> = bg_srgb.into_linear();
-    
-    let bg_f32: Srgb<f32> = bg_srgb.into_format();
-    pixmap.fill(Color::from_rgba(bg_f32.red, bg_f32.green, bg_f32.blue, 1.0).unwrap());
 
-    let mut render_line = |text: &str, baseline_y: f32, size: f32, weight: Weight, color:[f32; 3]| {
+    let coverage_gamma = 1.0;
+    let softening = 0.4;
+
+    let mut render_line = |text: &str, baseline_y: f32, size: f32, weight: Weight, color: [f32; 3]| {
         let text_srgb = Srgb::new(color[0], color[1], color[2]);
         let src_lin: LinSrgb<f32> = text_srgb.into_linear();
-        
+
         let attrs = Attrs::new().family(Family::Name("Inter")).weight(weight);
         let metrics = Metrics::new(size * scale, (size + 3.0) * scale);
-        
-        let truncated = truncate_with_ellipsis(text, font_system, metrics, (190.0 * scale) as f32, &attrs);
-        
+
+        let truncated = truncate_with_ellipsis(text, font_system, metrics, width_pts * scale, &attrs);
+
         let mut buffer = Buffer::new(font_system, metrics);
-        buffer.set_size(font_system, Some((190.0 * scale) as f32), Some((32.0 * scale) as f32));
+        buffer.set_size(font_system, Some(width_pts * scale), Some(height_pts * scale));
         buffer.set_wrap(font_system, Wrap::None);
         buffer.set_text(font_system, &truncated, &attrs, Shaping::Advanced, None);
         buffer.shape_until_scroll(font_system, false);
@@ -178,14 +172,15 @@ fn render_text_blob(
             for glyph in run.glyphs.iter() {
                 let physical_glyph = glyph.physical((0.0, baseline_y * scale), scale);
                 let face_id = physical_glyph.cache_key.font_id;
-                
+
                 font_system.db().with_face_data(face_id, |data, face_index| {
                     let font_ref = swash::FontRef::from_index(data, face_index as usize).unwrap();
                     let font_size = f32::from_bits(physical_glyph.cache_key.font_size_bits);
                     let x_fract = subpixel_bin_to_float(physical_glyph.cache_key.x_bin);
                     let y_fract = subpixel_bin_to_float(physical_glyph.cache_key.y_bin);
 
-                    let mut scaler = swash_context.builder(font_ref)
+                    let mut scaler = swash_context
+                        .builder(font_ref)
                         .size(font_size)
                         .hint(true)
                         .build();
@@ -195,7 +190,7 @@ fn render_text_blob(
                         Source::ColorBitmap(StrikeWith::BestFit),
                         Source::Outline,
                     ]);
-                    
+
                     renderer.format(swash::zeno::Format::Subpixel);
                     renderer.offset(swash::zeno::Vector::new(x_fract, y_fract));
 
@@ -211,59 +206,84 @@ fn render_text_blob(
                             for col in 0..mask_w {
                                 let px = x_start + col;
                                 let py = y_start + row;
-                                if px < 0 || px >= width as i32 || py < 0 || py >= height as i32 { continue; }
+                                if px < 0 || px >= width as i32 || py < 0 || py >= height as i32 {
+                                    continue;
+                                }
 
                                 let pixel_idx = (py as usize * width as usize + px as usize) * 4;
-                                
+
                                 match image.content {
                                     Content::SubpixelMask => {
                                         let mask_idx = (row as usize * mask_w as usize + col as usize) * 4;
-                                        
-                                        let b_lin = blend_channel(src_lin.blue, bg_lin.blue, image.data[mask_idx]);
-                                        let g_lin = blend_channel(src_lin.green, bg_lin.green, image.data[mask_idx + 1]);
-                                        let r_lin = blend_channel(src_lin.red, bg_lin.red, image.data[mask_idx + 2]);
 
-                                        let out_srgb: Srgb<u8> = Srgb::from_linear(LinSrgb::new(r_lin, g_lin, b_lin));
+                                        let b_raw = f32::from(image.data[mask_idx]) / 255.0;
+                                        let g_raw = f32::from(image.data[mask_idx + 1]) / 255.0;
+                                        let r_raw = f32::from(image.data[mask_idx + 2]) / 255.0;
+
+                                        let avg = (r_raw + g_raw + b_raw) / 3.0;
+
+                                        let r_s = r_raw * (1.0 - softening) + avg * softening;
+                                        let g_s = g_raw * (1.0 - softening) + avg * softening;
+                                        let b_s = b_raw * (1.0 - softening) + avg * softening;
+
+                                        let m_r = r_s.powf(coverage_gamma);
+                                        let m_g = g_s.powf(coverage_gamma);
+                                        let m_b = b_s.powf(coverage_gamma);
+
+                                        let alpha_lin = m_r.max(m_g).max(m_b);
+
+                                        let out_r_lin = src_lin.red * m_r;
+                                        let out_g_lin = src_lin.green * m_g;
+                                        let out_b_lin = src_lin.blue * m_b;
+
+                                        let out_srgb = Srgb::<u8>::from_linear(LinSrgb::new(
+                                            out_r_lin, out_g_lin, out_b_lin,
+                                        ));
 
                                         data_ptr[pixel_idx] = out_srgb.red;
                                         data_ptr[pixel_idx + 1] = out_srgb.green;
                                         data_ptr[pixel_idx + 2] = out_srgb.blue;
-                                        data_ptr[pixel_idx + 3] = 255;
+                                        data_ptr[pixel_idx + 3] = (alpha_lin * 255.0).round() as u8;
                                     }
                                     Content::Mask => {
-                                        let m = image.data[row as usize * mask_w as usize + col as usize];
+                                        let m_raw = f32::from(image.data[row as usize * mask_w as usize + col as usize]) / 255.0;
+                                        let m = m_raw.powf(coverage_gamma);
                                         
-                                        let r_lin = blend_channel(src_lin.red, bg_lin.red, m);
-                                        let g_lin = blend_channel(src_lin.green, bg_lin.green, m);
-                                        let b_lin = blend_channel(src_lin.blue, bg_lin.blue, m);
+                                        let out_r_lin = src_lin.red * m;
+                                        let out_g_lin = src_lin.green * m;
+                                        let out_b_lin = src_lin.blue * m;
 
-                                        let out_srgb: Srgb<u8> = Srgb::from_linear(LinSrgb::new(r_lin, g_lin, b_lin));
+                                        let out_srgb = Srgb::<u8>::from_linear(LinSrgb::new(
+                                            out_r_lin, out_g_lin, out_b_lin,
+                                        ));
 
                                         data_ptr[pixel_idx] = out_srgb.red;
                                         data_ptr[pixel_idx + 1] = out_srgb.green;
                                         data_ptr[pixel_idx + 2] = out_srgb.blue;
-                                        data_ptr[pixel_idx + 3] = 255;
+                                        data_ptr[pixel_idx + 3] = (m * 255.0).round() as u8;
                                     }
                                     Content::Color => {
                                         let color_idx = (row as usize * mask_w as usize + col as usize) * 4;
-                                        let a = image.data[color_idx + 3] as f32 / 255.0;
-                                        
-                                        let src_r = image.data[color_idx] as f32 / 255.0;
-                                        let src_g = image.data[color_idx + 1] as f32 / 255.0;
-                                        let src_b = image.data[color_idx + 2] as f32 / 255.0;
-                                        
+                                        let a_raw = f32::from(image.data[color_idx + 3]) / 255.0;
+
+                                        let src_r = f32::from(image.data[color_idx]) / 255.0;
+                                        let src_g = f32::from(image.data[color_idx + 1]) / 255.0;
+                                        let src_b = f32::from(image.data[color_idx + 2]) / 255.0;
+
                                         let emoji_lin: LinSrgb<f32> = Srgb::new(src_r, src_g, src_b).into_linear();
-                                        
-                                        let r_lin = emoji_lin.red * a + bg_lin.red * (1.0 - a);
-                                        let g_lin = emoji_lin.green * a + bg_lin.green * (1.0 - a);
-                                        let b_lin = emoji_lin.blue * a + bg_lin.blue * (1.0 - a);
-                                        
-                                        let out_srgb: Srgb<u8> = Srgb::from_linear(LinSrgb::new(r_lin, g_lin, b_lin));
-                                        
+
+                                        let out_r_lin = emoji_lin.red * a_raw;
+                                        let out_g_lin = emoji_lin.green * a_raw;
+                                        let out_b_lin = emoji_lin.blue * a_raw;
+
+                                        let out_srgb = Srgb::<u8>::from_linear(LinSrgb::new(
+                                            out_r_lin, out_g_lin, out_b_lin,
+                                        ));
+
                                         data_ptr[pixel_idx] = out_srgb.red;
                                         data_ptr[pixel_idx + 1] = out_srgb.green;
                                         data_ptr[pixel_idx + 2] = out_srgb.blue;
-                                        data_ptr[pixel_idx + 3] = 255;
+                                        data_ptr[pixel_idx + 3] = (a_raw * 255.0).round() as u8;
                                     }
                                 }
                             }
@@ -274,8 +294,8 @@ fn render_text_blob(
         }
     };
 
-    render_line(title, 14.0, 14.0, Weight::NORMAL,[1.0, 1.0, 1.0]);
-    render_line(artist, 30.0, 12.0, Weight::NORMAL,[204.0/255.0, 204.0/255.0, 204.0/255.0]);
+    render_line(title, 14.0, 14.0, Weight::NORMAL, [1.0, 1.0, 1.0]);
+    render_line(artist, 30.0, 12.0, Weight::NORMAL, [0.8, 0.8, 0.8]);
 
     pixmap
 }
