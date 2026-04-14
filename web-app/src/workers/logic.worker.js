@@ -2,7 +2,7 @@ import { coreFacets } from "../logic/core_facets.js";
 import { coreSorters } from "../logic/core_sorters.js";
 import { coreShelves } from "../logic/core_shelves.js";
 
-let rawAlbums = [];
+let rawAlbums =[];
 let shelfFilteredAlbums = null;
 let currentShelfKey = "library";
 
@@ -19,21 +19,21 @@ async function loadRegistries() {
   registrySorters = { ...coreSorters };
 
   try {
-    const userShelves = await import(/* @vite-ignore */ `/api/theme/shelves.js?v=${Date.now()}`);
+    const userShelves = await import(`/api/theme/shelves.js?v=${Date.now()}`);
     if (userShelves.shelves) {
       Object.assign(registryShelves, userShelves.shelves);
     }
   } catch (e) {}
 
   try {
-    const userFacets = await import(/* @vite-ignore */ `/api/theme/facets.js?v=${Date.now()}`);
+    const userFacets = await import(`/api/theme/facets.js?v=${Date.now()}`);
     if (userFacets.facets) {
       Object.assign(registryFacets, userFacets.facets);
     }
   } catch (e) {}
 
   try {
-    const userSorters = await import(/* @vite-ignore */ `/api/theme/sorters.js?v=${Date.now()}`);
+    const userSorters = await import(`/api/theme/sorters.js?v=${Date.now()}`);
     if (userSorters.sorters) {
       Object.assign(registrySorters, userSorters.sorters);
     }
@@ -64,7 +64,7 @@ async function loadRegistries() {
 
 function generateBuckets(albums, facetKey) {
   const facet = registryFacets[facetKey];
-  if (!facet) return [];
+  if (!facet) return[];
 
   const map = new Map();
   
@@ -112,7 +112,7 @@ self.onmessage = async (e) => {
       case "INIT": {
         await loadRegistries();
 
-        let data = [];
+        let data =[];
         const sourceData = payload.data || payload;
 
         if (Array.isArray(sourceData)) {
@@ -156,7 +156,7 @@ self.onmessage = async (e) => {
         postMessage({ 
           type: "INIT_DATA", 
           data: rawAlbums,
-          count: rawAlbums.length 
+          count: rawAlbums.length
         });
 
         processView(initialShelf, currentFilter, currentSort);
@@ -192,7 +192,10 @@ self.onmessage = async (e) => {
         }
 
         shelfFilteredAlbums = null;
-        postMessage({ type: "UPDATE_DATA", data: albumData });
+        postMessage({ 
+            type: "UPDATE_DATA", 
+            data: albumData 
+        });
         processView(currentShelfKey, currentFilter, currentSort);
         break;
       }
@@ -208,12 +211,16 @@ self.onmessage = async (e) => {
            shelfFilteredAlbums = shelfDef && shelfDef.filter ? rawAlbums.filter(shelfDef.filter) : rawAlbums;
         }
         const result = generateBuckets(shelfFilteredAlbums, payload.key);
-        postMessage({ type: "GROUP_RESULT", key: payload.key, result });
+        postMessage({ 
+            type: "GROUP_RESULT", 
+            key: payload.key, 
+            result
+        });
         break;
       }
     }
   } catch (err) {
-    console.error("Worker Logic Error:", err);
+    console.error(err);
   }
 };
 
@@ -224,8 +231,6 @@ function processView(shelf, filter, sort) {
 
   currentFilter = filter;
   currentSort = sort;
-
-  const tStart = performance.now();
 
   let result = shelfFilteredAlbums;
   
@@ -251,11 +256,9 @@ function processView(shelf, filter, sort) {
   }
 
   const viewIds = result.map(a => a.id);
-  const tEnd = performance.now();
 
   postMessage({ 
     type: "VIEW_UPDATED", 
-    ids: viewIds, 
-    timing: (tEnd - tStart).toFixed(2)
+    ids: viewIds
   });
 }

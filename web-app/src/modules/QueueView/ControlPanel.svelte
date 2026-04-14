@@ -88,7 +88,7 @@
     padding: 12px 24px;
     box-sizing: border-box;
     border-radius: 24px 24px 0 0;
-    margin-top: 24px;
+    margin-top: 32px;
     flex-shrink: 0;
     gap: 24px;
   }

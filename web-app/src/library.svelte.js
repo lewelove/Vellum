@@ -2,6 +2,7 @@ import { connectSocket } from "./api.js";
 import { player, updatePlayerState } from "./modules/player.svelte.js";
 import { nav } from "./navigation.svelte.js";
 import LogicWorker from "./workers/logic.worker.js?worker"; 
+import { theme } from "./theme.svelte.js";
 
 class LibraryState {
 
@@ -20,6 +21,7 @@ class LibraryState {
   albumCache = $state(new Map());
   trackPathMap = $state(new Map());
   pinnedTextures = $state(new Map());
+  pinnedTextTextures = $state(new Map());
   isShaderEnabled = $state(true);
   queuePanels = $state({ lyrics: false, tracks: true });
   themeVersion = $state(Date.now());
@@ -41,7 +43,7 @@ class LibraryState {
     this.worker = new LogicWorker();
     
     this.worker.onmessage = (e) => {
-      const { type, data, ids, timing, result, key, count, facets, sorters, shelves } = e.data;
+      const { type, data, ids, result, key, facets, sorters, shelves } = e.data;
 
       if (type === "LOGIC_LOADED") {
         this.availableShelves = shelves;
@@ -116,7 +118,7 @@ class LibraryState {
           const json = JSON.parse(reader.result);
           this.dispatchSocketAction(json);
         } catch (err) {
-          console.error("Failed to parse binary websocket message:", err);
+          console.error(err);
         }
       };
       reader.readAsText(event.data);
@@ -125,7 +127,7 @@ class LibraryState {
         const json = JSON.parse(event.data);
         this.dispatchSocketAction(json);
       } catch (err) {
-        console.error("Failed to parse string websocket message:", err);
+        console.error(err);
       }
     }
   }
@@ -160,7 +162,78 @@ class LibraryState {
     }
   }
 
+  async generateTextBitmap(album) {
+    if (!album) return null;
+    
+    const coverSize = theme.albumGrid["cover-size"] || 190;
+    const lhTitle = theme.albumGrid["font-line-height-title"] || 16;
+    const gapLesser = theme.albumGrid["text-gap-lesser"] || 2;
+    const lhArtist = theme.albumGrid["font-line-height-artist"] || 14;
+    const textBlockHeight = lhTitle + gapLesser + lhArtist;
+
+    const dpr = window.devicePixelRatio || 1;
+    const w = coverSize;
+    const h = textBlockHeight;
+
+    if (w <= 0 || h <= 0) return null;
+
+    const canvas = new OffscreenCanvas(w * dpr, (h + 2) * dpr);
+    const ctx = canvas.getContext('2d', { alpha: false });
+    
+    ctx.scale(dpr, dpr);
+    ctx.translate(0, 1);
+    
+    ctx.fillStyle = "#333333";
+    ctx.fillRect(0, -1, w, h + 2);
+    
+    ctx.shadowColor = "rgba(0, 0, 0, 0.1)";
+    ctx.shadowBlur = 4;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
+
+    const fontStack = "Inter Vellum, 'Noto Sans', system-ui, sans-serif";
+    
+    const cTitle = theme.palette[theme.colors["text-main"]] || "#ffffff";
+    const sTitle = theme.typography["font-size-title"] || 14;
+    const wTitle = theme.typography["font-weight-title"] || 400;
+
+    ctx.fillStyle = cTitle;
+    ctx.font = `${wTitle} ${sTitle}px ${fontStack}`;
+    ctx.textBaseline = "middle"; 
+    
+    const fitText = (ctx, text, maxWidth) => {
+      if (!text) return "";
+      let ellipsis = "...";
+      let width = ctx.measureText(text).width;
+      if (width <= maxWidth) return text;
+      
+      let len = text.length;
+      while (width > maxWidth && len > 0) {
+        len--;
+        width = ctx.measureText(text.substring(0, len) + ellipsis).width;
+      }
+      return text.substring(0, len) + ellipsis;
+    };
+
+    const titleY = lhTitle / 2;
+    ctx.fillText(fitText(ctx, album.title, w), 0, titleY);
+    
+    const cArtist = theme.palette[theme.colors["text-muted"]] || "#cccccc";
+    const sArtist = theme.typography["font-size-artist"] || 12;
+    const wArtist = theme.typography["font-weight-artist"] || 400;
+
+    ctx.fillStyle = cArtist;
+    ctx.font = `${wArtist} ${sArtist}px ${fontStack}`;
+    
+    const artistY = lhTitle + gapLesser + (lhArtist / 2);
+    ctx.fillText(fitText(ctx, album.artist, w), 0, artistY);
+
+    return canvas.transferToImageBitmap();
+  }
+
   async orchestratePrewarming(albumData) {
+    await document.fonts.ready;
+
     const concurrencyLimit = 6;
     const queue = [...albumData];
     let pendingUpdates = false;
@@ -168,6 +241,7 @@ class LibraryState {
 
     const flush = () => {
       this.pinnedTextures = new Map(this.pinnedTextures);
+      this.pinnedTextTextures = new Map(this.pinnedTextTextures);
       pendingUpdates = false;
       lastFlush = Date.now();
     };
@@ -189,6 +263,14 @@ class LibraryState {
           });
           
           this.pinnedTextures.set(url, bitmap);
+
+          if (!this.pinnedTextTextures.has(album.id)) {
+              const textBitmap = await this.generateTextBitmap(album);
+              if (textBitmap) {
+                  this.pinnedTextTextures.set(album.id, textBitmap);
+              }
+          }
+
           pendingUpdates = true;
 
           if (Date.now() - lastFlush > 100) {
@@ -231,7 +313,7 @@ class LibraryState {
               isShaderEnabled: this.isShaderEnabled,
               queuePanels: $state.snapshot(this.queuePanels)
           })
-      }).catch(err => console.error("Failed to persist state:", err));
+      }).catch(err => console.error(err));
   }
 
   refreshView(resetScroll = true) {
@@ -250,6 +332,7 @@ class LibraryState {
 
   refreshSidebar() {
     if (!this.worker) return;
+    
     this.worker.postMessage({ 
       type: "GROUP", 
       payload: { key: this.activeSidebarGrouper } 
@@ -259,7 +342,7 @@ class LibraryState {
   getSidebarGroup(key) {
     if (!this.sidebarGroups.has(key) && this.worker) {
         this.worker.postMessage({ type: "GROUP", payload: { key } });
-        return [];
+        return[];
     }
     return this.sidebarGroups.get(key) ||[];
   }

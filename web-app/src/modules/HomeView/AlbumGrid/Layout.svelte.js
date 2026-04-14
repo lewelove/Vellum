@@ -34,7 +34,7 @@ export class LayoutManager {
   }
 
   getVisibleIndices(scrollY, viewportHeight, rowCount) {
-    const buffer = 4;
+    const buffer = 2;
     const start = Math.floor(scrollY / this.rowHeight) - buffer;
     const end = Math.ceil((scrollY + viewportHeight) / this.rowHeight) + buffer;
     

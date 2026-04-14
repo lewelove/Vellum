@@ -246,8 +246,6 @@
   }
 
   .btn-icon {
-    /* height: 20px; */
-    /* width: 20px; */
     opacity: 0.7;
     margin-right: 8px;
     flex-shrink: 0;
