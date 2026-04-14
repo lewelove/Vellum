@@ -13,12 +13,16 @@
 
         runtimeLibs = with pkgs; [
           libGL
+          libglvnd
+          vulkan-loader
           libxkbcommon
           wayland
-          libX11
-          libXcursor
-          libXi
-          libXrandr
+          xorg.libX11
+          xorg.libXcursor
+          xorg.libXi
+          xorg.libXrandr
+          xorg.libXxf86vm
+          xorg.libxcb
         ];
 
         lyricsgenius = ps: ps.buildPythonPackage rec {
@@ -82,13 +86,13 @@
               build)
                 cd "$ROOT/rust" && cargo build --release
                 ;;
-              ui)
+              ui|web-app)
                 cd "$ROOT/web-app" && bun run dev
                 ;;
               ui-npm)
                 cd "$ROOT/web-app" && npm run dev
                 ;;
-              server|manifest|compile|update|harvest|run)
+              server|manifest|compile|update|harvest|run|egui)
                 if [ ! -f "$BIN" ]; then
                   echo "Error: vellum binary not found at $BIN. Run 'vellum build' first."
                   exit 1
@@ -120,7 +124,8 @@
               help|--help|-h)
                 echo "Vellum CLI Commands:"
                 echo "  build           : Build the Rust backend binary"
-                echo "  ui              : Start Svelte UI Dev Server"
+                echo "  web-app         : Start Svelte UI Dev Server (Vite)"
+                echo "  egui            : Start Native Rust UI"
                 echo "  server          : Start Backend Rust Server"
                 echo "  compile         : Compile metadata locks"
                 echo "  update          : Update library"

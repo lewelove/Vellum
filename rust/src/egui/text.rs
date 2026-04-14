@@ -1,5 +1,6 @@
-use crate::ui::theme;
+use crate::egui::theme;
 use cosmic_text::{Attrs, Buffer, Family, FontSystem, Metrics, Shaping, Weight, Wrap};
+use eframe::egui;
 use palette::{LinSrgb, Srgb};
 use swash::scale::{image::Content, Render, ScaleContext, Source, StrikeWith};
 use tiny_skia::Pixmap;

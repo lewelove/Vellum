@@ -42,7 +42,7 @@ impl egui::load::BytesLoader for FileBytesLoader {
         if let Some(bytes) = ctx.data(|d| d.get_temp::<Arc<[u8]>>(egui::Id::new(uri))) {
             return Ok(egui::load::BytesPoll::Ready {
                 size: None,
-                bytes: egui::load::Bytes::from(Arc::clone(&bytes)),
+                bytes: egui::load::Bytes::Shared(Arc::clone(&bytes)),
                 mime: None,
             });
         }

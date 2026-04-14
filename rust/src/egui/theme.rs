@@ -1,4 +1,4 @@
-use egui::Color32;
+use eframe::egui::Color32;
 
 pub const BG_MAIN: Color32 = Color32::from_rgb(50, 50, 50);
 pub const BG_DRAWER: Color32 = Color32::from_rgb(36, 36, 36);

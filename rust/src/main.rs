@@ -4,6 +4,7 @@
 
 mod compile;
 mod config;
+mod egui;
 mod harvest;
 mod manifest;
 mod run;
@@ -67,6 +68,8 @@ enum Commands {
         #[arg(long)]
         playing: bool,
     },
+    #[command(name = "egui")]
+    Egui,
 }
 
 #[must_use]
@@ -164,5 +167,43 @@ async fn main() -> Result<()> {
         }
         Commands::Manifest { force } => manifest::run(force).await,
         Commands::Run { script_cmd, path, playing } => run::execute(script_cmd, path, playing).await,
+        Commands::Egui => {
+            let (config, _, _) = config::AppConfig::load().context("Failed to load application configuration")?;
+            let library_root = expand_path(&config.storage.library_root).canonicalize()?;
+            
+            let server_config = server::state::AppConfig {
+                library_root: library_root.clone(),
+                thumbnail_root: config.storage.thumbnail_cache_folder.map(|p| expand_path(&p)),
+                thumbnail_size: config.theme.as_ref().map_or(200, |t| t.thumbnail_size),
+                shader: None,
+                resolved_shader_path: None,
+                resolved_css_path: None,
+                resolved_facets_path: None,
+                resolved_sorters_path: None,
+                resolved_shelves_path: None,
+            };
+            
+            let mut library = server::library::Library::new(library_root);
+            library.scan();
+            let library_arc = std::sync::Arc::new(tokio::sync::RwLock::new(library));
+            let (tx, _) = tokio::sync::broadcast::channel(100);
+            
+            let mpd_engine = server::mpd::start_actor(
+                tx.clone(),
+                std::sync::Arc::clone(&library_arc),
+                std::sync::Arc::new(server_config.clone()),
+            );
+            
+            let app_state = std::sync::Arc::new(server::state::AppState {
+                library: library_arc,
+                ui_state: tokio::sync::RwLock::new(serde_json::json!({})),
+                tx,
+                config: tokio::sync::RwLock::new(server_config),
+                mpd_engine,
+            });
+            
+            egui::run(app_state)?;
+            Ok(())
+        }
     }
 }

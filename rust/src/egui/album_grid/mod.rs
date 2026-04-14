@@ -1,8 +1,9 @@
 pub mod layout;
 pub mod scroll;
 
+use crate::egui::text;
+use crate::egui::theme;
 use crate::server::state::AppState;
-use crate::ui::text;
 use eframe::egui;
 use layout::LayoutManager;
 use rayon::prelude::*;
@@ -20,7 +21,7 @@ pub struct GridController {
     font_db: cosmic_text::fontdb::Database,
     res_tx: mpsc::Sender<(u64, f32, tiny_skia::Pixmap, Option<egui::ColorImage>)>,
     res_rx: mpsc::Receiver<(u64, f32, tiny_skia::Pixmap, Option<egui::ColorImage>)>,
-    queued_albums: HashSet<u64>,
+    pub queued_albums: HashSet<u64>,
 }
 
 impl GridController {
@@ -145,12 +146,14 @@ impl GridController {
                 if !self.text_cache.contains_key(&id_hash) && !self.queued_albums.contains(&id_hash) {
                     let mut thumb_path = None;
                     if !a.album_data.info.cover_hash.is_empty() {
-                        if let Some(thumb_root) = &state.config.thumbnail_root {
-                            thumb_path = Some(
-                                thumb_root
-                                    .join(format!("{}px", state.config.thumbnail_size))
-                                    .join(format!("{}.png", a.album_data.info.cover_hash)),
-                            );
+                        if let Ok(config_guard) = state.config.try_read() {
+                            if let Some(thumb_root) = &config_guard.thumbnail_root {
+                                thumb_path = Some(
+                                    thumb_root
+                                        .join(format!("{}px", config_guard.thumbnail_size))
+                                        .join(format!("{}.png", a.album_data.info.cover_hash)),
+                                );
+                            }
                         }
                     }
 
@@ -171,8 +174,8 @@ impl GridController {
                 let text_blob_h =
                     self.layout.lh_title + self.layout.text_gap_lesser + self.layout.lh_artist;
                 let task_dpr = self.current_dpr;
-                let text_gamma = state.config.text_gamma;
-                let text_magic = state.config.text_magic;
+                let text_gamma = 1.2;
+                let text_magic = 0.2;
 
                 std::thread::spawn(move || {
                     missing
@@ -186,7 +189,8 @@ impl GridController {
                                 let context = swash::scale::ScaleContext::new();
                                 (font_system, context)
                             },
-                            |(font_system, context), (id_hash, title, artist, thumb_path)| {
+                            |state_tuple, (id_hash, title, artist, thumb_path)| {
+                                let (font_system, context) = state_tuple;
                                 let pixmap = text::render_text_blob(
                                     &title,
                                     &artist,
@@ -215,10 +219,7 @@ impl GridController {
                                         cover_opt = Some(egui::ColorImage {
                                             size,
                                             pixels,
-                                            source_size: egui::vec2(
-                                                size[0] as f32,
-                                                size[1] as f32,
-                                            ),
+                                            source_size: egui::vec2(size[0] as f32, size[1] as f32),
                                         });
                                     }
                                 }
@@ -243,7 +244,7 @@ impl GridController {
                         .collect();
 
                     let text_image = egui::ColorImage {
-                        size:[pixmap.width() as usize, pixmap.height() as usize],
+                        size: [pixmap.width() as usize, pixmap.height() as usize],
                         pixels,
                         source_size: egui::vec2(pixmap.width() as f32, pixmap.height() as f32),
                     };
@@ -344,7 +345,7 @@ impl GridController {
 
                 if cover_tex_id == egui::TextureId::default() {
                     ui.painter()
-                        .rect_filled(cover_rect, 0.0, super::theme::BG_DRAWER);
+                        .rect_filled(cover_rect, 0.0, theme::BG_DRAWER);
                 } else {
                     let mut mesh = egui::Mesh::default();
                     self.add_analytic_aa_rect(
