@@ -1,4 +1,5 @@
 use anyhow::Result;
+use indexmap::IndexMap;
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -7,28 +8,71 @@ use std::path::Path;
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct LogicManifest {
-    pub groupers: HashMap<String, GrouperDef>,
-    pub sorters: HashMap<String, SorterDef>,
-    pub shelves: HashMap<String, ShelfDef>,
+    pub groupers: IndexMap<String, GrouperDef>,
+    pub sorters: IndexMap<String, SorterDef>,
+    pub shelves: IndexMap<String, ShelfDef>,
+}
+
+impl LogicManifest {
+    pub fn normalize(&mut self) {
+        for shelf in self.shelves.values_mut() {
+            shelf.allowed_groupers.clear();
+            shelf.allowed_sorters.clear();
+        }
+
+        for (id, grouper) in &self.groupers {
+            if grouper.shelves.is_empty() {
+                for shelf in self.shelves.values_mut() {
+                    shelf.allowed_groupers.push(id.clone());
+                }
+            } else {
+                for shelf_id in &grouper.shelves {
+                    if let Some(shelf) = self.shelves.get_mut(shelf_id) {
+                        shelf.allowed_groupers.push(id.clone());
+                    }
+                }
+            }
+        }
+
+        for (id, sorter) in &self.sorters {
+            if sorter.shelves.is_empty() {
+                for shelf in self.shelves.values_mut() {
+                    shelf.allowed_sorters.push(id.clone());
+                }
+            } else {
+                for shelf_id in &sorter.shelves {
+                    if let Some(shelf) = self.shelves.get_mut(shelf_id) {
+                        shelf.allowed_sorters.push(id.clone());
+                    }
+                }
+            }
+        }
+    }
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct GrouperDef {
     pub label: String,
     pub select: String,
+    #[serde(default)]
+    pub shelves: Vec<String>,
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct SorterDef {
     pub label: String,
     pub order_by: String,
+    #[serde(default)]
+    pub shelves: Vec<String>,
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct ShelfDef {
     pub label: String,
     pub filter: String,
+    #[serde(skip_deserializing)]
     pub allowed_groupers: Vec<String>,
+    #[serde(skip_deserializing)]
     pub allowed_sorters: Vec<String>,
 }
 
@@ -44,36 +88,18 @@ pub struct QueryEngine {
     pub path_lookup: HashMap<String, String>,
 }
 
-const DEFAULT_LOGIC: &str = r#"{
-  "groupers": {
-    "genre": { "label": "Genre", "select": "json_extract(metadata, '$.album.GENRE')" },
-    "decade": { "label": "Decade", "select": "substr(json_extract(metadata, '$.album.DATE'), 1, 3) || '0s'" },
-    "chroma": { "label": "Chroma", "select": "CASE WHEN CAST(json_extract(metadata, '$.album.tags.COVER_CHROMA') AS FLOAT) < 15 THEN 'Bleak' WHEN CAST(json_extract(metadata, '$.album.tags.COVER_CHROMA') AS FLOAT) < 33 THEN 'Muted' WHEN CAST(json_extract(metadata, '$.album.tags.COVER_CHROMA') AS FLOAT) < 60 THEN 'Standard' ELSE 'Vibrant' END" }
-  },
-  "sorters": {
-    "default": { "label": "Default", "order_by": "json_extract(metadata, '$.album.ALBUMARTIST') ASC, json_extract(metadata, '$.album.DATE') ASC, json_extract(metadata, '$.album.ALBUM') ASC" },
-    "date_added": { "label": "Date Added", "order_by": "json_extract(metadata, '$.album.info.unix_added') DESC" },
-    "year": { "label": "Year", "order_by": "json_extract(metadata, '$.album.DATE') DESC" }
-  },
-  "shelves": {
-    "library": {
-      "label": "Entire Library",
-      "filter": "1=1",
-      "allowed_groupers":["genre", "decade", "chroma"],
-      "allowed_sorters":["default", "date_added", "year"]
-    }
-  }
-}"#;
+const DEFAULT_LOGIC: &str = include_str!("logic.toml");
 
 impl QueryEngine {
     pub fn new() -> Result<Self> {
-        let logic_path = crate::expand_path("~/.config/vellum/logic.json");
+        let logic_path = crate::expand_path("~/.config/vellum/logic.toml");
         if !logic_path.exists() {
             std::fs::write(&logic_path, DEFAULT_LOGIC)?;
         }
         
         let logic_content = std::fs::read_to_string(&logic_path)?;
-        let manifest: LogicManifest = serde_json::from_str(&logic_content)?;
+        let mut manifest: LogicManifest = toml::from_str(&logic_content)?;
+        manifest.normalize();
 
         let conn = Connection::open_in_memory()?;
         conn.execute(
@@ -99,7 +125,9 @@ impl QueryEngine {
 
     pub fn reload_manifest(&mut self, path: &Path) -> Result<()> {
         let logic_content = std::fs::read_to_string(path)?;
-        self.manifest = serde_json::from_str(&logic_content)?;
+        let mut manifest: LogicManifest = toml::from_str(&logic_content)?;
+        manifest.normalize();
+        self.manifest = manifest;
         self.build_cache()?;
         Ok(())
     }
@@ -212,9 +240,13 @@ impl QueryEngine {
             
             while let Some(row) = rows.next()? {
                 let uid: u32 = row.get(0)?;
-                let val_str: String = match row.get(1) {
-                    Ok(s) => s,
-                    Err(_) => continue,
+                let raw_val: rusqlite::types::Value = row.get(1)?;
+                
+                let val_str = match raw_val {
+                    rusqlite::types::Value::Text(s) => s,
+                    rusqlite::types::Value::Integer(i) => i.to_string(),
+                    rusqlite::types::Value::Real(f) => f.to_string(),
+                    _ => continue,
                 };
 
                 if let Ok(Value::Array(arr)) = serde_json::from_str(&val_str) {
@@ -294,7 +326,7 @@ impl QueryEngine {
         results.sort_by(|a, b| {
             let label_a = a.get("label").and_then(Value::as_str).unwrap_or("");
             let label_b = b.get("label").and_then(Value::as_str).unwrap_or("");
-            label_a.cmp(label_b)
+            alphanumeric_sort::compare_str(label_a, label_b)
         });
 
         results

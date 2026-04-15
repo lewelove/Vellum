@@ -63,7 +63,7 @@ pub fn start(config_path: PathBuf, state: Arc<AppState>) {
                             let mut guard = state.config.write().await;
                             guard.resolved_css_path = if p.exists() { Some(p.clone()) } else { None };
                         }
-                        "logic.json" => {
+                        "logic.toml" => {
                             logic_changed = true;
                             let mut guard = state.config.write().await;
                             guard.resolved_logic_path = if p.exists() { Some(p.clone()) } else { None };
@@ -85,11 +85,11 @@ pub fn start(config_path: PathBuf, state: Arc<AppState>) {
             }
 
             if logic_changed {
-                log::info!("Filesystem change: reloading logic.json...");
+                log::info!("Filesystem change: reloading logic.toml...");
                 if let Some(ref logic_path) = state.config.read().await.resolved_logic_path {
                     let mut query = state.query.lock().await;
                     if let Err(e) = query.reload_manifest(logic_path) {
-                        log::error!("Failed to reload logic.json: {}", e);
+                        log::error!("Failed to reload logic.toml: {}", e);
                     }
                 }
                 let payload = json!({ "type": "LOGIC_UPDATE" }).to_string();

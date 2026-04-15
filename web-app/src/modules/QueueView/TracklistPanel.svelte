@@ -3,6 +3,7 @@
   import { player } from "../player.svelte.js";
   import { library } from "../../library.svelte.js";
   import { jumpToQueueIndex } from "../../api.js";
+  import ClearCover from "../ClearCover.svelte";
 
   let tickingElapsed = $state(0);
 
@@ -118,11 +119,13 @@
     {#each groupedQueue as group}
       {#if group.albumMeta}
         <div class="album-group-header">
-          <img 
-            class="header-thumb" 
-            src={library.getThumbnailUrl(group.albumMeta)} 
-            alt="cover"
-          />
+          <div class="header-thumb">
+            <ClearCover 
+              src={library.getThumbnailUrl(group.albumMeta)} 
+              width={48} 
+              height={48} 
+            />
+          </div>
           <div class="header-content">
             <div class="header-row">
               <span class="v-truncate header-album">{group.albumMeta.ALBUM}</span>
@@ -230,9 +233,12 @@
   .header-thumb {
     width: 48px;
     height: 48px;
-    object-fit: cover;
-    background-color: #000;
-    box-shadow: 0 2px 4px oklch(0% 0 0 / 0.2);
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+
+  .header-thumb :global(.output-canvas) {
+    box-shadow: none !important;
   }
 
   .header-content {
@@ -313,5 +319,4 @@
   .track-row + .track-row {
     margin-top: 4px;
   }
-
 </style>

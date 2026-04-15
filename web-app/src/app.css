@@ -23,7 +23,7 @@
   --text-muted: var(--palette-400);
   --border-muted: var(--palette-300);
 
-  --glass-bg: oklch(25% 0 0 / 0.3);
+  --glass-bg: oklch(32% 0 0 / 0.4);
 
   --font-size-title: 14px;
   --font-weight-title: 400;
@@ -162,8 +162,8 @@ main {
 }
 
 .v-btn-icon {
-  background-color: oklch(100% 0 0 / 0.02);
-  border: 2px solid oklch(100% 0 0 / 0.1);
+  background-color: oklch(100% 0 0 / 0.03);
+  border: 2px solid oklch(100% 0 0 / 0.15);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -173,12 +173,12 @@ main {
 }
 
 .v-btn-icon:hover {
-  background-color: oklch(100% 0 0 / 0.08);
+  background-color: oklch(100% 0 0 / 0.06);
   border-color: oklch(100% 0 0 / 0.2);
 }
 
 .v-btn-icon.active {
-  background-color: oklch(100% 0 0 / 0.08);
+  background-color: oklch(100% 0 0 / 0.06);
   border-color: oklch(100% 0 0 / 0.2);
 }
 
