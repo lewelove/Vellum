@@ -1,4 +1,4 @@
-use crate::server::library::Library;
+use crate::server::query::QueryEngine;
 use crate::server::mpd::commands::{MpdCommand, handle_command};
 use crate::server::mpd::status::broadcast_status;
 use crate::server::state::AppConfig;
@@ -6,7 +6,7 @@ use mpd_client::Client;
 use mpd_client::client::{ConnectionEvent, Subsystem};
 use std::sync::Arc;
 use tokio::net::TcpStream;
-use tokio::sync::{RwLock, broadcast, mpsc};
+use tokio::sync::{Mutex, broadcast, mpsc};
 
 #[derive(Clone)]
 pub struct MpdEngine {
@@ -21,7 +21,7 @@ impl MpdEngine {
 
 pub fn start_actor(
     broadcast_tx: broadcast::Sender<String>,
-    library: Arc<RwLock<Library>>,
+    query: Arc<Mutex<QueryEngine>>,
     _app_config: Arc<AppConfig>,
 ) -> MpdEngine {
     let (tx, mut rx) = mpsc::channel::<MpdCommand>(32);
@@ -41,7 +41,7 @@ pub fn start_actor(
                         let _ = client
                             .command(mpd_client::commands::SetBinaryLimit(131_072))
                             .await;
-                        let _ = broadcast_status(&client, &broadcast_tx, &library).await;
+                        let _ = broadcast_status(&client, &broadcast_tx, &query).await;
 
                         loop {
                             tokio::select! {
@@ -54,7 +54,7 @@ pub fn start_actor(
                                                 Subsystem::Queue |
                                                 Subsystem::Options
                                             ) {
-                                                let _ = broadcast_status(&client, &broadcast_tx, &library).await;
+                                                let _ = broadcast_status(&client, &broadcast_tx, &query).await;
                                             }
                                         }
                                         ConnectionEvent::ConnectionClosed(e) => {
@@ -65,12 +65,12 @@ pub fn start_actor(
                                 }
                                 Some(cmd) = rx.recv() => {
                                     if matches!(cmd, MpdCommand::Refresh) {
-                                        let _ = broadcast_status(&client, &broadcast_tx, &library).await;
+                                        let _ = broadcast_status(&client, &broadcast_tx, &query).await;
                                     } else {
                                         if let Err(e) = handle_command(&client, cmd).await {
                                             log::error!("MPD Execution Error: {e}");
                                         }
-                                        let _ = broadcast_status(&client, &broadcast_tx, &library).await;
+                                        let _ = broadcast_status(&client, &broadcast_tx, &query).await;
                                     }
                                 }
                             }

@@ -1,6 +1,7 @@
 pub mod api;
 pub mod library;
 pub mod mpd;
+pub mod query;
 pub mod state;
 pub mod watchdog;
 
@@ -8,7 +9,7 @@ use anyhow::{Context, Result};
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use tokio::sync::{RwLock, broadcast};
+use tokio::sync::{Mutex, RwLock, broadcast};
 use tower_http::cors::{Any, CorsLayer};
 
 use self::state::{AppConfig as ServerConfig, AppState};
@@ -102,19 +103,21 @@ pub async fn run(port: u16) -> Result<()> {
         })
     };
 
-    let mut library = library::Library::new(library_root);
-    library.scan();
-    let library_arc = Arc::new(RwLock::new(library));
+    let mut query_engine = query::QueryEngine::new()?;
+    let lib_scanner = library::scanner::Library::new(library_root.clone());
+    lib_scanner.scan(&mut query_engine);
+    
+    let query_arc = Arc::new(Mutex::new(query_engine));
     let (tx, _) = broadcast::channel(100);
 
     let mpd_engine = mpd::start_actor(
         tx.clone(),
-        Arc::clone(&library_arc),
+        Arc::clone(&query_arc),
         Arc::new(server_config.clone()),
     );
 
     let app_state = Arc::new(AppState {
-        library: library_arc,
+        query: query_arc,
         ui_state: RwLock::new(ui_state_val),
         tx,
         config: RwLock::new(server_config),

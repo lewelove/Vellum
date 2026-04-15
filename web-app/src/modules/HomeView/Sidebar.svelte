@@ -167,8 +167,8 @@
       {@render Item({
         label: item.label,
         count: item.count,
-        active: library.activeFilter.key === item.filterTarget && library.activeFilter.val === item.value,
-        onclick: () => library.applyFilter(item.filterTarget, item.value)
+        active: library.activeFilter.key === library.activeSidebarGrouper && library.activeFilter.val === item.value,
+        onclick: () => library.applyFilter(library.activeSidebarGrouper, item.value)
       })}
     {/each}
     <div class="scroll-spacer"></div>
@@ -246,8 +246,6 @@
   }
 
   .btn-icon {
-    /* height: 20px; */
-    /* width: 20px; */
     opacity: 0.7;
     margin-right: 8px;
     flex-shrink: 0;

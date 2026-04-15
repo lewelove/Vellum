@@ -1,108 +1,55 @@
 import { connectSocket } from "./api.js";
 import { player, updatePlayerState } from "./modules/player.svelte.js";
 import { nav } from "./navigation.svelte.js";
-import LogicWorker from "./workers/logic.worker.js?worker"; 
 
 class LibraryState {
-
-  albums = $state([]); 
+  dict = $state(new Map());
+  trackPathMap = $state(new Map());
+  activeViewIds = $state([]);
+  albums = $derived(this.activeViewIds.map(id => {
+      let a = this.dict.get(id);
+      return a ? {
+          id: a.id,
+          title: a.ALBUM,
+          artist: a.ALBUMARTIST,
+          cover_hash: a.cover_hash,
+          total_discs: a.total_discs,
+          total_tracks: a.total_tracks,
+          album_duration_time: a.album_duration_time,
+          tags: a.tags
+      } : null;
+  }).filter(Boolean));
+  
   sidebarGroups = $state(new Map()); 
   isLoading = $state(true);
   isConnected = $state(false);
   focusedAlbum = $state(null);
+  
   activeShelf = $state("library");
   activeFilter = $state({ key: null, val: null });
   activeSort = $state({ key: "default", order: "default" });
   userSortPreference = $state("default");
   userSortOrder = $state("default");
   activeSidebarGrouper = $state("genre");
+  
   viewVersion = $state(0);
-  albumCache = $state(new Map());
-  trackPathMap = $state(new Map());
   pinnedTextures = $state(new Map());
   isShaderEnabled = $state(true);
   queuePanels = $state({ lyrics: false, tracks: true });
   themeVersion = $state(Date.now());
   
-  availableShelves = $state({});
-  availableFacets = $state({});
-  availableSorters = $state({});
+  manifest = $state({ shelves: {}, groupers: {}, sorters: {} });
 
   config = $state({
     thumbnail_size: 200,
     shader: null
   });
 
-  worker = null;
-  _tRequest = 0;
+  _ws = null;
   _pendingViewReset = false;
 
   init() {
-    this.worker = new LogicWorker();
-    
-    this.worker.onmessage = (e) => {
-      const { type, data, ids, timing, result, key, count, facets, sorters, shelves } = e.data;
-
-      if (type === "LOGIC_LOADED") {
-        this.availableShelves = shelves;
-        this.availableFacets = facets;
-        this.availableSorters = sorters;
-        this.refreshSidebar();
-      }
-
-      else if (type === "INIT_DATA") {
-        const newTrackMap = new Map();
-        const newAlbumCache = new Map();
-
-        data.forEach(a => {
-          newAlbumCache.set(a.id, a);
-          if (a.tracks) {
-            a.tracks.forEach(t => {
-              if (t.track_library_path) {
-                newTrackMap.set(t.track_library_path, t);
-              }
-            });
-          }
-        });
-
-        this.trackPathMap = newTrackMap;
-        this.albumCache = newAlbumCache;
-
-        this.orchestratePrewarming(data);
-      }
-      
-      else if (type === "UPDATE_DATA") {
-        this.albumCache.set(data.id, data);
-        if (data.tracks) {
-          data.tracks.forEach(t => {
-            if (t.track_library_path) {
-              this.trackPathMap.set(t.track_library_path, t);
-            }
-          });
-        }
-        if (this.focusedAlbum?.id === data.id) {
-          this.focusedAlbum = data;
-        }
-      }
-
-      else if (type === "VIEW_UPDATED") {
-        this.albums = ids.map(id => this.albumCache.get(id)).filter(Boolean);
-        this.isLoading = false;
-
-        if (this._pendingViewReset) {
-            this.viewVersion++;
-            this._pendingViewReset = false;
-        }
-      } 
-      
-      else if (type === "GROUP_RESULT") {
-        const newMap = new Map(this.sidebarGroups);
-        newMap.set(key, result);
-        this.sidebarGroups = newMap;
-      }
-    };
-
-    connectSocket(
+    this._ws = connectSocket(
       () => { this.isConnected = true; },
       (event) => this.handleSocketMessage(event)
     );
@@ -131,38 +78,58 @@ class LibraryState {
   }
 
   dispatchSocketAction(json) {
-    if (json.type === "UPDATE") {
-      this.worker.postMessage({ type: "UPDATE", payload: json.payload });
-    } else if (json.type === "INIT") {
+    if (json.type === "INIT_DICT") {
+      const newDict = new Map();
+      for (const[id, val] of Object.entries(json.dict || {})) {
+          newDict.set(id, val);
+      }
+      this.dict = newDict;
+
+      const newTrackMap = new Map();
+      for (const [path, val] of Object.entries(json.trackMap || {})) {
+          newTrackMap.set(path, val);
+      }
+      this.trackPathMap = newTrackMap;
+      
+      if (json.manifest) {
+          this.manifest = json.manifest;
+      }
+      
       if (json.config) {
         this.config = { ...this.config, ...json.config };
       }
+      
       if (json.ui_state) {
           this.applyPersistedState(json.ui_state);
       }
-      this.worker.postMessage({ 
-        type: "INIT", 
-        payload: {
-          data: json.data,
-          ui_state: json.ui_state
-        }
-      });
-    } else if (json.type === "CONFIG_UPDATE") {
-      if (json.config) {
-        this.config = { ...this.config, ...json.config };
+      
+      this.orchestratePrewarming();
+      this.refreshView(true);
+      this.refreshSidebar();
+      
+    } else if (json.type === "VIEW_DATA") {
+      this.activeViewIds = json.ids ||[];
+      this.isLoading = false;
+      if (this._pendingViewReset) {
+          this.viewVersion++;
+          this._pendingViewReset = false;
       }
+    } else if (json.type === "GROUP_RESULT") {
+      const newMap = new Map(this.sidebarGroups);
+      newMap.set(json.key, json.result);
+      this.sidebarGroups = newMap;
     } else if (json.type === "MPD_STATUS") {
       updatePlayerState(json);
     } else if (json.type === "THEME_UPDATE") {
       this.themeVersion = Date.now();
     } else if (json.type === "LOGIC_UPDATE") {
-      this.worker.postMessage({ type: "RELOAD_LOGIC" });
+      window.location.reload(); 
     }
   }
 
-  async orchestratePrewarming(albumData) {
+  async orchestratePrewarming() {
     const concurrencyLimit = 6;
-    const queue = [...albumData];
+    const queue = Array.from(this.dict.values());
     let pendingUpdates = false;
     let lastFlush = Date.now();
 
@@ -235,31 +202,30 @@ class LibraryState {
   }
 
   refreshView(resetScroll = true) {
-    if (!this.worker) return;
+    if (!this._ws || this._ws.readyState !== WebSocket.OPEN) return;
     this._pendingViewReset = resetScroll;
-    
-    this.worker.postMessage({
-      type: "PROCESS",
-      payload: {
+    this._ws.send(JSON.stringify({
+        type: "VIEW_REQUEST",
         shelf: this.activeShelf,
-        filter: $state.snapshot(this.activeFilter),
-        sort: $state.snapshot(this.activeSort)
-      }
-    });
+        sort: this.activeSort.key,
+        reverse: this.activeSort.order === "reverse",
+        filter: this.activeFilter
+    }));
   }
 
   refreshSidebar() {
-    if (!this.worker) return;
-    this.worker.postMessage({ 
-      type: "GROUP", 
-      payload: { key: this.activeSidebarGrouper } 
-    });
+    if (!this._ws || this._ws.readyState !== WebSocket.OPEN) return;
+    this._ws.send(JSON.stringify({
+        type: "GROUP_REQUEST",
+        shelf: this.activeShelf,
+        key: this.activeSidebarGrouper
+    }));
   }
 
   getSidebarGroup(key) {
-    if (!this.sidebarGroups.has(key) && this.worker) {
-        this.worker.postMessage({ type: "GROUP", payload: { key } });
-        return [];
+    if (!this.sidebarGroups.has(key) && this._ws?.readyState === WebSocket.OPEN) {
+        this.refreshSidebar();
+        return[];
     }
     return this.sidebarGroups.get(key) ||[];
   }
@@ -275,38 +241,41 @@ class LibraryState {
   }
 
   getAlbumCoverUrl(albumId) {
-    const album = this.albumCache.get(albumId);
-    if (!album) return "";
-    const cp = album.cover_path;
-    const ch = album.cover_hash;
-    if (!cp || cp === "default_cover.png") {
-      return "";
-    }
-    return `/api/assets/cover/${encodeURIComponent(album.id)}?v=${ch}`;
+    const album = this.dict.get(albumId);
+    if (!album || !album.cover_hash) return "";
+    return `/api/assets/cover/${encodeURIComponent(albumId)}?v=${album.cover_hash}`;
   }
+
+  get availableShelves() { return this.manifest.shelves || {}; }
+  get availableFacets() { return this.manifest.groupers || {}; }
+  get availableSorters() { return this.manifest.sorters || {}; }
 
   get visibleFacets() {
     const shelf = this.availableShelves[this.activeShelf];
-    if (shelf && shelf.facets) {
+    if (shelf && shelf.allowed_groupers) {
       const res = {};
-      for (const k of shelf.facets) {
-        if (this.availableFacets[k]) res[k] = this.availableFacets[k];
+      for (const k of shelf.allowed_groupers) {
+        if (this.availableFacets[k]) res[k] = this.availableFacets[k].label || k;
       }
       return res;
     }
-    return this.availableFacets;
+    const res = {};
+    for (const [k, v] of Object.entries(this.availableFacets)) res[k] = v.label || k;
+    return res;
   }
 
   get visibleSorters() {
     const shelf = this.availableShelves[this.activeShelf];
-    if (shelf && shelf.sorters) {
+    if (shelf && shelf.allowed_sorters) {
       const res = {};
-      for (const k of shelf.sorters) {
-        if (this.availableSorters[k]) res[k] = this.availableSorters[k];
+      for (const k of shelf.allowed_sorters) {
+        if (this.availableSorters[k]) res[k] = this.availableSorters[k].label || k;
       }
       return res;
     }
-    return this.availableSorters;
+    const res = {};
+    for (const [k, v] of Object.entries(this.availableSorters)) res[k] = v.label || k;
+    return res;
   }
 
   setShelf(key) {
@@ -316,11 +285,11 @@ class LibraryState {
 
     const shelf = this.availableShelves[key];
     if (shelf) {
-        if (shelf.facets && !shelf.facets.includes(this.activeSidebarGrouper)) {
-            this.activeSidebarGrouper = shelf.facets[0] || Object.keys(this.availableFacets)[0] || "genre";
+        if (shelf.allowed_groupers && !shelf.allowed_groupers.includes(this.activeSidebarGrouper)) {
+            this.activeSidebarGrouper = shelf.allowed_groupers[0] || Object.keys(this.availableFacets)[0] || "genre";
         }
-        if (shelf.sorters && !shelf.sorters.includes(this.userSortPreference)) {
-            this.userSortPreference = shelf.sorters[0] || Object.keys(this.availableSorters)[0] || "default";
+        if (shelf.allowed_sorters && !shelf.allowed_sorters.includes(this.userSortPreference)) {
+            this.userSortPreference = shelf.allowed_sorters[0] || Object.keys(this.availableSorters)[0] || "default";
             this.activeSort = { key: this.userSortPreference, order: this.userSortOrder };
         }
     }
@@ -372,8 +341,16 @@ class LibraryState {
     this.refreshView(true);
   }
 
-  setFocus(album) {
-    this.focusedAlbum = album;
+  async setFocus(album) {
+    try {
+        const res = await fetch(`/api/album/${encodeURIComponent(album.id)}`);
+        if (res.ok) {
+            this.focusedAlbum = await res.json();
+            this.focusedAlbum.id = album.id;
+        }
+    } catch (err) {
+        console.error("Failed to load full album metadata:", err);
+    }
   }
 
   closeFocus() {

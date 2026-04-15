@@ -15,13 +15,15 @@ async fn handle_socket(mut socket: WebSocket, state: Arc<AppState>) {
     log::info!("Client connected");
 
     let init_payload = {
-        let lib_data = state.library.read().await.albums.clone();
+        let query_guard = state.query.lock().await;
         let ui_data = state.ui_state.read().await.clone();
         let config_guard = state.config.read().await;
         
         json!({
-            "type": "INIT",
-            "data": lib_data,
+            "type": "INIT_DICT",
+            "dict": query_guard.dict,
+            "trackMap": query_guard.track_lookup,
+            "manifest": query_guard.manifest,
             "ui_state": ui_data,
             "config": {
                 "thumbnail_size": config_guard.thumbnail_size,
@@ -45,9 +47,33 @@ async fn handle_socket(mut socket: WebSocket, state: Arc<AppState>) {
     loop {
         tokio::select! {
             Some(msg) = socket.recv() => {
-                if let Ok(ax_ws::Message::Close(_)) | Err(_) = msg {
-                    log::info!("Client disconnected");
-                    break;
+                match msg {
+                    Ok(ax_ws::Message::Text(text)) => {
+                        if let Ok(req) = serde_json::from_str::<serde_json::Value>(&text) {
+                            let req_type = req.get("type").and_then(|v| v.as_str()).unwrap_or("");
+                            if req_type == "VIEW_REQUEST" {
+                                let shelf = req.get("shelf").and_then(|v| v.as_str()).unwrap_or("library");
+                                let sort = req.get("sort").and_then(|v| v.as_str()).unwrap_or("default");
+                                let reverse = req.get("reverse").and_then(|v| v.as_bool()).unwrap_or(false);
+                                let filter_key = req.get("filter").and_then(|v| v.get("key")).and_then(|v| v.as_str());
+                                let filter_val = req.get("filter").and_then(|v| v.get("val")).and_then(|v| v.as_str());
+                                
+                                let ids = state.query.lock().await.request_view(shelf, sort, filter_key, filter_val, reverse);
+                                let _ = socket.send(ax_ws::Message::Text(json!({ "type": "VIEW_DATA", "ids": ids }).to_string().into())).await;
+                            } else if req_type == "GROUP_REQUEST" {
+                                let shelf = req.get("shelf").and_then(|v| v.as_str()).unwrap_or("library");
+                                let key = req.get("key").and_then(|v| v.as_str()).unwrap_or("");
+                                
+                                let result = state.query.lock().await.request_group(shelf, key);
+                                let _ = socket.send(ax_ws::Message::Text(json!({ "type": "GROUP_RESULT", "key": key, "result": result }).to_string().into())).await;
+                            }
+                        }
+                    }
+                    Ok(ax_ws::Message::Close(_)) | Err(_) => {
+                        log::info!("Client disconnected");
+                        break;
+                    }
+                    _ => {}
                 }
             }
             Ok(msg) = rx.recv() => {
