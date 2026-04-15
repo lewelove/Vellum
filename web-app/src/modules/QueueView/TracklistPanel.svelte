@@ -96,10 +96,10 @@
   }));
 
   let groupedQueue = $derived.by(() => {
-    const groups =[];
+    const groups = [];
     mappedTracks.forEach(track => {
       if (groups.length === 0 || groups[groups.length - 1].albumId !== track.albumId) {
-        const albumMeta = library.dict.get(track.albumId);
+        const albumMeta = library.dict[track.albumId];
         groups.push({
           albumId: track.albumId,
           albumMeta,

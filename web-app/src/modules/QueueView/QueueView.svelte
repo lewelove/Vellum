@@ -15,12 +15,12 @@
   import CoverPanel from "./CoverPanel.svelte";
 
   let activeId = $derived(player.currentAlbumId);
-  let activeAlbum = $derived(activeId ? library.dict.get(activeId) : null);
+  let activeAlbum = $derived(activeId ? library.dict[activeId] : null);
   let coverUrl = $derived(activeId ? library.getAlbumCoverUrl(activeId) : "");
   
-  let fullAlbum = $derived(activeId ? library.fullAlbumCache.get(activeId) : null);
+  let fullAlbum = $derived(activeId ? library.fullAlbumCache[activeId] : null);
 
-  let palette = $derived(fullAlbum?.album?.tags?.COVER_PALETTE || activeAlbum?.tags?.COVER_PALETTE ||[]);
+  let palette = $derived(fullAlbum?.album?.tags?.COVER_PALETTE || activeAlbum?.tags?.COVER_PALETTE || []);
   let hasLyrics = $derived(fullAlbum?.tracks?.some(t => !!t.info?.lyrics_path || t.tags?.INSTRUMENTAL === true) ?? false);
 
   let isViewVisible = $derived(nav.activeTab === 'queue');
@@ -175,7 +175,6 @@
     min-width: 0;
     display: flex;
     flex-direction: row;
-    /* gap: 20px; */
     justify-content: center;
     align-items: stretch;
   }
@@ -201,7 +200,6 @@
   .tracks-panel {
     flex: 1;
     min-height: 0;
-    border-radius: 0 16px 16px 0;
     border-radius: 0 24px 24px 0;
     clip-path: inset(-100px -100px -100px 0px);
   }
@@ -209,7 +207,6 @@
   .lyrics-panel {
     flex: 1;
     min-height: 0;
-    border-radius: 16px 0 0 16px;
     border-radius: 24px 0 0 24px;
   }
 

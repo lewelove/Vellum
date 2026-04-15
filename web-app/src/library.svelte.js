@@ -3,11 +3,12 @@ import { player, updatePlayerState } from "./modules/player.svelte.js";
 import { nav } from "./navigation.svelte.js";
 
 class LibraryState {
-  dict = $state(new Map());
-  trackPathMap = $state(new Map());
+  dict = $state({});
+  trackPathMap = $state({});
   activeViewIds = $state([]);
+  
   albums = $derived(this.activeViewIds.map(id => {
-      let a = this.dict.get(id);
+      let a = this.dict[id];
       return a ? {
           id: a.id,
           title: a.ALBUM,
@@ -34,7 +35,7 @@ class LibraryState {
   
   viewVersion = $state(0);
   pinnedTextures = $state(new Map());
-  fullAlbumCache = $state(new Map());
+  fullAlbumCache = $state({});
   isShaderEnabled = $state(true);
   queuePanels = $state({ lyrics: false, tracks: true });
   themeVersion = $state(Date.now());
@@ -80,17 +81,8 @@ class LibraryState {
 
   dispatchSocketAction(json) {
     if (json.type === "INIT_DICT") {
-      const newDict = new Map();
-      for (const[id, val] of Object.entries(json.dict || {})) {
-          newDict.set(id, val);
-      }
-      this.dict = newDict;
-
-      const newTrackMap = new Map();
-      for (const [path, val] of Object.entries(json.trackMap || {})) {
-          newTrackMap.set(path, val);
-      }
-      this.trackPathMap = newTrackMap;
+      this.dict = json.dict || {};
+      this.trackPathMap = json.trackMap || {};
       
       if (json.manifest) {
           this.manifest = json.manifest;
@@ -109,7 +101,7 @@ class LibraryState {
       this.refreshSidebar();
       
     } else if (json.type === "VIEW_DATA") {
-      this.activeViewIds = json.ids ||[];
+      this.activeViewIds = json.ids || [];
       this.isLoading = false;
       if (this._pendingViewReset) {
           this.viewVersion++;
@@ -125,12 +117,30 @@ class LibraryState {
       this.themeVersion = Date.now();
     } else if (json.type === "LOGIC_UPDATE") {
       window.location.reload(); 
+    } else if (json.type === "ALBUM_UPDATED") {
+      if (json.dictEntry && Object.keys(json.dictEntry).length > 0) {
+        this.dict[json.id] = json.dictEntry;
+      } else {
+        delete this.dict[json.id];
+      }
+
+      delete this.fullAlbumCache[json.id];
+
+      if (this.focusedAlbum && this.focusedAlbum.id === json.id) {
+        this.ensureFullAlbum(json.id).then(data => {
+          if (data) this.focusedAlbum = data;
+        });
+      }
+
+      this.orchestratePrewarming();
+      this.refreshView(false);
+      this.refreshSidebar();
     }
   }
 
   async orchestratePrewarming() {
     const concurrencyLimit = 6;
-    const queue = Array.from(this.dict.values());
+    const queue = Object.values(this.dict);
     let pendingUpdates = false;
     let lastFlush = Date.now();
 
@@ -226,13 +236,13 @@ class LibraryState {
   getSidebarGroup(key) {
     if (!this.sidebarGroups.has(key) && this._ws?.readyState === WebSocket.OPEN) {
         this.refreshSidebar();
-        return[];
+        return [];
     }
-    return this.sidebarGroups.get(key) ||[];
+    return this.sidebarGroups.get(key) || [];
   }
 
   getTrackByPath(path) {
-    return this.trackPathMap.get(path);
+    return this.trackPathMap[path];
   }
 
   getThumbnailUrl(album) {
@@ -242,7 +252,7 @@ class LibraryState {
   }
 
   getAlbumCoverUrl(albumId) {
-    const album = this.dict.get(albumId);
+    const album = this.dict[albumId];
     if (!album || !album.cover_hash) return "";
     return `/api/assets/cover/${encodeURIComponent(albumId)}?v=${album.cover_hash}`;
   }
@@ -344,19 +354,14 @@ class LibraryState {
 
   async ensureFullAlbum(id) {
     if (!id) return null;
-    if (this.fullAlbumCache.has(id)) return this.fullAlbumCache.get(id);
+    if (this.fullAlbumCache[id]) return this.fullAlbumCache[id];
 
     try {
         const res = await fetch(`/api/album/${encodeURIComponent(id)}`);
         if (res.ok) {
             const data = await res.json();
             data.id = id;
-            
-            // Svelte 5 fix: Standard Maps must be reassigned to trigger $derived reactivity
-            const newCache = new Map(this.fullAlbumCache);
-            newCache.set(id, data);
-            this.fullAlbumCache = newCache;
-            
+            this.fullAlbumCache[id] = data;
             return data;
         }
     } catch (err) {

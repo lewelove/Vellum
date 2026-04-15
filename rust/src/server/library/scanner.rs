@@ -39,7 +39,7 @@ impl Library {
         log::info!("Library Query Engine Initialized.");
     }
 
-    pub fn update_album(&self, folder_path_str: &str, query_engine: &mut crate::server::query::QueryEngine) {
+    pub fn update_album(&self, folder_path_str: &str, query_engine: &mut crate::server::query::QueryEngine) -> Option<String> {
         let lock_path = Path::new(folder_path_str).join("metadata.lock.json");
         if let Ok(content) = std::fs::read_to_string(&lock_path) {
             if let Ok(lock_data) = serde_json::from_str::<LockFile>(&content) {
@@ -47,7 +47,9 @@ impl Library {
                 let _ = query_engine.remove_album(&alb_id);
                 let _ = query_engine.ingest(&alb_id, &content);
                 let _ = query_engine.build_cache();
+                return Some(alb_id);
             }
         }
+        None
     }
 }

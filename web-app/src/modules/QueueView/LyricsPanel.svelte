@@ -5,7 +5,7 @@
   let currentFile = $derived(player.currentFile);
   let activeId = $derived(player.currentAlbumId);
   
-  let fullAlbum = $derived(activeId ? library.fullAlbumCache.get(activeId) : null);
+  let fullAlbum = $derived(activeId ? library.fullAlbumCache[activeId] : null);
   let currentTrackFull = $derived(fullAlbum?.tracks?.find(t => t.info?.track_library_path === currentFile) || null);
 
   let lyricsText = $state("");

@@ -49,12 +49,25 @@ pub async fn trigger_reload(
 ) -> Response {
     if let Some(path) = params.get("path") {
         let config_guard = state.config.read().await;
-        let mut query = state.query.lock().await;
-        let scanner = crate::server::library::scanner::Library::new(config_guard.library_root.clone());
-        scanner.update_album(path, &mut query);
-        
-        let _ = state.tx.send(json!({"type": "LOGIC_UPDATE"}).to_string());
-        return Json(json!({"status": "ok"})).into_response();
+        let (internal_id, dict_entry) = {
+            let mut query = state.query.lock().await;
+            let scanner = crate::server::library::scanner::Library::new(config_guard.library_root.clone());
+            let id = scanner.update_album(path, &mut query);
+            let entry = id.as_ref().and_then(|i| query.dict.get(i).cloned());
+            (id, entry)
+        };
+
+        if let Some(id) = internal_id {
+            log::info!("Hot Reload: {}", id);
+            
+            let _ = state.tx.send(json!({
+                "type": "ALBUM_UPDATED",
+                "id": id,
+                "dictEntry": dict_entry.unwrap_or(json!({}))
+            }).to_string());
+            
+            return Json(json!({"status": "ok"})).into_response();
+        }
     }
     StatusCode::NOT_FOUND.into_response()
 }
