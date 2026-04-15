@@ -48,23 +48,9 @@ pub async fn run(port: u16) -> Result<()> {
         None
     };
 
-    let facets_path = config_dir.join("facets.js");
-    let resolved_facets_path = if facets_path.exists() {
-        Some(facets_path)
-    } else {
-        None
-    };
-
-    let sorters_path = config_dir.join("sorters.js");
-    let resolved_sorters_path = if sorters_path.exists() {
-        Some(sorters_path)
-    } else {
-        None
-    };
-
-    let shelves_path = config_dir.join("shelves.js");
-    let resolved_shelves_path = if shelves_path.exists() {
-        Some(shelves_path)
+    let logic_path = config_dir.join("logic.json");
+    let resolved_logic_path = if logic_path.exists() {
+        Some(logic_path)
     } else {
         None
     };
@@ -76,9 +62,7 @@ pub async fn run(port: u16) -> Result<()> {
         shader: shader_cfg,
         resolved_shader_path: resolved_path,
         resolved_css_path,
-        resolved_facets_path,
-        resolved_sorters_path,
-        resolved_shelves_path,
+        resolved_logic_path,
     };
 
     let state_file = expand_path("~/.vellum/state.json");

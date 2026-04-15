@@ -20,7 +20,5 @@ pub struct AppConfig {
     pub shader: Option<crate::config::ShaderConfig>,
     pub resolved_shader_path: Option<PathBuf>,
     pub resolved_css_path: Option<PathBuf>,
-    pub resolved_facets_path: Option<PathBuf>,
-    pub resolved_sorters_path: Option<PathBuf>,
-    pub resolved_shelves_path: Option<PathBuf>,
+    pub resolved_logic_path: Option<PathBuf>,
 }

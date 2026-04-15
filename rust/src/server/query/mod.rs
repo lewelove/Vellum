@@ -59,8 +59,8 @@ const DEFAULT_LOGIC: &str = r#"{
     "library": {
       "label": "Entire Library",
       "filter": "1=1",
-      "allowed_groupers": ["genre", "decade", "chroma"],
-      "allowed_sorters": ["default", "date_added", "year"]
+      "allowed_groupers":["genre", "decade", "chroma"],
+      "allowed_sorters":["default", "date_added", "year"]
     }
   }
 }"#;
@@ -95,6 +95,13 @@ impl QueryEngine {
             track_lookup: HashMap::new(),
             path_lookup: HashMap::new(),
         })
+    }
+
+    pub fn reload_manifest(&mut self, path: &Path) -> Result<()> {
+        let logic_content = std::fs::read_to_string(path)?;
+        self.manifest = serde_json::from_str(&logic_content)?;
+        self.build_cache()?;
+        Ok(())
     }
 
     pub fn clear(&mut self) -> Result<()> {

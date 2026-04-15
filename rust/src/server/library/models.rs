@@ -133,11 +133,3 @@ pub struct LockFile {
     pub album: AlbumLock,
     pub tracks: Vec<TrackLock>,
 }
-
-#[derive(Clone, Debug, Serialize)]
-pub struct AlbumView {
-    pub id: String,
-    #[serde(flatten)]
-    pub album_data: AlbumLock,
-    pub tracks: Vec<TrackLock>,
-}
