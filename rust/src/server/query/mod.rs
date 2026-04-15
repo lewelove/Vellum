@@ -15,35 +15,43 @@ pub struct LogicManifest {
 
 impl LogicManifest {
     pub fn normalize(&mut self) {
-        for shelf in self.shelves.values_mut() {
-            shelf.allowed_groupers.clear();
-            shelf.allowed_sorters.clear();
-        }
-
-        for (id, grouper) in &self.groupers {
-            if grouper.shelves.is_empty() {
-                for shelf in self.shelves.values_mut() {
-                    shelf.allowed_groupers.push(id.clone());
-                }
-            } else {
-                for shelf_id in &grouper.shelves {
-                    if let Some(shelf) = self.shelves.get_mut(shelf_id) {
-                        shelf.allowed_groupers.push(id.clone());
-                    }
-                }
+        let mut targeted_grouping_shelves = HashSet::new();
+        for grouper in self.groupers.values() {
+            for shelf_id in &grouper.shelves {
+                targeted_grouping_shelves.insert(shelf_id.clone());
             }
         }
 
-        for (id, sorter) in &self.sorters {
-            if sorter.shelves.is_empty() {
-                for shelf in self.shelves.values_mut() {
-                    shelf.allowed_sorters.push(id.clone());
-                }
-            } else {
-                for shelf_id in &sorter.shelves {
-                    if let Some(shelf) = self.shelves.get_mut(shelf_id) {
-                        shelf.allowed_sorters.push(id.clone());
+        let mut targeted_sorting_shelves = HashSet::new();
+        for sorter in self.sorters.values() {
+            for shelf_id in &sorter.shelves {
+                targeted_sorting_shelves.insert(shelf_id.clone());
+            }
+        }
+
+        for (shelf_id, shelf) in self.shelves.iter_mut() {
+            shelf.allowed_groupers.clear();
+            shelf.allowed_sorters.clear();
+
+            let is_strict_grouping = targeted_grouping_shelves.contains(shelf_id);
+            for (g_id, grouper) in &self.groupers {
+                if is_strict_grouping {
+                    if grouper.shelves.contains(shelf_id) {
+                        shelf.allowed_groupers.push(g_id.clone());
                     }
+                } else if grouper.shelves.is_empty() {
+                    shelf.allowed_groupers.push(g_id.clone());
+                }
+            }
+
+            let is_strict_sorting = targeted_sorting_shelves.contains(shelf_id);
+            for (s_id, sorter) in &self.sorters {
+                if is_strict_sorting {
+                    if sorter.shelves.contains(shelf_id) {
+                        shelf.allowed_sorters.push(s_id.clone());
+                    }
+                } else if sorter.shelves.is_empty() {
+                    shelf.allowed_sorters.push(s_id.clone());
                 }
             }
         }
