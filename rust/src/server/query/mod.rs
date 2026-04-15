@@ -15,45 +15,46 @@ pub struct LogicManifest {
 
 impl LogicManifest {
     pub fn normalize(&mut self) {
-        let mut targeted_grouping_shelves = HashSet::new();
-        for grouper in self.groupers.values() {
-            for shelf_id in &grouper.shelves {
-                targeted_grouping_shelves.insert(shelf_id.clone());
+        let global_groupers: HashSet<String> = self.groupers.iter()
+            .filter(|(_, g)| !g.strict)
+            .map(|(id, _)| id.clone())
+            .collect();
+
+        let global_sorters: HashSet<String> = self.sorters.iter()
+            .filter(|(_, s)| !s.strict)
+            .map(|(id, _)| id.clone())
+            .collect();
+
+        for (_, shelf) in self.shelves.iter_mut() {
+            let mut allowed_g_ids = HashSet::new();
+            for g in &shelf.groupers {
+                allowed_g_ids.insert(g.clone());
             }
-        }
-
-        let mut targeted_sorting_shelves = HashSet::new();
-        for sorter in self.sorters.values() {
-            for shelf_id in &sorter.shelves {
-                targeted_sorting_shelves.insert(shelf_id.clone());
-            }
-        }
-
-        for (shelf_id, shelf) in self.shelves.iter_mut() {
-            shelf.allowed_groupers.clear();
-            shelf.allowed_sorters.clear();
-
-            let is_strict_grouping = targeted_grouping_shelves.contains(shelf_id);
-            for (g_id, grouper) in &self.groupers {
-                if is_strict_grouping {
-                    if grouper.shelves.contains(shelf_id) {
-                        shelf.allowed_groupers.push(g_id.clone());
-                    }
-                } else if grouper.shelves.is_empty() {
-                    shelf.allowed_groupers.push(g_id.clone());
+            if !shelf.strict {
+                for g in &global_groupers {
+                    allowed_g_ids.insert(g.clone());
                 }
             }
 
-            let is_strict_sorting = targeted_sorting_shelves.contains(shelf_id);
-            for (s_id, sorter) in &self.sorters {
-                if is_strict_sorting {
-                    if sorter.shelves.contains(shelf_id) {
-                        shelf.allowed_sorters.push(s_id.clone());
-                    }
-                } else if sorter.shelves.is_empty() {
-                    shelf.allowed_sorters.push(s_id.clone());
+            let mut allowed_s_ids = HashSet::new();
+            for s in &shelf.sorters {
+                allowed_s_ids.insert(s.clone());
+            }
+            if !shelf.strict {
+                for s in &global_sorters {
+                    allowed_s_ids.insert(s.clone());
                 }
             }
+
+            shelf.allowed_groupers = self.groupers.keys()
+                .filter(|k| allowed_g_ids.contains(*k))
+                .cloned()
+                .collect();
+
+            shelf.allowed_sorters = self.sorters.keys()
+                .filter(|k| allowed_s_ids.contains(*k))
+                .cloned()
+                .collect();
         }
     }
 }
@@ -63,7 +64,7 @@ pub struct GrouperDef {
     pub label: String,
     pub select: String,
     #[serde(default)]
-    pub shelves: Vec<String>,
+    pub strict: bool,
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
@@ -71,13 +72,19 @@ pub struct SorterDef {
     pub label: String,
     pub order_by: String,
     #[serde(default)]
-    pub shelves: Vec<String>,
+    pub strict: bool,
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct ShelfDef {
     pub label: String,
     pub filter: String,
+    #[serde(default)]
+    pub strict: bool,
+    #[serde(default)]
+    pub groupers: Vec<String>,
+    #[serde(default)]
+    pub sorters: Vec<String>,
     #[serde(skip_deserializing)]
     pub allowed_groupers: Vec<String>,
     #[serde(skip_deserializing)]
