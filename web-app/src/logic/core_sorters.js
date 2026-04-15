@@ -8,16 +8,6 @@ const getSortableArtist = (name) => {
 };
 
 const getPriorityAddedDate = (album) => {
-  const t = album.tags || {};
-  const yt = parseInt(t.UNIX_ADDED_YOUTUBE) || 0;
-  if (yt > 0) return yt;
-
-  const am = parseInt(t.UNIX_ADDED_APPLEMUSIC) || 0;
-  if (am > 0) return am;
-
-  const fb = parseInt(t.UNIX_ADDED_FOOBAR) || 0;
-  if (fb > 0) return fb;
-
   return parseInt(album.unix_added) || 0;
 };
 
