@@ -15,10 +15,10 @@
   import CoverPanel from "./CoverPanel.svelte";
 
   let activeId = $derived(player.currentAlbumId);
-  let activeAlbum = $derived(activeId ? library.albumCache.get(activeId) : null);
+  let activeAlbum = $derived(activeId ? library.dict.get(activeId) : null);
   let coverUrl = $derived(activeId ? library.getAlbumCoverUrl(activeId) : "");
   
-  let palette = $derived(activeAlbum?.tags?.COVER_PALETTE || []);
+  let palette = $derived(activeAlbum?.tags?.COVER_PALETTE ||[]);
   let hasLyrics = $derived(activeAlbum?.tracks?.some(t => !!t.lyrics_path || t.tags?.INSTRUMENTAL === true) ?? false);
 
   let isViewVisible = $derived(nav.activeTab === 'queue');

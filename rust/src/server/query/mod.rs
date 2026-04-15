@@ -169,6 +169,7 @@ impl QueryEngine {
                         "ALBUMARTIST": album.get("ALBUMARTIST"),
                         "DATE": album.get("DATE"),
                         "GENRE": album.get("GENRE"),
+                        "cover_path": info.get("cover_path"),
                         "cover_hash": info.get("cover_hash"),
                         "album_duration_time": info.get("album_duration_time"),
                         "total_discs": info.get("total_discs"),
