@@ -34,6 +34,7 @@ class LibraryState {
   
   viewVersion = $state(0);
   pinnedTextures = $state(new Map());
+  fullAlbumCache = $state(new Map());
   isShaderEnabled = $state(true);
   queuePanels = $state({ lyrics: false, tracks: true });
   themeVersion = $state(Date.now());
@@ -341,16 +342,31 @@ class LibraryState {
     this.refreshView(true);
   }
 
-  async setFocus(album) {
+  async ensureFullAlbum(id) {
+    if (!id) return null;
+    if (this.fullAlbumCache.has(id)) return this.fullAlbumCache.get(id);
+
     try {
-        const res = await fetch(`/api/album/${encodeURIComponent(album.id)}`);
+        const res = await fetch(`/api/album/${encodeURIComponent(id)}`);
         if (res.ok) {
-            this.focusedAlbum = await res.json();
-            this.focusedAlbum.id = album.id;
+            const data = await res.json();
+            data.id = id;
+            
+            // Svelte 5 fix: Standard Maps must be reassigned to trigger $derived reactivity
+            const newCache = new Map(this.fullAlbumCache);
+            newCache.set(id, data);
+            this.fullAlbumCache = newCache;
+            
+            return data;
         }
     } catch (err) {
         console.error("Failed to load full album metadata:", err);
     }
+    return null;
+  }
+
+  async setFocus(album) {
+    this.focusedAlbum = await this.ensureFullAlbum(album.id);
   }
 
   closeFocus() {

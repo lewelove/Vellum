@@ -3,29 +3,33 @@
   import { library } from "../../library.svelte.js";
 
   let currentFile = $derived(player.currentFile);
+  let activeId = $derived(player.currentAlbumId);
+  
+  let fullAlbum = $derived(activeId ? library.fullAlbumCache.get(activeId) : null);
+  let currentTrackFull = $derived(fullAlbum?.tracks?.find(t => t.info?.track_library_path === currentFile) || null);
+
   let lyricsText = $state("");
   let isLoading = $state(false);
   
-  let currentMeta = $derived(currentFile ? library.getTrackByPath(currentFile) : null);
-  let isInstrumental = $derived(currentMeta?.tags?.INSTRUMENTAL === true);
+  let isInstrumental = $derived(currentTrackFull?.tags?.INSTRUMENTAL === true);
 
-  async function fetchLyrics(meta) {
-    if (!meta) {
+  async function fetchLyrics(trackFull) {
+    if (!trackFull) {
       lyricsText = "";
       return;
     }
 
-    if (meta.tags?.INSTRUMENTAL === true) {
+    if (trackFull.tags?.INSTRUMENTAL === true) {
       lyricsText = "";
       isLoading = false;
       return;
     }
 
-    if (meta.lyrics_path) {
+    if (trackFull.info?.lyrics_path) {
       isLoading = true;
       try {
-          const encodedId = encodeURIComponent(meta.albumId);
-          const pathPart = meta.lyrics_path; 
+          const encodedId = encodeURIComponent(activeId);
+          const pathPart = trackFull.info.lyrics_path; 
           const url = `/api/assets/lyrics/${encodedId}/${pathPart}`;
           
           const res = await fetch(url);
@@ -34,12 +38,11 @@
               isLoading = false;
               return;
           }
-      } catch (e) {
-      }
+      } catch (e) {}
     }
     
-    if (meta.tags && meta.tags.LYRICS) {
-      lyricsText = meta.tags.LYRICS;
+    if (trackFull.tags && trackFull.tags.LYRICS) {
+      lyricsText = trackFull.tags.LYRICS;
     } else {
       lyricsText = "";
     }
@@ -48,7 +51,7 @@
   }
 
   $effect(() => {
-    fetchLyrics(currentMeta);
+    fetchLyrics(currentTrackFull);
   });
 </script>
 
@@ -93,7 +96,6 @@
     margin: 0 auto;
     width: 100%;
     max-width: 300px;
-    /* max-width: 280px; */
   }
 
   .lyric-line {
