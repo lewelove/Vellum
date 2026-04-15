@@ -1,11 +1,11 @@
-use crate::server::library::Library;
 use crate::server::mpd::MpdEngine;
+use crate::server::query::QueryEngine;
 use std::path::PathBuf;
 use std::sync::Arc;
-use tokio::sync::{RwLock, broadcast};
+use tokio::sync::{Mutex, RwLock, broadcast};
 
 pub struct AppState {
-    pub library: Arc<RwLock<Library>>,
+    pub query: Arc<Mutex<QueryEngine>>,
     pub ui_state: RwLock<serde_json::Value>,
     pub tx: broadcast::Sender<String>,
     pub config: RwLock<AppConfig>,
@@ -20,7 +20,5 @@ pub struct AppConfig {
     pub shader: Option<crate::config::ShaderConfig>,
     pub resolved_shader_path: Option<PathBuf>,
     pub resolved_css_path: Option<PathBuf>,
-    pub resolved_facets_path: Option<PathBuf>,
-    pub resolved_sorters_path: Option<PathBuf>,
-    pub resolved_shelves_path: Option<PathBuf>,
+    pub resolved_logic_path: Option<PathBuf>,
 }

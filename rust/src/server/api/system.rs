@@ -33,24 +33,13 @@ pub async fn update_state(
 pub async fn trigger_full_reset(State(state): State<Arc<AppState>>) -> Response {
     log::info!("Full library reset triggered");
     {
-        let mut lib = state.library.write().await;
-        lib.scan();
+        let config_guard = state.config.read().await;
+        let mut query = state.query.lock().await;
+        let scanner = crate::server::library::scanner::Library::new(config_guard.library_root.clone());
+        scanner.scan(&mut query);
     }
-
-    let (albums, ui_state) = {
-        let lib_guard = state.library.read().await;
-        let ui_guard = state.ui_state.read().await;
-        (lib_guard.albums.clone(), ui_guard.clone())
-    };
-
-    let payload = json!({
-        "type": "INIT",
-        "data": albums,
-        "ui_state": ui_state
-    })
-    .to_string();
-
-    let _ = state.tx.send(payload);
+    
+    let _ = state.tx.send(json!({"type": "LOGIC_UPDATE"}).to_string());
     Json(json!({"status": "ok"})).into_response()
 }
 
@@ -59,22 +48,13 @@ pub async fn trigger_reload(
     Query(params): Query<std::collections::HashMap<String, String>>,
 ) -> Response {
     if let Some(path) = params.get("path") {
-        let mut lib = state.library.write().await;
-        if let Some(updated) = lib.update_album(path) {
-            let album_name = &updated.album_data.album;
-
-            log::info!("Updated: {album_name}");
-
-            let _ = state.tx.send(
-                json!({
-                    "type": "UPDATE",
-                    "id": updated.id,
-                    "payload": updated
-                })
-                .to_string(),
-            );
-            return Json(json!({"status": "ok"})).into_response();
-        }
+        let config_guard = state.config.read().await;
+        let mut query = state.query.lock().await;
+        let scanner = crate::server::library::scanner::Library::new(config_guard.library_root.clone());
+        scanner.update_album(path, &mut query);
+        
+        let _ = state.tx.send(json!({"type": "LOGIC_UPDATE"}).to_string());
+        return Json(json!({"status": "ok"})).into_response();
     }
     StatusCode::NOT_FOUND.into_response()
 }

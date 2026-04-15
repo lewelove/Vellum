@@ -1,15 +1,15 @@
-use crate::server::library::Library;
+use crate::server::query::QueryEngine;
 use anyhow::{Context, Result};
 use mpd_client::Client;
 use mpd_client::commands;
 use mpd_client::responses::PlayState;
 use std::sync::Arc;
-use tokio::sync::{RwLock, broadcast};
+use tokio::sync::{Mutex, broadcast};
 
 pub async fn broadcast_status(
     client: &Client,
     tx: &broadcast::Sender<String>,
-    library: &Arc<RwLock<Library>>,
+    query: &Arc<Mutex<QueryEngine>>,
 ) -> Result<()> {
     let (status, current_song, queue) = client
         .command_list((commands::Status, commands::CurrentSong, commands::Queue))
@@ -39,8 +39,8 @@ pub async fn broadcast_status(
         .collect();
 
     let album_id = {
-        let lib = library.read().await;
-        lib.path_lookup.get(&file_path).cloned()
+        let q = query.lock().await;
+        q.path_lookup.get(&file_path).cloned()
     };
 
     let state_str = match status.state {

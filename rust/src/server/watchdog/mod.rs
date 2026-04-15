@@ -63,20 +63,10 @@ pub fn start(config_path: PathBuf, state: Arc<AppState>) {
                             let mut guard = state.config.write().await;
                             guard.resolved_css_path = if p.exists() { Some(p.clone()) } else { None };
                         }
-                        "facets.js" => {
+                        "logic.json" => {
                             logic_changed = true;
                             let mut guard = state.config.write().await;
-                            guard.resolved_facets_path = if p.exists() { Some(p.clone()) } else { None };
-                        }
-                        "sorters.js" => {
-                            logic_changed = true;
-                            let mut guard = state.config.write().await;
-                            guard.resolved_sorters_path = if p.exists() { Some(p.clone()) } else { None };
-                        }
-                        "shelves.js" => {
-                            logic_changed = true;
-                            let mut guard = state.config.write().await;
-                            guard.resolved_shelves_path = if p.exists() { Some(p.clone()) } else { None };
+                            guard.resolved_logic_path = if p.exists() { Some(p.clone()) } else { None };
                         }
                         _ => {}
                     }
@@ -95,7 +85,13 @@ pub fn start(config_path: PathBuf, state: Arc<AppState>) {
             }
 
             if logic_changed {
-                log::info!("Filesystem change: reloading user logic...");
+                log::info!("Filesystem change: reloading logic.json...");
+                if let Some(ref logic_path) = state.config.read().await.resolved_logic_path {
+                    let mut query = state.query.lock().await;
+                    if let Err(e) = query.reload_manifest(logic_path) {
+                        log::error!("Failed to reload logic.json: {}", e);
+                    }
+                }
                 let payload = json!({ "type": "LOGIC_UPDATE" }).to_string();
                 let _ = state.tx.send(payload);
             }

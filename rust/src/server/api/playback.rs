@@ -3,7 +3,7 @@ use crate::server::state::AppState;
 use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::response::{IntoResponse, Response};
-use serde_json::json;
+use serde_json::{Value, json};
 use std::sync::Arc;
 
 pub async fn play_album(
@@ -85,26 +85,37 @@ async fn get_tracks_internal(
     state: &Arc<AppState>,
     disc_filter: Option<String>,
 ) -> Vec<String> {
-    let lib = state.library.read().await;
+    let query = state.query.lock().await;
     let config_guard = state.config.read().await;
     let mut paths = Vec::new();
 
     let target_disc = disc_filter.and_then(|s| s.parse::<u32>().ok());
 
-    if let Some(album) = lib.album_map.get(id) {
-        for track in &album.tracks {
-            if let Some(td) = target_disc
-                && track.discnumber != td
-            {
-                continue;
-            }
+    if let Some(json_str) = query.get_album_json(id) {
+        if let Ok(parsed) = serde_json::from_str::<Value>(&json_str) {
+            if let Some(tracks) = parsed.get("tracks").and_then(|t| t.as_array()) {
+                for track in tracks {
+                    if let Some(td) = target_disc {
+                        let current_disc = track.get("DISCNUMBER")
+                            .and_then(|v| v.as_u64())
+                            .map(|v| v as u32)
+                            .unwrap_or(1);
+                        if current_disc != td {
+                            continue;
+                        }
+                    }
 
-            let tp = &track.info.track_library_path;
-            if let Some(abs) = lib.track_map.get(tp)
-                && let Ok(rel) = abs.strip_prefix(&config_guard.library_root)
-                && let Some(s) = rel.to_str()
-            {
-                paths.push(s.to_string());
+                    if let Some(info) = track.get("info") {
+                        if let Some(tp) = info.get("track_library_path").and_then(|v| v.as_str()) {
+                            let abs = config_guard.library_root.join(tp);
+                            if let Ok(rel) = abs.strip_prefix(&config_guard.library_root) {
+                                if let Some(s) = rel.to_str() {
+                                    paths.push(s.to_string());
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }

@@ -1,6 +1,7 @@
 pub mod api;
 pub mod library;
 pub mod mpd;
+pub mod query;
 pub mod state;
 pub mod watchdog;
 
@@ -8,7 +9,7 @@ use anyhow::{Context, Result};
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use tokio::sync::{RwLock, broadcast};
+use tokio::sync::{Mutex, RwLock, broadcast};
 use tower_http::cors::{Any, CorsLayer};
 
 use self::state::{AppConfig as ServerConfig, AppState};
@@ -47,23 +48,9 @@ pub async fn run(port: u16) -> Result<()> {
         None
     };
 
-    let facets_path = config_dir.join("facets.js");
-    let resolved_facets_path = if facets_path.exists() {
-        Some(facets_path)
-    } else {
-        None
-    };
-
-    let sorters_path = config_dir.join("sorters.js");
-    let resolved_sorters_path = if sorters_path.exists() {
-        Some(sorters_path)
-    } else {
-        None
-    };
-
-    let shelves_path = config_dir.join("shelves.js");
-    let resolved_shelves_path = if shelves_path.exists() {
-        Some(shelves_path)
+    let logic_path = config_dir.join("logic.json");
+    let resolved_logic_path = if logic_path.exists() {
+        Some(logic_path)
     } else {
         None
     };
@@ -75,9 +62,7 @@ pub async fn run(port: u16) -> Result<()> {
         shader: shader_cfg,
         resolved_shader_path: resolved_path,
         resolved_css_path,
-        resolved_facets_path,
-        resolved_sorters_path,
-        resolved_shelves_path,
+        resolved_logic_path,
     };
 
     let state_file = expand_path("~/.vellum/state.json");
@@ -102,19 +87,21 @@ pub async fn run(port: u16) -> Result<()> {
         })
     };
 
-    let mut library = library::Library::new(library_root);
-    library.scan();
-    let library_arc = Arc::new(RwLock::new(library));
+    let mut query_engine = query::QueryEngine::new()?;
+    let lib_scanner = library::scanner::Library::new(library_root.clone());
+    lib_scanner.scan(&mut query_engine);
+    
+    let query_arc = Arc::new(Mutex::new(query_engine));
     let (tx, _) = broadcast::channel(100);
 
     let mpd_engine = mpd::start_actor(
         tx.clone(),
-        Arc::clone(&library_arc),
+        Arc::clone(&query_arc),
         Arc::new(server_config.clone()),
     );
 
     let app_state = Arc::new(AppState {
-        library: library_arc,
+        query: query_arc,
         ui_state: RwLock::new(ui_state_val),
         tx,
         config: RwLock::new(server_config),

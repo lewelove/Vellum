@@ -21,14 +21,6 @@
     return () => cancelAnimationFrame(raf);
   });
 
-  function formatSeconds(totalSeconds) {
-    const s = Math.floor(totalSeconds || 0);
-    const m = Math.floor(s / 60);
-    const rs = s % 60;
-    const pad = (n) => String(n).padStart(2, '0');
-    return `${m}:${pad(rs)}`;
-  }
-
   function formatDuration(str) {
     if (!str) return "0:00";
     
@@ -60,12 +52,21 @@
     return `${m}:${pad(s)}`;
   }
 
+  function parseDurationToMs(str) {
+    if (!str) return 0;
+    const parts = str.split(':').reverse();
+    let ms = 0;
+    if (parts[0]) ms += parseInt(parts[0]) * 1000;
+    if (parts[1]) ms += parseInt(parts[1]) * 60000;
+    if (parts[2]) ms += parseInt(parts[2]) * 3600000;
+    return ms;
+  }
+
   function getDiscDuration(tracks, discNumber) {
     const totalMs = tracks
       .filter(t => t.discNo === discNumber)
       .reduce((acc, t) => {
-        const meta = library.getTrackByPath(t.file);
-        return acc + (parseInt(meta?.track_duration) || 0);
+        return acc + parseDurationToMs(t.duration);
       }, 0);
     return formatMs(totalMs);
   }
@@ -78,16 +79,16 @@
     const meta = library.getTrackByPath(item.file);
     const albumId = meta?.albumId || null;
     
-    const title = meta ? meta.TITLE : (item.title || item.file);
-    const artist = meta ? meta.ARTIST : (item.artist || "");
+    const title = meta ? meta.title : (item.title || item.file);
+    const artist = meta ? meta.artist : (item.artist || "");
 
     return {
       id: item.id,
       file: item.file,
       isPlaying: player.currentFile === item.file,
-      trackNo: meta ? meta.TRACKNUMBER : "#",
-      discNo: meta ? meta.DISCNUMBER : "1",
-      duration: meta ? meta.track_duration_time : "",
+      trackNo: meta ? meta.trackNo : "#",
+      discNo: meta ? meta.discNo : 1,
+      duration: meta ? meta.duration : "",
       title,
       artist,
       albumId
@@ -98,7 +99,7 @@
     const groups =[];
     mappedTracks.forEach(track => {
       if (groups.length === 0 || groups[groups.length - 1].albumId !== track.albumId) {
-        const albumMeta = library.albumCache.get(track.albumId);
+        const albumMeta = library.dict.get(track.albumId);
         groups.push({
           albumId: track.albumId,
           albumMeta,
@@ -125,7 +126,7 @@
           <div class="header-content">
             <div class="header-row">
               <span class="v-truncate header-album">{group.albumMeta.ALBUM}</span>
-              <span class="v-mono header-meta">{group.albumMeta.ORIGINAL_YEAR || group.albumMeta.DATE?.substring(0,4)}</span>
+              <span class="v-mono header-meta">{group.albumMeta.DATE?.substring(0,4)}</span>
             </div>
             <div class="header-row">
               <span class="v-truncate header-artist">{group.albumMeta.ALBUMARTIST}</span>
@@ -165,11 +166,7 @@
             {/if}
           </div>
           <span class="v-mono v-track-meta track-meta">
-            {#if track.isPlaying}
-              {formatDuration(track.duration)}
-            {:else}
-              {formatDuration(track.duration)}
-            {/if}
+            {formatDuration(track.duration)}
           </span>
         </div>
       {/each}

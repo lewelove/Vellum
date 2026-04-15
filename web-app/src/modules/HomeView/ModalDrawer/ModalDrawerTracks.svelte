@@ -44,7 +44,7 @@
   function getDiscDuration(discNumber) {
     const totalMs = tracks
       .filter(t => t.DISCNUMBER === discNumber)
-      .reduce((acc, t) => acc + (parseInt(t.track_duration) || 0), 0);
+      .reduce((acc, t) => acc + (parseInt(t.info?.track_duration) || 0), 0);
     return formatMs(totalMs);
   }
 
@@ -113,7 +113,7 @@
           <span class="v-truncate v-track-artist track-artist">{track.ARTIST}</span>
         {/if}
       </div>
-      <span class="v-mono v-track-meta track-meta">{formatDuration(track.track_duration_time)}</span>
+      <span class="v-mono v-track-meta track-meta">{formatDuration(track.info?.track_duration_time)}</span>
     </div>
   {/each}
 </div>

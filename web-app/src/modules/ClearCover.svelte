@@ -24,6 +24,8 @@
 
     try {
       const response = await fetch(url);
+      if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
+      
       const blob = await response.blob();
       
       const bitmap = await createImageBitmap(blob, {

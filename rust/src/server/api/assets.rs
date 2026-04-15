@@ -31,17 +31,32 @@ pub async fn get_cover_thumbnail(
     }
 }
 
+pub async fn get_album_metadata(
+    Path(id): Path<String>,
+    State(state): State<Arc<AppState>>,
+) -> Response {
+    let query = state.query.lock().await;
+    if let Some(json_str) = query.get_album_json(&id) {
+        return ([(header::CONTENT_TYPE, "application/json")],
+            json_str
+        ).into_response();
+    }
+    StatusCode::NOT_FOUND.into_response()
+}
+
 pub async fn get_album_cover(
     Path(id): Path<String>,
     State(state): State<Arc<AppState>>,
 ) -> Response {
     let path_opt = {
-        let lib = state.library.read().await;
+        let query = state.query.lock().await;
         let config_guard = state.config.read().await;
-        lib.album_map.get(&id).map(|a| {
-            let cp = &a.album_data.info.cover_path;
-            config_guard.library_root.join(&id).join(cp)
-        })
+        if let Some(meta) = query.dict.get(&id) {
+            let cp = meta.get("cover_path").and_then(|v| v.as_str()).unwrap_or("default_cover.png");
+            Some(config_guard.library_root.join(&id).join(cp))
+        } else {
+            None
+        }
     };
 
     if let Some(path) = path_opt {
@@ -65,8 +80,7 @@ pub async fn get_lyrics(
     {
         let mut buf = String::new();
         if file.read_to_string(&mut buf).await.is_ok() {
-            return (
-                [
+            return ([
                     (
                         header::CONTENT_TYPE,
                         HeaderValue::from_static("text/plain; charset=utf-8"),
@@ -92,8 +106,7 @@ pub async fn get_custom_shader(State(state): State<Arc<AppState>>) -> Response {
         if let Ok(mut file) = File::open(&path).await {
             let mut buf = String::new();
             if file.read_to_string(&mut buf).await.is_ok() {
-                return (
-                    [
+                return ([
                         (
                             header::CONTENT_TYPE,
                             HeaderValue::from_static("text/x-glsl; charset=utf-8"),
@@ -120,8 +133,7 @@ pub async fn get_custom_css(State(state): State<Arc<AppState>>) -> Response {
         if let Ok(mut file) = File::open(&path).await {
             let mut buf = String::new();
             if file.read_to_string(&mut buf).await.is_ok() {
-                return (
-                    [
+                return ([
                         (
                             header::CONTENT_TYPE,
                             HeaderValue::from_static("text/css; charset=utf-8"),
@@ -138,105 +150,6 @@ pub async fn get_custom_css(State(state): State<Arc<AppState>>) -> Response {
     StatusCode::NOT_FOUND.into_response()
 }
 
-pub async fn get_custom_facets(State(state): State<Arc<AppState>>) -> Response {
-    let path_opt = {
-        let guard = state.config.read().await;
-        guard.resolved_facets_path.clone()
-    };
-
-    if let Some(path) = path_opt {
-        if let Ok(mut file) = File::open(&path).await {
-            let mut buf = String::new();
-            if file.read_to_string(&mut buf).await.is_ok() {
-                return (
-                    [
-                        (
-                            header::CONTENT_TYPE,
-                            HeaderValue::from_static("text/javascript; charset=utf-8"),
-                        ),
-                        (header::CACHE_CONTROL, HeaderValue::from_static("no-cache")),
-                    ],
-                    buf,
-                ).into_response();
-            }
-        }
-    }
-
-    (
-        [
-            (header::CONTENT_TYPE, HeaderValue::from_static("text/javascript; charset=utf-8")),
-            (header::CACHE_CONTROL, HeaderValue::from_static("no-cache")),
-        ],
-        "export const facets = {};",
-    ).into_response()
-}
-
-pub async fn get_custom_sorters(State(state): State<Arc<AppState>>) -> Response {
-    let path_opt = {
-        let guard = state.config.read().await;
-        guard.resolved_sorters_path.clone()
-    };
-
-    if let Some(path) = path_opt {
-        if let Ok(mut file) = File::open(&path).await {
-            let mut buf = String::new();
-            if file.read_to_string(&mut buf).await.is_ok() {
-                return (
-                    [
-                        (
-                            header::CONTENT_TYPE,
-                            HeaderValue::from_static("text/javascript; charset=utf-8"),
-                        ),
-                        (header::CACHE_CONTROL, HeaderValue::from_static("no-cache")),
-                    ],
-                    buf,
-                ).into_response();
-            }
-        }
-    }
-
-    (
-        [
-            (header::CONTENT_TYPE, HeaderValue::from_static("text/javascript; charset=utf-8")),
-            (header::CACHE_CONTROL, HeaderValue::from_static("no-cache")),
-        ],
-        "export const sorters = {};",
-    ).into_response()
-}
-
-pub async fn get_custom_shelves(State(state): State<Arc<AppState>>) -> Response {
-    let path_opt = {
-        let guard = state.config.read().await;
-        guard.resolved_shelves_path.clone()
-    };
-
-    if let Some(path) = path_opt {
-        if let Ok(mut file) = File::open(&path).await {
-            let mut buf = String::new();
-            if file.read_to_string(&mut buf).await.is_ok() {
-                return (
-                    [
-                        (
-                            header::CONTENT_TYPE,
-                            HeaderValue::from_static("text/javascript; charset=utf-8"),
-                        ),
-                        (header::CACHE_CONTROL, HeaderValue::from_static("no-cache")),
-                    ],
-                    buf,
-                ).into_response();
-            }
-        }
-    }
-
-    (
-        [
-            (header::CONTENT_TYPE, HeaderValue::from_static("text/javascript; charset=utf-8")),
-            (header::CACHE_CONTROL, HeaderValue::from_static("no-cache")),
-        ],
-        "export const shelves = {};",
-    ).into_response()
-}
-
 async fn serve_image(path: PathBuf) -> Response {
     if let Ok(mut file) = File::open(&path).await {
         let mut buf = Vec::new();
@@ -246,8 +159,7 @@ async fn serve_image(path: PathBuf) -> Response {
             } else {
                 "image/jpeg"
             };
-            return (
-                [
+            return ([
                     (header::CONTENT_TYPE, HeaderValue::from_static(mime)),
                     (
                         header::CACHE_CONTROL,

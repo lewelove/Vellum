@@ -18,9 +18,17 @@
   let leftColumnWidth = $state(0);
   let coverUrl = $derived(library.getAlbumCoverUrl(album.id));
 
-  let genreString = $derived(Array.isArray(album.GENRE) ? album.GENRE.join(" ; ") : (album.GENRE || ""));
-  let discCount = $derived(parseInt(album.total_discs || "1"));
-  let trackCount = $derived(parseInt(album.total_tracks || "0"));
+  let albumData = $derived(album.album || {});
+  let infoData = $derived(albumData.info || {});
+
+  let title = $derived(albumData.ALBUM || "Untitled");
+  let artist = $derived(albumData.ALBUMARTIST || "Unknown");
+  let genreString = $derived(Array.isArray(albumData.GENRE) ? albumData.GENRE.join(" ; ") : (albumData.GENRE || ""));
+  let dateString = $derived(albumData.DATE || "");
+
+  let discCount = $derived(parseInt(infoData.total_discs || "1"));
+  let trackCount = $derived(parseInt(infoData.total_tracks || "0"));
+  let durationStr = $derived(infoData.album_duration_time || "--:--");
 
   async function handlePlay() {
     try { await playAlbum(album.id); } catch (err) { console.error(err); }
@@ -96,16 +104,16 @@
         </div>
 
         <div class="meta-container">
-          <h2 class="album-title">{album.title}</h2>
-          <h3 class="album-artist">{album.artist}</h3>
+          <h2 class="album-title">{title}</h2>
+          <h3 class="album-artist">{artist}</h3>
 
-          {#if album.DATE}
-            <span class="v-mono meta-date">{album.DATE}</span>
+          {#if dateString}
+            <span class="v-mono meta-date">{dateString}</span>
           {/if}
           
           <div class="meta-stack">
             <div class="v-mono meta-row">
-              <span class="v-truncate meta-val">{album.album_duration_time || "--:--"}</span>
+              <span class="v-truncate meta-val">{durationStr}</span>
               
               {#if discCount > 1}
                 <span class="meta-sep">•</span>
@@ -145,9 +153,9 @@
         <div class="tracks-scroll-area">
           <div class="v-scroll-fade-top"></div>
           <ModalDrawerTracks 
-            tracks={album.tracks} 
-            totalDiscs={album.total_discs} 
-            albumArtist={album.artist}
+            tracks={album.tracks ||[]} 
+            totalDiscs={infoData.total_discs} 
+            albumArtist={artist}
             onplay={handlePlayTrack} 
             onplaydisc={handlePlayDisc}
           />
