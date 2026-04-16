@@ -43,6 +43,12 @@ pub async fn run(
         .canonicalize()
         .context("Invalid library_root")?;
 
+    let exts = config
+        .manifest
+        .as_ref()
+        .map(|m| m.supported_extensions.clone())
+        .unwrap_or_else(|| vec![".flac".to_string()]);
+
     let lib_hash = calculate_hash(&library_root.to_string_lossy());
     let base_cache_dir = expand_path("~/.vellum/libraries_cache");
     fs::create_dir_all(&base_cache_dir)?;
@@ -62,7 +68,7 @@ pub async fn run(
 
     log::info!("Verifying {} albums...", all_albums.len());
 
-    let results = verify_albums_parallel(all_albums, &cache, force, jobs)?;
+    let results = verify_albums_parallel(all_albums, &cache, force, jobs, &exts)?;
 
     let mut work_queue = Vec::new();
     let mut trusted_count = 0;
@@ -94,11 +100,12 @@ pub async fn run(
     let (notify_tx, mut notify_rx) = mpsc::channel::<PathBuf>(100);
     let cache_arc = Arc::new(Mutex::new(cache));
     let cache_for_task = Arc::clone(&cache_arc);
+    let exts_for_task = exts.clone();
 
     let notification_task = tokio::spawn(async move {
         let client = reqwest::Client::new();
         while let Some(album_root) = notify_rx.recv().await {
-            handle_album_reload(&client, &album_root, &cache_for_task).await;
+            handle_album_reload(&client, &album_root, &cache_for_task, &exts_for_task).await;
         }
     });
 
@@ -161,6 +168,7 @@ fn verify_albums_parallel(
     cache: &HashMap<String, AlbumCacheEntry>,
     force: bool,
     jobs: Option<usize>,
+    exts: &[String],
 ) -> Result<Vec<(PathBuf, u64, bool)>> {
     let default_parallelism = std::thread::available_parallelism()
         .map(std::num::NonZero::get)
@@ -175,7 +183,7 @@ fn verify_albums_parallel(
             .map(|album_root| {
                 let album_path_str = album_root.to_string_lossy().to_string();
                 let metadata_path = album_root.join("metadata.toml");
-                let mtime_sum = get_mtime_sum(&album_root, &metadata_path);
+                let mtime_sum = get_mtime_sum(&album_root, &metadata_path, exts);
 
                 if force {
                     return (album_root, mtime_sum, true);
@@ -201,12 +209,13 @@ async fn handle_album_reload(
     client: &reqwest::Client,
     album_root: &Path,
     cache: &Arc<Mutex<HashMap<String, AlbumCacheEntry>>>,
+    exts: &[String],
 ) {
     let album_path_str = album_root.to_string_lossy().to_string();
     let metadata_path = album_root.join("metadata.toml");
-    let mtime_sum = get_mtime_sum(album_root, &metadata_path);
+    let mtime_sum = get_mtime_sum(album_root, &metadata_path, exts);
 
-    let params = [("path", album_path_str.clone())];
+    let params =[("path", album_path_str.clone())];
     let _ = client
         .post("http://127.0.0.1:8000/api/internal/reload")
         .query(&params)
@@ -224,7 +233,7 @@ fn calculate_hash(data: &str) -> String {
     format!("{:x}", hasher.finalize())
 }
 
-fn get_mtime_sum(dir: &Path, meta: &Path) -> u64 {
+fn get_mtime_sum(dir: &Path, meta: &Path, exts: &[String]) -> u64 {
     let d_mtime = fs::metadata(dir)
         .and_then(|m| m.modified())
         .map(|t| {
@@ -261,7 +270,33 @@ fn get_mtime_sum(dir: &Path, meta: &Path) -> u64 {
         }
     }
 
-    d_mtime + m_mtime + c_mtime
+    let mut t_mtime = 0;
+    for entry in walkdir::WalkDir::new(dir)
+        .max_depth(3)
+        .into_iter()
+        .filter_map(Result::ok)
+    {
+        let p = entry.path();
+        if p.is_file() {
+            if let Some(ext) = p.extension().and_then(|e| e.to_str()) {
+                let ext_lower = format!(".{}", ext.to_lowercase());
+                if exts.contains(&ext_lower) {
+                    t_mtime += entry
+                        .metadata()
+                        .ok()
+                        .and_then(|m| m.modified().ok())
+                        .map(|t| {
+                            t.duration_since(SystemTime::UNIX_EPOCH)
+                                .unwrap_or_default()
+                                .as_secs()
+                        })
+                        .unwrap_or(0);
+                }
+            }
+        }
+    }
+
+    d_mtime + m_mtime + c_mtime + t_mtime
 }
 
 fn verify_trust(album_root: &Path) -> TrustState {

@@ -58,7 +58,7 @@ pub async fn trigger_reload(
         };
 
         if let Some(id) = internal_id {
-            log::info!("Hot Reload: {}", id);
+            log::info!("Updated: {}", id);
             
             let _ = state.tx.send(json!({
                 "type": "ALBUM_UPDATED",
