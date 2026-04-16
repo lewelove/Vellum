@@ -90,17 +90,17 @@
   .lyrics-content {
     font-family: var(--font-stack);
     font-size: 15px;
-    line-height: 1.2;
+    line-height: 1.08;
     color: var(--text-main);
+    text-align: center;
     text-align: left;
-    margin: 0 auto;
+    margin: -6px auto;
     width: 100%;
-    max-width: 300px;
   }
 
   .lyric-line {
     margin: 6px 0;
-    min-height: 0.4em;
+    min-height: 0.8em;
     text-wrap: balance;
   }
 
