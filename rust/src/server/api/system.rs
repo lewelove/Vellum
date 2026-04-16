@@ -31,13 +31,19 @@ pub async fn update_state(
 }
 
 pub async fn trigger_full_reset(State(state): State<Arc<AppState>>) -> Response {
-    log::info!("Full library reset triggered");
-    {
+    log::info!("Force updating library...");
+    let start_time = std::time::Instant::now();
+    let album_count = {
         let config_guard = state.config.read().await;
         let mut query = state.query.lock().await;
         let scanner = crate::server::library::scanner::Library::new(config_guard.library_root.clone());
         scanner.scan(&mut query);
-    }
+        query.dict.len()
+    };
+    
+    let elapsed = start_time.elapsed().as_millis();
+    log::info!("Updated {} albums.", album_count);
+    log::info!("Rebuilt Query Engine in {}ms.", elapsed);
     
     let _ = state.tx.send(json!({"type": "LOGIC_UPDATE"}).to_string());
     Json(json!({"status": "ok"})).into_response()
@@ -45,8 +51,13 @@ pub async fn trigger_full_reset(State(state): State<Arc<AppState>>) -> Response 
 
 pub async fn trigger_batch_reload(
     State(state): State<Arc<AppState>>,
+    Query(params): Query<std::collections::HashMap<String, String>>,
     Json(paths): Json<Vec<String>>,
 ) -> Response {
+    if params.get("force").map(|s| s.as_str()) == Some("true") {
+        log::info!("Force updating library...");
+    }
+
     let start_time = std::time::Instant::now();
     let config_guard = state.config.read().await;
     let mut processed_ids = Vec::new();
@@ -66,9 +77,10 @@ pub async fn trigger_batch_reload(
 
     if !processed_ids.is_empty() {
         let elapsed = start_time.elapsed().as_millis();
+        log::info!("Updated {} albums.", processed_ids.len());
+        log::info!("Rebuilt Query Engine in {}ms.", elapsed);
         
         if processed_ids.len() == 1 {
-            log::info!("Updated: {} in {}ms", processed_ids[0], elapsed);
             let dict_entry = {
                 let query = state.query.lock().await;
                 query.dict.get(&processed_ids[0]).cloned()
@@ -79,7 +91,6 @@ pub async fn trigger_batch_reload(
                 "dictEntry": dict_entry.unwrap_or(json!({}))
             }).to_string());
         } else {
-            log::info!("Updated {} albums in {}ms", processed_ids.len(), elapsed);
             let _ = state.tx.send(json!({"type": "LOGIC_UPDATE"}).to_string());
         }
     }
@@ -107,7 +118,8 @@ pub async fn trigger_reload(
 
         if let Some(id) = internal_id {
             let elapsed = start_time.elapsed().as_millis();
-            log::info!("Updated: {} in {}ms", id, elapsed);
+            log::info!("Updated 1 albums.");
+            log::info!("Rebuilt Query Engine in {}ms.", elapsed);
             
             let _ = state.tx.send(json!({
                 "type": "ALBUM_UPDATED",

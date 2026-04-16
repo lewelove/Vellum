@@ -168,8 +168,5 @@ pub async fn run(force: bool) -> Result<()> {
 
     pb.finish_with_message("Generation complete");
 
-    log::info!("Manifest generation complete. Triggering library update...");
-    crate::update::run(None, false, None).await?;
-
     Ok(())
 }

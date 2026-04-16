@@ -37,6 +37,7 @@ pub async fn run(
     target_path: Option<PathBuf>,
     force: bool,
     jobs: Option<usize>,
+    verbose: bool,
 ) -> Result<()> {
     let (config, _, _) = AppConfig::load().context("Failed to load config")?;
     let library_root = expand_path(&config.storage.library_root)
@@ -71,7 +72,6 @@ pub async fn run(
     let results = verify_albums_parallel(all_albums, &cache, force, jobs, &exts)?;
 
     let mut work_queue = Vec::new();
-    let mut trusted_count = 0;
 
     for (path, mtime, is_dirty) in results {
         if is_dirty {
@@ -81,21 +81,17 @@ pub async fn run(
                 path.to_string_lossy().to_string(),
                 AlbumCacheEntry { mtime_sum: mtime },
             );
-            trusted_count += 1;
         }
     }
 
     if work_queue.is_empty() {
-        log::info!("Library is up to date ({trusted_count} albums trusted).");
+        log::info!("Library is up to date.");
         save_cache(&cache, &cache_file)?;
         return Ok(());
     }
 
-    log::info!(
-        "Processing {} dirty albums ({} trusted).",
-        work_queue.len(),
-        trusted_count
-    );
+    let dirty_count = work_queue.len();
+    let start_time = std::time::Instant::now();
 
     let (notify_tx, mut notify_rx) = mpsc::channel::<PathBuf>(100);
     let cache_arc = Arc::new(Mutex::new(cache));
@@ -105,6 +101,15 @@ pub async fn run(
     let notification_task = tokio::spawn(async move {
         let mut updated_paths = Vec::new();
         while let Some(album_root) = notify_rx.recv().await {
+            if verbose {
+                if let Ok(content) = fs::read_to_string(album_root.join("metadata.lock.json")) {
+                    if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
+                        let artist = json.get("album").and_then(|a| a.get("ALBUMARTIST")).and_then(|a| a.as_str()).unwrap_or("Unknown");
+                        let album = json.get("album").and_then(|a| a.get("ALBUM")).and_then(|a| a.as_str()).unwrap_or("Unknown");
+                        log::info!("Updated: {} - {}", artist, album);
+                    }
+                }
+            }
             updated_paths.push(album_root);
         }
 
@@ -124,8 +129,14 @@ pub async fn run(
             paths_for_server.push(album_path_str);
         }
 
+        let url = if force {
+            "http://127.0.0.1:8000/api/internal/batch_reload?force=true"
+        } else {
+            "http://127.0.0.1:8000/api/internal/batch_reload"
+        };
+
         let _ = client
-            .post("http://127.0.0.1:8000/api/internal/batch_reload")
+            .post(url)
             .json(&paths_for_server)
             .timeout(std::time::Duration::from_secs(30))
             .send()
@@ -149,6 +160,9 @@ pub async fn run(
 
     drop(notify_tx);
     let _ = notification_task.await;
+
+    let elapsed = start_time.elapsed().as_millis();
+    log::info!("Updated {} albums. Finished in {}ms.", dirty_count, elapsed);
 
     let final_cache = Arc::try_unwrap(cache_arc).unwrap().into_inner();
     save_cache(&final_cache, &cache_file)?;
