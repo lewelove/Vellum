@@ -7,7 +7,7 @@ pub mod watchdog;
 
 use anyhow::{Context, Result};
 use std::net::SocketAddr;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock, broadcast};
 use tower_http::cors::{Any, CorsLayer};
@@ -29,38 +29,31 @@ pub async fn run(port: u16) -> Result<()> {
         .context("Invalid library_root path")?;
 
     let shader_cfg = config.theme.as_ref().and_then(|t| t.shader.clone());
-    let mut resolved_path = None;
+    let mut resolved_shader_path = None;
     if let Some(ref s) = shader_cfg 
         && let Some(ref p) = s.path 
     {
-        let p_buf = PathBuf::from(p);
-        resolved_path = if p_buf.is_absolute() {
-            Some(p_buf)
+        let expanded = expand_path(p);
+        let absolute = if expanded.is_absolute() {
+            expanded
         } else {
-            Some(config_dir.join(p_buf))
+            config_dir.join(expanded)
         };
+        resolved_shader_path = absolute.canonicalize().ok().or(Some(absolute));
     }
 
     let css_path = config_dir.join("vellum.css");
-    let resolved_css_path = if css_path.exists() {
-        Some(css_path)
-    } else {
-        None
-    };
+    let resolved_css_path = css_path.canonicalize().ok();
 
-    let logic_path = config_dir.join("logic.json");
-    let resolved_logic_path = if logic_path.exists() {
-        Some(logic_path)
-    } else {
-        None
-    };
+    let logic_path = config_dir.join("logic.toml");
+    let resolved_logic_path = logic_path.canonicalize().ok();
 
     let server_config = ServerConfig {
         library_root: library_root.clone(),
         thumbnail_root: thumb_root_str.map(expand_path),
         thumbnail_size: thumb_size,
         shader: shader_cfg,
-        resolved_shader_path: resolved_path,
+        resolved_shader_path,
         resolved_css_path,
         resolved_logic_path,
     };

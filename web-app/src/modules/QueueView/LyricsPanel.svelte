@@ -59,7 +59,7 @@
   {#if isLoading}
     <div class="status-msg">Loading...</div>
   {:else if isInstrumental}
-    <div class="instrumental-msg">[INSTRUMENTAL]</div>
+    <div class="instrumental-msg">INSTRUMENTAL</div>
   {:else if lyricsText}
     <div class="lyrics-content">
       {#each lyricsText.split(/\r?\n/) as line}
@@ -118,8 +118,8 @@
     font-size: 15px;
     line-height: 1.2;
     color: oklch(100% 0 0);
-    margin: 0 auto;
     margin: auto;
+    margin: 18px auto;
     text-align: center;
   }
 </style>

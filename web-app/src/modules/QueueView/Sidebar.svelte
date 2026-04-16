@@ -12,6 +12,7 @@
   let { hasLyrics } = $props();
 
   let activeId = $derived(player.currentAlbumId);
+  let isStopped = $derived(player.state === "stop");
 
   async function handlePlay() {
     if (activeId) await playAlbum(activeId);
@@ -59,7 +60,13 @@
       {@render NavButton({ icon: "icons/outlined/24px/menu_book.svg", label: "Lyrics", active: library.queuePanels.lyrics, onclick: () => library.toggleQueuePanel('lyrics') })}
     {/if}
     {@render NavButton({ icon: "icons/outlined/24px/format_list_bulleted.svg", label: "Track List", active: library.queuePanels.tracks, onclick: () => library.toggleQueuePanel('tracks') })}
-    {@render NavButton({ icon: "icons/outlined/24px/colors.svg", label: "Toggle Shader", active: library.isShaderEnabled, onclick: () => library.toggleShader() })}
+    {@render NavButton({ 
+      icon: "icons/outlined/24px/colors.svg", 
+      label: "Toggle Shader", 
+      active: library.isShaderEnabled, 
+      disabled: isStopped,
+      onclick: () => library.toggleShader() 
+    })}
   </div>
 </div>
 
@@ -91,6 +98,12 @@
     pointer-events: auto;
   }
 
+  .queue-nav-button:disabled {
+    opacity: 0.3;
+    pointer-events: none;
+    box-shadow: none;
+  }
+
   .queue-act-button {
     width: 40px;
     height: 40px;
@@ -98,6 +111,12 @@
     box-shadow: var(--button-shadow-lesser);
     flex-shrink: 0;
     pointer-events: auto;
+  }
+
+  .queue-act-button:disabled {
+    opacity: 0.3;
+    pointer-events: none;
+    box-shadow: none;
   }
 
   .nav-icon {

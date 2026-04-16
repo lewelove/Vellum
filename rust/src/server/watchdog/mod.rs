@@ -8,7 +8,9 @@ use std::time::Duration;
 
 pub fn start(config_path: PathBuf, state: Arc<AppState>) {
     let (tx, mut rx) = tokio::sync::mpsc::channel::<Vec<PathBuf>>(10);
-    let config_dir = config_path.parent().unwrap_or(Path::new(".")).to_path_buf();
+    
+    let canon_config_path = config_path.canonicalize().unwrap_or_else(|_| config_path.clone());
+    let config_dir = canon_config_path.parent().unwrap_or(Path::new(".")).to_path_buf();
 
     tokio::spawn(async move {
         let tx_clone = tx.clone();
@@ -25,20 +27,17 @@ pub fn start(config_path: PathBuf, state: Arc<AppState>) {
         .expect("Failed to create config watcher");
 
         watcher
-            .watch(&config_dir, RecursiveMode::NonRecursive)
+            .watch(&config_dir, RecursiveMode::Recursive)
             .expect("Failed to watch config directory");
 
-        let mut current_watched_shader: Option<PathBuf> = None;
-
-        let initial_shader_path = {
+        let mut current_watched_shader: Option<PathBuf> = {
             let guard = state.config.read().await;
             guard.resolved_shader_path.clone()
         };
 
-        if let Some(ref p) = initial_shader_path {
+        if let Some(ref p) = current_watched_shader {
             if p.exists() && !p.starts_with(&config_dir) {
                 let _ = watcher.watch(p, RecursiveMode::NonRecursive);
-                current_watched_shader = Some(p.clone());
             }
         }
 
@@ -52,43 +51,55 @@ pub fn start(config_path: PathBuf, state: Arc<AppState>) {
             let mut css_changed = false;
             let mut logic_changed = false;
 
-            for p in &paths {
-                if *p == config_path {
+            for p in paths {
+                let p = p.canonicalize().unwrap_or(p);
+
+                if p == canon_config_path {
                     config_changed = true;
                 }
+
+                if let Some(ref sp) = current_watched_shader {
+                    if p == *sp {
+                        config_changed = true;
+                    }
+                }
+
                 if let Some(name) = p.file_name().and_then(|n| n.to_str()) {
                     match name {
                         "vellum.css" => {
                             css_changed = true;
-                            let mut guard = state.config.write().await;
-                            guard.resolved_css_path = if p.exists() { Some(p.clone()) } else { None };
                         }
                         "logic.toml" => {
                             logic_changed = true;
-                            let mut guard = state.config.write().await;
-                            guard.resolved_logic_path = if p.exists() { Some(p.clone()) } else { None };
                         }
                         _ => {}
-                    }
-                }
-                if let Some(ref sp) = current_watched_shader {
-                    if *p == *sp {
-                        config_changed = true;
                     }
                 }
             }
 
             if css_changed {
                 log::info!("Filesystem change: reloading custom CSS...");
+                let mut guard = state.config.write().await;
+                let css_path = config_dir.join("vellum.css");
+                guard.resolved_css_path = if css_path.exists() { css_path.canonicalize().ok() } else { None };
+                
                 let payload = json!({ "type": "THEME_UPDATE" }).to_string();
                 let _ = state.tx.send(payload);
             }
 
             if logic_changed {
                 log::info!("Filesystem change: reloading logic.toml...");
-                if let Some(ref logic_path) = state.config.read().await.resolved_logic_path {
+                let logic_path = config_dir.join("logic.toml");
+                let resolved = if logic_path.exists() { logic_path.canonicalize().ok() } else { None };
+                
+                {
+                    let mut guard = state.config.write().await;
+                    guard.resolved_logic_path = resolved.clone();
+                }
+
+                if let Some(ref lp) = resolved {
                     let mut query = state.query.lock().await;
-                    if let Err(e) = query.reload_manifest(logic_path) {
+                    if let Err(e) = query.reload_manifest(lp) {
                         log::error!("Failed to reload logic.toml: {}", e);
                     }
                 }
@@ -104,35 +115,38 @@ pub fn start(config_path: PathBuf, state: Arc<AppState>) {
                         let thumb_size = new_config.theme.as_ref().map_or(200, |t| t.thumbnail_size);
                         let shader_cfg = new_config.theme.as_ref().and_then(|t| t.shader.clone());
 
-                        let mut resolved_path = None;
+                        let mut next_shader_path = None;
                         if let Some(ref s) = shader_cfg 
                             && let Some(ref p) = s.path 
                         {
-                            let p_buf = PathBuf::from(p);
-                            resolved_path = if p_buf.is_absolute() {
-                                Some(p_buf)
+                            let expanded = crate::expand_path(p);
+                            let absolute = if expanded.is_absolute() {
+                                expanded
                             } else {
-                                Some(config_dir.join(p_buf))
+                                config_dir.join(expanded)
                             };
+                            next_shader_path = absolute.canonicalize().ok().or(Some(absolute));
                         }
 
-                        if resolved_path != current_watched_shader {
+                        if next_shader_path != current_watched_shader {
                             if let Some(ref old_p) = current_watched_shader {
-                                let _ = watcher.unwatch(old_p);
+                                if !old_p.starts_with(&config_dir) {
+                                    let _ = watcher.unwatch(old_p);
+                                }
                             }
-                            if let Some(ref new_p) = resolved_path {
+                            if let Some(ref new_p) = next_shader_path {
                                 if new_p.exists() && !new_p.starts_with(&config_dir) {
                                     let _ = watcher.watch(new_p, RecursiveMode::NonRecursive);
                                 }
                             }
-                            current_watched_shader = resolved_path.clone();
+                            current_watched_shader = next_shader_path.clone();
                         }
 
                         {
                             let mut config_guard = state.config.write().await;
                             config_guard.thumbnail_size = thumb_size;
                             config_guard.shader = shader_cfg.clone();
-                            config_guard.resolved_shader_path = resolved_path.clone();
+                            config_guard.resolved_shader_path = next_shader_path.clone();
                         }
 
                         let payload = json!({

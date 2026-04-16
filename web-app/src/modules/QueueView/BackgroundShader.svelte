@@ -81,7 +81,7 @@
         return;
     }
     try {
-        const res = await fetch("/api/theme/shader");
+        const res = await fetch(`/api/theme/shader?v=${Date.now()}`);
         if (res.ok) {
             shaderSource = await res.text();
         } else {
@@ -243,7 +243,7 @@
   function render() {
     if (!gl || !program) return;
 
-    if (!visible || !isTabVisible || !library.isShaderEnabled) {
+    if (!visible || !isTabVisible || !library.isShaderActive) {
       animationFrame = requestAnimationFrame(render);
       return;
     }
@@ -338,7 +338,7 @@
     height: 100%;
     z-index: 0;
     pointer-events: none;
-    opacity: {library.isShaderEnabled ? 1 : 0};
+    opacity: {library.isShaderActive ? 1 : 0};
     transition: opacity 0.3s ease;
   "
 ></canvas>

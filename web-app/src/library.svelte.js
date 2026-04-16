@@ -37,6 +37,7 @@ class LibraryState {
   pinnedTextures = $state(new Map());
   fullAlbumCache = $state({});
   isShaderEnabled = $state(true);
+  isShaderActive = $derived(this.isShaderEnabled && player.state !== "stop");
   queuePanels = $state({ lyrics: false, tracks: true });
   themeVersion = $state(Date.now());
   
@@ -65,7 +66,7 @@ class LibraryState {
           const json = JSON.parse(reader.result);
           this.dispatchSocketAction(json);
         } catch (err) {
-          console.error("Failed to parse binary websocket message:", err);
+          console.error(err);
         }
       };
       reader.readAsText(event.data);
@@ -74,7 +75,7 @@ class LibraryState {
         const json = JSON.parse(event.data);
         this.dispatchSocketAction(json);
       } catch (err) {
-        console.error("Failed to parse string websocket message:", err);
+        console.error(err);
       }
     }
   }
@@ -135,6 +136,11 @@ class LibraryState {
       this.orchestratePrewarming();
       this.refreshView(false);
       this.refreshSidebar();
+    } else if (json.type === "CONFIG_UPDATE") {
+      if (json.config) {
+        this.config = { ...this.config, ...json.config };
+        this.orchestratePrewarming();
+      }
     }
   }
 
@@ -209,7 +215,7 @@ class LibraryState {
               isShaderEnabled: this.isShaderEnabled,
               queuePanels: $state.snapshot(this.queuePanels)
           })
-      }).catch(err => console.error("Failed to persist state:", err));
+      }).catch(err => console.error(err));
   }
 
   refreshView(resetScroll = true) {
@@ -365,7 +371,7 @@ class LibraryState {
             return data;
         }
     } catch (err) {
-        console.error("Failed to load full album metadata:", err);
+        console.error(err);
     }
     return null;
   }

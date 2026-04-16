@@ -4,7 +4,7 @@
   let { coverUrl = "", onclick, width = $bindable(0) } = $props();
 </script>
 
-<div class="cover-wrapper">
+<div class="cover-wrapper v-glass">
   <div 
     class="cover-panel" 
     class:clickable={!!coverUrl}
