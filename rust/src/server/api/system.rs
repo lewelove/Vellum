@@ -56,9 +56,11 @@ pub async fn trigger_full_reset(State(state): State<Arc<AppState>>) -> Response 
 
 pub async fn trigger_batch_reload(
     State(state): State<Arc<AppState>>,
+    Query(params): Query<std::collections::HashMap<String, String>>,
     Json(paths): Json<Vec<String>>,
 ) -> Response {
     let start_time = std::time::Instant::now();
+    let compile_time = params.get("time").map(|s| s.as_str()).unwrap_or("0");
     let config_guard = state.config.read().await;
     let mut processed_ids = Vec::new();
 
@@ -77,7 +79,7 @@ pub async fn trigger_batch_reload(
 
     if !processed_ids.is_empty() {
         let elapsed = start_time.elapsed().as_millis();
-        log::info!("Updated {} albums.", processed_ids.len());
+        log::info!("Updated {} albums in {}ms.", processed_ids.len(), compile_time);
         log::info!("Rebuilt Query Engine in {}ms.", elapsed);
         
         if processed_ids.len() == 1 {
@@ -190,6 +192,7 @@ pub async fn force_update_album(
         let _ = std::process::Command::new("vellum")
             .arg("update")
             .arg("--force")
+            .arg("--silent")
             .arg(path)
             .spawn();
         return Json(json!({"status": "ok"})).into_response();

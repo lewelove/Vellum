@@ -38,6 +38,7 @@ pub async fn run(
     force: bool,
     jobs: Option<usize>,
     verbose: bool,
+    silent: bool,
 ) -> Result<()> {
     let (config, _, _) = AppConfig::load().context("Failed to load config")?;
     let library_root = expand_path(&config.storage.library_root)
@@ -78,7 +79,9 @@ pub async fn run(
         .unwrap_or(4);
     let all_albums = compile::builder::scan::find_target_albums(&scan_root, scan_depth);
 
-    log::info!("Verifying {} albums...", all_albums.len());
+    if !silent {
+        log::info!("Verifying {} albums...", all_albums.len());
+    }
 
     let results = verify_albums_parallel(all_albums, &cache, force, jobs, &exts)?;
 
@@ -96,7 +99,9 @@ pub async fn run(
     }
 
     if work_queue.is_empty() {
-        log::info!("Library is up to date.");
+        if !silent {
+            log::info!("Library is up to date.");
+        }
         save_cache(&cache, &cache_file)?;
         return Ok(());
     }
@@ -112,7 +117,7 @@ pub async fn run(
     let notification_task = tokio::spawn(async move {
         let mut updated_paths = Vec::new();
         while let Some(signal) = notify_rx.recv().await {
-            if verbose {
+            if verbose && !silent {
                 log::info!("Updated: {} - {}", signal.artist, signal.album);
             }
             updated_paths.push(signal.path);
@@ -134,10 +139,11 @@ pub async fn run(
             paths_for_server.push(album_path_str);
         }
 
-        let url = "http://127.0.0.1:8000/api/internal/batch_reload";
+        let elapsed_ms = start_time.elapsed().as_millis();
+        let url = format!("http://127.0.0.1:8000/api/internal/batch_reload?time={}", elapsed_ms);
 
         let _ = client
-            .post(url)
+            .post(&url)
             .json(&paths_for_server)
             .timeout(std::time::Duration::from_secs(30))
             .send()
@@ -163,7 +169,9 @@ pub async fn run(
     let _ = notification_task.await;
 
     let elapsed = start_time.elapsed().as_millis();
-    log::info!("Updated {} albums. Finished in {}ms.", dirty_count, elapsed);
+    if !silent {
+        log::info!("Updated {} albums. Finished in {}ms.", dirty_count, elapsed);
+    }
 
     let final_cache = Arc::try_unwrap(cache_arc).unwrap().into_inner();
     save_cache(&final_cache, &cache_file)?;

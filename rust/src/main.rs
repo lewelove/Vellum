@@ -56,6 +56,8 @@ enum Commands {
         jobs: Option<usize>,
         #[arg(long)]
         verbose: bool,
+        #[arg(long)]
+        silent: bool,
     },
     Manifest {
         #[arg(long)]
@@ -161,9 +163,10 @@ async fn main() -> Result<()> {
             force,
             jobs,
             verbose,
+            silent,
         } => {
             let expanded = path.map(|p| expand_path(&p));
-            update::run(expanded, force, jobs, verbose).await
+            update::run(expanded, force, jobs, verbose, silent).await
         }
         Commands::Manifest { force } => manifest::run(force).await,
         Commands::Run { script_cmd, path, playing } => run::execute(script_cmd, path, playing).await,

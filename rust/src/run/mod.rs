@@ -59,7 +59,7 @@ pub async fn execute(cmd: String, path_arg: Option<String>, playing: bool) -> Re
 
                 if status.success() {
                     log::info!("Script completed successfully. Triggering library update...");
-                    crate::update::run(Some(target_album), false, None, false).await?;
+                    crate::update::run(Some(target_album), false, None, false, false).await?;
                 } else {
                     log::error!("Script failed with status: {}", status);
                 }
