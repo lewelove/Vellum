@@ -44,6 +44,17 @@ pub async fn run(
         .canonicalize()
         .context("Invalid library_root")?;
 
+    let is_full_library = target_path.is_none() || target_path.as_deref() == Some(library_root.as_path());
+
+    if force && is_full_library {
+        let client = reqwest::Client::new();
+        let _ = client
+            .post("http://127.0.0.1:8000/api/internal/notify_force_update")
+            .timeout(std::time::Duration::from_secs(2))
+            .send()
+            .await;
+    }
+
     let exts = config
         .manifest
         .as_ref()
@@ -123,11 +134,7 @@ pub async fn run(
             paths_for_server.push(album_path_str);
         }
 
-        let url = if force {
-            "http://127.0.0.1:8000/api/internal/batch_reload?force=true"
-        } else {
-            "http://127.0.0.1:8000/api/internal/batch_reload"
-        };
+        let url = "http://127.0.0.1:8000/api/internal/batch_reload";
 
         let _ = client
             .post(url)

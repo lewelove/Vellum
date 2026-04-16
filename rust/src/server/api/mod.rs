@@ -14,6 +14,7 @@ pub fn router(state: Arc<AppState>) -> Router {
     Router::new()
         .route("/ws", get(websocket::ws_handler))
         .route("/api/state", post(system::update_state))
+        .route("/api/internal/notify_force_update", post(system::notify_force_update))
         .route("/api/internal/reset", post(system::trigger_full_reset))
         .route("/api/internal/reload", post(system::trigger_reload))
         .route("/api/internal/batch_reload", post(system::trigger_batch_reload))

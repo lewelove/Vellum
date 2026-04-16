@@ -30,8 +30,13 @@ pub async fn update_state(
     Json(json!({"status": "saved"})).into_response()
 }
 
-pub async fn trigger_full_reset(State(state): State<Arc<AppState>>) -> Response {
+pub async fn notify_force_update() -> Response {
     log::info!("Force updating library...");
+    Json(json!({"status": "ok"})).into_response()
+}
+
+pub async fn trigger_full_reset(State(state): State<Arc<AppState>>) -> Response {
+    log::info!("Rebuilding library database...");
     let start_time = std::time::Instant::now();
     let album_count = {
         let config_guard = state.config.read().await;
@@ -51,13 +56,8 @@ pub async fn trigger_full_reset(State(state): State<Arc<AppState>>) -> Response 
 
 pub async fn trigger_batch_reload(
     State(state): State<Arc<AppState>>,
-    Query(params): Query<std::collections::HashMap<String, String>>,
     Json(paths): Json<Vec<String>>,
 ) -> Response {
-    if params.get("force").map(|s| s.as_str()) == Some("true") {
-        log::info!("Force updating library...");
-    }
-
     let start_time = std::time::Instant::now();
     let config_guard = state.config.read().await;
     let mut processed_ids = Vec::new();
