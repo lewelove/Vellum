@@ -20,8 +20,7 @@ fn parse_hex(hex: &str) -> Option<Srgb> {
 }
 
 pub fn resolve(ctx: &AlbumContext, cfg: &Value) -> Option<Value> {
-    let cover_path = ctx.cover_path?;
-    let img = image::open(ctx.album_root.join(cover_path)).ok()?;
+    let img = ctx.cover_image?;
 
     let algo_type = cfg.get("type").and_then(Value::as_str).unwrap_or("material");
     let sort_type = cfg.get("sort").and_then(Value::as_str).unwrap_or("ratio");
@@ -34,7 +33,7 @@ pub fn resolve(ctx: &AlbumContext, cfg: &Value) -> Option<Value> {
         .unwrap_or(512);
 
     let img_to_process = if sample_dim == 0 {
-        img
+        img.clone()
     } else {
         img.resize_exact(sample_dim, sample_dim, FilterType::Nearest)
     };
