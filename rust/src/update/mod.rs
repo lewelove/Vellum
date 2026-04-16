@@ -103,10 +103,33 @@ pub async fn run(
     let exts_for_task = exts.clone();
 
     let notification_task = tokio::spawn(async move {
-        let client = reqwest::Client::new();
+        let mut updated_paths = Vec::new();
         while let Some(album_root) = notify_rx.recv().await {
-            handle_album_reload(&client, &album_root, &cache_for_task, &exts_for_task).await;
+            updated_paths.push(album_root);
         }
+
+        if updated_paths.is_empty() {
+            return;
+        }
+
+        let client = reqwest::Client::new();
+        let mut paths_for_server = Vec::new();
+
+        let mut c = cache_for_task.lock().await;
+        for album_root in &updated_paths {
+            let album_path_str = album_root.to_string_lossy().to_string();
+            let metadata_path = album_root.join("metadata.toml");
+            let mtime_sum = get_mtime_sum(album_root, &metadata_path, &exts_for_task);
+            c.insert(album_path_str.clone(), AlbumCacheEntry { mtime_sum });
+            paths_for_server.push(album_path_str);
+        }
+
+        let _ = client
+            .post("http://127.0.0.1:8000/api/internal/batch_reload")
+            .json(&paths_for_server)
+            .timeout(std::time::Duration::from_secs(30))
+            .send()
+            .await;
     });
 
     let compile_options = compile::CompileOptions {
@@ -203,28 +226,6 @@ fn verify_albums_parallel(
             })
             .collect()
     }))
-}
-
-async fn handle_album_reload(
-    client: &reqwest::Client,
-    album_root: &Path,
-    cache: &Arc<Mutex<HashMap<String, AlbumCacheEntry>>>,
-    exts: &[String],
-) {
-    let album_path_str = album_root.to_string_lossy().to_string();
-    let metadata_path = album_root.join("metadata.toml");
-    let mtime_sum = get_mtime_sum(album_root, &metadata_path, exts);
-
-    let params =[("path", album_path_str.clone())];
-    let _ = client
-        .post("http://127.0.0.1:8000/api/internal/reload")
-        .query(&params)
-        .timeout(std::time::Duration::from_millis(1000))
-        .send()
-        .await;
-
-    let mut c = cache.lock().await;
-    c.insert(album_path_str, AlbumCacheEntry { mtime_sum });
 }
 
 fn calculate_hash(data: &str) -> String {

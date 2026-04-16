@@ -101,7 +101,7 @@ pub async fn run(port: u16) -> Result<()> {
     );
 
     let app_state = Arc::new(AppState {
-        query: query_arc,
+        query: Arc::clone(&query_arc),
         ui_state: RwLock::new(ui_state_val),
         tx,
         config: RwLock::new(server_config),

@@ -46,7 +46,6 @@ impl Library {
                 let alb_id = lock_data.album.info.album_path;
                 let _ = query_engine.remove_album(&alb_id);
                 let _ = query_engine.ingest(&alb_id, &content);
-                let _ = query_engine.build_cache();
                 return Some(alb_id);
             }
         }

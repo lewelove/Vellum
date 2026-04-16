@@ -16,6 +16,7 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/api/state", post(system::update_state))
         .route("/api/internal/reset", post(system::trigger_full_reset))
         .route("/api/internal/reload", post(system::trigger_reload))
+        .route("/api/internal/batch_reload", post(system::trigger_batch_reload))
         .route(
             "/api/covers/{size}/{hash}",
             get(assets::get_cover_thumbnail),

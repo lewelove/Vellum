@@ -43,22 +43,71 @@ pub async fn trigger_full_reset(State(state): State<Arc<AppState>>) -> Response 
     Json(json!({"status": "ok"})).into_response()
 }
 
+pub async fn trigger_batch_reload(
+    State(state): State<Arc<AppState>>,
+    Json(paths): Json<Vec<String>>,
+) -> Response {
+    let start_time = std::time::Instant::now();
+    let config_guard = state.config.read().await;
+    let mut processed_ids = Vec::new();
+
+    {
+        let mut query = state.query.lock().await;
+        let scanner = crate::server::library::scanner::Library::new(config_guard.library_root.clone());
+        for path in &paths {
+            if let Some(id) = scanner.update_album(path, &mut query) {
+                processed_ids.push(id);
+            }
+        }
+        if !processed_ids.is_empty() {
+            let _ = query.build_cache();
+        }
+    }
+
+    if !processed_ids.is_empty() {
+        let elapsed = start_time.elapsed().as_millis();
+        
+        if processed_ids.len() == 1 {
+            log::info!("Updated: {} in {}ms", processed_ids[0], elapsed);
+            let dict_entry = {
+                let query = state.query.lock().await;
+                query.dict.get(&processed_ids[0]).cloned()
+            };
+            let _ = state.tx.send(json!({
+                "type": "ALBUM_UPDATED",
+                "id": processed_ids[0],
+                "dictEntry": dict_entry.unwrap_or(json!({}))
+            }).to_string());
+        } else {
+            log::info!("Updated {} albums in {}ms", processed_ids.len(), elapsed);
+            let _ = state.tx.send(json!({"type": "LOGIC_UPDATE"}).to_string());
+        }
+    }
+
+    Json(processed_ids).into_response()
+}
+
 pub async fn trigger_reload(
     State(state): State<Arc<AppState>>,
     Query(params): Query<std::collections::HashMap<String, String>>,
 ) -> Response {
+    let start_time = std::time::Instant::now();
     if let Some(path) = params.get("path") {
         let config_guard = state.config.read().await;
         let (internal_id, dict_entry) = {
             let mut query = state.query.lock().await;
             let scanner = crate::server::library::scanner::Library::new(config_guard.library_root.clone());
             let id = scanner.update_album(path, &mut query);
+            if id.is_some() {
+                let _ = query.build_cache();
+            }
             let entry = id.as_ref().and_then(|i| query.dict.get(i).cloned());
             (id, entry)
         };
 
         if let Some(id) = internal_id {
-            log::info!("Updated: {}", id);
+            let elapsed = start_time.elapsed().as_millis();
+            log::info!("Updated: {} in {}ms", id, elapsed);
             
             let _ = state.tx.send(json!({
                 "type": "ALBUM_UPDATED",
