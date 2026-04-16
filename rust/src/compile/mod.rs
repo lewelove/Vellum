@@ -32,7 +32,7 @@ pub struct CompileOptions {
     pub flags: Vec<String>,
     pub specific_albums: Option<Vec<PathBuf>>,
     pub jobs: Option<usize>,
-    pub notify_tx: Option<mpsc::Sender<PathBuf>>,
+    pub notify_tx: Option<mpsc::Sender<engine::stream::AlbumUpdateSignal>>,
     pub compile_flags: CompileFlags,
 }
 

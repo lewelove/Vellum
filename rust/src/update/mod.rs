@@ -93,24 +93,18 @@ pub async fn run(
     let dirty_count = work_queue.len();
     let start_time = std::time::Instant::now();
 
-    let (notify_tx, mut notify_rx) = mpsc::channel::<PathBuf>(100);
+    let (notify_tx, mut notify_rx) = mpsc::channel::<compile::engine::stream::AlbumUpdateSignal>(100);
     let cache_arc = Arc::new(Mutex::new(cache));
     let cache_for_task = Arc::clone(&cache_arc);
     let exts_for_task = exts.clone();
 
     let notification_task = tokio::spawn(async move {
         let mut updated_paths = Vec::new();
-        while let Some(album_root) = notify_rx.recv().await {
+        while let Some(signal) = notify_rx.recv().await {
             if verbose {
-                if let Ok(content) = fs::read_to_string(album_root.join("metadata.lock.json")) {
-                    if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
-                        let artist = json.get("album").and_then(|a| a.get("ALBUMARTIST")).and_then(|a| a.as_str()).unwrap_or("Unknown");
-                        let album = json.get("album").and_then(|a| a.get("ALBUM")).and_then(|a| a.as_str()).unwrap_or("Unknown");
-                        log::info!("Updated: {} - {}", artist, album);
-                    }
-                }
+                log::info!("Updated: {} - {}", signal.artist, signal.album);
             }
-            updated_paths.push(album_root);
+            updated_paths.push(signal.path);
         }
 
         if updated_paths.is_empty() {

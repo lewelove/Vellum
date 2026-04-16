@@ -6,6 +6,12 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::mpsc;
 
+pub struct AlbumUpdateSignal {
+    pub path: PathBuf,
+    pub artist: String,
+    pub album: String,
+}
+
 pub struct StreamContext {
     pub albums: Vec<PathBuf>,
     pub config: Arc<Value>,
@@ -14,7 +20,7 @@ pub struct StreamContext {
     pub active_flags: Arc<Vec<String>>,
     pub target: ExportTarget,
     pub jobs: Option<usize>,
-    pub notify_tx: Option<mpsc::Sender<PathBuf>>,
+    pub notify_tx: Option<mpsc::Sender<AlbumUpdateSignal>>,
 }
 
 pub async fn run(ctx: StreamContext) -> Result<()> {
@@ -178,8 +184,11 @@ fn format_json_inline(value: &Value, out: &mut String) {
 fn finalize(
     mut v: Value,
     target: ExportTarget,
-    notify_tx: Option<Arc<mpsc::Sender<PathBuf>>>,
+    notify_tx: Option<Arc<mpsc::Sender<AlbumUpdateSignal>>>,
 ) -> Result<()> {
+    let artist = v.get("album").and_then(|a| a.get("ALBUMARTIST")).and_then(Value::as_str).unwrap_or("Unknown").to_string();
+    let album = v.get("album").and_then(|a| a.get("ALBUM")).and_then(Value::as_str).unwrap_or("Unknown").to_string();
+
     let ctx = v
         .as_object_mut()
         .and_then(|o| o.remove("ctx"))
@@ -244,7 +253,11 @@ fn finalize(
                 let root_clone = album_root.to_path_buf();
                 let tx = (*tx_arc).clone();
                 tokio::spawn(async move {
-                    let _ = tx.send(root_clone).await;
+                    let _ = tx.send(AlbumUpdateSignal {
+                        path: root_clone,
+                        artist,
+                        album,
+                    }).await;
                 });
             }
         }
