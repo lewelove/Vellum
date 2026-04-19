@@ -1,11 +1,11 @@
 <script>
   import { library } from "../../library.svelte.js";
 
-  let isShelfMenuOpen = $state(false);
+  let isCollectionMenuOpen = $state(false);
   let isSortMenuOpen = $state(false);
   let isGroupMenuOpen = $state(false);
 
-  let shelfLabel = $derived(library.availableShelves[library.activeShelf]?.label || "Unknown");
+  let collectionLabel = $derived(library.availableCollections[library.activeCollection]?.label || "Unknown");
   let groupLabel = $derived(library.visibleFacets[library.activeSidebarGrouper] || "Unknown");
   let sortLabel = $derived(library.visibleSorters[library.userSortPreference] || "Unknown");
 
@@ -13,9 +13,9 @@
 
   let isReverse = $derived(library.userSortOrder === "reverse");
 
-  function toggleShelfMenu() {
-    isShelfMenuOpen = !isShelfMenuOpen;
-    if (isShelfMenuOpen) {
+  function toggleCollectionMenu() {
+    isCollectionMenuOpen = !isCollectionMenuOpen;
+    if (isCollectionMenuOpen) {
       isSortMenuOpen = false;
       isGroupMenuOpen = false;
     }
@@ -25,7 +25,7 @@
     isSortMenuOpen = !isSortMenuOpen;
     if (isSortMenuOpen) {
       isGroupMenuOpen = false;
-      isShelfMenuOpen = false;
+      isCollectionMenuOpen = false;
     }
   }
 
@@ -33,13 +33,13 @@
     isGroupMenuOpen = !isGroupMenuOpen;
     if (isGroupMenuOpen) {
       isSortMenuOpen = false;
-      isShelfMenuOpen = false;
+      isCollectionMenuOpen = false;
     }
   }
 
-  function selectShelf(key) {
-    library.setShelf(key);
-    isShelfMenuOpen = false;
+  function selectCollection(key) {
+    library.setCollection(key);
+    isCollectionMenuOpen = false;
   }
 
   function selectSorter(key) {
@@ -69,25 +69,25 @@
   <div class="sidebar-controls">
     <div class="control-row">
       <div class="button-wrapper flex-grow">
-        <button class="sidebar-btn" onclick={toggleShelfMenu} class:active={isShelfMenuOpen} title="Shelf">
+        <button class="sidebar-btn" onclick={toggleCollectionMenu} class:active={isCollectionMenuOpen} title="Collection">
           <img src="icons/outlined/20px/auto_stories.svg" alt="" class="btn-icon" />
-          <span class="v-truncate btn-label">{shelfLabel}</span>
+          <span class="v-truncate btn-label">{collectionLabel}</span>
           <img 
-            src={isShelfMenuOpen ? "icons/24px/arrow_drop_up.svg" : "icons/24px/arrow_drop_down.svg"}  
+            src={isCollectionMenuOpen ? "icons/24px/arrow_drop_up.svg" : "icons/24px/arrow_drop_down.svg"}  
             class="chevron" 
             alt="" 
           />
         </button>
     
-        {#if isShelfMenuOpen}
+        {#if isCollectionMenuOpen}
           <div class="control-menu">
-            {#each Object.entries(library.availableShelves) as [key, shelf]}
+            {#each Object.entries(library.availableCollections) as [key, collection]}
               <button 
                 class="menu-item" 
-                class:selected={library.activeShelf === key}
-                onclick={() => selectShelf(key)}
+                class:selected={library.activeCollection === key}
+                onclick={() => selectCollection(key)}
               >
-                {shelf.label}
+                {collection.label}
               </button>
             {/each}
           </div>

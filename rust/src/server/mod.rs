@@ -65,7 +65,7 @@ pub async fn run(port: u16) -> Result<()> {
     } else {
         serde_json::json!({
             "activeTab": "home",
-            "activeShelf": "library",
+            "activeCollection": "library",
             "sortKey": "default",
             "sortOrder": "default",
             "groupKey": "genre",

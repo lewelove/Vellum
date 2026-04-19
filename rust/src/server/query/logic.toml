@@ -60,6 +60,6 @@ order_by = "COALESCE(json_extract(metadata, '$.album.info.metadata_toml_mtime'),
 
 # -- SHELVES --
 
-[shelves.library]
+[collections.library]
 label = "Entire Library"
 filter = "1=1"

@@ -10,7 +10,7 @@ use std::path::Path;
 pub struct LogicManifest {
     pub groupers: IndexMap<String, GrouperDef>,
     pub sorters: IndexMap<String, SorterDef>,
-    pub shelves: IndexMap<String, ShelfDef>,
+    pub collections: IndexMap<String, CollectionDef>,
 }
 
 impl LogicManifest {
@@ -25,33 +25,33 @@ impl LogicManifest {
             .map(|(id, _)| id.clone())
             .collect();
 
-        for (_, shelf) in self.shelves.iter_mut() {
+        for (_, collection) in self.collections.iter_mut() {
             let mut allowed_g_ids = HashSet::new();
-            for g in &shelf.groupers {
+            for g in &collection.groupers {
                 allowed_g_ids.insert(g.clone());
             }
-            if !shelf.strict {
+            if !collection.strict {
                 for g in &global_groupers {
                     allowed_g_ids.insert(g.clone());
                 }
             }
 
             let mut allowed_s_ids = HashSet::new();
-            for s in &shelf.sorters {
+            for s in &collection.sorters {
                 allowed_s_ids.insert(s.clone());
             }
-            if !shelf.strict {
+            if !collection.strict {
                 for s in &global_sorters {
                     allowed_s_ids.insert(s.clone());
                 }
             }
 
-            shelf.allowed_groupers = self.groupers.keys()
+            collection.allowed_groupers = self.groupers.keys()
                 .filter(|k| allowed_g_ids.contains(*k))
                 .cloned()
                 .collect();
 
-            shelf.allowed_sorters = self.sorters.keys()
+            collection.allowed_sorters = self.sorters.keys()
                 .filter(|k| allowed_s_ids.contains(*k))
                 .cloned()
                 .collect();
@@ -76,7 +76,7 @@ pub struct SorterDef {
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
-pub struct ShelfDef {
+pub struct CollectionDef {
     pub label: String,
     pub filter: String,
     #[serde(default)]
@@ -94,7 +94,7 @@ pub struct ShelfDef {
 pub struct QueryEngine {
     conn: Connection,
     pub manifest: LogicManifest,
-    shelves_cache: HashMap<String, HashSet<u32>>,
+    collections_cache: HashMap<String, HashSet<u32>>,
     facets_cache: HashMap<String, HashMap<String, HashSet<u32>>>,
     sorters_cache: HashMap<String, Vec<u32>>,
     uid_to_id: HashMap<u32, String>,
@@ -128,7 +128,7 @@ impl QueryEngine {
         Ok(Self {
             conn,
             manifest,
-            shelves_cache: HashMap::new(),
+            collections_cache: HashMap::new(),
             facets_cache: HashMap::new(),
             sorters_cache: HashMap::new(),
             uid_to_id: HashMap::new(),
@@ -149,7 +149,7 @@ impl QueryEngine {
 
     pub fn clear(&mut self) -> Result<()> {
         self.conn.execute("DELETE FROM albums",[])?;
-        self.shelves_cache.clear();
+        self.collections_cache.clear();
         self.facets_cache.clear();
         self.sorters_cache.clear();
         self.uid_to_id.clear();
@@ -229,12 +229,12 @@ impl QueryEngine {
     }
 
     pub fn build_cache(&mut self) -> Result<()> {
-        self.shelves_cache.clear();
-        for (key, shelf) in &self.manifest.shelves {
-            let sql = format!("SELECT uid FROM albums WHERE {}", shelf.filter);
+        self.collections_cache.clear();
+        for (key, collection) in &self.manifest.collections {
+            let sql = format!("SELECT uid FROM albums WHERE {}", collection.filter);
             let mut stmt = self.conn.prepare(&sql)?;
             let uids: HashSet<u32> = stmt.query_map([], |row| row.get(0))?.filter_map(Result::ok).collect();
-            self.shelves_cache.insert(key.clone(), uids);
+            self.collections_cache.insert(key.clone(), uids);
         }
 
         self.sorters_cache.clear();
@@ -282,10 +282,10 @@ impl QueryEngine {
         Ok(())
     }
 
-    pub fn request_view(&self, shelf: &str, sort: &str, filter_key: Option<&str>, filter_val: Option<&str>, reverse: bool) -> Vec<String> {
+    pub fn request_view(&self, collection: &str, sort: &str, filter_key: Option<&str>, filter_val: Option<&str>, reverse: bool) -> Vec<String> {
         let empty_set = HashSet::new();
-        let shelf_mask = self.shelves_cache.get(shelf).unwrap_or(&empty_set);
-        let mut final_mask = shelf_mask.clone();
+        let collection_mask = self.collections_cache.get(collection).unwrap_or(&empty_set);
+        let mut final_mask = collection_mask.clone();
 
         if let (Some(fk), Some(fv)) = (filter_key, filter_val) {
             if fk == "search" {
@@ -320,14 +320,14 @@ impl QueryEngine {
         res
     }
 
-    pub fn request_group(&self, shelf: &str, grouper: &str) -> Vec<Value> {
+    pub fn request_group(&self, collection: &str, grouper: &str) -> Vec<Value> {
         let empty_set = HashSet::new();
-        let shelf_mask = self.shelves_cache.get(shelf).unwrap_or(&empty_set);
+        let collection_mask = self.collections_cache.get(collection).unwrap_or(&empty_set);
         
         let mut results = Vec::new();
         if let Some(facet_map) = self.facets_cache.get(grouper) {
             for (val, mask) in facet_map {
-                let count = mask.intersection(shelf_mask).count();
+                let count = mask.intersection(collection_mask).count();
                 if count > 0 {
                     results.push(json!({
                         "value": val,

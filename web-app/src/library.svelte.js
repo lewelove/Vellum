@@ -26,7 +26,7 @@ class LibraryState {
   isConnected = $state(false);
   focusedAlbum = $state(null);
   
-  activeShelf = $state("library");
+  activeCollection = $state("library");
   activeFilter = $state({ key: null, val: null });
   activeSort = $state({ key: "default", order: "default" });
   userSortPreference = $state("default");
@@ -41,7 +41,7 @@ class LibraryState {
   queuePanels = $state({ lyrics: false, tracks: true });
   themeVersion = $state(Date.now());
   
-  manifest = $state({ shelves: {}, groupers: {}, sorters: {} });
+  manifest = $state({ collections: {}, groupers: {}, sorters: {} });
 
   config = $state({
     thumbnail_size: 200,
@@ -191,7 +191,7 @@ class LibraryState {
 
   applyPersistedState(state) {
       nav.activeTab = state.activeTab || "home";
-      this.activeShelf = state.activeShelf || "library";
+      this.activeCollection = state.activeCollection || "library";
       this.userSortPreference = state.sortKey || "default";
       this.userSortOrder = state.sortOrder || "default";
       this.activeSort = { key: this.userSortPreference, order: this.userSortOrder };
@@ -207,7 +207,7 @@ class LibraryState {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
               activeTab: nav.activeTab,
-              activeShelf: this.activeShelf,
+              activeCollection: this.activeCollection,
               sortKey: this.userSortPreference,
               sortOrder: this.userSortOrder,
               groupKey: this.activeSidebarGrouper,
@@ -223,7 +223,7 @@ class LibraryState {
     this._pendingViewReset = resetScroll;
     this._ws.send(JSON.stringify({
         type: "VIEW_REQUEST",
-        shelf: this.activeShelf,
+        collection: this.activeCollection,
         sort: this.activeSort.key,
         reverse: this.activeSort.order === "reverse",
         filter: this.activeFilter
@@ -234,7 +234,7 @@ class LibraryState {
     if (!this._ws || this._ws.readyState !== WebSocket.OPEN) return;
     this._ws.send(JSON.stringify({
         type: "GROUP_REQUEST",
-        shelf: this.activeShelf,
+        collection: this.activeCollection,
         key: this.activeSidebarGrouper
     }));
   }
@@ -263,15 +263,15 @@ class LibraryState {
     return `/api/assets/cover/${encodeURIComponent(albumId)}?v=${album.cover_hash}`;
   }
 
-  get availableShelves() { return this.manifest.shelves || {}; }
+  get availableCollections() { return this.manifest.collections || {}; }
   get availableFacets() { return this.manifest.groupers || {}; }
   get availableSorters() { return this.manifest.sorters || {}; }
 
   get visibleFacets() {
-    const shelf = this.availableShelves[this.activeShelf];
-    if (shelf && shelf.allowed_groupers) {
+    const collection = this.availableCollections[this.activeCollection];
+    if (collection && collection.allowed_groupers) {
       const res = {};
-      for (const k of shelf.allowed_groupers) {
+      for (const k of collection.allowed_groupers) {
         if (this.availableFacets[k]) res[k] = this.availableFacets[k].label || k;
       }
       return res;
@@ -282,10 +282,10 @@ class LibraryState {
   }
 
   get visibleSorters() {
-    const shelf = this.availableShelves[this.activeShelf];
-    if (shelf && shelf.allowed_sorters) {
+    const collection = this.availableCollections[this.activeCollection];
+    if (collection && collection.allowed_sorters) {
       const res = {};
-      for (const k of shelf.allowed_sorters) {
+      for (const k of collection.allowed_sorters) {
         if (this.availableSorters[k]) res[k] = this.availableSorters[k].label || k;
       }
       return res;
@@ -295,18 +295,18 @@ class LibraryState {
     return res;
   }
 
-  setShelf(key) {
-    this.activeShelf = key;
+  setCollection(key) {
+    this.activeCollection = key;
     this.activeFilter = { key: null, val: null };
     this.focusedAlbum = null;
 
-    const shelf = this.availableShelves[key];
-    if (shelf) {
-        if (shelf.allowed_groupers && !shelf.allowed_groupers.includes(this.activeSidebarGrouper)) {
-            this.activeSidebarGrouper = shelf.allowed_groupers[0] || Object.keys(this.availableFacets)[0] || "genre";
+    const collection = this.availableCollections[key];
+    if (collection) {
+        if (collection.allowed_groupers && !collection.allowed_groupers.includes(this.activeSidebarGrouper)) {
+            this.activeSidebarGrouper = collection.allowed_groupers[0] || Object.keys(this.availableFacets)[0] || "genre";
         }
-        if (shelf.allowed_sorters && !shelf.allowed_sorters.includes(this.userSortPreference)) {
-            this.userSortPreference = shelf.allowed_sorters[0] || Object.keys(this.availableSorters)[0] || "default";
+        if (collection.allowed_sorters && !collection.allowed_sorters.includes(this.userSortPreference)) {
+            this.userSortPreference = collection.allowed_sorters[0] || Object.keys(this.availableSorters)[0] || "default";
             this.activeSort = { key: this.userSortPreference, order: this.userSortOrder };
         }
     }
