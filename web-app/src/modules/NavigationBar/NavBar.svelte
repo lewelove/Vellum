@@ -17,8 +17,9 @@
 
 <nav class="nav-bar" class:v-glass={variant === 'glass'}>
   <div class="nav-group top">
-    {@render NavButton({ icon: "icons/24px/house.svg", tab: "home" })}
-    {@render NavButton({ icon: "icons/24px/queue_music.svg", tab: "queue" })}
+    {@render NavButton({ icon: "icons/outlined/24px/house.svg", tab: "home" })}
+    {@render NavButton({ icon: "icons/outlined/24px/queue_music.svg", tab: "queue" })}
+    {@render NavButton({ icon: "icons/outlined/24px/newsstand.svg", tab: "shelves" })}
   </div>
 </nav>
 

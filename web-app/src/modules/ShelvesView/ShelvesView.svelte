@@ -2,7 +2,7 @@
   import { library } from "../../library.svelte.js";
 
   import NavBar from "../NavigationBar/NavBar.svelte";
-  import AlbumGrid from "./AlbumGrid/AlbumGrid.svelte";
+  import AlbumGrid from "../HomeView/AlbumGrid/AlbumGrid.svelte";
   import Sidebar from "./Sidebar.svelte";
 
   let isResizing = $state(false);

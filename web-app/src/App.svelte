@@ -4,10 +4,49 @@
   import { nav, setTab } from "./navigation.svelte.js";
   
   import HomeView from "./modules/HomeView/HomeView.svelte";
+  import ShelvesView from "./modules/ShelvesView/ShelvesView.svelte";
   import QueueView from "./modules/QueueView/QueueView.svelte";
   import ModalDrawer from "./modules/HomeView/ModalDrawer/ModalDrawer.svelte";
 
-  let isQueueVisible = $derived(nav.activeTab === "queue");
+  const tabOrder = { home: 1, queue: 2, shelves: 3 };
+  let currentTab = $state(nav.activeTab);
+  let retentionTab = $state(null);
+  let instantTab = $state(null);
+
+  $effect(() => {
+    if (nav.activeTab !== currentTab) {
+      const oldTab = currentTab;
+      const newTab = nav.activeTab;
+      
+      if (tabOrder[newTab] > tabOrder[oldTab]) {
+        retentionTab = oldTab;
+        instantTab = null;
+        setTimeout(() => {
+          if (retentionTab === oldTab) retentionTab = null;
+        }, 100);
+      } else {
+        retentionTab = null;
+        instantTab = newTab;
+        setTimeout(() => {
+          if (instantTab === newTab) instantTab = null;
+        }, 100);
+      }
+      
+      currentTab = newTab;
+    }
+  });
+
+  let isHomeActive = $derived(currentTab === 'home');
+  let isQueueActive = $derived(currentTab === 'queue');
+  let isShelvesActive = $derived(currentTab === 'shelves');
+
+  let isHomeVisible = true;
+  let isQueueVisible = $derived(currentTab === 'queue' || retentionTab === 'queue');
+  let isShelvesVisible = $derived(currentTab === 'shelves' || retentionTab === 'shelves');
+
+  let isQueueInstant = $derived(instantTab === 'queue');
+  let isShelvesInstant = $derived(instantTab === 'shelves');
+  
   let isModalVisible = $derived(!!library.focusedAlbum);
 
   function handleKeydown(e) {
@@ -35,21 +74,9 @@
       return;
     }
 
-    if (
-      key === '1' || 
-      key === 'h' || 
-      key === 'arrowleft'
-    ) {
-      setTab('home');
-    }
-
-    if (
-      key === '2' || 
-      key === 'l' || 
-      key === 'arrowright'
-    ) {
-      setTab('queue');
-    }
+    if (key === '1' || key === 'h') setTab('home');
+    if (key === '2' || key === 'q') setTab('queue');
+    if (key === '3' || key === 's') setTab('shelves');
   }
 
   onMount(() => {
@@ -65,8 +92,16 @@
 
 <main>
   
-  <div class="view-layer home">
+  <div class="view-layer home" class:visible={isHomeVisible} class:active={isHomeActive} aria-hidden={!isHomeActive}>
     <HomeView />
+  </div>
+
+  <div class="view-layer queue" class:visible={isQueueVisible} class:active={isQueueActive} class:instant={isQueueInstant} aria-hidden={!isQueueActive}>
+    <QueueView />
+  </div>
+
+  <div class="view-layer shelves" class:visible={isShelvesVisible} class:active={isShelvesActive} class:instant={isShelvesInstant} aria-hidden={!isShelvesActive}>
+    <ShelvesView />
   </div>
 
   {#if isModalVisible}
@@ -74,14 +109,6 @@
         <ModalDrawer album={library.focusedAlbum} onclose={() => library.closeFocus()} />
     </div>
   {/if}
-
-  <div 
-    class="view-layer queue"
-    class:visible={isQueueVisible}
-    aria-hidden={!isQueueVisible}
-  >
-    <QueueView />
-  </div>
 
 </main>
 
@@ -107,25 +134,39 @@
     display: flex;
     flex-direction: row;
     overflow: hidden;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.1s ease-out, visibility 0s linear 0.1s;
+  }
+
+  .view-layer.visible {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.1s ease-out, visibility 0s linear 0s;
+  }
+
+  .view-layer.instant {
+    transition: none !important;
+  }
+
+  .view-layer.active {
+    pointer-events: auto;
   }
 
   .view-layer.home {
     z-index: 1;
+    background-color: var(--background-main);
   }
 
   .view-layer.queue {
-    z-index: 200;
+    z-index: 2;
     background-color: var(--background-main);
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.1s ease-out, visibility 0.1s;
-    pointer-events: none;
   }
 
-  .view-layer.queue.visible {
-    opacity: 1;
-    visibility: visible;
-    pointer-events: auto;
+  .view-layer.shelves {
+    z-index: 3;
+    background-color: var(--background-main);
   }
 
   .modal-layer {

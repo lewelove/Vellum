@@ -32,6 +32,7 @@ class LibraryState {
   userSortPreference = $state("default");
   userSortOrder = $state("default");
   activeSidebarGrouper = $state("genre");
+  activeShelf = $state(null);
   
   viewVersion = $state(0);
   pinnedTextures = $state(new Map());
@@ -41,7 +42,9 @@ class LibraryState {
   queuePanels = $state({ lyrics: false, tracks: true });
   themeVersion = $state(Date.now());
   
-  manifest = $state({ collections: {}, groupers: {}, sorters: {} });
+  sidebarWidth = $state(260);
+  
+  manifest = $state({ collections: {}, groupers: {}, sorters: {}, shelves: {} });
 
   config = $state({
     thumbnail_size: 200,
@@ -102,7 +105,7 @@ class LibraryState {
       this.refreshSidebar();
       
     } else if (json.type === "VIEW_DATA") {
-      this.activeViewIds = json.ids || [];
+      this.activeViewIds = json.ids ||[];
       this.isLoading = false;
       if (this._pendingViewReset) {
           this.viewVersion++;
@@ -197,8 +200,10 @@ class LibraryState {
       this.activeSort = { key: this.userSortPreference, order: this.userSortOrder };
       this.activeSidebarGrouper = state.groupKey || "genre";
       this.activeFilter = state.filter || { key: null, val: null };
+      this.activeShelf = state.activeShelf || null;
       this.isShaderEnabled = state.isShaderEnabled ?? true;
       this.queuePanels = state.queuePanels || { lyrics: false, tracks: true };
+      this.sidebarWidth = state.sidebarWidth || 160;
   }
 
   persistState() {
@@ -212,8 +217,10 @@ class LibraryState {
               sortOrder: this.userSortOrder,
               groupKey: this.activeSidebarGrouper,
               filter: $state.snapshot(this.activeFilter),
+              activeShelf: this.activeShelf,
               isShaderEnabled: this.isShaderEnabled,
-              queuePanels: $state.snapshot(this.queuePanels)
+              queuePanels: $state.snapshot(this.queuePanels),
+              sidebarWidth: this.sidebarWidth
           })
       }).catch(err => console.error(err));
   }
@@ -221,13 +228,21 @@ class LibraryState {
   refreshView(resetScroll = true) {
     if (!this._ws || this._ws.readyState !== WebSocket.OPEN) return;
     this._pendingViewReset = resetScroll;
-    this._ws.send(JSON.stringify({
-        type: "VIEW_REQUEST",
-        collection: this.activeCollection,
-        sort: this.activeSort.key,
-        reverse: this.activeSort.order === "reverse",
-        filter: this.activeFilter
-    }));
+    
+    if (nav.activeTab === "shelves") {
+        this._ws.send(JSON.stringify({
+            type: "SHELF_REQUEST",
+            shelf: this.activeShelf || Object.keys(this.availableShelves)[0]
+        }));
+    } else {
+        this._ws.send(JSON.stringify({
+            type: "VIEW_REQUEST",
+            collection: this.activeCollection,
+            sort: this.activeSort.key,
+            reverse: this.activeSort.order === "reverse",
+            filter: this.activeFilter
+        }));
+    }
   }
 
   refreshSidebar() {
@@ -242,9 +257,9 @@ class LibraryState {
   getSidebarGroup(key) {
     if (!this.sidebarGroups.has(key) && this._ws?.readyState === WebSocket.OPEN) {
         this.refreshSidebar();
-        return [];
+        return[];
     }
-    return this.sidebarGroups.get(key) || [];
+    return this.sidebarGroups.get(key) ||[];
   }
 
   getTrackByPath(path) {
@@ -266,6 +281,7 @@ class LibraryState {
   get availableCollections() { return this.manifest.collections || {}; }
   get availableFacets() { return this.manifest.groupers || {}; }
   get availableSorters() { return this.manifest.sorters || {}; }
+  get availableShelves() { return this.manifest.shelves || {}; }
 
   get visibleFacets() {
     const collection = this.availableCollections[this.activeCollection];
@@ -313,6 +329,13 @@ class LibraryState {
 
     this.refreshView(true);
     this.refreshSidebar();
+    this.persistState();
+  }
+
+  setShelf(key) {
+    this.activeShelf = key;
+    this.focusedAlbum = null;
+    this.refreshView(true);
     this.persistState();
   }
 

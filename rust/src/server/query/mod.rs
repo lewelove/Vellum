@@ -11,6 +11,8 @@ pub struct LogicManifest {
     pub groupers: IndexMap<String, GrouperDef>,
     pub sorters: IndexMap<String, SorterDef>,
     pub collections: IndexMap<String, CollectionDef>,
+    #[serde(default)]
+    pub shelves: IndexMap<String, ShelfDef>,
 }
 
 impl LogicManifest {
@@ -91,12 +93,20 @@ pub struct CollectionDef {
     pub allowed_sorters: Vec<String>,
 }
 
+#[derive(Deserialize, Serialize, Clone, Debug)]
+pub struct ShelfDef {
+    pub label: String,
+    pub filter: String,
+    pub order_by: String,
+}
+
 pub struct QueryEngine {
     conn: Connection,
     pub manifest: LogicManifest,
     collections_cache: HashMap<String, HashSet<u32>>,
     facets_cache: HashMap<String, HashMap<String, HashSet<u32>>>,
     sorters_cache: HashMap<String, Vec<u32>>,
+    shelves_cache: HashMap<String, Vec<u32>>,
     uid_to_id: HashMap<u32, String>,
     pub dict: HashMap<String, Value>,
     pub track_lookup: HashMap<String, Value>,
@@ -131,6 +141,7 @@ impl QueryEngine {
             collections_cache: HashMap::new(),
             facets_cache: HashMap::new(),
             sorters_cache: HashMap::new(),
+            shelves_cache: HashMap::new(),
             uid_to_id: HashMap::new(),
             dict: HashMap::new(),
             track_lookup: HashMap::new(),
@@ -152,6 +163,7 @@ impl QueryEngine {
         self.collections_cache.clear();
         self.facets_cache.clear();
         self.sorters_cache.clear();
+        self.shelves_cache.clear();
         self.uid_to_id.clear();
         self.dict.clear();
         self.track_lookup.clear();
@@ -245,6 +257,17 @@ impl QueryEngine {
             self.sorters_cache.insert(key.clone(), uids);
         }
 
+        self.shelves_cache.clear();
+        for (key, shelf) in &self.manifest.shelves {
+            let sql = format!("SELECT uid FROM albums WHERE {} ORDER BY {}", shelf.filter, shelf.order_by);
+            if let Ok(mut stmt) = self.conn.prepare(&sql) {
+                let uids: Vec<u32> = stmt.query_map([], |row| row.get(0))
+                    .map(|rows| rows.filter_map(Result::ok).collect())
+                    .unwrap_or_default();
+                self.shelves_cache.insert(key.clone(), uids);
+            }
+        }
+
         self.facets_cache.clear();
         for (key, grouper) in &self.manifest.groupers {
             let sql = format!("SELECT uid, {} FROM albums", grouper.select);
@@ -318,6 +341,12 @@ impl QueryEngine {
             res.reverse();
         }
         res
+    }
+
+    pub fn request_shelf_view(&self, shelf: &str) -> Vec<String> {
+        let empty_vec = Vec::new();
+        let uids = self.shelves_cache.get(shelf).unwrap_or(&empty_vec);
+        uids.iter().filter_map(|uid| self.uid_to_id.get(uid).cloned()).collect()
     }
 
     pub fn request_group(&self, collection: &str, grouper: &str) -> Vec<Value> {

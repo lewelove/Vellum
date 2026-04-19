@@ -73,7 +73,7 @@
           <img src="icons/outlined/20px/auto_stories.svg" alt="" class="btn-icon" />
           <span class="v-truncate btn-label">{collectionLabel}</span>
           <img 
-            src={isCollectionMenuOpen ? "icons/24px/arrow_drop_up.svg" : "icons/24px/arrow_drop_down.svg"}  
+            src={isCollectionMenuOpen ? "icons/outlined/24px/arrow_drop_up.svg" : "icons/outlined/24px/arrow_drop_down.svg"}  
             class="chevron" 
             alt="" 
           />
@@ -101,7 +101,7 @@
           <img src="icons/outlined/20px/stack_group.svg" alt="" class="btn-icon" />
           <span class="v-truncate btn-label">{groupLabel}</span>
           <img 
-            src={isGroupMenuOpen ? "icons/24px/arrow_drop_up.svg" : "icons/24px/arrow_drop_down.svg"}  
+            src={isGroupMenuOpen ? "icons/outlined/24px/arrow_drop_up.svg" : "icons/outlined/24px/arrow_drop_down.svg"}  
             class="chevron" 
             alt="" 
           />
@@ -129,7 +129,7 @@
           <img src="icons/outlined/20px/swap_vert.svg" alt="" class="btn-icon" />
           <span class="v-truncate btn-label">{sortLabel}</span>
           <img 
-            src={isSortMenuOpen ? "icons/24px/arrow_drop_up.svg" : "icons/24px/arrow_drop_down.svg"} 
+            src={isSortMenuOpen ? "icons/outlined/24px/arrow_drop_up.svg" : "icons/outlined/24px/arrow_drop_down.svg"} 
             class="chevron" 
             alt="" 
           />
@@ -154,7 +154,7 @@
         <img 
           class="btn-icon no-margin"
           class:mirrored={isReverse}
-          src="/icons/24px/arrow_shape_up_stack_down.svg" 
+          src="/icons/outlined/24px/arrow_shape_up_stack.svg" 
           alt="Direction" 
         />
       </button>

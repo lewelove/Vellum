@@ -60,6 +60,10 @@ async fn handle_socket(mut socket: WebSocket, state: Arc<AppState>) {
                                 
                                 let ids = state.query.lock().await.request_view(collection, sort, filter_key, filter_val, reverse);
                                 let _ = socket.send(ax_ws::Message::Text(json!({ "type": "VIEW_DATA", "ids": ids }).to_string().into())).await;
+                            } else if req_type == "SHELF_REQUEST" {
+                                let shelf = req.get("shelf").and_then(|v| v.as_str()).unwrap_or("");
+                                let ids = state.query.lock().await.request_shelf_view(shelf);
+                                let _ = socket.send(ax_ws::Message::Text(json!({ "type": "VIEW_DATA", "ids": ids }).to_string().into())).await;
                             } else if req_type == "GROUP_REQUEST" {
                                 let collection = req.get("collection").and_then(|v| v.as_str()).unwrap_or("library");
                                 let key = req.get("key").and_then(|v| v.as_str()).unwrap_or("");

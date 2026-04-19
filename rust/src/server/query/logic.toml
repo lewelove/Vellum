@@ -58,8 +58,15 @@ order_by = "CAST(json_extract(metadata, '$.album.info.unix_added') AS INT) DESC"
 label = "Last Edited"
 order_by = "COALESCE(json_extract(metadata, '$.album.info.metadata_toml_mtime'), 0) DESC"
 
-# -- SHELVES --
+# -- COLLECTIONS --
 
 [collections.library]
 label = "Entire Library"
 filter = "1=1"
+
+# -- SHELVES --
+
+[shelves.recently_added]
+label = "Recently Added"
+filter = "1=1"
+order_by = "CAST(json_extract(metadata, '$.album.info.unix_added') AS INT) DESC"
