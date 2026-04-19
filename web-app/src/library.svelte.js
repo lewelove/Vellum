@@ -5,9 +5,15 @@ import { nav } from "./navigation.svelte.js";
 class LibraryState {
   dict = $state({});
   trackPathMap = $state({});
-  activeViewIds = $state([]);
   
-  albums = $derived(this.activeViewIds.map(id => {
+  libraryViewIds = $state([]);
+  shelfViewIds = $state([]);
+  
+  libraryAlbums = $derived(this.mapIdsToAlbums(this.libraryViewIds));
+  shelfAlbums = $derived(this.mapIdsToAlbums(this.shelfViewIds));
+  
+  mapIdsToAlbums(ids) {
+    return ids.map(id => {
       let a = this.dict[id];
       return a ? {
           id: a.id,
@@ -19,7 +25,8 @@ class LibraryState {
           album_duration_time: a.album_duration_time,
           tags: a.tags
       } : null;
-  }).filter(Boolean));
+    }).filter(Boolean);
+  }
   
   sidebarGroups = $state(new Map()); 
   isLoading = $state(true);
@@ -34,7 +41,9 @@ class LibraryState {
   activeSidebarGrouper = $state("genre");
   activeShelf = $state(null);
   
-  viewVersion = $state(0);
+  libraryVersion = $state(0);
+  shelfVersion = $state(0);
+
   pinnedTextures = $state(new Map());
   fullAlbumCache = $state({});
   isShaderEnabled = $state(true);
@@ -42,7 +51,7 @@ class LibraryState {
   queuePanels = $state({ lyrics: false, tracks: true });
   themeVersion = $state(Date.now());
   
-  sidebarWidth = $state(260);
+  sidebarWidth = $state(160);
   
   manifest = $state({ collections: {}, groupers: {}, sorters: {}, shelves: {} });
 
@@ -87,30 +96,27 @@ class LibraryState {
     if (json.type === "INIT_DICT") {
       this.dict = json.dict || {};
       this.trackPathMap = json.trackMap || {};
-      
-      if (json.manifest) {
-          this.manifest = json.manifest;
-      }
-      
-      if (json.config) {
-        this.config = { ...this.config, ...json.config };
-      }
-      
-      if (json.ui_state) {
-          this.applyPersistedState(json.ui_state);
-      }
+      if (json.manifest) this.manifest = json.manifest;
+      if (json.config) this.config = { ...this.config, ...json.config };
+      if (json.ui_state) this.applyPersistedState(json.ui_state);
       
       this.orchestratePrewarming();
       this.refreshView(true);
       this.refreshSidebar();
       
     } else if (json.type === "VIEW_DATA") {
-      this.activeViewIds = json.ids ||[];
-      this.isLoading = false;
-      if (this._pendingViewReset) {
-          this.viewVersion++;
-          this._pendingViewReset = false;
+      const isShelves = (nav.activeTab === "shelves");
+      
+      if (isShelves) {
+        this.shelfViewIds = json.ids || [];
+        if (this._pendingViewReset) this.shelfVersion++;
+      } else {
+        this.libraryViewIds = json.ids || [];
+        if (this._pendingViewReset) this.libraryVersion++;
       }
+      
+      this.isLoading = false;
+      this._pendingViewReset = false;
     } else if (json.type === "GROUP_RESULT") {
       const newMap = new Map(this.sidebarGroups);
       newMap.set(json.key, json.result);
@@ -127,15 +133,12 @@ class LibraryState {
       } else {
         delete this.dict[json.id];
       }
-
       delete this.fullAlbumCache[json.id];
-
       if (this.focusedAlbum && this.focusedAlbum.id === json.id) {
         this.ensureFullAlbum(json.id).then(data => {
           if (data) this.focusedAlbum = data;
         });
       }
-
       this.orchestratePrewarming();
       this.refreshView(false);
       this.refreshSidebar();
@@ -163,24 +166,17 @@ class LibraryState {
       while (queue.length > 0) {
         const album = queue.shift();
         const url = this.getThumbnailUrl(album);
-        
         if (!url || this.pinnedTextures.has(url)) continue;
-
         try {
           const res = await fetch(url);
           const blob = await res.blob();
-          
           const bitmap = await createImageBitmap(blob, {
             premultiplyAlpha: 'none',
             colorSpaceConversion: 'default'
           });
-          
           this.pinnedTextures.set(url, bitmap);
           pendingUpdates = true;
-
-          if (Date.now() - lastFlush > 100) {
-            flush();
-          }
+          if (Date.now() - lastFlush > 100) flush();
         } catch (err) {}
       }
       if (pendingUpdates) flush();
@@ -188,7 +184,6 @@ class LibraryState {
 
     const workers = Array.from({ length: concurrencyLimit }, () => processor());
     await Promise.all(workers);
-
     if (pendingUpdates) flush();
   }
 
@@ -257,9 +252,9 @@ class LibraryState {
   getSidebarGroup(key) {
     if (!this.sidebarGroups.has(key) && this._ws?.readyState === WebSocket.OPEN) {
         this.refreshSidebar();
-        return[];
+        return [];
     }
-    return this.sidebarGroups.get(key) ||[];
+    return this.sidebarGroups.get(key) || [];
   }
 
   getTrackByPath(path) {
@@ -315,7 +310,6 @@ class LibraryState {
     this.activeCollection = key;
     this.activeFilter = { key: null, val: null };
     this.focusedAlbum = null;
-
     const collection = this.availableCollections[key];
     if (collection) {
         if (collection.allowed_groupers && !collection.allowed_groupers.includes(this.activeSidebarGrouper)) {
@@ -326,7 +320,6 @@ class LibraryState {
             this.activeSort = { key: this.userSortPreference, order: this.userSortOrder };
         }
     }
-
     this.refreshView(true);
     this.refreshSidebar();
     this.persistState();
@@ -384,7 +377,6 @@ class LibraryState {
   async ensureFullAlbum(id) {
     if (!id) return null;
     if (this.fullAlbumCache[id]) return this.fullAlbumCache[id];
-
     try {
         const res = await fetch(`/api/album/${encodeURIComponent(id)}`);
         if (res.ok) {

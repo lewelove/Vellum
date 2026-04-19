@@ -34,7 +34,7 @@
       class="plane home-grid"
       class:resizing={isResizing}
     >
-      <AlbumGrid />
+      <AlbumGrid albums={library.libraryAlbums} version={library.libraryVersion} />
     </section>
 
     <aside 

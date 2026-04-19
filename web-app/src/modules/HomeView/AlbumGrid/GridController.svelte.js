@@ -1,13 +1,16 @@
 import { LayoutManager } from "./Layout.svelte.js";
 import { ScrollEngine } from "./Scroll.svelte.js";
-import { library } from "../../../library.svelte.js";
 
 export class GridController {
   layout = new LayoutManager();
   scroll = new ScrollEngine();
   viewportHeight = $state(0);
+  
+  constructor(getAlbums) {
+    this.getAlbums = getAlbums;
+  }
 
-  allRows = $derived(this.layout.chunk(library.albums));
+  allRows = $derived(this.layout.chunk(this.getAlbums()));
   
   visibleRows = $derived(Math.ceil(this.viewportHeight / this.layout.rowHeight));
 

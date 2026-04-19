@@ -2,10 +2,11 @@
   import { onMount, onDestroy } from "svelte";
   import { library } from "../../../library.svelte.js";
   import { GridController } from "./GridController.svelte.js";
-  
   import Album from "./Album.svelte";
 
-  const ctrl = new GridController();
+  let { albums = [], version = 0 } = $props();
+
+  const ctrl = new GridController(() => albums);
   let rafId;
   let dpr = $state(1);
 
@@ -56,7 +57,7 @@
   });
 
   $effect(() => {
-    const _v = library.viewVersion;
+    const _v = version;
     ctrl.resetScroll();
   });
 
