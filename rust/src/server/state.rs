@@ -21,4 +21,5 @@ pub struct AppConfig {
     pub resolved_shader_path: Option<PathBuf>,
     pub resolved_css_path: Option<PathBuf>,
     pub resolved_logic_path: Option<PathBuf>,
+    pub resolved_shelf_files: Vec<PathBuf>,
 }

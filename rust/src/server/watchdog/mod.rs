@@ -41,6 +41,17 @@ pub fn start(config_path: PathBuf, state: Arc<AppState>) {
             }
         }
 
+        let mut current_watched_shelf_files: Vec<PathBuf> = {
+            let guard = state.config.read().await;
+            guard.resolved_shelf_files.clone()
+        };
+
+        for p in &current_watched_shelf_files {
+            if p.exists() && !p.starts_with(&config_dir) {
+                let _ = watcher.watch(p, RecursiveMode::NonRecursive);
+            }
+        }
+
         while let Some(mut paths) = rx.recv().await {
             tokio::time::sleep(Duration::from_millis(100)).await;
             while let Ok(more_paths) = rx.try_recv() {
@@ -50,6 +61,7 @@ pub fn start(config_path: PathBuf, state: Arc<AppState>) {
             let mut config_changed = false;
             let mut css_changed = false;
             let mut logic_changed = false;
+            let mut shelf_changed = false;
 
             for p in paths {
                 let p = p.canonicalize().unwrap_or(p);
@@ -62,6 +74,10 @@ pub fn start(config_path: PathBuf, state: Arc<AppState>) {
                     if p == *sp {
                         config_changed = true;
                     }
+                }
+
+                if current_watched_shelf_files.contains(&p) {
+                    shelf_changed = true;
                 }
 
                 if let Some(name) = p.file_name().and_then(|n| n.to_str()) {
@@ -92,6 +108,8 @@ pub fn start(config_path: PathBuf, state: Arc<AppState>) {
                 let logic_path = config_dir.join("logic.toml");
                 let resolved = if logic_path.exists() { logic_path.canonicalize().ok() } else { None };
                 
+                let mut new_shelf_files = Vec::new();
+
                 {
                     let mut guard = state.config.write().await;
                     guard.resolved_logic_path = resolved.clone();
@@ -101,7 +119,42 @@ pub fn start(config_path: PathBuf, state: Arc<AppState>) {
                     let mut query = state.query.lock().await;
                     if let Err(e) = query.reload_manifest(lp) {
                         log::error!("Failed to reload logic.toml: {}", e);
+                    } else {
+                        for shelf in query.manifest.shelves.values() {
+                            if let Some(file) = &shelf.file {
+                                let expanded = crate::expand_path(file);
+                                new_shelf_files.push(expanded.canonicalize().unwrap_or(expanded));
+                            }
+                        }
                     }
+                }
+
+                for p in &current_watched_shelf_files {
+                    if !new_shelf_files.contains(p) && !p.starts_with(&config_dir) {
+                        let _ = watcher.unwatch(p);
+                    }
+                }
+                for p in &new_shelf_files {
+                    if !current_watched_shelf_files.contains(p) && p.exists() && !p.starts_with(&config_dir) {
+                        let _ = watcher.watch(p, RecursiveMode::NonRecursive);
+                    }
+                }
+                current_watched_shelf_files = new_shelf_files.clone();
+                
+                {
+                    let mut guard = state.config.write().await;
+                    guard.resolved_shelf_files = new_shelf_files;
+                }
+
+                let payload = json!({ "type": "LOGIC_UPDATE" }).to_string();
+                let _ = state.tx.send(payload);
+            }
+
+            if shelf_changed && !logic_changed {
+                log::info!("Filesystem change: reloading shelf files...");
+                let mut query = state.query.lock().await;
+                if let Err(e) = query.build_cache() {
+                    log::error!("Failed to rebuild query cache: {}", e);
                 }
                 let payload = json!({ "type": "LOGIC_UPDATE" }).to_string();
                 let _ = state.tx.send(payload);

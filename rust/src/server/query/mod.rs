@@ -96,8 +96,9 @@ pub struct CollectionDef {
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct ShelfDef {
     pub label: String,
-    pub filter: String,
-    pub order_by: String,
+    pub filter: Option<String>,
+    pub order_by: Option<String>,
+    pub file: Option<String>,
 }
 
 pub struct QueryEngine {
@@ -259,12 +260,34 @@ impl QueryEngine {
 
         self.shelves_cache.clear();
         for (key, shelf) in &self.manifest.shelves {
-            let sql = format!("SELECT uid FROM albums WHERE {} ORDER BY {}", shelf.filter, shelf.order_by);
-            if let Ok(mut stmt) = self.conn.prepare(&sql) {
-                let uids: Vec<u32> = stmt.query_map([], |row| row.get(0))
-                    .map(|rows| rows.filter_map(Result::ok).collect())
-                    .unwrap_or_default();
-                self.shelves_cache.insert(key.clone(), uids);
+            if let Some(file_path) = &shelf.file {
+                let expanded = crate::expand_path(file_path);
+                if let Ok(content) = std::fs::read_to_string(&expanded) {
+                    let lines: Vec<String> = content.lines()
+                        .map(|l| l.trim().to_string())
+                        .filter(|l| !l.is_empty() && !l.starts_with('#'))
+                        .collect();
+                    
+                    if let Ok(json_arr) = serde_json::to_string(&lines) {
+                        let sql = "SELECT a.uid FROM json_each(?1) j JOIN albums a ON a.id = j.value ORDER BY j.key";
+                        if let Ok(mut stmt) = self.conn.prepare(sql) {
+                            let uids: Vec<u32> = stmt.query_map([json_arr], |row| row.get(0))
+                                .map(|rows| rows.filter_map(Result::ok).collect())
+                                .unwrap_or_default();
+                            self.shelves_cache.insert(key.clone(), uids);
+                        }
+                    }
+                } else {
+                    self.shelves_cache.insert(key.clone(), vec![]);
+                }
+            } else if let (Some(filter), Some(order_by)) = (&shelf.filter, &shelf.order_by) {
+                let sql = format!("SELECT uid FROM albums WHERE {} ORDER BY {}", filter, order_by);
+                if let Ok(mut stmt) = self.conn.prepare(&sql) {
+                    let uids: Vec<u32> = stmt.query_map([], |row| row.get(0))
+                        .map(|rows| rows.filter_map(Result::ok).collect())
+                        .unwrap_or_default();
+                    self.shelves_cache.insert(key.clone(), uids);
+                }
             }
         }
 

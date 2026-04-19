@@ -48,6 +48,16 @@ pub async fn run(port: u16) -> Result<()> {
     let logic_path = config_dir.join("logic.toml");
     let resolved_logic_path = logic_path.canonicalize().ok();
 
+    let mut query_engine = query::QueryEngine::new()?;
+    
+    let mut resolved_shelf_files = Vec::new();
+    for shelf in query_engine.manifest.shelves.values() {
+        if let Some(file) = &shelf.file {
+            let expanded = expand_path(file);
+            resolved_shelf_files.push(expanded.canonicalize().unwrap_or(expanded));
+        }
+    }
+
     let server_config = ServerConfig {
         library_root: library_root.clone(),
         thumbnail_root: thumb_root_str.map(expand_path),
@@ -56,6 +66,7 @@ pub async fn run(port: u16) -> Result<()> {
         resolved_shader_path,
         resolved_css_path,
         resolved_logic_path,
+        resolved_shelf_files,
     };
 
     let state_file = expand_path("~/.vellum/state.json");
@@ -80,7 +91,6 @@ pub async fn run(port: u16) -> Result<()> {
         })
     };
 
-    let mut query_engine = query::QueryEngine::new()?;
     let lib_scanner = library::scanner::Library::new(library_root.clone());
     lib_scanner.scan(&mut query_engine);
     
