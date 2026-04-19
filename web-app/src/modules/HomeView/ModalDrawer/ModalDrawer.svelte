@@ -131,22 +131,22 @@
         <div class="button-bar">
           <div class="bar-group">
             <button class="v-btn-icon icon-btn" onclick={handleUpdate} title="Update Album">
-              <img src="/icons/24px/refresh.svg" alt="Update"/>
+              <img src="/icons/outlined/24px/refresh.svg" alt="Update"/>
             </button>
             <button class="v-btn-icon icon-btn" onclick={handleOpenFolder} title="Open Local Folder">
-              <img src="/icons/24px/folder.svg" alt="Open"/>
+              <img src="/icons/outlined/24px/folder.svg" alt="Open"/>
             </button>
             <button class="v-btn-icon icon-btn" onclick={handleOpenManifest} title="Open Manifest">
-              <img src="/icons/24px/edit_document.svg" alt="Manifest"/>
+              <img src="/icons/outlined/24px/edit_document.svg" alt="Manifest"/>
             </button>
             <button class="v-btn-icon icon-btn" onclick={handleOpenLock} title="Open Data Object">
-              <img src="/icons/24px/code.svg" alt="Data Object"/>
+              <img src="/icons/outlined/24px/code.svg" alt="Data Object"/>
             </button>
           </div>
 
           <div class="bar-group right">
             <button class="v-btn-icon icon-btn" onclick={handlePlay} title="Play Album">
-              <img src="/icons/24px/play_arrow.svg" alt="" />
+              <img src="/icons/outlined/24px/play_arrow.svg" alt="" />
             </button>
           </div>
         </div>
