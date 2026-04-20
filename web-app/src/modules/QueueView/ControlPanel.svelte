@@ -3,9 +3,28 @@
   import { player } from "../player.svelte.js";
   import { library } from "../../library.svelte.js";
 
-  let currentMeta = $derived(player.currentFile ? library.getTrackByPath(player.currentFile) : null);
-  let title = $derived(currentMeta?.TITLE || player.title || "");
-  let artist = $derived(currentMeta?.ARTIST || player.artist || "");
+  let activeId = $derived(player.currentAlbumId);
+
+  $effect(() => {
+    if (activeId) {
+      library.ensureFullAlbum(activeId);
+    }
+  });
+
+  function stripSlashes(str) {
+    return (str || "").replace(/^\/+/, "");
+  }
+
+  let fullAlbum = $derived(activeId ? library.fullAlbumCache[activeId] : null);
+  
+  let currentTrackFull = $derived(
+    (fullAlbum?.tracks && player.currentFile)
+      ? fullAlbum.tracks.find(t => stripSlashes(t.info?.track_library_path) === stripSlashes(player.currentFile))
+      : null
+  );
+
+  let title = $derived(currentTrackFull?.TITLE || player.title || "");
+  let artist = $derived(currentTrackFull?.ARTIST || player.artist || "");
 
   let isPlaying = $derived(player.state === "play");
 
