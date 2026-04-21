@@ -32,7 +32,7 @@
     if (player.state === "play") {
       const delta = (now - player.lastUpdated) / 1000;
       tickingElapsed = Math.min(player.elapsed + delta, player.duration || 0);
-      phase -= dt * 0.0; 
+      phase -= dt * -0.8; 
     } else {
       tickingElapsed = player.elapsed || 0;
     }
@@ -51,44 +51,99 @@
     
     const midX = 12;
     const pad = 4; 
-    const straightLen = 16;
+    const straightLen = 0;
     const waveLength = 24;
     const maxAmplitude = 2;
     const transitionLen = 100;
-    
-    let d = `M ${midX} ${pad}`;
-    
-    if (height <= straightLen * 2 + pad * 2) {
-      d += ` L ${midX} ${height - pad}`;
-      return d;
-    }
-    
-    d += ` L ${midX} ${straightLen + pad}`;
+    const thickness = 4;
+    const R = thickness / 2;
     
     const waveStart = straightLen + pad;
     const waveEnd = height - straightLen - pad;
-    const waveHeight = waveEnd - waveStart;
+    const waveHeight = Math.max(0, waveEnd - waveStart);
+    const actualTransition = Math.min(transitionLen, waveHeight / 2);
     
-    const points = Math.ceil(waveHeight / 2);
-    for (let i = 1; i <= points; i++) {
-      const y = waveStart + (i / points) * waveHeight;
-      const prog = (y - waveStart) / waveHeight;
-      
-      let envelope = 1;
-      const distStart = y - waveStart;
-      const distEnd = waveEnd - y;
-      
-      if (distStart < transitionLen) {
-        envelope = Math.sin((distStart / transitionLen) * (Math.PI / 2));
-      } else if (distEnd < transitionLen) {
-        envelope = Math.sin((distEnd / transitionLen) * (Math.PI / 2));
+    const pts =[];
+    const step = 1;
+
+    if (height <= straightLen * 2 + pad * 2) {
+      for (let y = pad; y <= height - pad; y += step) {
+        pts.push({ x: midX, y });
       }
-      
-      const x = midX + Math.sin((prog * waveHeight / waveLength * Math.PI * 2) + phase) * maxAmplitude * envelope;
-      d += ` L ${x.toFixed(2)} ${y.toFixed(2)}`;
+    } else {
+      for (let y = pad; y <= height - pad; y += step) {
+        let x = midX;
+        if (y > waveStart && y < waveEnd) {
+          const prog = (y - waveStart) / waveHeight;
+          const distStart = y - waveStart;
+          const distEnd = waveEnd - y;
+          
+          let envelope = 1;
+          if (actualTransition > 0) {
+            if (distStart < actualTransition) {
+              const t = distStart / actualTransition;
+              envelope = t * t * (3 - 2 * t);
+            } else if (distEnd < actualTransition) {
+              const t = distEnd / actualTransition;
+              envelope = t * t * (3 - 2 * t);
+            }
+          } else {
+            envelope = 0;
+          }
+          
+          x += Math.sin((prog * waveHeight / waveLength * Math.PI * 2) + phase) * maxAmplitude * envelope;
+        }
+        pts.push({ x, y });
+      }
     }
     
-    d += ` L ${midX} ${height - pad}`;
+    if (pts.length > 0 && pts[pts.length - 1].y < height - pad) {
+      pts.push({ x: midX, y: height - pad });
+    }
+
+    if (pts.length === 0) return "";
+
+    const lefts = [];
+    const rights =[];
+
+    for (let i = 0; i < pts.length; i++) {
+      const p = pts[i];
+      let dx, dy;
+      
+      if (i === 0) {
+        dx = pts[1].x - pts[0].x;
+        dy = pts[1].y - pts[0].y;
+      } else if (i === pts.length - 1) {
+        dx = pts[i].x - pts[i-1].x;
+        dy = pts[i].y - pts[i-1].y;
+      } else {
+        dx = pts[i+1].x - pts[i-1].x;
+        dy = pts[i+1].y - pts[i-1].y;
+      }
+      
+      const len = Math.sqrt(dx * dx + dy * dy);
+      const nx = len === 0 ? 1 : dy / len;
+      const ny = len === 0 ? 0 : -dx / len;
+      
+      rights.push({ x: p.x + R * nx, y: p.y + R * ny });
+      lefts.push({ x: p.x - R * nx, y: p.y - R * ny });
+    }
+
+    let d = `M ${lefts[0].x.toFixed(2)} ${lefts[0].y.toFixed(2)} `;
+    d += `A ${R} ${R} 0 0 1 ${rights[0].x.toFixed(2)} ${rights[0].y.toFixed(2)} `;
+    
+    for (let i = 1; i < rights.length; i++) {
+      d += `L ${rights[i].x.toFixed(2)} ${rights[i].y.toFixed(2)} `;
+    }
+    
+    const lastIdx = pts.length - 1;
+    d += `A ${R} ${R} 0 0 1 ${lefts[lastIdx].x.toFixed(2)} ${lefts[lastIdx].y.toFixed(2)} `;
+    
+    for (let i = lefts.length - 2; i >= 0; i--) {
+      d += `L ${lefts[i].x.toFixed(2)} ${lefts[i].y.toFixed(2)} `;
+    }
+    
+    d += "Z";
     return d;
   });
 </script>
@@ -152,20 +207,13 @@
   }
 
   .wave-bg {
-    fill: none;
-    stroke: oklch(100% 0 0 / 0.074);
-    stroke-width: 4;
-    stroke-linecap: round;
-    stroke-linejoin: round;
+    fill: oklch(100% 0 0 / 0.074);
+    stroke: none;
   }
 
   .wave-fill {
-    fill: none;
-    stroke: oklch(100% 0 0 / 0.15);
-    stroke: oklch(100% 0 0 / 0.54);
-    stroke-width: 4;
-    stroke-linecap: round;
-    stroke-linejoin: round;
+    fill: oklch(100% 0 0 / 0.54);
+    stroke: none;
   }
 
   .buttons {
