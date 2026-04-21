@@ -93,7 +93,8 @@ pub async fn run(port: u16) -> Result<()> {
             "queuePanels": {
                 "lyrics": false,
                 "tracks": true
-            }
+            },
+            "sidebarWidth": 280
         })
     };
 

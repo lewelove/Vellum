@@ -60,7 +60,7 @@ class LibraryState {
   queuePanels = $state({ lyrics: false, tracks: true });
   themeVersion = $state(Date.now());
   
-  sidebarWidth = $state(160);
+  sidebarWidth = $state(280);
   
   manifest = $state({ collections: {}, groupers: {}, sorters: {}, shelves: {} });
 
@@ -211,7 +211,7 @@ class LibraryState {
       this.activeShelf = state.activeShelf || null;
       this.isShaderEnabled = state.isShaderEnabled ?? true;
       this.queuePanels = state.queuePanels || { lyrics: false, tracks: true };
-      this.sidebarWidth = state.sidebarWidth || 160;
+      this.sidebarWidth = state.sidebarWidth || 280;
   }
 
   persistState() {
