@@ -1,7 +1,7 @@
 <script>
   import { library } from "../../library.svelte.js";
 
-  let activeShelf = $derived(library.activeShelf || Object.keys(library.availableShelves)[0]);
+  let activeShelf = $derived(library.activeShelf || (library.manifest.shelves_order && library.manifest.shelves_order[0]) || Object.keys(library.availableShelves)[0]);
 
   function selectShelf(key) {
     library.setShelf(key);
@@ -11,11 +11,11 @@
 <div class="sidebar-container">
   <div class="sidebar-scroll">
     <div class="v-scroll-fade-top"></div>
-    {#each Object.entries(library.availableShelves) as [key, shelf]}
+    {#each library.shelvesList as shelf}
       <button 
         class="sidebar-item" 
-        class:active={activeShelf === key} 
-        onclick={() => selectShelf(key)}
+        class:active={activeShelf === shelf.key} 
+        onclick={() => selectShelf(shelf.key)}
       >
         <span class="v-truncate label" title={shelf.label}>{shelf.label}</span>
       </button>

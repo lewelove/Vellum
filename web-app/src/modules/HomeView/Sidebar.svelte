@@ -6,8 +6,8 @@
   let isGroupMenuOpen = $state(false);
 
   let collectionLabel = $derived(library.availableCollections[library.activeCollection]?.label || "Unknown");
-  let groupLabel = $derived(library.visibleFacets[library.activeSidebarGrouper] || "Unknown");
-  let sortLabel = $derived(library.visibleSorters[library.userSortPreference] || "Unknown");
+  let groupLabel = $derived(library.availableFacets[library.activeSidebarGrouper]?.label || "Unknown");
+  let sortLabel = $derived(library.availableSorters[library.userSortPreference]?.label || "Unknown");
 
   let items = $derived(library.getSidebarGroup(library.activeSidebarGrouper));
 
@@ -81,11 +81,11 @@
     
         {#if isCollectionMenuOpen}
           <div class="control-menu">
-            {#each Object.entries(library.availableCollections) as [key, collection]}
+            {#each library.collectionsList as collection}
               <button 
                 class="menu-item" 
-                class:selected={library.activeCollection === key}
-                onclick={() => selectCollection(key)}
+                class:selected={library.activeCollection === collection.key}
+                onclick={() => selectCollection(collection.key)}
               >
                 {collection.label}
               </button>
@@ -109,7 +109,7 @@
     
         {#if isGroupMenuOpen}
           <div class="control-menu">
-            {#each Object.entries(library.visibleFacets) as [key, label]}
+            {#each library.visibleFacets as {key, label}}
               <button 
                 class="menu-item" 
                 class:selected={library.activeSidebarGrouper === key}
@@ -137,7 +137,7 @@
 
         {#if isSortMenuOpen}
           <div class="control-menu">
-            {#each Object.entries(library.visibleSorters) as [key, label]}
+            {#each library.visibleSorters as {key, label}}
               <button 
                 class="menu-item" 
                 class:selected={library.userSortPreference === key}

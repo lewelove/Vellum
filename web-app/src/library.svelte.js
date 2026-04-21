@@ -238,9 +238,10 @@ class LibraryState {
     this._pendingViewReset = resetScroll;
     
     if (nav.activeTab === "shelves") {
+        const firstShelf = (this.manifest.shelves_order && this.manifest.shelves_order[0]) || Object.keys(this.availableShelves)[0];
         this._ws.send(JSON.stringify({
             type: "SHELF_REQUEST",
-            shelf: this.activeShelf || Object.keys(this.availableShelves)[0]
+            shelf: this.activeShelf || firstShelf
         }));
     } else {
         this._ws.send(JSON.stringify({
@@ -291,32 +292,40 @@ class LibraryState {
   get availableSorters() { return this.manifest.sorters || {}; }
   get availableShelves() { return this.manifest.shelves || {}; }
 
+  get collectionsList() {
+    const order = this.manifest.collections_order || Object.keys(this.availableCollections);
+    return order.map(k => ({ key: k, ...this.availableCollections[k] }));
+  }
+
+  get shelvesList() {
+    const order = this.manifest.shelves_order || Object.keys(this.availableShelves);
+    return order.map(k => ({ key: k, ...this.availableShelves[k] }));
+  }
+
   get visibleFacets() {
     const collection = this.availableCollections[this.activeCollection];
+    const order = this.manifest.groupers_order || Object.keys(this.availableFacets);
     if (collection && collection.allowed_groupers) {
-      const res = {};
-      for (const k of collection.allowed_groupers) {
-        if (this.availableFacets[k]) res[k] = this.availableFacets[k].label || k;
-      }
-      return res;
+      return collection.allowed_groupers
+        .filter(k => this.availableFacets[k])
+        .map(k => ({ key: k, label: this.availableFacets[k].label || k }));
     }
-    const res = {};
-    for (const [k, v] of Object.entries(this.availableFacets)) res[k] = v.label || k;
-    return res;
+    return order
+      .filter(k => this.availableFacets[k])
+      .map(k => ({ key: k, label: this.availableFacets[k].label || k }));
   }
 
   get visibleSorters() {
     const collection = this.availableCollections[this.activeCollection];
+    const order = this.manifest.sorters_order || Object.keys(this.availableSorters);
     if (collection && collection.allowed_sorters) {
-      const res = {};
-      for (const k of collection.allowed_sorters) {
-        if (this.availableSorters[k]) res[k] = this.availableSorters[k].label || k;
-      }
-      return res;
+      return collection.allowed_sorters
+        .filter(k => this.availableSorters[k])
+        .map(k => ({ key: k, label: this.availableSorters[k].label || k }));
     }
-    const res = {};
-    for (const [k, v] of Object.entries(this.availableSorters)) res[k] = v.label || k;
-    return res;
+    return order
+      .filter(k => this.availableSorters[k])
+      .map(k => ({ key: k, label: this.availableSorters[k].label || k }));
   }
 
   setCollection(key) {
@@ -326,10 +335,10 @@ class LibraryState {
     const collection = this.availableCollections[key];
     if (collection) {
         if (collection.allowed_groupers && !collection.allowed_groupers.includes(this.activeSidebarGrouper)) {
-            this.activeSidebarGrouper = collection.allowed_groupers[0] || Object.keys(this.availableFacets)[0] || "genre";
+            this.activeSidebarGrouper = collection.allowed_groupers[0] || (this.manifest.groupers_order && this.manifest.groupers_order[0]) || Object.keys(this.availableFacets)[0] || "genre";
         }
         if (collection.allowed_sorters && !collection.allowed_sorters.includes(this.userSortPreference)) {
-            this.userSortPreference = collection.allowed_sorters[0] || Object.keys(this.availableSorters)[0] || "default";
+            this.userSortPreference = collection.allowed_sorters[0] || (this.manifest.sorters_order && this.manifest.sorters_order[0]) || Object.keys(this.availableSorters)[0] || "default";
             this.activeSort = { key: this.userSortPreference, order: this.userSortOrder };
         }
     }

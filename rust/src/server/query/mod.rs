@@ -13,10 +13,23 @@ pub struct LogicManifest {
     pub collections: IndexMap<String, CollectionDef>,
     #[serde(default)]
     pub shelves: IndexMap<String, ShelfDef>,
+    #[serde(skip_deserializing, default)]
+    pub groupers_order: Vec<String>,
+    #[serde(skip_deserializing, default)]
+    pub sorters_order: Vec<String>,
+    #[serde(skip_deserializing, default)]
+    pub collections_order: Vec<String>,
+    #[serde(skip_deserializing, default)]
+    pub shelves_order: Vec<String>,
 }
 
 impl LogicManifest {
     pub fn normalize(&mut self) {
+        self.groupers_order = self.groupers.keys().cloned().collect();
+        self.sorters_order = self.sorters.keys().cloned().collect();
+        self.collections_order = self.collections.keys().cloned().collect();
+        self.shelves_order = self.shelves.keys().cloned().collect();
+
         let global_groupers: HashSet<String> = self.groupers.iter()
             .filter(|(_, g)| !g.strict)
             .map(|(id, _)| id.clone())
