@@ -107,14 +107,13 @@ pub fn resolve(ctx: &AlbumContext, cfg: &Value) -> Option<Value> {
         }
     }).collect();
 
-    let threshold = args.split(',')
-        .find(|s| s.trim().starts_with("t="))
-        .and_then(|s| s.trim().strip_prefix("t="))
-        .and_then(|val| val.parse::<f32>().ok())
+    let threshold_val = cfg.get("threshold")
+        .and_then(|v| v.as_f64())
+        .map(|f| f as f32)
         .unwrap_or(0.001);
 
     if !manually_provided {
-        palette.retain(|&(_, ratio)| ratio >= threshold);
+        palette.retain(|&(_, ratio)| ratio >= threshold_val);
     }
 
     let final_total: f32 = palette.iter().map(|(_, r)| r).sum();

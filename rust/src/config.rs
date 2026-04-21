@@ -64,6 +64,7 @@ pub struct PaletteConfig {
     pub sort: String,
     #[serde(default)]
     pub args: String,
+    pub threshold: Option<f32>,
 }
 
 fn default_palette_type() -> String { "material".to_string() }

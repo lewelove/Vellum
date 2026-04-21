@@ -160,7 +160,7 @@
     position: relative;
     height: 100%;
     min-width: 0;
-    padding: 24px 32px 0px; 
+    padding: 24px 32px; 
     box-sizing: border-box;
     z-index: 1;
     display: flex;
@@ -200,14 +200,15 @@
   .tracks-panel {
     flex: 1;
     min-height: 0;
-    border-radius: 0 24px 24px 0;
+    border-radius: 0 24px 0px 0;
     clip-path: inset(-100px -100px -100px 0px);
   }
 
   .lyrics-panel {
     flex: 1;
     min-height: 0;
-    border-radius: 24px 0 0 24px;
+    border-radius: 24px 0 0 0px;
+    clip-path: inset(-100px 0px -100px -100px);
   }
 
   .panel-inner {
@@ -217,7 +218,6 @@
     display: flex;
     flex-direction: column;
     min-height: 0;
-    clip-path: inset(-100px 0px -100px -100px);
   }
 
   .control-wrapper {
@@ -225,7 +225,7 @@
     margin: 0 auto;
     display: flex;
     flex-shrink: 0;
-    transition: max-width 0.2s cubic-bezier(0.2, 0, 0, 1);
+    clip-path: inset(0 -100px -100px -100px);
   }
 
   .control-wrapper.constrained {

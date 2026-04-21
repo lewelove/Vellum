@@ -103,11 +103,11 @@
     display: flex;
     align-items: stretch;
     width: 100%;
-    height: 64px;
-    padding: 12px 24px;
+    height: 74px;
+    padding: 16px 24px;
     box-sizing: border-box;
-    border-radius: 24px 24px 0 0;
-    margin-top: 24px;
+    border-radius: 0 0 24px 24px;
+    margin-top: 0px;
     flex-shrink: 0;
     gap: 24px;
   }

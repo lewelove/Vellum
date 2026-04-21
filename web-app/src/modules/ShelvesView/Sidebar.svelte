@@ -9,13 +9,6 @@
 </script>
 
 <div class="sidebar-container">
-  <div class="sidebar-controls">
-    <div class="sidebar-header">
-      <img src="icons/outlined/20px/auto_stories.svg" alt="" class="header-icon" />
-      <span class="header-title">Shelves</span>
-    </div>
-  </div>
-
   <div class="sidebar-scroll">
     <div class="v-scroll-fade-top"></div>
     {#each Object.entries(library.availableShelves) as [key, shelf]}
@@ -39,7 +32,7 @@
     display: flex;
     flex-direction: column;
     background-color: var(--background-drawer); 
-    padding: 12px; 
+    padding: 6px 12px; 
     box-sizing: border-box;
   }
 
@@ -51,14 +44,6 @@
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
     margin-bottom: 0px;
     flex-shrink: 0;
-  }
-
-  .sidebar-header {
-    display: flex;
-    align-items: center;
-    padding: 0 8px;
-    height: 36px;
-    color: var(--text-muted);
   }
 
   .header-icon {
