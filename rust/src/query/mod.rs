@@ -17,6 +17,10 @@ pub async fn run(
 
     if let Some(q) = query_str {
         let q_trim = q.trim();
+        
+        // Transparent CLI-to-Server Bridge: We do not expand the shorthand here.
+        // The raw DSL string is transmitted directly to the server side logic
+        // which evaluates the string against the local DSL engine.
         let full_sql = if q_trim.is_empty() {
             "SELECT id FROM albums".to_string()
         } else {
