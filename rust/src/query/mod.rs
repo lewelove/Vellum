@@ -7,20 +7,18 @@ pub async fn run(
     playing: bool,
     toml: bool,
     lock: bool,
+    raw: bool,
+    id_flag: bool,
 ) -> Result<()> {
     let (config, _, _) = AppConfig::load().context("Failed to load config")?;
     let lib_root = expand_path(&config.storage.library_root)
         .canonicalize()
         .unwrap_or_else(|_| expand_path(&config.storage.library_root));
 
-    let mut target_paths = Vec::new();
+    let mut target_ids = Vec::new();
 
     if let Some(q) = query_str {
         let q_trim = q.trim();
-        
-        // Transparent CLI-to-Server Bridge: We do not expand the shorthand here.
-        // The raw DSL string is transmitted directly to the server side logic
-        // which evaluates the string against the local DSL engine.
         let full_sql = if q_trim.is_empty() {
             "SELECT id FROM albums".to_string()
         } else {
@@ -54,27 +52,36 @@ pub async fn run(
         }
 
         let ids: Vec<String> = res.json().await.context("Invalid response from server")?;
-
-        for id in ids {
-            target_paths.push(lib_root.join(id));
-        }
+        target_ids = ids;
     } else if playing {
-        let playing_album = crate::run::get_playing_album(&config.storage.library_root).await?;
-        target_paths.push(playing_album);
+        let playing_path = crate::run::get_playing_album(&config.storage.library_root).await?;
+        let rel_path = playing_path.strip_prefix(&lib_root)
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or_else(|_| playing_path.to_string_lossy().to_string());
+        target_ids.push(rel_path);
     } else {
         anyhow::bail!("No query provided. Use --playing or provide an SQL query.");
     }
 
-    for path in target_paths {
-        let final_path = if toml {
-            path.join("metadata.toml")
-        } else if lock {
-            path.join("metadata.lock.json")
+    for id in target_ids {
+        if raw {
+            let lock_file_path = lib_root.join(&id).join("metadata.lock.json");
+            if let Ok(content) = std::fs::read_to_string(&lock_file_path) {
+                println!("{}", content);
+            }
+        } else if id_flag {
+            println!("{}", id);
         } else {
-            path
-        };
-
-        println!("{}", final_path.display());
+            let base_path = lib_root.join(&id);
+            let final_path = if toml {
+                base_path.join("metadata.toml")
+            } else if lock {
+                base_path.join("metadata.lock.json")
+            } else {
+                base_path
+            };
+            println!("{}", final_path.display());
+        }
     }
 
     Ok(())

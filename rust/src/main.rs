@@ -81,6 +81,10 @@ enum Commands {
         toml: bool,
         #[arg(long)]
         lock: bool,
+        #[arg(long)]
+        raw: bool,
+        #[arg(long)]
+        id: bool,
     },
 }
 
@@ -181,6 +185,6 @@ async fn main() -> Result<()> {
         }
         Commands::Manifest { force } => manifest::run(force).await,
         Commands::Run { script_cmd, path, playing } => run::execute(script_cmd, path, playing).await,
-        Commands::Query { query_str, playing, toml, lock } => query::run(query_str, playing, toml, lock).await,
+        Commands::Query { query_str, playing, toml, lock, raw, id } => query::run(query_str, playing, toml, lock, raw, id).await,
     }
 }
