@@ -4,10 +4,11 @@
   import NavBar from "../NavigationBar/NavBar.svelte";
   import AlbumGrid from "./AlbumGrid/AlbumGrid.svelte";
   import Sidebar from "./Sidebar.svelte";
+  import ModalDrawer from "./ModalDrawer/ModalDrawer.svelte";
 
   let isResizing = $state(false);
 
-  let isModalVisible = $derived(!!library.focusedAlbum);
+  let isModalVisible = $derived(!!library.focusedAlbums.home);
 
   function startResizing() {
     isResizing = true;
@@ -34,7 +35,12 @@
       class="plane home-grid"
       class:resizing={isResizing}
     >
-      <AlbumGrid albums={library.libraryAlbums} version={library.libraryVersion} />
+      <AlbumGrid 
+        albums={library.libraryAlbums} 
+        version={library.libraryVersion} 
+        activeAlbumId={library.focusedAlbums.home?.id}
+        onfocus={(album) => library.setFocus(album)}
+      />
     </section>
 
     <aside 
@@ -47,6 +53,12 @@
       </div>
     </aside>
   </div>
+
+  {#if isModalVisible}
+    <div class="modal-layer">
+        <ModalDrawer album={library.focusedAlbums.home} onclose={() => library.focusedAlbums.home = null} />
+    </div>
+  {/if}
 </div>
 
 <style>
@@ -56,6 +68,7 @@
     display: flex;
     flex-direction: row;
     overflow: hidden;
+    position: relative;
   }
 
   .workspace {
@@ -130,5 +143,11 @@
   .sidebar-inner { 
     flex: 1; 
     overflow: hidden; 
+  }
+
+  .modal-layer {
+    position: absolute;
+    inset: 0;
+    z-index: 150;
   }
 </style>

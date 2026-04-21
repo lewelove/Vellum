@@ -6,7 +6,6 @@
   import HomeView from "./modules/HomeView/HomeView.svelte";
   import ShelvesView from "./modules/ShelvesView/ShelvesView.svelte";
   import QueueView from "./modules/QueueView/QueueView.svelte";
-  import ModalDrawer from "./modules/HomeView/ModalDrawer/ModalDrawer.svelte";
 
   const tabOrder = { home: 1, queue: 2, shelves: 3 };
   let currentTab = $state(nav.activeTab);
@@ -46,7 +45,7 @@
 
   let isQueueInstant = $derived(instantTab === 'queue');
   let isShelvesInstant = $derived(instantTab === 'shelves');
-  
+
   let isModalVisible = $derived(!!library.focusedAlbum);
 
   function handleKeydown(e) {
@@ -103,12 +102,6 @@
   <div class="view-layer shelves" class:visible={isShelvesVisible} class:active={isShelvesActive} class:instant={isShelvesInstant} aria-hidden={!isShelvesActive}>
     <ShelvesView />
   </div>
-
-  {#if isModalVisible}
-    <div class="modal-layer">
-        <ModalDrawer album={library.focusedAlbum} onclose={() => library.closeFocus()} />
-    </div>
-  {/if}
 
 </main>
 
@@ -167,11 +160,5 @@
   .view-layer.shelves {
     z-index: 3;
     background-color: var(--background-main);
-  }
-
-  .modal-layer {
-    position: absolute;
-    inset: 0;
-    z-index: 150;
   }
 </style>

@@ -7,7 +7,6 @@ export async function setTab(tab) {
   nav.activeTab = tab;
   
   const { library } = await import("./library.svelte.js");
-  library.focusedAlbum = null;
   library.refreshView(false);
   library.persistState();
 }

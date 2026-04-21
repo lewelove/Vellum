@@ -31,7 +31,16 @@ class LibraryState {
   sidebarGroups = $state(new Map()); 
   isLoading = $state(true);
   isConnected = $state(false);
-  focusedAlbum = $state(null);
+  
+  focusedAlbums = $state({ home: null, shelves: null, queue: null });
+
+  get focusedAlbum() {
+    return this.focusedAlbums[nav.activeTab] || null;
+  }
+
+  set focusedAlbum(val) {
+    this.focusedAlbums[nav.activeTab] = val;
+  }
   
   activeCollection = $state("library");
   activeFilter = $state({ key: null, val: null });
@@ -108,10 +117,10 @@ class LibraryState {
       const isShelves = (nav.activeTab === "shelves");
       
       if (isShelves) {
-        this.shelfViewIds = json.ids || [];
+        this.shelfViewIds = json.ids ||[];
         if (this._pendingViewReset) this.shelfVersion++;
       } else {
-        this.libraryViewIds = json.ids || [];
+        this.libraryViewIds = json.ids ||[];
         if (this._pendingViewReset) this.libraryVersion++;
       }
       
@@ -134,11 +143,15 @@ class LibraryState {
         delete this.dict[json.id];
       }
       delete this.fullAlbumCache[json.id];
-      if (this.focusedAlbum && this.focusedAlbum.id === json.id) {
-        this.ensureFullAlbum(json.id).then(data => {
-          if (data) this.focusedAlbum = data;
-        });
+      
+      for (const tab of Object.keys(this.focusedAlbums)) {
+        if (this.focusedAlbums[tab] && this.focusedAlbums[tab].id === json.id) {
+          this.ensureFullAlbum(json.id).then(data => {
+            if (data) this.focusedAlbums[tab] = data;
+          });
+        }
       }
+
       this.orchestratePrewarming();
       this.refreshView(false);
       this.refreshSidebar();
@@ -252,9 +265,9 @@ class LibraryState {
   getSidebarGroup(key) {
     if (!this.sidebarGroups.has(key) && this._ws?.readyState === WebSocket.OPEN) {
         this.refreshSidebar();
-        return [];
+        return[];
     }
-    return this.sidebarGroups.get(key) || [];
+    return this.sidebarGroups.get(key) ||[];
   }
 
   getTrackByPath(path) {
@@ -392,11 +405,11 @@ class LibraryState {
   }
 
   async setFocus(album) {
-    this.focusedAlbum = await this.ensureFullAlbum(album.id);
+    this.focusedAlbums[nav.activeTab] = await this.ensureFullAlbum(album.id);
   }
 
   closeFocus() {
-    this.focusedAlbum = null;
+    this.focusedAlbums[nav.activeTab] = null;
   }
   
   toggleShader() {

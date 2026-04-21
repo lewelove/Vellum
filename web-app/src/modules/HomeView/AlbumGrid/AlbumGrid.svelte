@@ -4,7 +4,7 @@
   import { GridController } from "./GridController.svelte.js";
   import Album from "./Album.svelte";
 
-  let { albums = [], version = 0 } = $props();
+  let { albums =[], version = 0, activeAlbumId = null, onfocus = () => {} } = $props();
 
   const ctrl = new GridController(() => albums);
   let rafId;
@@ -28,7 +28,7 @@
 
   function handleKeydown(e) {
     if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
-    if (library.focusedAlbum) return;
+    if (activeAlbumId) return;
 
     const key = e.key.toLowerCase();
     if (['j', 'k', 'arrowdown', 'arrowup'].includes(key)) {
@@ -83,7 +83,7 @@
     bind:clientWidth={ctrl.layout.containerWidth} 
     bind:clientHeight={ctrl.viewportHeight}
     onwheel={(e) => { 
-      if (library.focusedAlbum) return;
+      if (activeAlbumId) return;
       e.preventDefault(); 
       ctrl.handleWheel(e); 
     }}
@@ -110,8 +110,8 @@
               {#each row.data as album (album.id)}
                 <Album 
                   {album} 
-                  active={library.focusedAlbum?.id === album.id}
-                  onclick={() => library.setFocus(album)} 
+                  active={activeAlbumId === album.id}
+                  onclick={() => onfocus(album)} 
                   scrollY={renderY}
                   rowY={row.y}
                 />
