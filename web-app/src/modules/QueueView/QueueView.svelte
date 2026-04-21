@@ -203,7 +203,7 @@
 
   .panel-inner {
     flex: 1;
-    padding: 24px;
+    padding: 32px;
     overflow: hidden;
     display: flex;
     flex-direction: column;
