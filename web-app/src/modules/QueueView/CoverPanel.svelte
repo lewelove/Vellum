@@ -2,14 +2,14 @@
   import { player } from "../player.svelte.js";
   import ClearCover from "../ClearCover.svelte";
 
-  let { coverUrl = "", onclick, width = $bindable(0) } = $props();
+  let { coverHash = "", onclick, width = $bindable(0) } = $props();
   let isStopped = $derived(player.state === "stop");
 </script>
 
 <div class="cover-wrapper" class:v-glass={isStopped}>
   <div 
     class="cover-panel" 
-    class:clickable={!!coverUrl}
+    class:clickable={!!coverHash}
     bind:clientWidth={width}
     {onclick}
     role="button"
@@ -19,7 +19,7 @@
     <div class="cover-absolute-wrapper">
       {#if width > 0}
         <ClearCover 
-          src={coverUrl} 
+          hash={coverHash} 
           width={width} 
           height={width} 
         />

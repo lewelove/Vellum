@@ -16,11 +16,11 @@
   let { album, onclose } = $props();
 
   let leftColumnWidth = $state(0);
-  let coverUrl = $derived(library.getAlbumCoverUrl(album.id));
 
   let albumData = $derived(album.album || {});
   let infoData = $derived(albumData.info || {});
 
+  let coverHash = $derived(infoData.cover_hash || "");
   let title = $derived(albumData.ALBUM || "Untitled");
   let artist = $derived(albumData.ALBUMARTIST || "Unknown");
   let genreString = $derived(Array.isArray(albumData.GENRE) ? albumData.GENRE.join(" ; ") : (albumData.GENRE || ""));
@@ -95,7 +95,7 @@
         <div class="cover-container" style="height: {leftColumnWidth - 64}px;">
           {#if leftColumnWidth > 0}
             <ClearCover 
-              src={coverUrl} 
+              hash={coverHash} 
               width={leftColumnWidth - 64} 
               height={leftColumnWidth - 64} 
             />

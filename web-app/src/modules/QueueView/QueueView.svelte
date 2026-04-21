@@ -15,7 +15,7 @@
 
   let activeId = $derived(player.currentAlbumId);
   let activeAlbum = $derived(activeId ? library.dict[activeId] : null);
-  let coverUrl = $derived(activeId ? library.getAlbumCoverUrl(activeId) : "");
+  let coverHash = $derived(activeAlbum?.cover_hash || "");
   
   let fullAlbum = $derived(activeId ? library.fullAlbumCache[activeId] : null);
 
@@ -46,7 +46,7 @@
   });
 
   function toggleExpand() {
-    if (coverUrl) {
+    if (coverHash) {
       isExpanded = !isExpanded;
     }
   }
@@ -90,7 +90,7 @@
       >
         <div in:fade={{ duration: 100 }}>
           <ClearCover 
-            src={coverUrl} 
+            hash={coverHash} 
             width={expandedSize} 
             height={expandedSize} 
           />
@@ -113,7 +113,7 @@
       {/if}
 
       <CoverPanel 
-        {coverUrl} 
+        {coverHash} 
         bind:width={moduleWidth} 
         onclick={toggleExpand} 
       />
@@ -150,7 +150,7 @@
     position: relative;
     height: 100%;
     min-width: 0;
-    padding: 40px 48px; 
+    padding: 40px 32px; 
     box-sizing: border-box;
     z-index: 1;
     display: flex;
@@ -203,7 +203,7 @@
 
   .panel-inner {
     flex: 1;
-    padding: 32px;
+    padding: 24px;
     overflow: hidden;
     display: flex;
     flex-direction: column;

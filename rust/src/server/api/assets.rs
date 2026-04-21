@@ -1,11 +1,94 @@
+use crate::compile::builder::assets::generate_master_blob;
 use crate::server::state::AppState;
 use axum::extract::{Path, State};
 use axum::http::{HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
+use fast_image_resize::images::Image;
+use fast_image_resize::{FilterType, ResizeAlg, ResizeOptions, Resizer};
+use fast_image_resize::PixelType;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::fs::File;
 use tokio::io::AsyncReadExt;
+
+pub async fn get_resized_cover(
+    Path((width_str, hash)): Path<(String, String)>,
+    State(state): State<Arc<AppState>>,
+) -> Response {
+    let width = width_str
+        .strip_suffix("px")
+        .unwrap_or(&width_str)
+        .parse::<u32>()
+        .unwrap_or(200)
+        .clamp(16, 2048);
+
+    let (cache_root, library_root) = {
+        let guard = state.config.read().await;
+        (guard.cache_root.clone(), guard.library_root.clone())
+    };
+    
+    let master_blob_path = cache_root.join("covers").join(format!("{hash}.rgb"));
+
+    if !master_blob_path.exists() {
+        let source_info = {
+            let query = state.query.lock().await;
+            query.dict.values().find(|v| {
+                v.get("cover_hash").and_then(|h| h.as_str()) == Some(&hash)
+            }).map(|v| {
+                (
+                    v.get("id").and_then(|i| i.as_str()).unwrap_or("").to_string(),
+                    v.get("cover_path").and_then(|p| p.as_str()).unwrap_or("cover.jpg").to_string()
+                )
+            })
+        };
+
+        if let Some((album_id, cover_path)) = source_info {
+            let original_path = library_root.join(album_id).join(cover_path);
+            let blob_path_clone = master_blob_path.clone();
+
+            let gen_result = tokio::task::spawn_blocking(move || {
+                generate_master_blob(&original_path, &blob_path_clone)
+            }).await;
+
+            if gen_result.is_err() || gen_result.unwrap().is_err() {
+                return StatusCode::NOT_FOUND.into_response();
+            }
+        } else {
+            return StatusCode::NOT_FOUND.into_response();
+        }
+    }
+
+    let Ok(master_bytes) = tokio::fs::read(&master_blob_path).await else {
+        return StatusCode::NOT_FOUND.into_response();
+    };
+
+    let result = tokio::task::spawn_blocking(move || {
+        let src_image = Image::from_vec_u8(1080, 1080, master_bytes, PixelType::U8x3).ok()?;
+        let mut dst_image = Image::new(width, width, PixelType::U8x3);
+        let mut resizer = Resizer::new();
+        let options = ResizeOptions::new().resize_alg(ResizeAlg::Convolution(FilterType::Mitchell));
+
+        resizer.resize(&src_image, &mut dst_image, &options).ok()?;
+
+        let mut buf = Vec::new();
+        let img_buffer = image::RgbImage::from_raw(width, width, dst_image.into_vec())?;
+        let mut cursor = std::io::Cursor::new(&mut buf);
+        img_buffer.write_to(&mut cursor, image::ImageFormat::Png).ok()?;
+        
+        Some(buf)
+    }).await;
+
+    match result {
+        Ok(Some(buf)) => {
+            ([
+                (header::CONTENT_TYPE, HeaderValue::from_static("image/png")),
+                (header::CACHE_CONTROL, HeaderValue::from_static("public, max-age=86400")),
+                (header::ACCESS_CONTROL_ALLOW_ORIGIN, HeaderValue::from_static("*")),
+            ], buf).into_response()
+        },
+        _ => StatusCode::INTERNAL_SERVER_ERROR.into_response()
+    }
+}
 
 pub async fn get_cover_thumbnail(
     Path((size, hash)): Path<(String, String)>,
@@ -18,7 +101,7 @@ pub async fn get_cover_thumbnail(
     
     let path = root.join("thumbnails").join(&size).join(format!("{hash}.png"));
 
-    match serve_image(path.clone()).await {
+    match serve_image(path.clone(), true).await {
         resp if resp.status() == StatusCode::OK => resp,
         _ => {
             log::error!("FS 404: File not found at -> {}", path.display());
@@ -56,7 +139,7 @@ pub async fn get_album_cover(
     };
 
     if let Some(path) = path_opt {
-        return serve_image(path).await;
+        return serve_image(path, false).await;
     }
     StatusCode::NOT_FOUND.into_response()
 }
@@ -146,7 +229,7 @@ pub async fn get_custom_css(State(state): State<Arc<AppState>>) -> Response {
     StatusCode::NOT_FOUND.into_response()
 }
 
-async fn serve_image(path: PathBuf) -> Response {
+async fn serve_image(path: PathBuf, is_immutable: bool) -> Response {
     if let Ok(mut file) = File::open(&path).await {
         let mut buf = Vec::new();
         if file.read_to_end(&mut buf).await.is_ok() {
@@ -155,12 +238,16 @@ async fn serve_image(path: PathBuf) -> Response {
             } else {
                 "image/jpeg"
             };
+            
+            let cache_header = if is_immutable {
+                HeaderValue::from_static("public, max-age=31536000, immutable")
+            } else {
+                HeaderValue::from_static("public, max-age=86400")
+            };
+
             return ([
                     (header::CONTENT_TYPE, HeaderValue::from_static(mime)),
-                    (
-                        header::CACHE_CONTROL,
-                        HeaderValue::from_static("public, max-age=31536000, immutable"),
-                    ),
+                    (header::CACHE_CONTROL, cache_header),
                     (
                         header::ACCESS_CONTROL_ALLOW_ORIGIN,
                         HeaderValue::from_static("*"),

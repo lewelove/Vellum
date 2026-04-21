@@ -121,7 +121,7 @@
         <div class="album-group-header">
           <div class="header-thumb">
             <ClearCover 
-              src={library.getThumbnailUrl(group.albumMeta)} 
+              hash={group.albumMeta.cover_hash} 
               width={48} 
               height={48} 
             />
