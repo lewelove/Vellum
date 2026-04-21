@@ -32,7 +32,7 @@
     if (player.state === "play") {
       const delta = (now - player.lastUpdated) / 1000;
       tickingElapsed = Math.min(player.elapsed + delta, player.duration || 0);
-      phase -= dt * -0.8; 
+      phase -= dt * -0.0; 
     } else {
       tickingElapsed = player.elapsed || 0;
     }
