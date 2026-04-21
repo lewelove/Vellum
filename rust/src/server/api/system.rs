@@ -202,3 +202,24 @@ pub async fn force_update_album(
     }
     StatusCode::NOT_FOUND.into_response()
 }
+
+pub async fn run_query(
+    State(state): State<Arc<AppState>>,
+    Json(payload): Json<serde_json::Value>,
+) -> Response {
+    if let Some(query_str) = payload.get("query").and_then(|q| q.as_str()) {
+        let expanded = crate::server::query::expand_shorthand(query_str);
+        let query = state.query.lock().await;
+        match query.query_ids(&expanded) {
+            Ok(ids) => return Json(ids).into_response(),
+            Err(e) => {
+                return (
+                    StatusCode::BAD_REQUEST,
+                    Json(json!({"error": e.to_string()})),
+                )
+                    .into_response();
+            }
+        }
+    }
+    StatusCode::BAD_REQUEST.into_response()
+}

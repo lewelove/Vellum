@@ -8,11 +8,11 @@ use std::path::Path;
 use regex::Regex;
 use std::sync::LazyLock;
 
-static SHORTHAND_RE: LazyLock<Regex> = LazyLock::new(|| {
+pub static SHORTHAND_RE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"\{(\$\.[a-zA-Z0-9_.]+)\}").unwrap()
 });
 
-fn expand_shorthand(input: &str) -> String {
+pub fn expand_shorthand(input: &str) -> String {
     SHORTHAND_RE.replace_all(input, "json_extract(metadata, '$1')").to_string()
 }
 
@@ -262,6 +262,15 @@ impl QueryEngine {
         }
 
         Ok(())
+    }
+
+    pub fn query_ids(&self, sql: &str) -> Result<Vec<String>> {
+        let mut stmt = self.conn.prepare(sql)?;
+        let ids: Vec<String> = stmt
+            .query_map([], |row| row.get(0))?
+            .filter_map(Result::ok)
+            .collect();
+        Ok(ids)
     }
 
     pub fn build_cache(&mut self) -> Result<()> {

@@ -11,7 +11,6 @@ use tokio::net::TcpStream;
 pub async fn execute(cmd: String, path_arg: Option<String>, playing: bool) -> Result<()> {
     let (config, _, _) = AppConfig::load().context("Failed to load config")?;
 
-    // 1. Environment Reader
     let mut env_vars = HashMap::new();
     if let Some(env_path) = &config.storage.environment {
         let expanded = expand_path(env_path);
@@ -31,7 +30,6 @@ pub async fn execute(cmd: String, path_arg: Option<String>, playing: bool) -> Re
         }
     }
 
-    // 2. Active Album Resolution
     let target_album = if playing || path_arg.is_none() {
         get_playing_album(&config.storage.library_root).await?
     } else {
@@ -44,7 +42,6 @@ pub async fn execute(cmd: String, path_arg: Option<String>, playing: bool) -> Re
         target_album.to_string_lossy().to_string(),
     );
 
-    // 3. Router
     match cmd.as_str() {
         "get-lyrics" => get_lyrics::run(&config, &target_album, &env_vars).await,
         _ => {
@@ -71,7 +68,7 @@ pub async fn execute(cmd: String, path_arg: Option<String>, playing: bool) -> Re
     }
 }
 
-async fn get_playing_album(lib_root: &str) -> Result<PathBuf> {
+pub async fn get_playing_album(lib_root: &str) -> Result<PathBuf> {
     let host = std::env::var("MPD_HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
     let port = std::env::var("MPD_PORT").unwrap_or_else(|_| "6600".to_string());
     let addr = format!("{host}:{port}");

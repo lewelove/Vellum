@@ -88,7 +88,7 @@
               ui-npm)
                 cd "$ROOT/web-app" && npm run dev
                 ;;
-              server|manifest|compile|update|harvest|run)
+              server|manifest|compile|update|harvest|run|query)
                 if [ ! -f "$BIN" ]; then
                   echo "Error: vellum binary not found at $BIN. Run 'vellum build' first."
                   exit 1
@@ -124,6 +124,7 @@
                 echo "  server          : Start Backend Rust Server"
                 echo "  compile         : Compile metadata locks"
                 echo "  update          : Update library"
+                echo "  query           : Run SQL queries against the library"
                 echo "  generate        : Initialize metadata from files"
                 echo "  harvest         : Harvest raw metadata to JSON"
                 echo "  write           : Sync metadata to audio tags"

@@ -6,6 +6,7 @@ mod compile;
 mod config;
 mod harvest;
 mod manifest;
+mod query;
 mod run;
 mod server;
 mod update;
@@ -70,6 +71,16 @@ enum Commands {
         path: Option<String>,
         #[arg(long)]
         playing: bool,
+    },
+    Query {
+        #[arg(value_name = "QUERY")]
+        query_str: Option<String>,
+        #[arg(long)]
+        playing: bool,
+        #[arg(long)]
+        toml: bool,
+        #[arg(long)]
+        lock: bool,
     },
 }
 
@@ -170,5 +181,6 @@ async fn main() -> Result<()> {
         }
         Commands::Manifest { force } => manifest::run(force).await,
         Commands::Run { script_cmd, path, playing } => run::execute(script_cmd, path, playing).await,
+        Commands::Query { query_str, playing, toml, lock } => query::run(query_str, playing, toml, lock).await,
     }
 }
