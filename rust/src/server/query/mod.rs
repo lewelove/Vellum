@@ -5,6 +5,16 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
+use regex::Regex;
+use std::sync::LazyLock;
+
+static SHORTHAND_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"\{(\$\.[a-zA-Z0-9_.]+)\}").unwrap()
+});
+
+fn expand_shorthand(input: &str) -> String {
+    SHORTHAND_RE.replace_all(input, "json_extract(metadata, '$1')").to_string()
+}
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct LogicManifest {
@@ -257,7 +267,8 @@ impl QueryEngine {
     pub fn build_cache(&mut self) -> Result<()> {
         self.collections_cache.clear();
         for (key, collection) in &self.manifest.collections {
-            let sql = format!("SELECT uid FROM albums WHERE {}", collection.filter);
+            let expanded_filter = expand_shorthand(&collection.filter);
+            let sql = format!("SELECT uid FROM albums WHERE {}", expanded_filter);
             let mut stmt = self.conn.prepare(&sql)?;
             let uids: HashSet<u32> = stmt.query_map([], |row| row.get(0))?.filter_map(Result::ok).collect();
             self.collections_cache.insert(key.clone(), uids);
@@ -265,7 +276,8 @@ impl QueryEngine {
 
         self.sorters_cache.clear();
         for (key, sorter) in &self.manifest.sorters {
-            let sql = format!("SELECT uid FROM albums ORDER BY {}", sorter.order_by);
+            let expanded_order = expand_shorthand(&sorter.order_by);
+            let sql = format!("SELECT uid FROM albums ORDER BY {}", expanded_order);
             let mut stmt = self.conn.prepare(&sql)?;
             let uids: Vec<u32> = stmt.query_map([], |row| row.get(0))?.filter_map(Result::ok).collect();
             self.sorters_cache.insert(key.clone(), uids);
@@ -294,7 +306,9 @@ impl QueryEngine {
                     self.shelves_cache.insert(key.clone(), vec![]);
                 }
             } else if let (Some(filter), Some(order_by)) = (&shelf.filter, &shelf.order_by) {
-                let sql = format!("SELECT uid FROM albums WHERE {} ORDER BY {}", filter, order_by);
+                let expanded_filter = expand_shorthand(filter);
+                let expanded_order = expand_shorthand(order_by);
+                let sql = format!("SELECT uid FROM albums WHERE {} ORDER BY {}", expanded_filter, expanded_order);
                 if let Ok(mut stmt) = self.conn.prepare(&sql) {
                     let uids: Vec<u32> = stmt.query_map([], |row| row.get(0))
                         .map(|rows| rows.filter_map(Result::ok).collect())
@@ -306,7 +320,8 @@ impl QueryEngine {
 
         self.facets_cache.clear();
         for (key, grouper) in &self.manifest.groupers {
-            let sql = format!("SELECT uid, {} FROM albums", grouper.select);
+            let expanded_select = expand_shorthand(&grouper.select);
+            let sql = format!("SELECT uid, {} FROM albums", expanded_select);
             let mut stmt = self.conn.prepare(&sql)?;
             let mut rows = stmt.query([])?;
             
@@ -348,8 +363,8 @@ impl QueryEngine {
 
         if let (Some(fk), Some(fv)) = (filter_key, filter_val) {
             if fk == "search" {
-                let sql = "SELECT uid FROM albums WHERE json_extract(metadata, '$.album.ALBUM') LIKE ?1 OR json_extract(metadata, '$.album.ALBUMARTIST') LIKE ?1";
-                if let Ok(mut stmt) = self.conn.prepare(sql) {
+                let sql = "SELECT uid FROM albums WHERE {$.album.ALBUM} LIKE ?1 OR {$.album.ALBUMARTIST} LIKE ?1";
+                if let Ok(mut stmt) = self.conn.prepare(&expand_shorthand(sql)) {
                     let pattern = format!("%{}%", fv);
                     if let Ok(match_uids_iter) = stmt.query_map([pattern], |row| row.get::<_, u32>(0)) {
                         let match_uids: HashSet<u32> = match_uids_iter.filter_map(Result::ok).collect();
@@ -404,9 +419,9 @@ impl QueryEngine {
         }
         
         results.sort_by(|a, b| {
-            let label_a = a.get("label").and_then(Value::as_str).unwrap_or("");
-            let label_b = b.get("label").and_then(Value::as_str).unwrap_or("");
-            alphanumeric_sort::compare_str(label_a, label_b)
+            let label_a = a.get("label").and_then(Value::as_str).unwrap_or("").to_lowercase();
+            let label_b = b.get("label").and_then(Value::as_str).unwrap_or("").to_lowercase();
+            alphanumeric_sort::compare_str(&label_a, &label_b)
         });
 
         results
