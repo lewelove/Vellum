@@ -45,7 +45,7 @@
     position: absolute;
     inset: 0;
     opacity: 0;
-    transition: opacity 0.4s;
+    transition: opacity 0.0s;
     will-change: opacity;
   }
 

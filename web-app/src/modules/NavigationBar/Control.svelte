@@ -46,8 +46,8 @@
     return () => cancelAnimationFrame(raf);
   });
 
-  let pathD = $derived.by(() => {
-    if (height <= 0) return "";
+  let waveData = $derived.by(() => {
+    if (height <= 0) return { d: "", cx: 0, cy: 0, thumbR: 0 };
     
     const midX = 12;
     const pad = 2; 
@@ -55,53 +55,52 @@
     const waveLength = 20;
     const maxAmplitude = 2;
     const transitionLen = 100;
-    const thickness = 4;
-    const R = thickness / 2;
+    
+    const LINE_THICKNESS = 5;
+    const LINE_R = LINE_THICKNESS / 2;
+    const THUMB_R = 2;
     
     const waveStart = straightLen + pad;
     const waveEnd = height - straightLen - pad;
     const waveHeight = Math.max(0, waveEnd - waveStart);
     const actualTransition = Math.min(transitionLen, waveHeight / 2);
     
+    const getX = (y) => {
+      if (height <= straightLen * 2 + pad * 2) return midX;
+      if (y <= waveStart || y >= waveEnd) return midX;
+
+      const prog = (y - waveStart) / waveHeight;
+      const distStart = y - waveStart;
+      const distEnd = waveEnd - y;
+      
+      let envelope = 1;
+      if (actualTransition > 0) {
+        if (distStart < actualTransition) {
+          const t = distStart / actualTransition;
+          envelope = t * t * (3 - 2 * t);
+        } else if (distEnd < actualTransition) {
+          const t = distEnd / actualTransition;
+          envelope = t * t * (3 - 2 * t);
+        }
+      } else {
+        envelope = 0;
+      }
+      
+      return midX + Math.sin((prog * waveHeight / waveLength * Math.PI * 2) + phase) * maxAmplitude * envelope;
+    };
+
     const pts =[];
     const step = 1;
 
-    if (height <= straightLen * 2 + pad * 2) {
-      for (let y = pad; y <= height - pad; y += step) {
-        pts.push({ x: midX, y });
-      }
-    } else {
-      for (let y = pad; y <= height - pad; y += step) {
-        let x = midX;
-        if (y > waveStart && y < waveEnd) {
-          const prog = (y - waveStart) / waveHeight;
-          const distStart = y - waveStart;
-          const distEnd = waveEnd - y;
-          
-          let envelope = 1;
-          if (actualTransition > 0) {
-            if (distStart < actualTransition) {
-              const t = distStart / actualTransition;
-              envelope = t * t * (3 - 2 * t);
-            } else if (distEnd < actualTransition) {
-              const t = distEnd / actualTransition;
-              envelope = t * t * (3 - 2 * t);
-            }
-          } else {
-            envelope = 0;
-          }
-          
-          x += Math.sin((prog * waveHeight / waveLength * Math.PI * 2) + phase) * maxAmplitude * envelope;
-        }
-        pts.push({ x, y });
-      }
+    for (let y = pad; y <= height - pad; y += step) {
+      pts.push({ x: getX(y), y });
     }
     
     if (pts.length > 0 && pts[pts.length - 1].y < height - pad) {
       pts.push({ x: midX, y: height - pad });
     }
 
-    if (pts.length === 0) return "";
+    if (pts.length === 0) return { d: "", cx: midX, cy: pad, thumbR: THUMB_R };
 
     const lefts = [];
     const rights =[];
@@ -125,26 +124,31 @@
       const nx = len === 0 ? 1 : dy / len;
       const ny = len === 0 ? 0 : -dx / len;
       
-      rights.push({ x: p.x + R * nx, y: p.y + R * ny });
-      lefts.push({ x: p.x - R * nx, y: p.y - R * ny });
+      rights.push({ x: p.x + LINE_R * nx, y: p.y + LINE_R * ny });
+      lefts.push({ x: p.x - LINE_R * nx, y: p.y - LINE_R * ny });
     }
 
     let d = `M ${lefts[0].x.toFixed(2)} ${lefts[0].y.toFixed(2)} `;
-    d += `A ${R} ${R} 0 0 1 ${rights[0].x.toFixed(2)} ${rights[0].y.toFixed(2)} `;
+    d += `A ${LINE_R} ${LINE_R} 0 0 1 ${rights[0].x.toFixed(2)} ${rights[0].y.toFixed(2)} `;
     
     for (let i = 1; i < rights.length; i++) {
       d += `L ${rights[i].x.toFixed(2)} ${rights[i].y.toFixed(2)} `;
     }
     
     const lastIdx = pts.length - 1;
-    d += `A ${R} ${R} 0 0 1 ${lefts[lastIdx].x.toFixed(2)} ${lefts[lastIdx].y.toFixed(2)} `;
+    d += `A ${LINE_R} ${LINE_R} 0 0 1 ${lefts[lastIdx].x.toFixed(2)} ${lefts[lastIdx].y.toFixed(2)} `;
     
     for (let i = lefts.length - 2; i >= 0; i--) {
       d += `L ${lefts[i].x.toFixed(2)} ${lefts[i].y.toFixed(2)} `;
     }
     
     d += "Z";
-    return d;
+
+    let targetY = height * (progress / 100);
+    let cy = Math.max(pad, Math.min(height - pad, targetY));
+    let cx = getX(cy);
+
+    return { d, cx, cy, thumbR: THUMB_R };
   });
 </script>
 
@@ -162,8 +166,11 @@
             />
           </clipPath>
         </defs>
-        <path d={pathD} class="wave-bg" />
-        <path d={pathD} class="wave-fill" clip-path="url(#wave-fill-clip)" />
+        <path d={waveData.d} class="wave-bg" />
+        <g class="wave-fill-group">
+          <path d={waveData.d} clip-path="url(#wave-fill-clip)" />
+          <circle cx={waveData.cx} cy={waveData.cy} r={waveData.thumbR} />
+        </g>
       </svg>
     {/if}
   </div>
@@ -195,7 +202,6 @@
     flex: 1;
     position: relative;
     min-height: 60px;
-    margin: 0 0 0 0;
     margin: 20px 0 4px 0;
   }
 
@@ -210,12 +216,14 @@
   }
 
   .wave-bg {
-    fill: oklch(100% 0 0 / 0.074);
+    fill: oklch(100% 0 0);
+    opacity: 0.04;
     stroke: none;
   }
 
-  .wave-fill {
-    fill: oklch(100% 0 0 / 0.54);
+  .wave-fill-group {
+    fill: oklch(100% 0 0);
+    opacity: 0.4;
     stroke: none;
   }
 
