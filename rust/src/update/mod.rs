@@ -63,7 +63,7 @@ pub async fn run(
         .unwrap_or_else(|| vec![".flac".to_string()]);
 
     let lib_hash = calculate_hash(&library_root.to_string_lossy());
-    let base_cache_dir = expand_path("~/.vellum/libraries_cache");
+    let base_cache_dir = expand_path(&config.storage.cache).join("libraries_cache");
     fs::create_dir_all(&base_cache_dir)?;
 
     validate_library_root(&base_cache_dir, &lib_hash).await?;

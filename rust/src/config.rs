@@ -19,9 +19,15 @@ pub struct AppConfig {
 pub struct StorageConfig {
     pub library_root: String,
     pub library_export: Option<String>,
-    pub thumbnail_cache_folder: Option<String>,
+    #[serde(default = "default_cache")]
+    pub cache: String,
+    #[serde(default = "default_state")]
+    pub state: String,
     pub environment: Option<String>,
 }
+
+fn default_cache() -> String { "~/.cache/vellum".to_string() }
+fn default_state() -> String { "~/.local/share/vellum".to_string() }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ThemeConfig {

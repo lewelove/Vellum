@@ -15,7 +15,8 @@ pub struct AppState {
 #[derive(Clone)]
 pub struct AppConfig {
     pub library_root: PathBuf,
-    pub thumbnail_root: Option<PathBuf>,
+    pub cache_root: PathBuf,
+    pub state_root: PathBuf,
     pub thumbnail_size: u32,
     pub shader: Option<crate::config::ShaderConfig>,
     pub resolved_shader_path: Option<PathBuf>,

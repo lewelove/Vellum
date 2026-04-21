@@ -23,7 +23,10 @@ pub async fn update_state(
     };
 
     if let Some(data) = content {
-        let state_file = crate::expand_path("~/.vellum/state.json");
+        let state_file = {
+            let guard = state.config.read().await;
+            guard.state_root.join("state.json")
+        };
         let _ = tokio::fs::write(state_file, data).await;
     }
 

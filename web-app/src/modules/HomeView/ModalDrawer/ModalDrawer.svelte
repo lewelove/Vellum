@@ -87,7 +87,6 @@
   class="modal-backdrop" 
   onclick={handleBackdropClick} 
   role="presentation"
-  transition:fade={{ duration: 100 }}
 >
   <div class="modal-chassis v-panel">
     <div class="modal-content">

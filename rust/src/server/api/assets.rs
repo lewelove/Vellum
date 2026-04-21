@@ -11,23 +11,19 @@ pub async fn get_cover_thumbnail(
     Path((size, hash)): Path<(String, String)>,
     State(state): State<Arc<AppState>>,
 ) -> Response {
-    let root_opt = {
+    let root = {
         let guard = state.config.read().await;
-        guard.thumbnail_root.clone()
+        guard.cache_root.clone()
     };
     
-    if let Some(root) = root_opt {
-        let path = root.join(&size).join(format!("{hash}.png"));
+    let path = root.join("thumbnails").join(&size).join(format!("{hash}.png"));
 
-        match serve_image(path.clone()).await {
-            resp if resp.status() == StatusCode::OK => resp,
-            _ => {
-                log::error!("FS 404: File not found at -> {}", path.display());
-                StatusCode::NOT_FOUND.into_response()
-            }
+    match serve_image(path.clone()).await {
+        resp if resp.status() == StatusCode::OK => resp,
+        _ => {
+            log::error!("FS 404: File not found at -> {}", path.display());
+            StatusCode::NOT_FOUND.into_response()
         }
-    } else {
-        StatusCode::NOT_FOUND.into_response()
     }
 }
 

@@ -130,13 +130,23 @@
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
-    transition: opacity 0.1s ease-out, visibility 0s linear 0.1s;
+    /* transition: opacity 0.1s linear, visibility 0.1s linear; */
+    /* transition: opacity 0.08s ease-out, visibility 0.08s ease-out; */
+    /* transition: opacity 0.8s ease-out, visibility 0.8s ease-out; */
+    /* transition: opacity 0.2s ease-out, visibility 0.2s ease-out; */
+    /* transition: opacity 0.1s ease-out, visibility 0.1s ease-out; */
+    transition: opacity 0.0s ease-out, visibility 0.0s ease-out;
   }
 
   .view-layer.visible {
     opacity: 1;
     visibility: visible;
-    transition: opacity 0.1s ease-out, visibility 0s linear 0s;
+    /* transition: opacity 0.1s linear, visibility 0.1s linear; */
+    /* transition: opacity 0.08s ease-out, visibility 0.08s ease-out; */
+    /* transition: opacity 0.8s ease-out, visibility 0.8s ease-out; */
+    /* transition: opacity 0.2s ease-out, visibility 0.2s ease-out; */
+    /* transition: opacity 0.1s ease-out, visibility 0.1s ease-out; */
+    transition: opacity 0.0s ease-out, visibility 0.0s ease-out;
   }
 
   .view-layer.instant {

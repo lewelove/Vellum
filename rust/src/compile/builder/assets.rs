@@ -40,8 +40,8 @@ pub fn load_or_create_thumbnail(
     cover_hash: &str,
 ) -> Option<DynamicImage> {
     let storage = config.get("storage")?;
-    let dir_str = storage
-        .get("thumbnail_cache_folder")
+    let cache_str = storage
+        .get("cache")
         .and_then(Value::as_str)?;
     let cp = cover_path?;
     if cover_hash.is_empty() {
@@ -54,7 +54,7 @@ pub fn load_or_create_thumbnail(
         .and_then(Value::as_u64)
         .map_or(200, |s| u32::try_from(s).unwrap_or(200));
 
-    let thumb_dir = expand_path(dir_str).join(format!("{size}px"));
+    let thumb_dir = expand_path(cache_str).join("thumbnails").join(format!("{size}px"));
     let thumb_path = thumb_dir.join(format!("{cover_hash}.png"));
 
     if !thumb_path.exists() {

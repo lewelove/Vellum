@@ -21,12 +21,17 @@ pub async fn run(port: u16) -> Result<()> {
     let config_dir = config_path.parent().unwrap_or(Path::new(".")).to_path_buf();
 
     let lib_root_str = &config.storage.library_root;
-    let thumb_root_str = config.storage.thumbnail_cache_folder.as_deref();
     let thumb_size = config.theme.as_ref().map_or(200, |t| t.thumbnail_size);
 
     let library_root = expand_path(lib_root_str)
         .canonicalize()
         .context("Invalid library_root path")?;
+
+    let cache_root = expand_path(&config.storage.cache);
+    let state_root = expand_path(&config.storage.state);
+
+    std::fs::create_dir_all(&cache_root).ok();
+    std::fs::create_dir_all(&state_root).ok();
 
     let shader_cfg = config.theme.as_ref().and_then(|t| t.shader.clone());
     let mut resolved_shader_path = None;
@@ -60,7 +65,8 @@ pub async fn run(port: u16) -> Result<()> {
 
     let server_config = ServerConfig {
         library_root: library_root.clone(),
-        thumbnail_root: thumb_root_str.map(expand_path),
+        cache_root,
+        state_root: state_root.clone(),
         thumbnail_size: thumb_size,
         shader: shader_cfg,
         resolved_shader_path,
@@ -69,7 +75,7 @@ pub async fn run(port: u16) -> Result<()> {
         resolved_shelf_files,
     };
 
-    let state_file = expand_path("~/.vellum/state.json");
+    let state_file = state_root.join("state.json");
     let ui_state_val = if state_file.exists() {
         let data = std::fs::read_to_string(&state_file).unwrap_or_default();
         serde_json::from_str(&data).unwrap_or_else(|_| serde_json::json!({}))
