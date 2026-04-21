@@ -1,10 +1,12 @@
 <script>
+  import { player } from "../player.svelte.js";
   import ClearCover from "../ClearCover.svelte";
 
   let { coverUrl = "", onclick, width = $bindable(0) } = $props();
+  let isStopped = $derived(player.state === "stop");
 </script>
 
-<div class="cover-wrapper v-glass">
+<div class="cover-wrapper" class:v-glass={isStopped}>
   <div 
     class="cover-panel" 
     class:clickable={!!coverUrl}
