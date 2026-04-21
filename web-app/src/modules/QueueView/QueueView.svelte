@@ -190,14 +190,14 @@
   .tracks-panel {
     flex: 1;
     min-height: 0;
-    border-radius: 0 24px 24px 0;
+    border-radius: 0 20px 20px 0;
     clip-path: inset(-100px -100px -100px 0px);
   }
 
   .lyrics-panel {
     flex: 1;
     min-height: 0;
-    border-radius: 24px 0 0 24px;
+    border-radius: 20px 0 0 20px;
     clip-path: inset(-100px 0px -100px -100px);
   }
 

@@ -50,9 +50,9 @@
     if (height <= 0) return "";
     
     const midX = 12;
-    const pad = 4; 
+    const pad = 2; 
     const straightLen = 0;
-    const waveLength = 24;
+    const waveLength = 20;
     const maxAmplitude = 2;
     const transitionLen = 100;
     const thickness = 4;
@@ -151,13 +151,13 @@
 <div class="control-container">
   <div class="progress-track" bind:clientHeight={height}>
     {#if height > 0}
-      <svg width="24" {height} xmlns="http://www.w3.org/2000/svg">
+      <svg xmlns="http://www.w3.org/2000/svg">
         <defs>
           <clipPath id="wave-fill-clip">
             <rect 
-              x="0" 
+              x="-5" 
               y="0"
-              width="24" 
+              width="34" 
               height={height * (progress / 100)} 
             />
           </clipPath>
@@ -193,16 +193,19 @@
   .progress-track {
     width: 24px;
     flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
+    position: relative;
     min-height: 60px;
-    overflow: hidden;
+    margin: 0 0 0 0;
+    margin: 8px 0 0 0;
   }
 
   svg {
     display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
     overflow: visible;
   }
 
