@@ -4,6 +4,10 @@
 label = "Genre"
 select = "json_extract(metadata, '$.album.GENRE')"
 
+[groupers.artists]
+label = "Artists"
+select = "COALESCE(NULLIF(json_extract(metadata, '$.album.tags.ARTISTS'), '[]'), json_extract(metadata, '$.album.ALBUMARTIST'))"
+
 [groupers.decade]
 label = "Decade"
 select = "substr(json_extract(metadata, '$.album.DATE'), 1, 3) || '0s'"
