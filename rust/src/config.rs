@@ -60,6 +60,7 @@ pub struct CompilerConfig {
     pub date_added: Option<String>,
     pub file_subset_match: Option<Vec<String>>,
     pub cover_palette: Option<PaletteConfig>,
+    pub manifests: Option<Vec<String>>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]

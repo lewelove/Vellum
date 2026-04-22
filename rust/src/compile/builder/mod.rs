@@ -11,6 +11,7 @@ use serde_json::{Value, json};
 use sha2::Digest;
 use std::collections::HashSet;
 use std::path::Path;
+use std::time::SystemTime;
 
 pub fn build(
     album_root: &Path,
@@ -21,16 +22,92 @@ pub fn build(
 ) -> Result<Value> {
     let metadata_path = album_root.join("metadata.toml");
     let meta = std::fs::metadata(&metadata_path)?;
-    let meta_mtime = meta
+    let mut meta_mtime = meta
         .modified()?
-        .duration_since(std::time::UNIX_EPOCH)?
+        .duration_since(SystemTime::UNIX_EPOCH)?
         .as_secs();
+
+    if let Some(manifests) = config.get("compiler").and_then(|c| c.get("manifests")).and_then(Value::as_array) {
+        for m_val in manifests {
+            if let Some(m_name) = m_val.as_str() {
+                let m_path = album_root.join(m_name);
+                if m_path.exists() {
+                    meta_mtime += std::fs::metadata(&m_path)
+                        .and_then(|m| m.modified())
+                        .map(|t| t.duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_secs())
+                        .unwrap_or(0);
+                }
+            }
+        }
+    }
+
     let meta_hash = format!("{:x}", sha2::Sha256::digest(std::fs::read(&metadata_path)?));
 
     let content = std::fs::read_to_string(&metadata_path)?;
-    let metadata_json = normalize_keys(serde_json::to_value(toml::from_str::<toml::Value>(
+    let mut metadata_json = normalize_keys(serde_json::to_value(toml::from_str::<toml::Value>(
         &content,
     )?)?);
+
+    if let Some(manifests) = config.get("compiler").and_then(|c| c.get("manifests")).and_then(Value::as_array) {
+        for m_val in manifests {
+            if let Some(m_name) = m_val.as_str() {
+                let m_path = album_root.join(m_name);
+                if !m_path.exists() {
+                    continue;
+                }
+                let m_content = std::fs::read_to_string(&m_path)?;
+                let m_json = normalize_keys(serde_json::to_value(toml::from_str::<toml::Value>(&m_content)?)?);
+                
+                if let Some(aux_album) = m_json.get("album").and_then(Value::as_object) {
+                    if let Some(primary_album) = metadata_json.get_mut("album").and_then(Value::as_object_mut) {
+                        for (k, v) in aux_album {
+                            if !primary_album.contains_key(k) {
+                                primary_album.insert(k.clone(), v.clone());
+                            }
+                        }
+                    } else {
+                        metadata_json.as_object_mut().unwrap().insert("album".to_string(), Value::Object(aux_album.clone()));
+                    }
+                }
+
+                if let Some(aux_tracks) = m_json.get("tracks").and_then(Value::as_array) {
+                    let primary_tracks = metadata_json.get_mut("tracks").and_then(Value::as_array_mut).ok_or_else(|| anyhow!("Primary metadata.toml missing [[tracks]] in {}", album_root.display()))?;
+                    
+                    for (idx, aux_t) in aux_tracks.iter().enumerate() {
+                        let a_obj = aux_t.as_object().ok_or_else(|| anyhow!("Entry {} in {} is not an object", idx + 1, m_name))?;
+                        
+                        let track_no = extract_strict_u32(aux_t.get("tracknumber"), "tracknumber", None)
+                            .with_context(|| format!("Manifest {} in {} has invalid or missing TRACKNUMBER at entry {}", m_name, album_root.display(), idx + 1))?;
+                        
+                        let disc_no = extract_strict_u32(aux_t.get("discnumber"), "discnumber", Some(1))
+                            .with_context(|| format!("Manifest {} in {} has invalid DISCNUMBER at entry {}", m_name, album_root.display(), idx + 1))?;
+
+                        let mut found = false;
+                        for prim_t in primary_tracks.iter_mut() {
+                            let p_track_no = extract_strict_u32(prim_t.get("tracknumber"), "tracknumber", None)?;
+                            let p_disc_no = extract_strict_u32(prim_t.get("discnumber"), "discnumber", Some(1))?;
+
+                            if track_no == p_track_no && disc_no == p_disc_no {
+                                let p_obj = prim_t.as_object_mut().unwrap();
+                                for (k, v) in a_obj {
+                                    if k != "tracknumber" && k != "discnumber" {
+                                        if !p_obj.contains_key(k) {
+                                            p_obj.insert(k.clone(), v.clone());
+                                        }
+                                    }
+                                }
+                                found = true;
+                                break;
+                            }
+                        }
+                        if !found {
+                            return Err(anyhow!("Manifest {} references Disc {}, Track {} which does not exist in metadata.toml for {}", m_name, disc_no, track_no, album_root.display()));
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     let (c_path, c_hash, c_mtime, c_size) = assets::resolve_cover_info(album_root);
     let loaded_image =
@@ -48,7 +125,7 @@ pub fn build(
     let track_entries = metadata_json
         .get("tracks")
         .and_then(Value::as_array)
-        .ok_or_else(|| anyhow!("Missing tracks in metadata.toml"))?;
+        .ok_or_else(|| anyhow!("Missing tracks in metadata.toml in {}", album_root.display()))?;
 
     if audio_files.len() != track_entries.len() {
         return Err(anyhow!(
@@ -74,7 +151,7 @@ pub fn build(
         .get("compiler")
         .and_then(|c| c.get("keys"))
         .and_then(Value::as_object)
-        .ok_or_else(|| anyhow!("Missing registry keys"))?
+        .ok_or_else(|| anyhow!("Missing registry keys in configuration"))?
         .clone();
 
     let local_config_path = album_root.join("config.toml");
@@ -486,7 +563,7 @@ fn build_album(
         }
 
         let key_lower = key.to_lowercase();
-        if ["album", "albumartist", "date", "genre", "comment", "original_yyyy_mm", "release_yyyy_mm"].contains(&key_lower.as_str()) {
+        if["album", "albumartist", "date", "genre", "comment", "original_yyyy_mm", "release_yyyy_mm"].contains(&key_lower.as_str()) {
             continue;
         }
         let val = resolvers::resolve_album_key(key, meta, ctx).unwrap_or(Value::Null);

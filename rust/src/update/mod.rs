@@ -62,6 +62,8 @@ pub async fn run(
         .map(|m| m.supported_extensions.clone())
         .unwrap_or_else(|| vec![".flac".to_string()]);
 
+    let manifests = config.compiler.as_ref().and_then(|c| c.manifests.clone());
+
     let lib_hash = calculate_hash(&library_root.to_string_lossy());
     let base_cache_dir = expand_path(&config.storage.cache).join("libraries_cache");
     fs::create_dir_all(&base_cache_dir)?;
@@ -83,7 +85,7 @@ pub async fn run(
         log::info!("Verifying {} albums...", all_albums.len());
     }
 
-    let results = verify_albums_parallel(all_albums, &cache, force, jobs, &exts)?;
+    let results = verify_albums_parallel(all_albums, &cache, force, jobs, &exts, &manifests)?;
 
     let mut work_queue = Vec::new();
 
@@ -113,6 +115,7 @@ pub async fn run(
     let cache_arc = Arc::new(Mutex::new(cache));
     let cache_for_task = Arc::clone(&cache_arc);
     let exts_for_task = exts.clone();
+    let manifests_for_task = manifests.clone();
 
     let notification_task = tokio::spawn(async move {
         let mut updated_paths = Vec::new();
@@ -134,7 +137,7 @@ pub async fn run(
         for album_root in &updated_paths {
             let album_path_str = album_root.to_string_lossy().to_string();
             let metadata_path = album_root.join("metadata.toml");
-            let mtime_sum = get_mtime_sum(album_root, &metadata_path, &exts_for_task);
+            let mtime_sum = get_mtime_sum(album_root, &metadata_path, &exts_for_task, &manifests_for_task);
             c.insert(album_path_str.clone(), AlbumCacheEntry { mtime_sum });
             paths_for_server.push(album_path_str);
         }
@@ -215,6 +218,7 @@ fn verify_albums_parallel(
     force: bool,
     jobs: Option<usize>,
     exts: &[String],
+    manifests: &Option<Vec<String>>,
 ) -> Result<Vec<(PathBuf, u64, bool)>> {
     let default_parallelism = std::thread::available_parallelism()
         .map(std::num::NonZero::get)
@@ -229,7 +233,7 @@ fn verify_albums_parallel(
             .map(|album_root| {
                 let album_path_str = album_root.to_string_lossy().to_string();
                 let metadata_path = album_root.join("metadata.toml");
-                let mtime_sum = get_mtime_sum(&album_root, &metadata_path, exts);
+                let mtime_sum = get_mtime_sum(&album_root, &metadata_path, exts, manifests);
 
                 if force {
                     return (album_root, mtime_sum, true);
@@ -242,7 +246,7 @@ fn verify_albums_parallel(
                     return (album_root, mtime_sum, false);
                 }
 
-                match verify_trust(&album_root) {
+                match verify_trust(&album_root, manifests) {
                     TrustState::Valid => (album_root, mtime_sum, false),
                     _ => (album_root, mtime_sum, true),
                 }
@@ -257,7 +261,7 @@ fn calculate_hash(data: &str) -> String {
     format!("{:x}", hasher.finalize())
 }
 
-fn get_mtime_sum(dir: &Path, meta: &Path, exts: &[String]) -> u64 {
+fn get_mtime_sum(dir: &Path, meta: &Path, exts: &[String], manifests: &Option<Vec<String>>) -> u64 {
     let d_mtime = fs::metadata(dir)
         .and_then(|m| m.modified())
         .map(|t| {
@@ -267,7 +271,7 @@ fn get_mtime_sum(dir: &Path, meta: &Path, exts: &[String]) -> u64 {
         })
         .unwrap_or(0);
 
-    let m_mtime = fs::metadata(meta)
+    let mut m_mtime = fs::metadata(meta)
         .and_then(|m| m.modified())
         .map(|t| {
             t.duration_since(SystemTime::UNIX_EPOCH)
@@ -275,6 +279,22 @@ fn get_mtime_sum(dir: &Path, meta: &Path, exts: &[String]) -> u64 {
                 .as_secs()
         })
         .unwrap_or(0);
+
+    if let Some(names) = manifests {
+        for name in names {
+            let p = dir.join(name);
+            if p.exists() {
+                m_mtime += fs::metadata(&p)
+                    .and_then(|m| m.modified())
+                    .map(|t| {
+                        t.duration_since(SystemTime::UNIX_EPOCH)
+                            .unwrap_or_default()
+                            .as_secs()
+                    })
+                    .unwrap_or(0);
+            }
+        }
+    }
 
     let mut c_mtime = 0;
     let cover_candidates =["cover.jpg", "cover.png", "folder.jpg", "front.jpg"];
@@ -323,7 +343,7 @@ fn get_mtime_sum(dir: &Path, meta: &Path, exts: &[String]) -> u64 {
     d_mtime + m_mtime + c_mtime + t_mtime
 }
 
-fn verify_trust(album_root: &Path) -> TrustState {
+fn verify_trust(album_root: &Path, manifests: &Option<Vec<String>>) -> TrustState {
     let lock_path = album_root.join("metadata.lock.json");
     if !lock_path.exists() {
         return TrustState::Missing;
@@ -346,8 +366,9 @@ fn verify_trust(album_root: &Path) -> TrustState {
         .get("metadata_toml_mtime")
         .and_then(serde_json::Value::as_u64)
         .unwrap_or(0);
+    
     let metadata_path = album_root.join("metadata.toml");
-    let current_mtime = fs::metadata(&metadata_path)
+    let mut current_mtime = fs::metadata(&metadata_path)
         .and_then(|m| m.modified())
         .map(|t| {
             t.duration_since(SystemTime::UNIX_EPOCH)
@@ -355,6 +376,22 @@ fn verify_trust(album_root: &Path) -> TrustState {
                 .as_secs()
         })
         .unwrap_or(0);
+
+    if let Some(names) = manifests {
+        for name in names {
+            let p = album_root.join(name);
+            if p.exists() {
+                current_mtime += fs::metadata(&p)
+                    .and_then(|m| m.modified())
+                    .map(|t| {
+                        t.duration_since(SystemTime::UNIX_EPOCH)
+                            .unwrap_or_default()
+                            .as_secs()
+                    })
+                    .unwrap_or(0);
+            }
+        }
+    }
 
     if current_mtime != lock_mtime && lock_mtime != 0 {
         return TrustState::BrokenIntent;
