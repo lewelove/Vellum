@@ -171,6 +171,7 @@
 
   .side-column {
     display: flex;
+    max-width: 500px;
     flex-direction: column;
     flex: 1;
     gap: 16px;
@@ -180,7 +181,7 @@
   }
 
   .module-panel {
-    min-width: 240px;
+    min-width: 250px;
     border-radius: 16px;
     display: flex;
     flex-direction: column;

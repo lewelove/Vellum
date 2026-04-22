@@ -23,7 +23,9 @@
   --text-muted: var(--palette-400);
   --border-muted: var(--palette-300);
 
-  --glass-bg: oklch(32% 0 0 / 0.4);
+  --glass-bg: oklch(32% 0 0 / 0.6);
+  --glass-bg: oklch(26% 0 0 / 0.8);
+  --glass-bg: oklch(32% 0 0 / 0.5);
 
   --font-size-title: 14px;
   --font-weight-title: 400;

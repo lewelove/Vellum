@@ -56,7 +56,7 @@
     const maxAmplitude = 2;
     const transitionLen = 100;
     
-    const LINE_THICKNESS = 5;
+    const LINE_THICKNESS = 4;
     const LINE_R = LINE_THICKNESS / 2;
     const THUMB_R = 2;
     
@@ -223,7 +223,7 @@
 
   .wave-fill-group {
     fill: oklch(100% 0 0);
-    opacity: 0.4;
+    opacity: 0.2;
     stroke: none;
   }
 
