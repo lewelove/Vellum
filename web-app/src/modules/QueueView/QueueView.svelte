@@ -97,7 +97,7 @@
       role="button"
       tabindex="0"
       onkeydown={(e) => { if(e.key === 'Enter') toggleExpand(); }}
-      transition:fade={{ duration: 300 }}
+      transition:fade={{ duration: 200 }}
     >
       <div 
         class="expanded-content" 
@@ -105,7 +105,7 @@
         onclick={(e) => e.stopPropagation()} 
         role="presentation"
       >
-        <div in:fade={{ duration: 100 }}>
+        <div in:fade={{ duration: 200 }}>
           <ClearCover 
             hash={coverHash} 
             width={expandedSize} 
@@ -188,7 +188,7 @@
 
   .side-column {
     display: flex;
-    max-width: 500px;
+    /* max-width: 500px; */
     flex-direction: column;
     flex: 1;
     gap: 16px;
