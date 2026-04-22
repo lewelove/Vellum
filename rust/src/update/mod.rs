@@ -82,6 +82,16 @@ pub async fn run(
         .unwrap_or(4);
     let all_albums = compile::builder::scan::find_target_albums(&scan_root, scan_depth)?;
 
+    let mut missing_paths = Vec::new();
+    let scan_root_str = scan_root.to_string_lossy().to_string();
+    let album_set: std::collections::HashSet<String> = all_albums.iter().map(|p| p.to_string_lossy().to_string()).collect();
+
+    for cached_path in cache.keys() {
+        if cached_path.starts_with(&scan_root_str) && !album_set.contains(cached_path) {
+            missing_paths.push(PathBuf::from(cached_path));
+        }
+    }
+
     if !silent {
         log::info!("Verifying {} albums...", all_albums.len());
     }
@@ -101,7 +111,7 @@ pub async fn run(
         }
     }
 
-    if work_queue.is_empty() {
+    if work_queue.is_empty() && missing_paths.is_empty() {
         if !silent {
             log::info!("Library is up to date.");
         }
@@ -127,11 +137,6 @@ pub async fn run(
             updated_paths.push(signal.path);
         }
 
-        if updated_paths.is_empty() {
-            return;
-        }
-
-        let client = reqwest::Client::new();
         let mut paths_for_server = Vec::new();
 
         let mut c = cache_for_task.lock().await;
@@ -143,6 +148,17 @@ pub async fn run(
             paths_for_server.push(album_path_str);
         }
 
+        for missing in missing_paths {
+            let p_str = missing.to_string_lossy().to_string();
+            c.remove(&p_str);
+            paths_for_server.push(p_str);
+        }
+
+        if paths_for_server.is_empty() {
+            return;
+        }
+
+        let client = reqwest::Client::new();
         let elapsed_ms = start_time.elapsed().as_millis();
         let url = format!("http://127.0.0.1:8000/api/internal/batch_reload?time={}", elapsed_ms);
 
@@ -154,27 +170,32 @@ pub async fn run(
             .await;
     });
 
-    let compile_options = compile::CompileOptions {
-        target_path: scan_root,
-        flags: vec!["default".to_string()],
-        specific_albums: Some(work_queue),
-        jobs,
-        notify_tx: Some(notify_tx.clone()),
-        compile_flags: compile::CompileFlags {
-            mode: compile::CompileMode::Standard,
-            target: compile::ExportTarget::File,
-            pretty: false,
-        },
-    };
-
-    compile::run(compile_options).await?;
+    if !work_queue.is_empty() {
+        let compile_options = compile::CompileOptions {
+            target_path: scan_root,
+            flags: vec!["default".to_string()],
+            specific_albums: Some(work_queue),
+            jobs,
+            notify_tx: Some(notify_tx.clone()),
+            compile_flags: compile::CompileFlags {
+                mode: compile::CompileMode::Standard,
+                target: compile::ExportTarget::File,
+                pretty: false,
+            },
+        };
+        compile::run(compile_options).await?;
+    }
 
     drop(notify_tx);
     let _ = notification_task.await;
 
     let elapsed = start_time.elapsed().as_millis();
     if !silent {
-        log::info!("Updated {} albums. Finished in {}ms.", dirty_count, elapsed);
+        if dirty_count > 0 {
+            log::info!("Updated {} albums. Finished in {}ms.", dirty_count, elapsed);
+        } else {
+            log::info!("Cleaned up library indices. Finished in {}ms.", elapsed);
+        }
     }
 
     let final_cache = Arc::try_unwrap(cache_arc).unwrap().into_inner();

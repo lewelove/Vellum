@@ -66,26 +66,30 @@ pub async fn trigger_batch_reload(
     let compile_time = params.get("time").map(|s| s.as_str()).unwrap_or("0");
     let config_guard = state.config.read().await;
     let mut processed_ids = Vec::new();
+    let mut removed_ids = Vec::new();
 
     {
         let mut query = state.query.lock().await;
         let scanner = crate::server::library::scanner::Library::new(config_guard.library_root.clone());
         for path in &paths {
-            if let Some(id) = scanner.update_album(path, &mut query) {
-                processed_ids.push(id);
+            if let Some(res) = scanner.update_album(path, &mut query) {
+                match res {
+                    crate::server::library::scanner::UpdateResult::Updated(id) => processed_ids.push(id),
+                    crate::server::library::scanner::UpdateResult::Removed(id) => removed_ids.push(id),
+                }
             }
         }
-        if !processed_ids.is_empty() {
+        if !processed_ids.is_empty() || !removed_ids.is_empty() {
             let _ = query.build_cache();
         }
     }
 
-    if !processed_ids.is_empty() {
+    if !processed_ids.is_empty() || !removed_ids.is_empty() {
         let elapsed = start_time.elapsed().as_millis();
-        log::info!("Updated {} albums in {}ms.", processed_ids.len(), compile_time);
+        log::info!("Updated {} albums, Removed {} albums in {}ms.", processed_ids.len(), removed_ids.len(), compile_time);
         log::info!("Rebuilt Query Engine in {}ms.", elapsed);
         
-        if processed_ids.len() == 1 {
+        if processed_ids.len() == 1 && removed_ids.is_empty() {
             let dict_entry = {
                 let query = state.query.lock().await;
                 query.dict.get(&processed_ids[0]).cloned()
@@ -94,6 +98,11 @@ pub async fn trigger_batch_reload(
                 "type": "ALBUM_UPDATED",
                 "id": processed_ids[0],
                 "dictEntry": dict_entry.unwrap_or(json!({}))
+            }).to_string());
+        } else if removed_ids.len() == 1 && processed_ids.is_empty() {
+            let _ = state.tx.send(json!({
+                "type": "ALBUM_REMOVED",
+                "id": removed_ids[0]
             }).to_string());
         } else {
             let _ = state.tx.send(json!({"type": "LOGIC_UPDATE"}).to_string());
@@ -110,27 +119,40 @@ pub async fn trigger_reload(
     let start_time = std::time::Instant::now();
     if let Some(path) = params.get("path") {
         let config_guard = state.config.read().await;
-        let (internal_id, dict_entry) = {
+        let (update_res, dict_entry) = {
             let mut query = state.query.lock().await;
             let scanner = crate::server::library::scanner::Library::new(config_guard.library_root.clone());
-            let id = scanner.update_album(path, &mut query);
-            if id.is_some() {
+            let res = scanner.update_album(path, &mut query);
+            if res.is_some() {
                 let _ = query.build_cache();
             }
-            let entry = id.as_ref().and_then(|i| query.dict.get(i).cloned());
-            (id, entry)
+            let entry = match &res {
+                Some(crate::server::library::scanner::UpdateResult::Updated(id)) => query.dict.get(id).cloned(),
+                _ => None,
+            };
+            (res, entry)
         };
 
-        if let Some(id) = internal_id {
+        if let Some(res) = update_res {
             let elapsed = start_time.elapsed().as_millis();
-            log::info!("Updated 1 albums.");
+            log::info!("Processed 1 album.");
             log::info!("Rebuilt Query Engine in {}ms.", elapsed);
             
-            let _ = state.tx.send(json!({
-                "type": "ALBUM_UPDATED",
-                "id": id,
-                "dictEntry": dict_entry.unwrap_or(json!({}))
-            }).to_string());
+            match res {
+                crate::server::library::scanner::UpdateResult::Updated(id) => {
+                    let _ = state.tx.send(json!({
+                        "type": "ALBUM_UPDATED",
+                        "id": id,
+                        "dictEntry": dict_entry.unwrap_or(json!({}))
+                    }).to_string());
+                }
+                crate::server::library::scanner::UpdateResult::Removed(id) => {
+                    let _ = state.tx.send(json!({
+                        "type": "ALBUM_REMOVED",
+                        "id": id
+                    }).to_string());
+                }
+            }
             
             return Json(json!({"status": "ok"})).into_response();
         }

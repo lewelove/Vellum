@@ -230,6 +230,9 @@ impl QueryEngine {
     pub fn remove_album(&mut self, id: &str) -> Result<()> {
         self.conn.execute("DELETE FROM albums WHERE id = ?1", [&id])?;
         self.dict.remove(id);
+        self.uid_to_id.retain(|_, v| v != id);
+        self.path_lookup.retain(|_, v| v != id);
+        self.track_lookup.retain(|_, v| v.get("albumId").and_then(|a| a.as_str()) != Some(id));
         Ok(())
     }
 

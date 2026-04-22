@@ -136,6 +136,18 @@ class LibraryState {
       this.themeVersion = Date.now();
     } else if (json.type === "LOGIC_UPDATE") {
       window.location.reload(); 
+    } else if (json.type === "ALBUM_REMOVED") {
+      delete this.dict[json.id];
+      delete this.fullAlbumCache[json.id];
+      
+      for (const tab of Object.keys(this.focusedAlbums)) {
+        if (this.focusedAlbums[tab] && this.focusedAlbums[tab].id === json.id) {
+          this.focusedAlbums[tab] = null;
+        }
+      }
+
+      this.refreshView(false);
+      this.refreshSidebar();
     } else if (json.type === "ALBUM_UPDATED") {
       if (json.dictEntry && Object.keys(json.dictEntry).length > 0) {
         this.dict[json.id] = json.dictEntry;
