@@ -51,3 +51,4 @@ palette_extract = "0.1.0"
 rusqlite = { version = "0.39.0", features = ["bundled"] }
 fast_image_resize = "6.0.0"
 regex = "1.12.3"
+thiserror = "2.0.18"

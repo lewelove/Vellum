@@ -3647,6 +3647,7 @@ dependencies = [
  "sha2",
  "simple_logger",
  "tempfile",
+ "thiserror 2.0.18",
  "tokio",
  "toml",
  "tower-http",
