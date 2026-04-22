@@ -3,6 +3,7 @@ use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -80,15 +81,19 @@ pub async fn run(
         .as_ref()
         .and_then(|c| c.scan_depth)
         .unwrap_or(4);
+    
     let all_albums = compile::builder::scan::find_target_albums(&scan_root, scan_depth)?;
-
+    
     let mut missing_paths = Vec::new();
-    let scan_root_str = scan_root.to_string_lossy().to_string();
-    let album_set: std::collections::HashSet<String> = all_albums.iter().map(|p| p.to_string_lossy().to_string()).collect();
-
-    for cached_path in cache.keys() {
-        if cached_path.starts_with(&scan_root_str) && !album_set.contains(cached_path) {
-            missing_paths.push(PathBuf::from(cached_path));
+    {
+        let album_set: HashSet<PathBuf> = all_albums.iter().cloned().collect();
+        let scan_root_canon = scan_root.canonicalize().unwrap_or(scan_root.clone());
+        
+        for cached_path_str in cache.keys() {
+            let cached_path = PathBuf::from(cached_path_str);
+            if cached_path.starts_with(&scan_root_canon) && !album_set.contains(&cached_path) {
+                missing_paths.push(cached_path);
+            }
         }
     }
 
@@ -120,6 +125,7 @@ pub async fn run(
     }
 
     let dirty_count = work_queue.len();
+    let missing_count = missing_paths.len();
     let start_time = std::time::Instant::now();
 
     let (notify_tx, mut notify_rx) = mpsc::channel::<compile::engine::stream::AlbumUpdateSignal>(100);
@@ -127,6 +133,7 @@ pub async fn run(
     let cache_for_task = Arc::clone(&cache_arc);
     let exts_for_task = exts.clone();
     let manifests_for_task = manifests.clone();
+    let lib_root_for_task = Arc::new(library_root.clone());
 
     let notification_task = tokio::spawn(async move {
         let mut updated_paths = Vec::new();
@@ -150,6 +157,12 @@ pub async fn run(
 
         for missing in missing_paths {
             let p_str = missing.to_string_lossy().to_string();
+            
+            if verbose && !silent {
+                let display_path = missing.strip_prefix(&*lib_root_for_task).unwrap_or(&missing);
+                log::info!("Removed: {}", display_path.display());
+            }
+
             c.remove(&p_str);
             paths_for_server.push(p_str);
         }
@@ -191,11 +204,12 @@ pub async fn run(
 
     let elapsed = start_time.elapsed().as_millis();
     if !silent {
-        if dirty_count > 0 {
-            log::info!("Updated {} albums. Finished in {}ms.", dirty_count, elapsed);
-        } else {
-            log::info!("Cleaned up library indices. Finished in {}ms.", elapsed);
-        }
+        log::info!(
+            "Update complete: {} updated, {} removed. Finished in {}ms.",
+            dirty_count,
+            missing_count,
+            elapsed
+        );
     }
 
     let final_cache = Arc::try_unwrap(cache_arc).unwrap().into_inner();

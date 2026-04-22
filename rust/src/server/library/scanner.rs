@@ -46,6 +46,7 @@ impl Library {
 
     pub fn update_album(&self, folder_path_str: &str, query_engine: &mut crate::server::query::QueryEngine) -> Option<UpdateResult> {
         let folder_path = Path::new(folder_path_str);
+        
         let rel_path = folder_path.strip_prefix(&self.root).unwrap_or(folder_path);
         let alb_id = rel_path.to_string_lossy().to_string();
 
