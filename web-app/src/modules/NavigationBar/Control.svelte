@@ -47,7 +47,7 @@
   });
 
   let waveData = $derived.by(() => {
-    if (height <= 0) return { d: "", cx: 0, cy: 0, thumbR: 0 };
+    if (height <= 0) return { d: "", cx: 0, cy: 0, thumbR: 0, targetY: 0 };
     
     const midX = 12;
     const pad = 2; 
@@ -100,9 +100,9 @@
       pts.push({ x: midX, y: height - pad });
     }
 
-    if (pts.length === 0) return { d: "", cx: midX, cy: pad, thumbR: THUMB_R };
+    if (pts.length === 0) return { d: "", cx: midX, cy: pad, thumbR: THUMB_R, targetY: pad };
 
-    const lefts = [];
+    const lefts =[];
     const rights =[];
 
     for (let i = 0; i < pts.length; i++) {
@@ -144,11 +144,12 @@
     
     d += "Z";
 
-    let targetY = height * (progress / 100);
-    let cy = Math.max(pad, Math.min(height - pad, targetY));
+    const Y_OFFSET = 6;
+    let targetY = -Y_OFFSET + (height + Y_OFFSET) * (progress / 100);
+    let cy = Math.min(height - pad, targetY);
     let cx = getX(cy);
 
-    return { d, cx, cy, thumbR: THUMB_R };
+    return { d, cx, cy, thumbR: THUMB_R, targetY };
   });
 </script>
 
@@ -160,9 +161,9 @@
           <clipPath id="wave-fill-clip">
             <rect 
               x="-5" 
-              y="0"
+              y="-10"
               width="34" 
-              height={height * (progress / 100)} 
+              height={Math.max(0, waveData.targetY + 10)} 
             />
           </clipPath>
         </defs>
@@ -212,7 +213,7 @@
     left: 0;
     width: 100%;
     height: 100%;
-    overflow: visible;
+    overflow: hidden;
   }
 
   .wave-bg {
