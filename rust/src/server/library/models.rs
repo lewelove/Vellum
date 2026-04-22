@@ -63,6 +63,8 @@ pub struct AlbumInfo {
     #[serde(default)]
     pub metadata_toml_mtime: u64,
     #[serde(default)]
+    pub manifests_mtime_sum: u64,
+    #[serde(default)]
     pub file_tag_subset_match: bool,
     #[serde(default)]
     pub cover_path: String,

@@ -10,6 +10,7 @@ pub struct AlbumContext<'a> {
     pub library_root: &'a Path,
     pub meta_hash: &'a str,
     pub meta_mtime: u64,
+    pub manifests_mtime_sum: u64,
     pub cover_hash: &'a str,
     pub cover_path: Option<&'a str>,
     pub cover_mtime: u64,

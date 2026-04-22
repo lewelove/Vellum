@@ -362,13 +362,13 @@ fn verify_trust(album_root: &Path, manifests: &Option<Vec<String>>) -> TrustStat
         return TrustState::Missing;
     };
 
-    let lock_mtime = album_data
-        .get("metadata_toml_mtime")
+    let lock_manifests_sum = album_data
+        .get("manifests_mtime_sum")
         .and_then(serde_json::Value::as_u64)
         .unwrap_or(0);
     
     let metadata_path = album_root.join("metadata.toml");
-    let mut current_mtime = fs::metadata(&metadata_path)
+    let mut current_total_sum = fs::metadata(&metadata_path)
         .and_then(|m| m.modified())
         .map(|t| {
             t.duration_since(SystemTime::UNIX_EPOCH)
@@ -381,7 +381,7 @@ fn verify_trust(album_root: &Path, manifests: &Option<Vec<String>>) -> TrustStat
         for name in names {
             let p = album_root.join(name);
             if p.exists() {
-                current_mtime += fs::metadata(&p)
+                current_total_sum += fs::metadata(&p)
                     .and_then(|m| m.modified())
                     .map(|t| {
                         t.duration_since(SystemTime::UNIX_EPOCH)
@@ -393,7 +393,7 @@ fn verify_trust(album_root: &Path, manifests: &Option<Vec<String>>) -> TrustStat
         }
     }
 
-    if current_mtime != lock_mtime && lock_mtime != 0 {
+    if current_total_sum != lock_manifests_sum && lock_manifests_sum != 0 {
         return TrustState::BrokenIntent;
     }
 

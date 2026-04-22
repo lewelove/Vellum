@@ -21,18 +21,21 @@ pub fn build(
     _active_flags: &[String],
 ) -> Result<Value> {
     let metadata_path = album_root.join("metadata.toml");
-    let meta = std::fs::metadata(&metadata_path)?;
-    let mut meta_mtime = meta
+    let meta = std::fs::metadata(&metadata_path)
+        .with_context(|| format!("Missing primary manifest: metadata.toml not found in {}", album_root.display()))?;
+    
+    let meta_mtime = meta
         .modified()?
         .duration_since(SystemTime::UNIX_EPOCH)?
         .as_secs();
 
+    let mut manifests_mtime_sum: u64 = meta_mtime;
     if let Some(manifests) = config.get("compiler").and_then(|c| c.get("manifests")).and_then(Value::as_array) {
         for m_val in manifests {
             if let Some(m_name) = m_val.as_str() {
                 let m_path = album_root.join(m_name);
                 if m_path.exists() {
-                    meta_mtime += std::fs::metadata(&m_path)
+                    manifests_mtime_sum += std::fs::metadata(&m_path)
                         .and_then(|m| m.modified())
                         .map(|t| t.duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_secs())
                         .unwrap_or(0);
@@ -65,22 +68,33 @@ pub fn build(
                                 primary_album.insert(k.clone(), v.clone());
                             }
                         }
-                    } else {
-                        metadata_json.as_object_mut().unwrap().insert("album".to_string(), Value::Object(aux_album.clone()));
                     }
                 }
 
                 if let Some(aux_tracks) = m_json.get("tracks").and_then(Value::as_array) {
-                    let primary_tracks = metadata_json.get_mut("tracks").and_then(Value::as_array_mut).ok_or_else(|| anyhow!("Primary metadata.toml missing [[tracks]] in {}", album_root.display()))?;
-                    
+                    let primary_tracks = metadata_json.get_mut("tracks")
+                        .and_then(Value::as_array_mut)
+                        .ok_or_else(|| anyhow!("Corrupt metadata.toml in {}: [[tracks]] array is missing", album_root.display()))?;
+
+                    if aux_tracks.len() != primary_tracks.len() {
+                        return Err(anyhow!(
+                            "Manifest Structure Violation: Auxiliary manifest '{}' in {} defines {} tracks, but metadata.toml defines {} tracks. Every manifest must describe the exact same track count.",
+                            m_name, album_root.display(), aux_tracks.len(), primary_tracks.len()
+                        ));
+                    }
+
+                    let mut seen_identities = HashSet::new();
                     for (idx, aux_t) in aux_tracks.iter().enumerate() {
-                        let a_obj = aux_t.as_object().ok_or_else(|| anyhow!("Entry {} in {} is not an object", idx + 1, m_name))?;
+                        let a_obj = aux_t.as_object().ok_or_else(|| anyhow!("Manifest '{}' at {} has an invalid entry at index {}: Track entries must be TOML tables.", m_name, album_root.display(), idx + 1))?;
                         
                         let track_no = extract_strict_u32(aux_t.get("tracknumber"), "tracknumber", None)
-                            .with_context(|| format!("Manifest {} in {} has invalid or missing TRACKNUMBER at entry {}", m_name, album_root.display(), idx + 1))?;
+                            .with_context(|| format!("Identity Error: Manifest '{}' in {} is missing the TRACKNUMBER field at track index {}", m_name, album_root.display(), idx + 1))?;
                         
-                        let disc_no = extract_strict_u32(aux_t.get("discnumber"), "discnumber", Some(1))
-                            .with_context(|| format!("Manifest {} in {} has invalid DISCNUMBER at entry {}", m_name, album_root.display(), idx + 1))?;
+                        let disc_no = extract_strict_u32(aux_t.get("discnumber"), "discnumber", Some(1))?;
+
+                        if !seen_identities.insert((disc_no, track_no)) {
+                            return Err(anyhow!("Identity Collision: Manifest '{}' in {} defines Disc {}, Track {} more than once.", m_name, album_root.display(), disc_no, track_no));
+                        }
 
                         let mut found = false;
                         for prim_t in primary_tracks.iter_mut() {
@@ -101,7 +115,7 @@ pub fn build(
                             }
                         }
                         if !found {
-                            return Err(anyhow!("Manifest {} references Disc {}, Track {} which does not exist in metadata.toml for {}", m_name, disc_no, track_no, album_root.display()));
+                            return Err(anyhow!("Orphaned Track Data: Manifest '{}' in {} contains data for Disc {}, Track {}, but no such track exists in the primary metadata.toml.", m_name, album_root.display(), disc_no, track_no));
                         }
                     }
                 }
@@ -125,11 +139,11 @@ pub fn build(
     let track_entries = metadata_json
         .get("tracks")
         .and_then(Value::as_array)
-        .ok_or_else(|| anyhow!("Missing tracks in metadata.toml in {}", album_root.display()))?;
+        .ok_or_else(|| anyhow!("Schema Error: [[tracks]] array not found in metadata.toml for {}", album_root.display()))?;
 
     if audio_files.len() != track_entries.len() {
         return Err(anyhow!(
-            "Track count mismatch in {}: Found {} files but {} [[tracks]] entries",
+            "Inventory Mismatch in {}: Found {} audio files on disk but metadata.toml defines {} tracks. Vellum requires an explicit 1:1 mapping between disk files and metadata entries.",
             album_root.display(),
             audio_files.len(),
             track_entries.len()
@@ -151,7 +165,7 @@ pub fn build(
         .get("compiler")
         .and_then(|c| c.get("keys"))
         .and_then(Value::as_object)
-        .ok_or_else(|| anyhow!("Missing registry keys in configuration"))?
+        .ok_or_else(|| anyhow!("Configuration Error: [compiler.keys] block is missing from config.toml"))?
         .clone();
 
     let local_config_path = album_root.join("config.toml");
@@ -204,6 +218,7 @@ pub fn build(
         library_root: &library_root,
         meta_hash: &meta_hash,
         meta_mtime,
+        manifests_mtime_sum,
         cover_hash: &c_hash,
         cover_path: c_path.as_deref(),
         cover_mtime: c_mtime,
@@ -238,27 +253,27 @@ fn extract_strict_u32(val: Option<&Value>, name: &str, default: Option<u32>) -> 
         if let Some(d) = default {
             return Ok(d);
         }
-        return Err(anyhow::anyhow!("Missing {name}"));
+        return Err(anyhow::anyhow!("Type Error: Missing expected integer for field '{}'", name));
     };
     match v {
         Value::Number(n) => {
             n.as_u64()
                 .and_then(|i| u32::try_from(i).ok())
-                .ok_or_else(|| anyhow::anyhow!("Invalid {name} number"))
+                .ok_or_else(|| anyhow::anyhow!("Range Error: Value for field '{}' exceeds 32-bit integer limits", name))
         }
         Value::String(s) => {
             let base = s.split('/').next().unwrap_or("").trim();
             base.parse::<u32>()
-                .map_err(|_| anyhow::anyhow!("Cannot parse {name} '{s}' as u32"))
+                .map_err(|_| anyhow::anyhow!("Parse Error: Cannot interpret string '{}' as integer for field '{}'", s, name))
         }
         Value::Null => {
             if let Some(d) = default {
                 Ok(d)
             } else {
-                Err(anyhow::anyhow!("Missing {name}"))
+                Err(anyhow::anyhow!("Null Error: Field '{}' cannot be null", name))
             }
         }
-        _ => Err(anyhow::anyhow!("Invalid {name} type")),
+        _ => Err(anyhow::anyhow!("Format Error: Unsupported data type found for field '{}'", name)),
     }
 }
 
@@ -294,7 +309,7 @@ fn validate_album_level_keys(
                 if let Some((first_val, source_name)) = seen_values.first() {
                     if v != first_val {
                         return Err(anyhow::anyhow!(
-                            "Validation failed in {}: key '{}' is defined as level=\"album\", but conflicting values were found ('{}' in {} vs '{}' in track {}). All tracks must share the same value for album-level keys.",
+                            "Integrity Violation in {}: Key '{}' is restricted to 'album' level, but conflicting values were detected ('{}' in {} versus '{}' in track {}). All track-level overrides must match the album-level value.",
                             album_root.display(),
                             key,
                             first_val,
@@ -339,9 +354,9 @@ fn process_tracks(
 
     for (idx, h_data) in harvested_spine.into_iter().enumerate() {
         let track_number = extract_strict_u32(track_entries[idx].get("tracknumber"), "tracknumber", None)
-            .with_context(|| format!("Track {} in {} has invalid or missing TRACKNUMBER", idx + 1, album_root.display()))?;
+            .with_context(|| format!("Compilation Error in {}: Item {} in [[tracks]] is missing a valid TRACKNUMBER", album_root.display(), idx + 1))?;
         let disc_number = extract_strict_u32(track_entries[idx].get("discnumber"), "discnumber", Some(1))
-            .with_context(|| format!("Track {} in {} has invalid DISCNUMBER", idx + 1, album_root.display()))?;
+            .with_context(|| format!("Compilation Error in {}: Item {} in [[tracks]] has an invalid DISCNUMBER", album_root.display(), idx + 1))?;
 
         let t_ctx = TrackContext {
             track_number,
@@ -365,13 +380,12 @@ fn validate_track_indices(entries: &[Value], root: &Path) -> Result<()> {
     let mut seen_ids = HashSet::new();
     for (idx, entry) in entries.iter().enumerate() {
         let t = extract_strict_u32(entry.get("tracknumber"), "tracknumber", None)
-            .with_context(|| format!("Track {} in {} has invalid or missing TRACKNUMBER", idx + 1, root.display()))?;
-        let d = extract_strict_u32(entry.get("discnumber"), "discnumber", Some(1))
-            .with_context(|| format!("Track {} in {} has invalid DISCNUMBER", idx + 1, root.display()))?;
+            .with_context(|| format!("Indexing Error in {}: Track entry {} is missing its TRACKNUMBER", root.display(), idx + 1))?;
+        let d = extract_strict_u32(entry.get("discnumber"), "discnumber", Some(1))?;
 
         if !seen_ids.insert((d, t)) {
             return Err(anyhow!(
-                "Collision in {}: Multiple tracks assigned to Disc {}, Track {}",
+                "ID Collision in {}: Multiple [[tracks]] entries claim Disc {}, Track {}. Primary metadata must define unique track identities.",
                 root.display(),
                 d,
                 t
@@ -530,6 +544,7 @@ fn construct_album_info(ctx: &AlbumContext) -> Value {
     info.insert("total_tracks".to_string(), json!(ctx.tracks.len()));
     info.insert("metadata_toml_hash".to_string(), json!(ctx.meta_hash));
     info.insert("metadata_toml_mtime".to_string(), json!(ctx.meta_mtime));
+    info.insert("manifests_mtime_sum".to_string(), json!(ctx.manifests_mtime_sum));
     info.insert(
         "cover_path".to_string(),
         json!(ctx.cover_path.unwrap_or("default_cover.png")),
