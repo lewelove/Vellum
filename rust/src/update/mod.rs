@@ -12,6 +12,7 @@ use tokio::sync::mpsc;
 
 use crate::compile;
 use crate::config::AppConfig;
+use crate::error::VellumError;
 use crate::expand_path;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -79,7 +80,7 @@ pub async fn run(
         .as_ref()
         .and_then(|c| c.scan_depth)
         .unwrap_or(4);
-    let all_albums = compile::builder::scan::find_target_albums(&scan_root, scan_depth);
+    let all_albums = compile::builder::scan::find_target_albums(&scan_root, scan_depth)?;
 
     if !silent {
         log::info!("Verifying {} albums...", all_albums.len());
@@ -247,8 +248,17 @@ fn verify_albums_parallel(
                 }
 
                 match verify_trust(&album_root, manifests) {
-                    TrustState::Valid => (album_root, mtime_sum, false),
-                    _ => (album_root, mtime_sum, true),
+                    Ok(TrustState::Valid) => (album_root, mtime_sum, false),
+                    Ok(_) => (album_root, mtime_sum, true),
+                    Err(e) => {
+                        match e {
+                            VellumError::ManifestIoError(_) | VellumError::JsonError(_) => {
+                                log::debug!("Cache Read Error for {}: {}. Forcing rebuild.", album_root.display(), e);
+                            }
+                            _ => {}
+                        }
+                        (album_root, mtime_sum, true)
+                    }
                 }
             })
             .collect()
@@ -343,24 +353,26 @@ fn get_mtime_sum(dir: &Path, meta: &Path, exts: &[String], manifests: &Option<Ve
     d_mtime + m_mtime + c_mtime + t_mtime
 }
 
-fn verify_trust(album_root: &Path, manifests: &Option<Vec<String>>) -> TrustState {
+fn verify_trust(album_root: &Path, manifests: &Option<Vec<String>>) -> Result<TrustState, VellumError> {
     let lock_path = album_root.join("metadata.lock.json");
     if !lock_path.exists() {
-        return TrustState::Missing;
+        return Ok(TrustState::Missing);
     }
 
-    let Ok(lock_content) = fs::read_to_string(&lock_path) else {
-        return TrustState::Missing;
-    };
+    let lock_content = fs::read_to_string(&lock_path)
+        .map_err(VellumError::ManifestIoError)?;
 
-    let lock_json: serde_json::Value = match serde_json::from_str(&lock_content) {
-        Ok(j) => j,
-        Err(_) => return TrustState::Missing,
-    };
+    let lock_json: serde_json::Value = serde_json::from_str(&lock_content)
+        .map_err(VellumError::JsonError)?;
 
     let Some(album_data) = lock_json.get("album") else {
-        return TrustState::Missing;
+        return Ok(TrustState::Missing);
     };
+
+    let lock_meta_mtime = album_data
+        .get("metadata_toml_mtime")
+        .and_then(serde_json::Value::as_u64)
+        .unwrap_or(0);
 
     let lock_manifests_sum = album_data
         .get("manifests_mtime_sum")
@@ -368,7 +380,7 @@ fn verify_trust(album_root: &Path, manifests: &Option<Vec<String>>) -> TrustStat
         .unwrap_or(0);
     
     let metadata_path = album_root.join("metadata.toml");
-    let mut current_total_sum = fs::metadata(&metadata_path)
+    let current_meta_mtime = fs::metadata(&metadata_path)
         .and_then(|m| m.modified())
         .map(|t| {
             t.duration_since(SystemTime::UNIX_EPOCH)
@@ -377,11 +389,16 @@ fn verify_trust(album_root: &Path, manifests: &Option<Vec<String>>) -> TrustStat
         })
         .unwrap_or(0);
 
+    if current_meta_mtime != lock_meta_mtime && lock_meta_mtime != 0 {
+        return Ok(TrustState::BrokenIntent);
+    }
+
+    let mut current_manifests_sum: u64 = current_meta_mtime;
     if let Some(names) = manifests {
         for name in names {
             let p = album_root.join(name);
             if p.exists() {
-                current_total_sum += fs::metadata(&p)
+                current_manifests_sum += fs::metadata(&p)
                     .and_then(|m| m.modified())
                     .map(|t| {
                         t.duration_since(SystemTime::UNIX_EPOCH)
@@ -393,8 +410,8 @@ fn verify_trust(album_root: &Path, manifests: &Option<Vec<String>>) -> TrustStat
         }
     }
 
-    if current_total_sum != lock_manifests_sum && lock_manifests_sum != 0 {
-        return TrustState::BrokenIntent;
+    if current_manifests_sum != lock_manifests_sum && lock_manifests_sum != 0 {
+        return Ok(TrustState::BrokenIntent);
     }
 
     let lock_cover_path = album_data
@@ -404,7 +421,7 @@ fn verify_trust(album_root: &Path, manifests: &Option<Vec<String>>) -> TrustStat
     if !lock_cover_path.is_empty() && lock_cover_path != "default_cover.png" {
         let abs_cover = album_root.join(lock_cover_path);
         if !abs_cover.exists() {
-            return TrustState::BrokenAssets;
+            return Ok(TrustState::BrokenAssets);
         }
 
         let lock_cover_size = album_data
@@ -414,7 +431,7 @@ fn verify_trust(album_root: &Path, manifests: &Option<Vec<String>>) -> TrustStat
         let current_cover_size = fs::metadata(&abs_cover).map(|m| m.len()).unwrap_or(0);
 
         if lock_cover_size != current_cover_size {
-            return TrustState::BrokenAssets;
+            return Ok(TrustState::BrokenAssets);
         }
     }
 
@@ -428,12 +445,12 @@ fn verify_trust(album_root: &Path, manifests: &Option<Vec<String>>) -> TrustStat
                 .and_then(serde_json::Value::as_str)
                 .unwrap_or("");
             if rel_path.is_empty() {
-                return TrustState::BrokenPhysics;
+                return Ok(TrustState::BrokenPhysics);
             }
 
             let abs_path = album_root.join(rel_path);
             let Ok(meta) = fs::metadata(&abs_path) else {
-                return TrustState::BrokenPhysics;
+                return Ok(TrustState::BrokenPhysics);
             };
 
             let lock_track_mtime = track
@@ -456,12 +473,12 @@ fn verify_trust(album_root: &Path, manifests: &Option<Vec<String>>) -> TrustStat
             let current_track_size = meta.len();
 
             if lock_track_mtime != current_track_mtime || lock_track_size != current_track_size {
-                return TrustState::BrokenPhysics;
+                return Ok(TrustState::BrokenPhysics);
             }
         }
     }
 
-    TrustState::Valid
+    Ok(TrustState::Valid)
 }
 
 fn load_cache(path: &Path) -> HashMap<String, AlbumCacheEntry> {

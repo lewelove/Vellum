@@ -1,4 +1,5 @@
 use crate::compile::{ExportTarget, builder, engine::verify};
+use crate::error::VellumError;
 use anyhow::Result;
 use rayon::prelude::*;
 use serde_json::{Value, json};
@@ -67,8 +68,16 @@ fn spawn_builders(
                     Ok(man) => {
                         let _ = dtx.blocking_send(man);
                     }
-                    Err(e) => {
-                        log::error!("Build failed for {}: {}", ar.display(), e);
+                    Err(e) => match e {
+                        VellumError::ManifestIoError(_) 
+                        | VellumError::ManifestParseError { .. }
+                        | VellumError::JsonError(_) 
+                        | VellumError::MissingCompilerRegistry => {
+                            log::error!("SYSTEM FAILURE: {}", e);
+                        }
+                        _ => {
+                            log::warn!("VALIDATION REJECTED: {}", e);
+                        }
                     }
                 }
             });

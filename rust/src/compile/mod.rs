@@ -47,7 +47,7 @@ pub async fn run(mut options: CompileOptions) -> Result<()> {
         l
     } else {
         let scan_depth = config.compiler.as_ref().and_then(|c| c.scan_depth).unwrap_or(4);
-        builder::scan::find_target_albums(&options.target_path, scan_depth)
+        builder::scan::find_target_albums(&options.target_path, scan_depth)?
     };
 
     if albums.is_empty() {

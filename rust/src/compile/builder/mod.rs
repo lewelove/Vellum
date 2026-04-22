@@ -2,11 +2,11 @@ pub mod assets;
 pub mod context;
 pub mod scan;
 
+use crate::error::VellumError;
 use crate::compile::builder::context::{AlbumContext, TrackContext};
 use crate::compile::resolvers;
 use crate::expand_path;
 use crate::harvest;
-use anyhow::{Result, anyhow, Context};
 use serde_json::{Value, json};
 use sha2::Digest;
 use std::collections::HashSet;
@@ -19,14 +19,16 @@ pub fn build(
     config: &Value,
     manifest_cfg: &Value,
     _active_flags: &[String],
-) -> Result<Value> {
+) -> Result<Value, VellumError> {
     let metadata_path = album_root.join("metadata.toml");
     let meta = std::fs::metadata(&metadata_path)
-        .with_context(|| format!("Missing primary manifest: metadata.toml not found in {}", album_root.display()))?;
+        .map_err(|_| VellumError::MissingPrimaryManifest { path: album_root.to_path_buf() })?;
     
     let meta_mtime = meta
-        .modified()?
-        .duration_since(SystemTime::UNIX_EPOCH)?
+        .modified()
+        .unwrap_or(SystemTime::UNIX_EPOCH)
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap_or_default()
         .as_secs();
 
     let mut manifests_mtime_sum: u64 = meta_mtime;
@@ -44,12 +46,12 @@ pub fn build(
         }
     }
 
-    let meta_hash = format!("{:x}", sha2::Sha256::digest(std::fs::read(&metadata_path)?));
-
     let content = std::fs::read_to_string(&metadata_path)?;
-    let mut metadata_json = normalize_keys(serde_json::to_value(toml::from_str::<toml::Value>(
-        &content,
-    )?)?);
+    let meta_hash = format!("{:x}", sha2::Sha256::digest(content.as_bytes()));
+
+    let parsed_toml = toml::from_str::<toml::Value>(&content)
+        .map_err(|source| VellumError::ManifestParseError { path: metadata_path.clone(), source })?;
+    let mut metadata_json = normalize_keys(serde_json::to_value(parsed_toml)?);
 
     if let Some(manifests) = config.get("compiler").and_then(|c| c.get("manifests")).and_then(Value::as_array) {
         for m_val in manifests {
@@ -59,7 +61,9 @@ pub fn build(
                     continue;
                 }
                 let m_content = std::fs::read_to_string(&m_path)?;
-                let m_json = normalize_keys(serde_json::to_value(toml::from_str::<toml::Value>(&m_content)?)?);
+                let parsed_aux = toml::from_str::<toml::Value>(&m_content)
+                    .map_err(|source| VellumError::ManifestParseError { path: m_path.clone(), source })?;
+                let m_json = normalize_keys(serde_json::to_value(parsed_aux)?);
                 
                 if let Some(aux_album) = m_json.get("album").and_then(Value::as_object) {
                     if let Some(primary_album) = metadata_json.get_mut("album").and_then(Value::as_object_mut) {
@@ -74,26 +78,41 @@ pub fn build(
                 if let Some(aux_tracks) = m_json.get("tracks").and_then(Value::as_array) {
                     let primary_tracks = metadata_json.get_mut("tracks")
                         .and_then(Value::as_array_mut)
-                        .ok_or_else(|| anyhow!("Corrupt metadata.toml in {}: [[tracks]] array is missing", album_root.display()))?;
+                        .ok_or_else(|| VellumError::MissingTracksBlock { path: album_root.to_path_buf() })?;
 
                     if aux_tracks.len() != primary_tracks.len() {
-                        return Err(anyhow!(
-                            "Manifest Structure Violation: Auxiliary manifest '{}' in {} defines {} tracks, but metadata.toml defines {} tracks. Every manifest must describe the exact same track count.",
-                            m_name, album_root.display(), aux_tracks.len(), primary_tracks.len()
-                        ));
+                        return Err(VellumError::TrackCountMismatch {
+                            manifest: m_name.to_string(),
+                            path: album_root.to_path_buf(),
+                            primary_count: primary_tracks.len(),
+                            aux_count: aux_tracks.len(),
+                        });
                     }
 
                     let mut seen_identities = HashSet::new();
                     for (idx, aux_t) in aux_tracks.iter().enumerate() {
-                        let a_obj = aux_t.as_object().ok_or_else(|| anyhow!("Manifest '{}' at {} has an invalid entry at index {}: Track entries must be TOML tables.", m_name, album_root.display(), idx + 1))?;
+                        let a_obj = aux_t.as_object().ok_or_else(|| VellumError::InvalidManifestEntry { 
+                            manifest: m_name.to_string(), 
+                            path: album_root.to_path_buf(), 
+                            index: idx + 1 
+                        })?;
                         
                         let track_no = extract_strict_u32(aux_t.get("tracknumber"), "tracknumber", None)
-                            .with_context(|| format!("Identity Error: Manifest '{}' in {} is missing the TRACKNUMBER field at track index {}", m_name, album_root.display(), idx + 1))?;
+                            .map_err(|_| VellumError::MissingTrackIdentity {
+                                manifest: m_name.to_string(),
+                                path: album_root.to_path_buf(),
+                                index: idx + 1,
+                            })?;
                         
                         let disc_no = extract_strict_u32(aux_t.get("discnumber"), "discnumber", Some(1))?;
 
                         if !seen_identities.insert((disc_no, track_no)) {
-                            return Err(anyhow!("Identity Collision: Manifest '{}' in {} defines Disc {}, Track {} more than once.", m_name, album_root.display(), disc_no, track_no));
+                            return Err(VellumError::DuplicateTrackIdentity {
+                                manifest: m_name.to_string(),
+                                path: album_root.to_path_buf(),
+                                disc: disc_no,
+                                track: track_no,
+                            });
                         }
 
                         let mut found = false;
@@ -115,7 +134,12 @@ pub fn build(
                             }
                         }
                         if !found {
-                            return Err(anyhow!("Orphaned Track Data: Manifest '{}' in {} contains data for Disc {}, Track {}, but no such track exists in the primary metadata.toml.", m_name, album_root.display(), disc_no, track_no));
+                            return Err(VellumError::OrphanedAuxiliaryData {
+                                manifest: m_name.to_string(),
+                                path: album_root.to_path_buf(),
+                                disc: disc_no,
+                                track: track_no,
+                            });
                         }
                     }
                 }
@@ -139,15 +163,14 @@ pub fn build(
     let track_entries = metadata_json
         .get("tracks")
         .and_then(Value::as_array)
-        .ok_or_else(|| anyhow!("Schema Error: [[tracks]] array not found in metadata.toml for {}", album_root.display()))?;
+        .ok_or_else(|| VellumError::MissingTracksBlock { path: album_root.to_path_buf() })?;
 
     if audio_files.len() != track_entries.len() {
-        return Err(anyhow!(
-            "Inventory Mismatch in {}: Found {} audio files on disk but metadata.toml defines {} tracks. Vellum requires an explicit 1:1 mapping between disk files and metadata entries.",
-            album_root.display(),
-            audio_files.len(),
-            track_entries.len()
-        ));
+        return Err(VellumError::PhysicalInventoryMismatch {
+            path: album_root.to_path_buf(),
+            files_count: audio_files.len(),
+            tracks_count: track_entries.len(),
+        });
     }
 
     validate_track_indices(track_entries, album_root)?;
@@ -165,7 +188,7 @@ pub fn build(
         .get("compiler")
         .and_then(|c| c.get("keys"))
         .and_then(Value::as_object)
-        .ok_or_else(|| anyhow!("Configuration Error: [compiler.keys] block is missing from config.toml"))?
+        .ok_or_else(|| VellumError::MissingCompilerRegistry)?
         .clone();
 
     let local_config_path = album_root.join("config.toml");
@@ -248,32 +271,45 @@ pub fn build(
     Ok(final_json)
 }
 
-fn extract_strict_u32(val: Option<&Value>, name: &str, default: Option<u32>) -> Result<u32> {
+fn extract_strict_u32(val: Option<&Value>, name: &str, default: Option<u32>) -> Result<u32, VellumError> {
     let Some(v) = val else {
         if let Some(d) = default {
             return Ok(d);
         }
-        return Err(anyhow::anyhow!("Type Error: Missing expected integer for field '{}'", name));
+        return Err(VellumError::InvalidIdentityFormat {
+            field: name.to_string(),
+            message: "Missing expected integer".to_string(),
+        });
     };
     match v {
-        Value::Number(n) => {
-            n.as_u64()
-                .and_then(|i| u32::try_from(i).ok())
-                .ok_or_else(|| anyhow::anyhow!("Range Error: Value for field '{}' exceeds 32-bit integer limits", name))
-        }
+        Value::Number(n) => n
+            .as_u64()
+            .and_then(|i| u32::try_from(i).ok())
+            .ok_or_else(|| VellumError::InvalidIdentityFormat {
+                field: name.to_string(),
+                message: "Value exceeds 32-bit integer limits".to_string(),
+            }),
         Value::String(s) => {
             let base = s.split('/').next().unwrap_or("").trim();
-            base.parse::<u32>()
-                .map_err(|_| anyhow::anyhow!("Parse Error: Cannot interpret string '{}' as integer for field '{}'", s, name))
+            base.parse::<u32>().map_err(|_| VellumError::InvalidIdentityFormat {
+                field: name.to_string(),
+                message: format!("Cannot interpret string '{}' as integer", s),
+            })
         }
         Value::Null => {
             if let Some(d) = default {
                 Ok(d)
             } else {
-                Err(anyhow::anyhow!("Null Error: Field '{}' cannot be null", name))
+                Err(VellumError::InvalidIdentityFormat {
+                    field: name.to_string(),
+                    message: "Field cannot be null".to_string(),
+                })
             }
         }
-        _ => Err(anyhow::anyhow!("Format Error: Unsupported data type found for field '{}'", name)),
+        _ => Err(VellumError::InvalidIdentityFormat {
+            field: name.to_string(),
+            message: "Unsupported data type found".to_string(),
+        }),
     }
 }
 
@@ -282,7 +318,7 @@ fn validate_album_level_keys(
     track_entries: &[Value],
     registry: &serde_json::Map<String, Value>,
     album_root: &Path,
-) -> Result<()> {
+) -> Result<(), VellumError> {
     for (key, meta) in registry {
         if meta.get("level").and_then(Value::as_str) != Some("album") {
             continue;
@@ -308,15 +344,14 @@ fn validate_album_level_keys(
             if let Some(v) = track.get(&key_lower).filter(|v| check_val(v)) {
                 if let Some((first_val, source_name)) = seen_values.first() {
                     if v != first_val {
-                        return Err(anyhow::anyhow!(
-                            "Integrity Violation in {}: Key '{}' is restricted to 'album' level, but conflicting values were detected ('{}' in {} versus '{}' in track {}). All track-level overrides must match the album-level value.",
-                            album_root.display(),
-                            key,
-                            first_val,
-                            source_name,
-                            v,
-                            idx + 1
-                        ));
+                        return Err(VellumError::GlobalKeyConflict {
+                            path: album_root.to_path_buf(),
+                            key: key.clone(),
+                            val1: first_val.to_string(),
+                            source1: source_name.clone(),
+                            val2: v.to_string(),
+                            index: idx + 1,
+                        });
                     }
                 } else {
                     seen_values.push((v.clone(), format!("track {}", idx + 1)));
@@ -334,10 +369,10 @@ fn process_tracks(
     album_root: &Path,
     library_root: &Path,
     registry: &serde_json::Map<String, Value>,
-) -> Result<(Vec<Value>, Vec<Value>)> {
+) -> Result<(Vec<Value>, Vec<Value>), VellumError> {
     let mut harvested_spine = Vec::new();
     for path in audio_files {
-        harvested_spine.push(harvest::harvest_file(&path)?);
+        harvested_spine.push(harvest::harvest_file(&path).map_err(|source| VellumError::HarvestError { path: path.clone(), source })?);
     }
 
     let mut total_discs = 1;
@@ -354,9 +389,12 @@ fn process_tracks(
 
     for (idx, h_data) in harvested_spine.into_iter().enumerate() {
         let track_number = extract_strict_u32(track_entries[idx].get("tracknumber"), "tracknumber", None)
-            .with_context(|| format!("Compilation Error in {}: Item {} in [[tracks]] is missing a valid TRACKNUMBER", album_root.display(), idx + 1))?;
-        let disc_number = extract_strict_u32(track_entries[idx].get("discnumber"), "discnumber", Some(1))
-            .with_context(|| format!("Compilation Error in {}: Item {} in [[tracks]] has an invalid DISCNUMBER", album_root.display(), idx + 1))?;
+            .map_err(|_| VellumError::MissingTrackIdentity {
+                manifest: "metadata.toml".to_string(),
+                path: album_root.to_path_buf(),
+                index: idx + 1,
+            })?;
+        let disc_number = extract_strict_u32(track_entries[idx].get("discnumber"), "discnumber", Some(1))?;
 
         let t_ctx = TrackContext {
             track_number,
@@ -376,20 +414,24 @@ fn process_tracks(
     Ok((final_tracks, harvested_cache))
 }
 
-fn validate_track_indices(entries: &[Value], root: &Path) -> Result<()> {
+fn validate_track_indices(entries: &[Value], root: &Path) -> Result<(), VellumError> {
     let mut seen_ids = HashSet::new();
     for (idx, entry) in entries.iter().enumerate() {
         let t = extract_strict_u32(entry.get("tracknumber"), "tracknumber", None)
-            .with_context(|| format!("Indexing Error in {}: Track entry {} is missing its TRACKNUMBER", root.display(), idx + 1))?;
+            .map_err(|_| VellumError::MissingTrackIdentity {
+                manifest: "metadata.toml".to_string(),
+                path: root.to_path_buf(),
+                index: idx + 1,
+            })?;
         let d = extract_strict_u32(entry.get("discnumber"), "discnumber", Some(1))?;
 
         if !seen_ids.insert((d, t)) {
-            return Err(anyhow!(
-                "ID Collision in {}: Multiple [[tracks]] entries claim Disc {}, Track {}. Primary metadata must define unique track identities.",
-                root.display(),
-                d,
-                t
-            ));
+            return Err(VellumError::DuplicateTrackIdentity {
+                manifest: "metadata.toml".to_string(),
+                path: root.to_path_buf(),
+                disc: d,
+                track: t,
+            });
         }
     }
     Ok(())

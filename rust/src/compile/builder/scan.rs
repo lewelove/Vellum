@@ -1,8 +1,8 @@
-use anyhow::Result;
+use crate::error::VellumError;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
-pub fn find_target_albums(path: &Path, max_depth: usize) -> Vec<PathBuf> {
+pub fn find_target_albums(path: &Path, max_depth: usize) -> Result<Vec<PathBuf>, VellumError> {
     let mut results = Vec::new();
     if path.join("metadata.toml").exists() {
         results.push(path.to_path_buf());
@@ -10,16 +10,24 @@ pub fn find_target_albums(path: &Path, max_depth: usize) -> Vec<PathBuf> {
         for entry in WalkDir::new(path)
             .max_depth(max_depth)
             .into_iter()
-            .filter_map(Result::ok)
         {
-            if entry.file_name() == "metadata.toml"
-                && let Some(parent) = entry.path().parent()
-            {
-                results.push(parent.to_path_buf());
+            match entry {
+                Ok(e) => {
+                    if e.file_name() == "metadata.toml" {
+                        if let Some(parent) = e.path().parent() {
+                            results.push(parent.to_path_buf());
+                        }
+                    }
+                }
+                Err(e) => {
+                    if let Some(io_err) = e.into_io_error() {
+                        return Err(VellumError::ManifestIoError(io_err));
+                    }
+                }
             }
         }
     }
-    results
+    Ok(results)
 }
 
 pub fn scan_audio_files(root: &Path, extensions: &[&str]) -> Vec<PathBuf> {

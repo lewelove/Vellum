@@ -4,6 +4,7 @@
 
 mod compile;
 mod config;
+pub mod error;
 mod harvest;
 mod manifest;
 mod query;
