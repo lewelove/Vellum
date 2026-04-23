@@ -61,7 +61,7 @@ pub async fn run(
     let exts = config
         .manifest
         .as_ref()
-        .map(|m| m.supported_extensions.clone())
+        .and_then(|m| m.supported_extensions.clone())
         .unwrap_or_else(|| vec![".flac".to_string()]);
 
     let manifests = config.compiler.as_ref().and_then(|c| c.manifests.clone());

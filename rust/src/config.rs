@@ -26,12 +26,16 @@ pub struct StorageConfig {
     pub environment: Option<String>,
 }
 
-fn default_cache() -> String { "~/.cache/vellum".to_string() }
-fn default_state() -> String { "~/.local/share/vellum".to_string() }
+fn default_cache() -> String {
+    "~/.cache/vellum".to_string()
+}
+fn default_state() -> String {
+    "~/.local/share/vellum".to_string()
+}
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ThemeConfig {
-    pub thumbnail_size: u32,
+    pub thumbnail_size: Option<u32>,
     pub shader: Option<ShaderConfig>,
 }
 
@@ -48,7 +52,7 @@ pub struct ShaderConfig {
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ManifestConfig {
-    pub supported_extensions: Vec<String>,
+    pub supported_extensions: Option<Vec<String>>,
     pub keys: Option<IndexMap<String, Value>>,
 }
 
@@ -65,31 +69,23 @@ pub struct CompilerConfig {
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct PaletteConfig {
-    #[serde(rename = "type", default = "default_palette_type")]
-    pub algo_type: String,
-    #[serde(default = "default_palette_sort")]
-    pub sort: String,
+    #[serde(rename = "type")]
+    pub algo_type: Option<String>,
+    pub sort: Option<String>,
     #[serde(default)]
     pub args: String,
     pub threshold: Option<f32>,
 }
 
-fn default_palette_type() -> String { "material".to_string() }
-fn default_palette_sort() -> String { "ratio".to_string() }
-
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct KeyConfig {
-    #[serde(default = "default_class")]
-    pub class: String,
-    #[serde(rename = "type", default = "default_type")]
-    pub type_: String,
+    pub class: Option<String>,
+    #[serde(rename = "type")]
+    pub type_: Option<String>,
     #[serde(default)]
     pub args: String,
     pub level: String,
 }
-
-fn default_class() -> String { "generic".to_string() }
-fn default_type() -> String { "string".to_string() }
 
 impl AppConfig {
     pub fn load() -> Result<(Self, Value, PathBuf)> {

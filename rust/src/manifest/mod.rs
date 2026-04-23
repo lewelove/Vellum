@@ -20,9 +20,10 @@ pub async fn run(force: bool) -> Result<()> {
     let manifest_cfg = config.manifest.context("Missing [manifest] configuration")?;
     let supported_exts: Vec<String> = manifest_cfg
         .supported_extensions
-        .iter()
-        .map(|e| e.to_lowercase())
-        .collect();
+        .as_ref()
+        .map(|exts| exts.iter().map(|e| e.to_lowercase()).collect())
+        .unwrap_or_else(|| vec![".flac".to_string()]);
+
     let grouping_keys = vec!["ALBUMARTIST".to_string(), "ALBUM".to_string()];
 
     let manifest_layout = manifest_cfg.keys;

@@ -165,7 +165,7 @@ pub fn start(config_path: PathBuf, state: Arc<AppState>) {
 
                 match AppConfig::load() {
                     Ok((new_config, _, _)) => {
-                        let thumb_size = new_config.theme.as_ref().map_or(200, |t| t.thumbnail_size);
+                        let thumb_size = new_config.theme.as_ref().and_then(|t| t.thumbnail_size).unwrap_or(200);
                         let shader_cfg = new_config.theme.as_ref().and_then(|t| t.shader.clone());
 
                         let mut next_shader_path = None;

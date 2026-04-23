@@ -21,7 +21,7 @@ pub async fn run(port: u16) -> Result<()> {
     let config_dir = config_path.parent().unwrap_or(Path::new(".")).to_path_buf();
 
     let lib_root_str = &config.storage.library_root;
-    let thumb_size = config.theme.as_ref().map_or(200, |t| t.thumbnail_size);
+    let thumb_size = config.theme.as_ref().and_then(|t| t.thumbnail_size).unwrap_or(200);
 
     let library_root = expand_path(lib_root_str)
         .canonicalize()

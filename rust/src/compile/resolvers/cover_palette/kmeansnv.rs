@@ -25,7 +25,7 @@ pub fn extract(img: &DynamicImage, args: &str) -> Vec<Srgb> {
         .find(|s| s.trim().starts_with("d="))
         .and_then(|s| s.trim().strip_prefix("d="))
         .and_then(|val| val.parse::<f32>().ok())
-        .unwrap_or(0.12)
+        .unwrap_or(0.1)
         .clamp(0.0, 1.0);
 
     let conv = args.split(',')
@@ -52,7 +52,6 @@ pub fn extract(img: &DynamicImage, args: &str) -> Vec<Srgb> {
     let mut data: Vec<(Srgb, f32, f32, Oklab)> = pool.into_iter()
         .map(|s| {
             let ok = Oklab::from_color(s);
-            // RGB Chroma: max(R,G,B) - min(R,G,B) is the definitive measure of digital screen vividness
             let rgb_vividness = s.red.max(s.green).max(s.blue) - s.red.min(s.green).min(s.blue);
             (s, ok.l, rgb_vividness, ok)
         })

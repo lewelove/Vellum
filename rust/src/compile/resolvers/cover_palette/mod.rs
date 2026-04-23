@@ -22,8 +22,8 @@ fn parse_hex(hex: &str) -> Option<Srgb> {
 pub fn resolve(ctx: &AlbumContext, cfg: &Value) -> Option<Value> {
     let img = ctx.cover_image?;
 
-    let algo_type = cfg.get("type").and_then(Value::as_str).unwrap_or("kmeans");
-    let sort_type = cfg.get("sort").and_then(Value::as_str).unwrap_or("ratio");
+    let algo_type = cfg.get("type").and_then(Value::as_str).unwrap_or("kmeansnv");
+    let sort_type = cfg.get("sort").and_then(Value::as_str).unwrap_or("gradient");
     let args = cfg.get("args").and_then(Value::as_str).unwrap_or("");
 
     let sample_dim = args.split(',')
