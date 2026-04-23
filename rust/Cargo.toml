@@ -17,7 +17,6 @@ dirs = "5.0"
 
 walkdir = "2.4"
 rayon = "1.8"
-glob = "0.3"
 
 lofty = "0.23.2"
 anyhow = "1.0"
@@ -25,14 +24,11 @@ axum = { version = "0.8.8", features = ["ws"] }
 tokio = { version = "1.49.0", features = ["full"] }
 tower-http = { version = "0.6.8", features = ["cors", "fs", "trace"] }
 futures = "0.3.31"
-mpd = "0.1.0"
 base64 = "0.22.1"
 simple_logger = "5.1.0"
 log = "0.4.29"
 toml = { version = "1.0.1", features = ["preserve_order"] }
-parking_lot = "0.12.5"
 alphanumeric-sort = "1.5.5"
-tempfile = "3.25.0"
 sha2 = "0.10.9"
 xxhash-rust = { version = "0.8.15", features =["xxh64"] }
 image = "0.25.9"
@@ -45,9 +41,6 @@ indicatif = "0.18.4"
 indexmap = { version = "2.13.0", features = ["serde"] }
 notify = "8.2.0"
 rand = "0.10.0"
-mcu-material-color = "0.2.2"
-mcu-hct = "0.2.0"
-palette_extract = "0.1.0"
 rusqlite = { version = "0.39.0", features = ["bundled"] }
 fast_image_resize = "6.0.0"
 regex = "1.12.3"

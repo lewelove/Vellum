@@ -1,12 +1,8 @@
 pub mod kmeans;
-pub mod kmeans_filtered;
-pub mod mcu_material;
 pub mod mean_shift;
-pub mod palette_extract_crate;
 
 use crate::compile::builder::context::AlbumContext;
 use image::imageops::FilterType;
-use mcu_hct::Hct;
 use palette::{FromColor, Oklab, Oklch, Srgb};
 use serde_json::{Value, json};
 
@@ -22,7 +18,7 @@ fn parse_hex(hex: &str) -> Option<Srgb> {
 pub fn resolve(ctx: &AlbumContext, cfg: &Value) -> Option<Value> {
     let img = ctx.cover_image?;
 
-    let algo_type = cfg.get("type").and_then(Value::as_str).unwrap_or("material");
+    let algo_type = cfg.get("type").and_then(Value::as_str).unwrap_or("kmeans");
     let sort_type = cfg.get("sort").and_then(Value::as_str).unwrap_or("ratio");
     let args = cfg.get("args").and_then(Value::as_str).unwrap_or("");
 
@@ -58,9 +54,6 @@ pub fn resolve(ctx: &AlbumContext, cfg: &Value) -> Option<Value> {
     if candidate_colors.is_empty() {
         candidate_colors = match algo_type {
             "msc" => mean_shift::extract(&img_to_process, args),
-            "material" => mcu_material::extract(&img_to_process, args),
-            "kmeans_filtered" => kmeans_filtered::extract(&img_to_process, args),
-            "mmcq" => palette_extract_crate::extract(&img_to_process, args),
             "kmeans" | _ => kmeans::extract(&img_to_process, args),
         };
     }
@@ -211,11 +204,7 @@ pub fn resolve(ctx: &AlbumContext, cfg: &Value) -> Option<Value> {
             let h = oklch.hue.into_raw_degrees();
             let oklch_str = format!("oklch({:.2}% {:.3} {:.2})", l_pct, c, h);
 
-            let argb = 0xFF00_0000 | ((r_u8 as u32) << 16) | ((g_u8 as u32) << 8) | (b_u8 as u32);
-            let hct = Hct::from_int(argb);
-            let hct_str = format!("hct({:.2} {:.2} {:.2})", hct.hue(), hct.chroma(), hct.tone());
-
-            json!([hex, oklch_str, hct_str, format!("{ratio:.4}")])
+            json!([hex, oklch_str, format!("{ratio:.4}")])
         })
         .collect();
 

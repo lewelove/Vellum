@@ -335,12 +335,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bufstream"
-version = "0.1.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "40e38929add23cdf8a366df9b0e088953150724bcbe5fc330b0d8eb3b328eec8"
-
-[[package]]
 name = "built"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -817,12 +811,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "fastrand"
-version = "2.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "37909eebbb50d72f9059c3b6d82c0463f2ff062c9e95845c43a6c9c0355411be"
-
-[[package]]
 name = "fax"
 version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1057,12 +1045,6 @@ dependencies = [
  "color_quant",
  "weezl",
 ]
-
-[[package]]
-name = "glob"
-version = "0.3.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0cc23270f6e1808e30a928bdc84dea0b9b4136a8bc82338574f23baf47bbd280"
 
 [[package]]
 name = "h2"
@@ -1649,12 +1631,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "linux-raw-sys"
-version = "0.12.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "32a66949e030da00e8c7d4434b251670a91556f4144941d37452769c25d58a53"
-
-[[package]]
 name = "litemap"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1739,138 +1715,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "mcu-blend"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "014b17c0bae83f8793d3abfcc640d6a760b700be09bdf57ea4e4eb097b50ab68"
-dependencies = [
- "mcu-hct",
- "mcu-utils",
-]
-
-[[package]]
-name = "mcu-contrast"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6281e7861e82aaf4d4fd6bfa6ababbd90f74139779effe8584c6b3be54493efc"
-dependencies = [
- "mcu-hct",
- "mcu-utils",
-]
-
-[[package]]
-name = "mcu-dislike"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "41944ea6e940790b789cecc46c19bc08453662d8ea807743510b15721d66de60"
-dependencies = [
- "mcu-hct",
-]
-
-[[package]]
-name = "mcu-dynamiccolor"
-version = "0.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5ad76639c35e3e088d14b8e8aa43477870914b4151f6cafbf18e442544c22d8d"
-dependencies = [
- "mcu-contrast",
- "mcu-dislike",
- "mcu-hct",
- "mcu-palettes",
- "mcu-temperature",
- "mcu-utils",
-]
-
-[[package]]
-name = "mcu-hct"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "adb9e8325dcd52c0449dfd8dbd3ce5e4d80a123b1fea578560684e08cc57f5f9"
-dependencies = [
- "mcu-utils",
- "once_cell",
-]
-
-[[package]]
-name = "mcu-material-color"
-version = "0.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a669ffa65a22dbb18d495bee309e2827accb4112b3b7b406a7e5fd2b564f7186"
-dependencies = [
- "mcu-blend",
- "mcu-contrast",
- "mcu-dislike",
- "mcu-dynamiccolor",
- "mcu-hct",
- "mcu-palettes",
- "mcu-quantize",
- "mcu-scheme",
- "mcu-score",
- "mcu-temperature",
- "mcu-utils",
-]
-
-[[package]]
-name = "mcu-palettes"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "615c6c4793e0bd7ad19965fbf5cc9b9e7e5c6233e817849892587e7f07e244ee"
-dependencies = [
- "mcu-hct",
- "mcu-utils",
-]
-
-[[package]]
-name = "mcu-quantize"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1bc8d8f30a32cd1f58c3237952a8be94ad0cd8a5e109c5c6e29d6308f2adcf94"
-dependencies = [
- "mcu-hct",
- "mcu-utils",
-]
-
-[[package]]
-name = "mcu-scheme"
-version = "0.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9ddf07c3c948aba11096c0a68e714d7c740ad72d7c69a33dabaa274e3556858b"
-dependencies = [
- "mcu-dynamiccolor",
- "mcu-hct",
- "mcu-palettes",
-]
-
-[[package]]
-name = "mcu-score"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "13088c80e1b00bd402002c6f03e2ebe3f0224ea21661bbbdc35ad7fd864820f3"
-dependencies = [
- "mcu-hct",
- "mcu-utils",
-]
-
-[[package]]
-name = "mcu-temperature"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eb26fd6731022668fc7c250630dfdf2976795518cba8ab6408d49a260fe0f890"
-dependencies = [
- "mcu-hct",
- "mcu-utils",
-]
-
-[[package]]
-name = "mcu-utils"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9fe74042c366a4f80af8fb92f4c7c6c1386ed332c3c2bdd72fcc18d14fe10ffe"
-dependencies = [
- "thiserror 1.0.69",
-]
-
-[[package]]
 name = "memchr"
 version = "2.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1928,15 +1772,6 @@ checksum = "ac9557c559cd6fc9867e122e20d2cbefc9ca29d80d027a8e39310920ed2f0a97"
 dependencies = [
  "num-traits",
  "pxfm",
-]
-
-[[package]]
-name = "mpd"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2e12cace5746cb0aa78faa6cd2caec9f9c01882fc0e6b54d34685a2d3303ea34"
-dependencies = [
- "bufstream",
 ]
 
 [[package]]
@@ -2143,12 +1978,6 @@ dependencies = [
  "quote",
  "syn 2.0.117",
 ]
-
-[[package]]
-name = "palette_extract"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "37152de66c36e76d4637af2a51310ede2c0e42b80357fa517bf1b595b56489a4"
 
 [[package]]
 name = "parking_lot"
@@ -2724,19 +2553,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "357703d41365b4b27c590e3ed91eabb1b663f07c4c084095e60cbed4362dff0d"
 
 [[package]]
-name = "rustix"
-version = "1.1.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b6fe4565b9518b83ef4f91bb47ce29620ca828bd32cb7e408f0062e9930ba190"
-dependencies = [
- "bitflags 2.11.0",
- "errno",
- "libc",
- "linux-raw-sys",
- "windows-sys 0.61.2",
-]
-
-[[package]]
 name = "rustls"
 version = "0.23.37"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3159,19 +2975,6 @@ checksum = "8e1d1b10ced5ca923a1fcb8d03e96b8d3268065d724548c0211415ff6ac6bac4"
 dependencies = [
  "core-foundation-sys",
  "libc",
-]
-
-[[package]]
-name = "tempfile"
-version = "3.26.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "82a72c767771b47409d2345987fda8628641887d5466101319899796367354a0"
-dependencies = [
- "fastrand",
- "getrandom 0.4.1",
- "once_cell",
- "rustix",
- "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -3622,21 +3425,15 @@ dependencies = [
  "dirs",
  "fast_image_resize",
  "futures",
- "glob",
  "image",
  "indexmap",
  "indicatif",
  "kmeans_colors",
  "lofty",
  "log",
- "mcu-hct",
- "mcu-material-color",
- "mpd",
  "mpd_client",
  "notify",
  "palette",
- "palette_extract",
- "parking_lot",
  "rand 0.10.0",
  "rayon",
  "regex",
@@ -3646,7 +3443,6 @@ dependencies = [
  "serde_json",
  "sha2",
  "simple_logger",
- "tempfile",
  "thiserror 2.0.18",
  "tokio",
  "toml",
