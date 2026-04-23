@@ -14,7 +14,14 @@ def clean_genius_lyrics(lyrics, title):
     if lines and "Contributors" in lines[0]:
         lines.pop(0)
     
-    cleaned = "\n".join(lines)
+    filtered_lines = []
+    for line in lines:
+        trimmed = line.strip()
+        if trimmed.startswith("[") and trimmed.endswith("]"):
+            continue
+        filtered_lines.append(line)
+    
+    cleaned = "\n".join(filtered_lines)
     cleaned = re.sub(r"[0-9]*Embed$", "", cleaned)
     cleaned = cleaned.strip()
     
@@ -44,7 +51,7 @@ def fetch_album_lyrics(album_root_path, access_token):
 
     genius = lyricsgenius.Genius(access_token)
     genius.verbose = False
-    genius.remove_section_headers = False
+    genius.remove_section_headers = True
 
     lyrics_dir = root / "Lyrics"
     lyrics_dir.mkdir(exist_ok=True)
