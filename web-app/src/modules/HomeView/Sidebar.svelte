@@ -1,9 +1,11 @@
 <script>
   import { library } from "../../library.svelte.js";
+  import SidebarIndex from "./SidebarIndex.svelte";
 
   let isCollectionMenuOpen = $state(false);
   let isSortMenuOpen = $state(false);
   let isGroupMenuOpen = $state(false);
+  let scrollContainer = $state(null);
 
   let collectionLabel = $derived(library.availableCollections[library.activeCollection]?.label || "Unknown");
   let groupLabel = $derived(library.availableFacets[library.activeSidebarGrouper]?.label || "Unknown");
@@ -57,8 +59,8 @@
   }
 </script>
 
-{#snippet Item({ label, count, active, onclick })}
-  <button class="sidebar-item" class:active {onclick}>
+{#snippet Item({ index, label, count, active, onclick })}
+  <button id="sidebar-item-{index}" class="sidebar-item" class:active {onclick}>
     <span class="v-truncate label" title={label}>{label}</span>
     <span class="v-mono count">{count}</span>
   </button>
@@ -161,18 +163,25 @@
     </div>
   </div>
 
-  <div class="sidebar-scroll">
-    <div class="v-scroll-fade-top"></div>
-    {#each items as item}
-      {@render Item({
-        label: item.label,
-        count: item.count,
-        active: library.activeFilter.key === library.activeSidebarGrouper && library.activeFilter.val === item.value,
-        onclick: () => library.applyFilter(library.activeSidebarGrouper, item.value)
-      })}
-    {/each}
-    <div class="scroll-spacer"></div>
-    <div class="v-scroll-fade-bottom"></div>
+  <div class="sidebar-body">
+    <div class="sidebar-scroll" bind:this={scrollContainer}>
+      <div class="v-scroll-fade-top"></div>
+      {#each items as item, i}
+        {@render Item({
+          index: i,
+          label: item.label,
+          // count: item.count,
+          active: library.activeFilter.key === library.activeSidebarGrouper && library.activeFilter.val === item.value,
+          onclick: () => library.applyFilter(library.activeSidebarGrouper, item.value)
+        })}
+      {/each}
+      <div class="scroll-spacer"></div>
+      <div class="v-scroll-fade-bottom"></div>
+    </div>
+    
+    {#if items.length > 0}
+      <SidebarIndex {items} container={scrollContainer} />
+    {/if}
   </div>
 </div>
 
@@ -324,6 +333,14 @@
     background-color: rgba(255, 255, 255, 0.05);
   }
 
+  .sidebar-body {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: row;
+  }
+
   .sidebar-scroll {
     position: relative;
     flex: 1;
@@ -332,7 +349,6 @@
     min-height: 0;
     scrollbar-width: none;
     -ms-overflow-style: none;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   }
 
   .sidebar-scroll::-webkit-scrollbar {
@@ -358,7 +374,6 @@
     font-family: var(--font-stack);
     font-size: 14px;
     text-align: left;
-    transition: background-color 0.1s ease;
     outline: none;
     border-radius: 8px;
     box-sizing: border-box;
@@ -382,6 +397,7 @@
   }
 
   .count {
+    margin-left: 8px;
     opacity: 0.5;
   }
 </style>
