@@ -1,4 +1,8 @@
 pub mod kmeans;
+pub mod kmeansn;
+pub mod kmeansnh;
+pub mod kmeansnd;
+pub mod kmeansnv;
 pub mod mean_shift;
 
 use crate::compile::builder::context::AlbumContext;
@@ -54,6 +58,10 @@ pub fn resolve(ctx: &AlbumContext, cfg: &Value) -> Option<Value> {
     if candidate_colors.is_empty() {
         candidate_colors = match algo_type {
             "msc" => mean_shift::extract(&img_to_process, args),
+            "kmeansn" => kmeansn::extract(&img_to_process, args),
+            "kmeansnh" => kmeansnh::extract(&img_to_process, args),
+            "kmeansnd" => kmeansnd::extract(&img_to_process, args),
+            "kmeansnv" => kmeansnv::extract(&img_to_process, args),
             "kmeans" | _ => kmeans::extract(&img_to_process, args),
         };
     }
@@ -169,6 +177,18 @@ pub fn resolve(ctx: &AlbumContext, cfg: &Value) -> Option<Value> {
                 let mut current_ok = first.0;
                 sorted.push((first.1, first.2));
 
+                let end_node_idx = if pool.is_empty() {
+                    None
+                } else {
+                    pool.iter().enumerate()
+                        .min_by(|(_, (ok_a, _, _)), (_, (ok_b, _, _))| {
+                            ok_a.l.partial_cmp(&ok_b.l).unwrap_or(std::cmp::Ordering::Equal)
+                        })
+                        .map(|(i, _)| i)
+                };
+
+                let end_node = end_node_idx.map(|idx| pool.remove(idx));
+
                 while !pool.is_empty() {
                     let next_idx = pool.iter().enumerate()
                         .min_by(|(_, (ok_a, _, _)), (_, (ok_b, _, _))| {
@@ -183,6 +203,11 @@ pub fn resolve(ctx: &AlbumContext, cfg: &Value) -> Option<Value> {
                     current_ok = next.0;
                     sorted.push((next.1, next.2));
                 }
+
+                if let Some(node) = end_node {
+                    sorted.push((node.1, node.2));
+                }
+
                 palette = sorted;
             }
         },
