@@ -338,7 +338,7 @@
     height: 100%;
     z-index: 0;
     pointer-events: none;
-    opacity: {library.isShaderActive ? 1 : 0};
+    opacity: {library.isShaderActive && colors.length > 0 ? 1 : 0};
     transition: opacity 0.3s ease;
   "
 ></canvas>

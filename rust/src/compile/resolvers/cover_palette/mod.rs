@@ -26,6 +26,41 @@ pub fn resolve(ctx: &AlbumContext, cfg: &Value) -> Option<Value> {
     let sort_type = cfg.get("sort").and_then(Value::as_str).unwrap_or("gradient");
     let args = cfg.get("args").and_then(Value::as_str).unwrap_or("");
 
+    let cover_palette_raw = ctx.source.get("COVER_PALETTE").or_else(|| ctx.source.get("cover_palette"));
+
+    let mut candidate_colors = Vec::new();
+    let mut manually_provided = false;
+    let mut should_extract = false;
+
+    match cover_palette_raw {
+        Some(Value::Bool(b)) => {
+            should_extract = *b;
+        }
+        Some(Value::String(s)) => {
+            let s_lower = s.trim().to_lowercase();
+            if s_lower == "true" {
+                should_extract = true;
+            }
+        }
+        Some(Value::Array(arr)) => {
+            for v in arr {
+                if let Some(s) = v.as_str() {
+                    if let Some(srgb) = parse_hex(s) {
+                        candidate_colors.push(srgb);
+                    }
+                }
+            }
+            if !candidate_colors.is_empty() {
+                manually_provided = true;
+            }
+        }
+        _ => {}
+    }
+
+    if !should_extract && !manually_provided {
+        return None;
+    }
+
     let sample_dim = args.split(',')
         .find(|s| s.trim().starts_with("dim="))
         .and_then(|s| s.trim().strip_prefix("dim="))
@@ -38,24 +73,7 @@ pub fn resolve(ctx: &AlbumContext, cfg: &Value) -> Option<Value> {
         img.resize_exact(sample_dim, sample_dim, FilterType::Nearest)
     };
 
-    let mut candidate_colors = Vec::new();
-    let mut manually_provided = false;
-    
-    let cover_palette_raw = ctx.source.get("COVER_PALETTE").or_else(|| ctx.source.get("cover_palette"));
-    if let Some(arr) = cover_palette_raw.and_then(|v| v.as_array()) {
-        for v in arr {
-            if let Some(s) = v.as_str() {
-                if let Some(srgb) = parse_hex(s) {
-                    candidate_colors.push(srgb);
-                }
-            }
-        }
-        if !candidate_colors.is_empty() {
-            manually_provided = true;
-        }
-    }
-
-    if candidate_colors.is_empty() {
+    if should_extract && candidate_colors.is_empty() {
         candidate_colors = match algo_type {
             "msc" => mean_shift::extract(&img_to_process, args),
             "kmeansn" => kmeansn::extract(&img_to_process, args),

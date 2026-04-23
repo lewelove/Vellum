@@ -18,7 +18,7 @@ pub fn extract(img: &DynamicImage, args: &str) -> Vec<Srgb> {
         .find(|s| s.trim().starts_with("n="))
         .and_then(|s| s.trim().strip_prefix("n="))
         .and_then(|val| val.parse::<usize>().ok())
-        .unwrap_or(8)
+        .unwrap_or(6)
         .clamp(2, 24);
 
     let d_min = args.split(',')

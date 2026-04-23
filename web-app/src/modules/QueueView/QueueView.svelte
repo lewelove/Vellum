@@ -19,7 +19,8 @@
   
   let fullAlbum = $derived(activeId ? library.fullAlbumCache[activeId] : null);
 
-  let palette = $derived(fullAlbum?.album?.tags?.COVER_PALETTE || activeAlbum?.tags?.COVER_PALETTE || []);
+  let palette = $derived(fullAlbum?.album?.tags?.COVER_PALETTE || activeAlbum?.tags?.COVER_PALETTE ||[]);
+  let hasPalette = $derived(palette && palette.length > 0);
   let hasLyrics = $derived(fullAlbum?.tracks?.some(t => !!t.info?.lyrics_path || t.tags?.INSTRUMENTAL === true) ?? false);
 
   let isViewVisible = $derived(nav.activeTab === 'queue');
@@ -83,7 +84,7 @@
 
 <div 
   class="queue-view-container" 
-  class:shader-off={!library.isShaderActive}
+  class:shader-off={!library.isShaderActive || !hasPalette}
   style="--glass-bg: oklch(26% 0 0 / {glassOpacity});"
 >
   <BackgroundShader colors={palette} coverSize={moduleWidth} visible={isViewVisible} {isPlaying} />
@@ -148,7 +149,7 @@
     </div>
   </div>
 
-  <Sidebar {hasLyrics} />
+  <Sidebar {hasLyrics} {hasPalette} />
 </div>
 
 <style>
@@ -188,7 +189,6 @@
 
   .side-column {
     display: flex;
-    /* max-width: 500px; */
     flex-direction: column;
     flex: 1;
     gap: 16px;
