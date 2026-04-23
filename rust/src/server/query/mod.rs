@@ -72,6 +72,14 @@ impl LogicManifest {
         self.collections_order = self.collections.keys().cloned().collect();
         self.shelves_order = self.shelves.keys().cloned().collect();
 
+        for (_, g) in self.groupers.iter_mut() {
+            let idx = g.index.unwrap_or(false);
+            g.index = Some(idx);
+            if g.count.is_none() {
+                g.count = Some(!idx);
+            }
+        }
+
         let global_groupers: HashSet<String> = self.groupers.iter()
             .filter(|(_, g)| !g.strict)
             .map(|(id, _)| id.clone())
@@ -122,6 +130,10 @@ pub struct GrouperDef {
     pub select: String,
     #[serde(default)]
     pub strict: bool,
+    #[serde(default)]
+    pub index: Option<bool>,
+    #[serde(default)]
+    pub count: Option<bool>,
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug)]

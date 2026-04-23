@@ -15,6 +15,10 @@
 
   let isReverse = $derived(library.userSortOrder === "reverse");
 
+  let activeGrouperDef = $derived(library.availableFacets[library.activeSidebarGrouper] || {});
+  let showIndex = $derived(activeGrouperDef.index === true);
+  let showCount = $derived(activeGrouperDef.count === true);
+
   function toggleCollectionMenu() {
     isCollectionMenuOpen = !isCollectionMenuOpen;
     if (isCollectionMenuOpen) {
@@ -62,7 +66,9 @@
 {#snippet Item({ index, label, count, active, onclick })}
   <button id="sidebar-item-{index}" class="sidebar-item" class:active {onclick}>
     <span class="v-truncate label" title={label}>{label}</span>
-    <span class="v-mono count">{count}</span>
+    {#if showCount}
+      <span class="v-mono count">{count}</span>
+    {/if}
   </button>
 {/snippet}
 
@@ -170,7 +176,7 @@
         {@render Item({
           index: i,
           label: item.label,
-          // count: item.count,
+          count: item.count,
           active: library.activeFilter.key === library.activeSidebarGrouper && library.activeFilter.val === item.value,
           onclick: () => library.applyFilter(library.activeSidebarGrouper, item.value)
         })}
@@ -179,7 +185,7 @@
       <div class="v-scroll-fade-bottom"></div>
     </div>
     
-    {#if items.length > 0}
+    {#if items.length > 0 && showIndex}
       <SidebarIndex {items} container={scrollContainer} />
     {/if}
   </div>
