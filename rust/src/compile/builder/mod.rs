@@ -76,70 +76,72 @@ pub fn build(
                 }
 
                 if let Some(aux_tracks) = m_json.get("tracks").and_then(Value::as_array) {
-                    let primary_tracks = metadata_json.get_mut("tracks")
-                        .and_then(Value::as_array_mut)
-                        .ok_or_else(|| VellumError::MissingTracksBlock { path: album_root.to_path_buf() })?;
+                    if !aux_tracks.is_empty() {
+                        let primary_tracks = metadata_json.get_mut("tracks")
+                            .and_then(Value::as_array_mut)
+                            .ok_or_else(|| VellumError::MissingTracksBlock { path: album_root.to_path_buf() })?;
 
-                    if aux_tracks.len() != primary_tracks.len() {
-                        return Err(VellumError::TrackCountMismatch {
-                            manifest: m_name.to_string(),
-                            path: album_root.to_path_buf(),
-                            primary_count: primary_tracks.len(),
-                            aux_count: aux_tracks.len(),
-                        });
-                    }
-
-                    let mut seen_identities = HashSet::new();
-                    for (idx, aux_t) in aux_tracks.iter().enumerate() {
-                        let a_obj = aux_t.as_object().ok_or_else(|| VellumError::InvalidManifestEntry { 
-                            manifest: m_name.to_string(), 
-                            path: album_root.to_path_buf(), 
-                            index: idx + 1 
-                        })?;
-                        
-                        let track_no = extract_strict_u32(aux_t.get("tracknumber"), "tracknumber", None)
-                            .map_err(|_| VellumError::MissingTrackIdentity {
+                        if aux_tracks.len() != primary_tracks.len() {
+                            return Err(VellumError::TrackCountMismatch {
                                 manifest: m_name.to_string(),
                                 path: album_root.to_path_buf(),
-                                index: idx + 1,
-                            })?;
-                        
-                        let disc_no = extract_strict_u32(aux_t.get("discnumber"), "discnumber", Some(1))?;
-
-                        if !seen_identities.insert((disc_no, track_no)) {
-                            return Err(VellumError::DuplicateTrackIdentity {
-                                manifest: m_name.to_string(),
-                                path: album_root.to_path_buf(),
-                                disc: disc_no,
-                                track: track_no,
+                                primary_count: primary_tracks.len(),
+                                aux_count: aux_tracks.len(),
                             });
                         }
 
-                        let mut found = false;
-                        for prim_t in primary_tracks.iter_mut() {
-                            let p_track_no = extract_strict_u32(prim_t.get("tracknumber"), "tracknumber", None)?;
-                            let p_disc_no = extract_strict_u32(prim_t.get("discnumber"), "discnumber", Some(1))?;
+                        let mut seen_identities = HashSet::new();
+                        for (idx, aux_t) in aux_tracks.iter().enumerate() {
+                            let a_obj = aux_t.as_object().ok_or_else(|| VellumError::InvalidManifestEntry { 
+                                manifest: m_name.to_string(), 
+                                path: album_root.to_path_buf(), 
+                                index: idx + 1 
+                            })?;
+                            
+                            let track_no = extract_strict_u32(aux_t.get("tracknumber"), "tracknumber", None)
+                                .map_err(|_| VellumError::MissingTrackIdentity {
+                                    manifest: m_name.to_string(),
+                                    path: album_root.to_path_buf(),
+                                    index: idx + 1,
+                                })?;
+                            
+                            let disc_no = extract_strict_u32(aux_t.get("discnumber"), "discnumber", Some(1))?;
 
-                            if track_no == p_track_no && disc_no == p_disc_no {
-                                let p_obj = prim_t.as_object_mut().unwrap();
-                                for (k, v) in a_obj {
-                                    if k != "tracknumber" && k != "discnumber" {
-                                        if !p_obj.contains_key(k) {
-                                            p_obj.insert(k.clone(), v.clone());
+                            if !seen_identities.insert((disc_no, track_no)) {
+                                return Err(VellumError::DuplicateTrackIdentity {
+                                    manifest: m_name.to_string(),
+                                    path: album_root.to_path_buf(),
+                                    disc: disc_no,
+                                    track: track_no,
+                                });
+                            }
+
+                            let mut found = false;
+                            for prim_t in primary_tracks.iter_mut() {
+                                let p_track_no = extract_strict_u32(prim_t.get("tracknumber"), "tracknumber", None)?;
+                                let p_disc_no = extract_strict_u32(prim_t.get("discnumber"), "discnumber", Some(1))?;
+
+                                if track_no == p_track_no && disc_no == p_disc_no {
+                                    let p_obj = prim_t.as_object_mut().unwrap();
+                                    for (k, v) in a_obj {
+                                        if k != "tracknumber" && k != "discnumber" {
+                                            if !p_obj.contains_key(k) {
+                                                p_obj.insert(k.clone(), v.clone());
+                                            }
                                         }
                                     }
+                                    found = true;
+                                    break;
                                 }
-                                found = true;
-                                break;
                             }
-                        }
-                        if !found {
-                            return Err(VellumError::OrphanedAuxiliaryData {
-                                manifest: m_name.to_string(),
-                                path: album_root.to_path_buf(),
-                                disc: disc_no,
-                                track: track_no,
-                            });
+                            if !found {
+                                return Err(VellumError::OrphanedAuxiliaryData {
+                                    manifest: m_name.to_string(),
+                                    path: album_root.to_path_buf(),
+                                    disc: disc_no,
+                                    track: track_no,
+                                });
+                            }
                         }
                     }
                 }
