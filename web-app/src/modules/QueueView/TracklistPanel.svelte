@@ -53,22 +53,10 @@
     return `${m}:${pad(s)}`;
   }
 
-  function parseDurationToMs(str) {
-    if (!str) return 0;
-    const parts = str.split(':').reverse();
-    let ms = 0;
-    if (parts[0]) ms += parseInt(parts[0]) * 1000;
-    if (parts[1]) ms += parseInt(parts[1]) * 60000;
-    if (parts[2]) ms += parseInt(parts[2]) * 3600000;
-    return ms;
-  }
-
   function getDiscDuration(tracks, discNumber) {
     const totalMs = tracks
       .filter(t => t.discNo === discNumber)
-      .reduce((acc, t) => {
-        return acc + parseDurationToMs(t.duration);
-      }, 0);
+      .reduce((acc, t) => acc + t.durationMs, 0);
     return formatMs(totalMs);
   }
 
@@ -90,6 +78,7 @@
       trackNo: meta ? meta.trackNo : "#",
       discNo: meta ? meta.discNo : 1,
       duration: meta ? meta.duration : "",
+      durationMs: meta ? meta.durationMs : 0,
       title,
       artist,
       albumId

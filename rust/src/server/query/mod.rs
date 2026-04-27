@@ -268,6 +268,7 @@ impl QueryEngine {
                                 let title = track.get("TITLE").unwrap_or(&json!("Unknown")).clone();
                                 let artist = track.get("ARTIST").unwrap_or(&json!("Unknown")).clone();
                                 let duration = tinfo.get("track_duration_time").unwrap_or(&json!("0:00")).clone();
+                                let duration_ms = tinfo.get("track_duration").and_then(Value::as_u64).unwrap_or(0);
                                 
                                 let track_light = json!({
                                     "path": tp,
@@ -276,6 +277,7 @@ impl QueryEngine {
                                     "title": title,
                                     "artist": artist,
                                     "duration": duration,
+                                    "durationMs": duration_ms,
                                     "albumId": id
                                 });
                                 tracks_light.push(track_light.clone());
