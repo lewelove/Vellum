@@ -116,10 +116,11 @@
     font-family: var(--font-stack);
     font-family: var(--font-mono);
     font-size: 15px;
+    font-style: italic;
     line-height: 1.2;
     color: oklch(100% 0 0);
-    margin: auto;
     margin: 18px auto;
+    margin: auto;
     text-align: center;
   }
 </style>

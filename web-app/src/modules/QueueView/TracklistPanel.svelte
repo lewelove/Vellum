@@ -108,13 +108,13 @@
     {#each groupedQueue as group}
       {#if group.albumMeta}
         <div class="album-group-header">
-          <div class="header-thumb">
-            <ClearCover 
-              hash={group.albumMeta.cover_hash} 
-              width={48} 
-              height={48} 
-            />
-          </div>
+          <!-- <div class="header-thumb"> -->
+          <!--   <ClearCover  -->
+          <!--     hash={group.albumMeta.cover_hash}  -->
+          <!--     width={48}  -->
+          <!--     height={48}  -->
+          <!--   /> -->
+          <!-- </div> -->
           <div class="header-content">
             <div class="header-row">
               <span class="v-truncate header-album">{group.albumMeta.ALBUM}</span>
