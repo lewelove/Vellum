@@ -19,9 +19,14 @@ def clean_genius_lyrics(lyrics, title):
         trimmed = line.strip()
         if trimmed.startswith("[") and trimmed.endswith("]"):
             continue
-        filtered_lines.append(line)
+        filtered_lines.append(trimmed)
     
     cleaned = "\n".join(filtered_lines)
+    
+    cleaned = re.sub(r"\(\s*\n\s*", "(", cleaned)
+    cleaned = re.sub(r"\s*\n\s*\)", ")", cleaned)
+    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
+    
     cleaned = re.sub(r"[0-9]*Embed$", "", cleaned)
     cleaned = cleaned.strip()
     
