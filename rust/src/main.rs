@@ -72,6 +72,8 @@ enum Commands {
         path: Option<String>,
         #[arg(long)]
         playing: bool,
+        #[arg(long)]
+        id: Option<String>,
     },
     Query {
         #[arg(value_name = "QUERY")]
@@ -185,7 +187,7 @@ async fn main() -> Result<()> {
             update::run(expanded, force, jobs, verbose, silent).await
         }
         Commands::Manifest { force } => manifest::run(force).await,
-        Commands::Run { script_cmd, path, playing } => run::execute(script_cmd, path, playing).await,
+        Commands::Run { script_cmd, path, playing, id } => run::execute(script_cmd, path, playing, id).await,
         Commands::Query { query_str, playing, toml, lock, raw, id } => query::run(query_str, playing, toml, lock, raw, id).await,
     }
 }

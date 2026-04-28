@@ -7,6 +7,7 @@ pub mod mean_shift;
 
 use crate::compile::builder::context::AlbumContext;
 use image::imageops::FilterType;
+use image::DynamicImage;
 use palette::{FromColor, Oklab, Oklch, Srgb};
 use serde_json::{Value, json};
 
@@ -19,47 +20,15 @@ fn parse_hex(hex: &str) -> Option<Srgb> {
     Some(Srgb::new(r as f32 / 255.0, g as f32 / 255.0, b as f32 / 255.0))
 }
 
-pub fn resolve(ctx: &AlbumContext, cfg: &Value) -> Option<Value> {
-    let img = ctx.cover_image?;
-
+pub fn process_image_to_palette(
+    img: &DynamicImage,
+    cfg: &Value,
+    mut candidate_colors: Vec<Srgb>,
+    manually_provided: bool,
+) -> Option<Vec<(Srgb, f32)>> {
     let algo_type = cfg.get("type").and_then(Value::as_str).unwrap_or("kmeansnv");
     let sort_type = cfg.get("sort").and_then(Value::as_str).unwrap_or("gradient");
     let args = cfg.get("args").and_then(Value::as_str).unwrap_or("");
-
-    let cover_palette_raw = ctx.source.get("COVER_PALETTE").or_else(|| ctx.source.get("cover_palette"));
-
-    let mut candidate_colors = Vec::new();
-    let mut manually_provided = false;
-    let mut should_extract = false;
-
-    match cover_palette_raw {
-        Some(Value::Bool(b)) => {
-            should_extract = *b;
-        }
-        Some(Value::String(s)) => {
-            let s_lower = s.trim().to_lowercase();
-            if s_lower == "true" {
-                should_extract = true;
-            }
-        }
-        Some(Value::Array(arr)) => {
-            for v in arr {
-                if let Some(s) = v.as_str() {
-                    if let Some(srgb) = parse_hex(s) {
-                        candidate_colors.push(srgb);
-                    }
-                }
-            }
-            if !candidate_colors.is_empty() {
-                manually_provided = true;
-            }
-        }
-        _ => {}
-    }
-
-    if !should_extract && !manually_provided {
-        return None;
-    }
 
     let sample_dim = args.split(',')
         .find(|s| s.trim().starts_with("dim="))
@@ -73,7 +42,7 @@ pub fn resolve(ctx: &AlbumContext, cfg: &Value) -> Option<Value> {
         img.resize_exact(sample_dim, sample_dim, FilterType::Nearest)
     };
 
-    if should_extract && candidate_colors.is_empty() {
+    if candidate_colors.is_empty() {
         candidate_colors = match algo_type {
             "msc" => mean_shift::extract(&img_to_process, args),
             "kmeansn" => kmeansn::extract(&img_to_process, args),
@@ -232,6 +201,49 @@ pub fn resolve(ctx: &AlbumContext, cfg: &Value) -> Option<Value> {
         "original" => {},
         "ratio" | _ => palette.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal)),
     }
+
+    Some(palette)
+}
+
+pub fn resolve(ctx: &AlbumContext, cfg: &Value) -> Option<Value> {
+    let img = ctx.cover_image?;
+
+    let cover_palette_raw = ctx.source.get("COVER_PALETTE").or_else(|| ctx.source.get("cover_palette"));
+
+    let mut candidate_colors = Vec::new();
+    let mut manually_provided = false;
+    let mut should_extract = false;
+
+    match cover_palette_raw {
+        Some(Value::Bool(b)) => {
+            should_extract = *b;
+        }
+        Some(Value::String(s)) => {
+            let s_lower = s.trim().to_lowercase();
+            if s_lower == "true" {
+                should_extract = true;
+            }
+        }
+        Some(Value::Array(arr)) => {
+            for v in arr {
+                if let Some(s) = v.as_str() {
+                    if let Some(srgb) = parse_hex(s) {
+                        candidate_colors.push(srgb);
+                    }
+                }
+            }
+            if !candidate_colors.is_empty() {
+                manually_provided = true;
+            }
+        }
+        _ => {}
+    }
+
+    if !should_extract && !manually_provided {
+        return None;
+    }
+
+    let palette = process_image_to_palette(img, cfg, candidate_colors, manually_provided)?;
 
     let palette_json: Vec<Value> = palette.into_iter()
         .map(|(srgb, ratio)| {

@@ -7,12 +7,13 @@ use fast_image_resize::PixelType;
 use image::DynamicImage;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
-use std::path::{Path};
+use std::path::Path;
 use std::time::SystemTime;
 
+pub const COVER_CANDIDATES: [&str; 4] = ["cover.jpg", "cover.png", "folder.jpg", "front.jpg"];
+
 pub fn resolve_cover_info(root: &Path) -> (Option<String>, String, u64, u64) {
-    let candidates = ["cover.jpg", "cover.png", "folder.jpg", "front.jpg"];
-    for c in candidates {
+    for c in COVER_CANDIDATES {
         let p = root.join(c);
         if let Ok(m) = std::fs::metadata(&p) {
             let mtime = m

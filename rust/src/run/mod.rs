@@ -1,3 +1,4 @@
+pub mod get_cover_palette;
 pub mod get_lyrics;
 
 use crate::config::AppConfig;
@@ -8,7 +9,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use tokio::net::TcpStream;
 
-pub async fn execute(cmd: String, path_arg: Option<String>, playing: bool) -> Result<()> {
+pub async fn execute(cmd: String, path_arg: Option<String>, playing: bool, id_arg: Option<String>) -> Result<()> {
     let (config, _, _) = AppConfig::load().context("Failed to load config")?;
 
     let mut env_vars = HashMap::new();
@@ -30,11 +31,14 @@ pub async fn execute(cmd: String, path_arg: Option<String>, playing: bool) -> Re
         }
     }
 
-    let target_album = if playing || path_arg.is_none() {
+    let target_album = if playing {
         get_playing_album(&config.storage.library_root).await?
-    } else {
-        let p = path_arg.unwrap();
+    } else if let Some(id) = id_arg {
+        expand_path(&config.storage.library_root).join(id)
+    } else if let Some(p) = path_arg {
         expand_path(&p).canonicalize().unwrap_or_else(|_| expand_path(&p))
+    } else {
+        get_playing_album(&config.storage.library_root).await?
     };
 
     env_vars.insert(
@@ -43,6 +47,7 @@ pub async fn execute(cmd: String, path_arg: Option<String>, playing: bool) -> Re
     );
 
     match cmd.as_str() {
+        "get-cover-palette" => get_cover_palette::run(&config, &target_album).await,
         "get-lyrics" => get_lyrics::run(&config, &target_album, &env_vars).await,
         _ => {
             if let Some(script_path) = config.run.as_ref().and_then(|r| r.get(&cmd)) {
