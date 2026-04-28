@@ -216,17 +216,17 @@
     flex-direction: column;
     justify-content: center;
     min-width: 0;
+    gap: 6px;
   }
 
   .header-row {
     display: flex;
     justify-content: space-between;
-    align-items: baseline;
+    align-items: flex-start;
   }
 
   .header-album {
     font-size: 19px;
-    padding-bottom: 5px;
   }
 
   .header-artist {
@@ -234,7 +234,7 @@
   }
 
   .header-meta {
-    font-size: 14px;
+    font-size: 15px;
     margin-left: 8px;
   }
 
