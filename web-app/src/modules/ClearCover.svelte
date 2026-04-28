@@ -45,8 +45,8 @@
     position: absolute;
     inset: 0;
     opacity: 0;
-    transition: opacity 0.0s;
-    will-change: opacity;
+    transition: opacity 0.2s ease;
+    will-change: opacity 0.2s ease;
   }
 
   .cover-block.visible {
