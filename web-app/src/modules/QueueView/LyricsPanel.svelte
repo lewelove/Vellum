@@ -100,7 +100,7 @@
 
   .lyric-line {
     margin: 6px 0;
-    min-height: 0.8em;
+    min-height: 0.66em;
     text-wrap: balance;
   }
 
