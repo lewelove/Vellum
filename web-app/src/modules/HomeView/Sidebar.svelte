@@ -67,7 +67,7 @@
   <button id="sidebar-item-{index}" class="sidebar-item" class:active {onclick}>
     <span class="v-truncate label" title={label}>{label}</span>
     {#if showCount}
-      <span class="v-mono count">{count}</span>
+      <span class="count">{count}</span>
     {/if}
   </button>
 {/snippet}
@@ -77,18 +77,18 @@
   <div class="sidebar-controls">
     <div class="control-row">
       <div class="button-wrapper flex-grow">
-        <button class="sidebar-btn" onclick={toggleCollectionMenu} class:active={isCollectionMenuOpen} title="Collection">
-          <img src="icons/outlined/20px/auto_stories.svg" alt="" class="btn-icon" />
+        <button class="v-btn-icon sidebar-btn" onclick={toggleCollectionMenu} class:active={isCollectionMenuOpen} title="Collection">
+          <img src="icons/outlined/20px/auto_stories.svg" alt="" class="start-icon" />
           <span class="v-truncate btn-label">{collectionLabel}</span>
           <img 
             src={isCollectionMenuOpen ? "icons/outlined/24px/arrow_drop_up.svg" : "icons/outlined/24px/arrow_drop_down.svg"}  
-            class="chevron" 
+            class="end-icon" 
             alt="" 
           />
         </button>
     
         {#if isCollectionMenuOpen}
-          <div class="control-menu">
+          <div class="control-menu v-panel">
             {#each library.collectionsList as collection}
               <button 
                 class="menu-item" 
@@ -105,18 +105,18 @@
 
     <div class="control-row">
       <div class="button-wrapper flex-grow">
-        <button class="sidebar-btn" onclick={toggleGroupMenu} class:active={isGroupMenuOpen} title="Group By">
-          <img src="icons/outlined/20px/stack_group.svg" alt="" class="btn-icon" />
+        <button class="v-btn-icon sidebar-btn" onclick={toggleGroupMenu} class:active={isGroupMenuOpen} title="Group By">
+          <img src="icons/outlined/20px/stack_group.svg" alt="" class="start-icon" />
           <span class="v-truncate btn-label">{groupLabel}</span>
           <img 
             src={isGroupMenuOpen ? "icons/outlined/24px/arrow_drop_up.svg" : "icons/outlined/24px/arrow_drop_down.svg"}  
-            class="chevron" 
+            class="end-icon" 
             alt="" 
           />
         </button>
     
         {#if isGroupMenuOpen}
-          <div class="control-menu">
+          <div class="control-menu v-panel">
             {#each library.visibleFacets as {key, label}}
               <button 
                 class="menu-item" 
@@ -133,18 +133,18 @@
 
     <div class="control-row">
       <div class="button-wrapper flex-grow">
-        <button class="sidebar-btn" onclick={toggleSortMenu} class:active={isSortMenuOpen} title="Sort By">
-          <img src="icons/outlined/20px/swap_vert.svg" alt="" class="btn-icon" />
+        <button class="v-btn-icon sidebar-btn" onclick={toggleSortMenu} class:active={isSortMenuOpen} title="Sort By">
+          <img src="icons/outlined/20px/swap_vert.svg" alt="" class="start-icon" />
           <span class="v-truncate btn-label">{sortLabel}</span>
           <img 
             src={isSortMenuOpen ? "icons/outlined/24px/arrow_drop_up.svg" : "icons/outlined/24px/arrow_drop_down.svg"} 
-            class="chevron" 
+            class="end-icon" 
             alt="" 
           />
         </button>
 
         {#if isSortMenuOpen}
-          <div class="control-menu">
+          <div class="control-menu v-panel">
             {#each library.visibleSorters as {key, label}}
               <button 
                 class="menu-item" 
@@ -158,9 +158,8 @@
         {/if}
       </div>
       
-      <button class="sidebar-btn square" onclick={toggleDirection} title={isReverse ? "Reverse Order" : "Default Order"}>
+      <button class="v-btn-icon dir-btn" onclick={toggleDirection} title={isReverse ? "Reverse Order" : "Default Order"}>
         <img 
-          class="btn-icon no-margin"
           class:mirrored={isReverse}
           src="/icons/outlined/24px/arrow_shape_up_stack.svg" 
           alt="Direction" 
@@ -200,6 +199,7 @@
     background-color: var(--background-drawer); 
     padding: 12px; 
     box-sizing: border-box;
+    font-family: var(--font-stack);
   }
 
   .sidebar-controls {
@@ -207,7 +207,7 @@
     flex-direction: column;
     gap: 8px;
     padding-bottom: 12px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    border-bottom: 1px solid oklch(100% 0 0 / 0.05);
     margin-bottom: 0px;
     flex-shrink: 0;
   }
@@ -230,70 +230,49 @@
   .sidebar-btn {
     width: 100%;
     height: 36px;
-    background-color: rgba(255, 255, 255, 0.01);
-    border: 2px solid rgba(255, 255, 255, 0.08);
     padding: 0 8px;
-    display: flex;
-    align-items: center;
     justify-content: space-between;
-    cursor: pointer;
     border-radius: 10px;
-    box-shadow: var(--button-shadow);
-    transition: background-color 0.1s, border-color 0.1s;
-    font-family: var(--font-stack);
     color: var(--text-muted);
     font-size: 14px;
-    outline: none;
-    box-sizing: border-box;
+    font-family: var(--font-stack);
+    font-weight: 500;
   }
 
-  .sidebar-btn.square {
+  .dir-btn {
     width: 36px;
-    padding: 0;
-    justify-content: center;
+    height: 36px;
+    border-radius: 10px;
     flex-shrink: 0;
   }
 
-  .sidebar-btn:hover, .sidebar-btn.active {
-    background-color: rgba(255, 255, 255, 0.05);
-    color: var(--text-main);
-    border-color: rgba(255, 255, 255, 0.1);
-  }
+  /* .dir-btn img { */
+  /*   width: 20px; */
+  /*   height: 20px; */
+  /* } */
 
-  .btn-icon {
-    opacity: 0.7;
-    margin-right: 8px;
-    flex-shrink: 0;
-    transition: opacity 0.1s;
-  }
-  
-  .btn-icon.no-margin {
-    margin-right: 0;
-  }
-
-  .btn-icon.mirrored {
+  .dir-btn img.mirrored {
     transform: scaleY(-1);
   }
 
-  .sidebar-btn:hover .btn-icon, .sidebar-btn.active .btn-icon {
-    opacity: 1;
+  .start-icon {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+  }
+
+  .end-icon {
+    width: 20px;
+    height: 20px;
+    margin-left: 4px;
+    flex-shrink: 0;
   }
 
   .btn-label {
     flex: 1;
+    padding-left: 7px;
     text-align: left;
-  }
-
-  .chevron {
-    width: 20px;
-    height: 20px;
-    margin-left: 4px;
-    opacity: 0.5;
-    flex-shrink: 0;
-  }
-
-  .sidebar-btn:hover .chevron, .sidebar-btn.active .chevron {
-    opacity: 1;
+    font-family: var(--font-stack);
   }
 
   .control-menu {
@@ -302,11 +281,9 @@
     left: 0;
     width: 100%;
     margin-top: 6px;
-    background-color: var(--background-drawer); 
     z-index: 50;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-    border: 2px solid rgba(255, 255, 255, 0.05);
-    border-radius: 8px;
+    border: 2px solid oklch(100% 0 0 / 0.05);
+    border-radius: 12px;
     padding: 4px;
     box-sizing: border-box;
   }
@@ -320,23 +297,22 @@
     background: none;
     border: none;
     color: var(--text-muted);
-    font-family: var(--font-stack);
     font-size: 14px;
+    font-family: var(--font-stack);
     cursor: pointer;
     border-radius: 8px;
-    outline: none;
     box-sizing: border-box;
     transition: background-color 0.1s ease;
   }
 
   .menu-item:hover {
-    background-color: rgba(255, 255, 255, 0.03);
+    background-color: oklch(100% 0 0 / 0.03);
     color: var(--text-main);
   }
 
   .menu-item.selected {
     color: var(--text-main);
-    background-color: rgba(255, 255, 255, 0.05);
+    background-color: oklch(100% 0 0 / 0.05);
   }
 
   .sidebar-body {
@@ -375,35 +351,35 @@
     border: none;
     padding: 6px 12px;
     margin-bottom: 2px;
-    cursor: default;
+    cursor: pointer;
     color: var(--text-muted);
-    font-family: var(--font-stack);
     font-size: 14px;
+    font-family: var(--font-stack);
     text-align: left;
-    outline: none;
     border-radius: 8px;
     box-sizing: border-box;
-    user-select: none;
   }
 
   .sidebar-item:hover {
-    background-color: rgba(255, 255, 255, 0.03);
+    background-color: oklch(100% 0 0 / 0.03);
     color: var(--text-main);
-    cursor: pointer;
   }
 
   .sidebar-item.active {
-    background-color: rgba(255, 255, 255, 0.05);
+    background-color: oklch(100% 0 0 / 0.05);
     color: var(--text-main);
   }
 
   .label {
     flex: 1;
     margin-right: 8px;
+    font-family: var(--font-stack);
   }
 
   .count {
     margin-left: 8px;
+    font-size: 12px;
     opacity: 0.5;
+    font-family: var(--font-mono);
   }
 </style>

@@ -108,13 +108,6 @@
     {#each groupedQueue as group}
       {#if group.albumMeta}
         <div class="album-group-header">
-          <!-- <div class="header-thumb"> -->
-          <!--   <ClearCover  -->
-          <!--     hash={group.albumMeta.cover_hash}  -->
-          <!--     width={48}  -->
-          <!--     height={48}  -->
-          <!--   /> -->
-          <!-- </div> -->
           <div class="header-content">
             <div class="header-row">
               <span class="v-truncate header-album">{group.albumMeta.ALBUM}</span>
@@ -150,7 +143,6 @@
           class:active={track.isPlaying}
           ondblclick={() => handleJump(track.id)}
         >
-          <span class="v-mono v-track-index track-index">{track.trackNo}</span>
           <div class="v-track-body track-body">
             <span class="v-truncate v-track-title track-title">{track.title}</span>
             {#if track.artist && group.albumMeta && track.artist.toLowerCase() !== group.albumMeta.ALBUMARTIST.toLowerCase()}
@@ -180,7 +172,6 @@
   .track-artist,
   .disc-label,
   .disc-duration-label,
-  .track-index,
   .track-meta {
     color: oklch(100% 0 0 / 0.7);
   }
@@ -212,22 +203,11 @@
   }
 
   .album-group-header {
-    padding: 0px 0px 16px 0px;
+    padding: 0px 0px 10px 0px;
     display: flex;
     align-items: center;
     gap: 12px;
     box-sizing: border-box;
-  }
-
-  .header-thumb {
-    width: 48px;
-    height: 48px;
-    flex-shrink: 0;
-    overflow: hidden;
-  }
-
-  .header-thumb :global(.output-canvas) {
-    box-shadow: none !important;
   }
 
   .header-content {
@@ -245,16 +225,16 @@
   }
 
   .header-album {
-    font-size: 17px;
-    padding-bottom: 1px;
+    font-size: 19px;
+    padding-bottom: 5px;
   }
 
   .header-artist {
-    font-size: 15px;
+    font-size: 17px;
   }
 
   .header-meta {
-    font-size: 15px;
+    font-size: 14px;
     margin-left: 8px;
   }
 
@@ -303,6 +283,7 @@
 
   .track-row {
     margin: 0 0px;
+    padding-left: 14px;
   }
 
   .track-row + .track-row {

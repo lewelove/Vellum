@@ -164,8 +164,8 @@ main {
 }
 
 .v-btn-icon {
-  background-color: oklch(100% 0 0 / 0.03);
-  border: 2px solid oklch(100% 0 0 / 0.15);
+  background-color: oklch(100% 0 0 / 0.02);
+  border: 2px solid oklch(100% 0 0 / 0.1);
   display: flex;
   align-items: center;
   justify-content: center;

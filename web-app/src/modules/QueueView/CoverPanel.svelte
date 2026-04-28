@@ -35,12 +35,14 @@
     max-height: 100%;
     max-width: 60%;
     aspect-ratio: 1 / 1;
-    align-self: center;
+    align-self: flex-start;
     min-width: 0;
     min-height: 0;
     display: flex;
     justify-content: center;
     align-items: center;
+    position: relative;
+    z-index: 10;
   }
 
   .cover-panel {
