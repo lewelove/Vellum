@@ -27,7 +27,7 @@ pub async fn get_resized_cover(
         (guard.cache_root.clone(), guard.library_root.clone())
     };
     
-    let master_blob_path = cache_root.join("covers").join(format!("{hash}.rgb"));
+    let master_blob_path = cache_root.join("covers").join(format!("{hash}.bmp"));
 
     if !master_blob_path.exists() {
         let source_info = {
@@ -58,15 +58,23 @@ pub async fn get_resized_cover(
         }
     }
 
-    let Ok(master_bytes) = tokio::fs::read(&master_blob_path).await else {
-        return StatusCode::NOT_FOUND.into_response();
-    };
-
     let result = tokio::task::spawn_blocking(move || {
-        let src_image = Image::from_vec_u8(1080, 1080, master_bytes, PixelType::U8x3).ok()?;
+        let img = image::open(&master_blob_path).ok()?.into_rgb8();
+        let src_width = img.width();
+        let src_height = img.height();
+        let min_dim = std::cmp::min(src_width, src_height);
+
+        let src_image = Image::from_vec_u8(src_width, src_height, img.into_raw(), PixelType::U8x3).ok()?;
         let mut dst_image = Image::new(width, width, PixelType::U8x3);
         let mut resizer = Resizer::new();
-        let options = ResizeOptions::new().resize_alg(ResizeAlg::Convolution(FilterType::Mitchell));
+        let options = ResizeOptions::new()
+            .crop(
+                ((src_width - min_dim) / 2) as f64,
+                ((src_height - min_dim) / 2) as f64,
+                min_dim as f64,
+                min_dim as f64,
+            )
+            .resize_alg(ResizeAlg::Convolution(FilterType::Mitchell));
 
         resizer.resize(&src_image, &mut dst_image, &options).ok()?;
 

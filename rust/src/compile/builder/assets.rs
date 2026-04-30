@@ -7,29 +7,40 @@ use fast_image_resize::PixelType;
 use image::DynamicImage;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
+use std::os::unix::fs::MetadataExt;
 use std::path::Path;
 use std::time::SystemTime;
 
-pub const COVER_CANDIDATES: [&str; 4] = ["cover.jpg", "cover.png", "folder.jpg", "front.jpg"];
+pub const COVER_CANDIDATES:[&str; 4] = ["cover.jpg", "cover.png", "folder.jpg", "front.jpg"];
 
 pub fn resolve_cover_info(root: &Path) -> (Option<String>, String, u64, u64) {
     for c in COVER_CANDIDATES {
         let p = root.join(c);
         if let Ok(m) = std::fs::metadata(&p) {
-            let mtime = m
+            let mtime_ns = m
+                .modified()
+                .unwrap()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos();
+            let size = m.len();
+            let inode = m.ino();
+            let mut h = Sha256::new();
+            h.update(mtime_ns.to_be_bytes());
+            h.update(size.to_be_bytes());
+            h.update(inode.to_be_bytes());
+
+            let mtime_secs = m
                 .modified()
                 .unwrap()
                 .duration_since(SystemTime::UNIX_EPOCH)
                 .unwrap()
                 .as_secs();
-            let size = m.len();
-            let mut h = Sha256::new();
-            h.update(mtime.to_be_bytes());
-            h.update(size.to_be_bytes());
+
             return (
                 Some(c.to_string()),
                 URL_SAFE_NO_PAD.encode(&h.finalize()[..8]),
-                mtime,
+                mtime_secs,
                 size,
             );
         }
@@ -38,41 +49,11 @@ pub fn resolve_cover_info(root: &Path) -> (Option<String>, String, u64, u64) {
 }
 
 pub fn generate_master_blob(original_path: &Path, master_blob_path: &Path) -> anyhow::Result<()> {
-    let img = image::open(original_path)?.into_rgb8();
-    let src_width = img.width();
-    let src_height = img.height();
-
-    let min_dim = std::cmp::min(src_width, src_height);
-    let src_image = Image::from_vec_u8(
-        src_width,
-        src_height,
-        img.into_raw(),
-        PixelType::U8x3,
-    ).map_err(|e| anyhow::anyhow!("Resize src init failed: {}", e))?;
-
-    let mut dst_image = Image::new(
-        1080,
-        1080,
-        PixelType::U8x3,
-    );
-
-    let mut resizer = Resizer::new();
-    let options = ResizeOptions::new()
-        .crop(
-            ((src_width - min_dim) / 2) as f64,
-            ((src_height - min_dim) / 2) as f64,
-            min_dim as f64,
-            min_dim as f64,
-        )
-        .resize_alg(ResizeAlg::Convolution(FilterType::Mitchell));
-    
-    resizer.resize(&src_image, &mut dst_image, &options)
-        .map_err(|e| anyhow::anyhow!("Resize execution failed: {}", e))?;
-
+    let img = image::open(original_path)?;
     if let Some(parent) = master_blob_path.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    std::fs::write(master_blob_path, dst_image.into_vec())?;
+    img.save_with_format(master_blob_path, image::ImageFormat::Bmp)?;
     
     Ok(())
 }
@@ -99,7 +80,7 @@ pub fn load_or_create_thumbnail(
         .map_or(200, |s| u32::try_from(s).unwrap_or(200)) as u32;
 
     let cache_root = expand_path(cache_str);
-    let master_blob_path = cache_root.join("covers").join(format!("{cover_hash}.rgb"));
+    let master_blob_path = cache_root.join("covers").join(format!("{cover_hash}.bmp"));
 
     if !master_blob_path.exists() {
         let original_path = album_root.join(cp);
@@ -110,11 +91,16 @@ pub fn load_or_create_thumbnail(
     let thumb_path = thumb_dir.join(format!("{cover_hash}.png"));
 
     if !thumb_path.exists() {
-        if let Ok(master_bytes) = std::fs::read(&master_blob_path) {
+        if let Ok(img) = image::open(&master_blob_path) {
+            let img_rgb = img.into_rgb8();
+            let src_width = img_rgb.width();
+            let src_height = img_rgb.height();
+            let min_dim = std::cmp::min(src_width, src_height);
+
             let src_image = Image::from_vec_u8(
-                1080,
-                1080,
-                master_bytes,
+                src_width,
+                src_height,
+                img_rgb.into_raw(),
                 PixelType::U8x3,
             ).ok()?;
 
@@ -126,6 +112,12 @@ pub fn load_or_create_thumbnail(
 
             let mut resizer = Resizer::new();
             let options = ResizeOptions::new()
+                .crop(
+                    ((src_width - min_dim) / 2) as f64,
+                    ((src_height - min_dim) / 2) as f64,
+                    min_dim as f64,
+                    min_dim as f64,
+                )
                 .resize_alg(ResizeAlg::Convolution(FilterType::Lanczos3));
 
             resizer.resize(&src_image, &mut dst_image, &options).ok()?;
