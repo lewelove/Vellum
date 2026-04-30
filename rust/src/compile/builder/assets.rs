@@ -126,7 +126,7 @@ pub fn load_or_create_thumbnail(
 
             let mut resizer = Resizer::new();
             let options = ResizeOptions::new()
-                .resize_alg(ResizeAlg::Convolution(FilterType::Mitchell));
+                .resize_alg(ResizeAlg::Convolution(FilterType::Lanczos3));
 
             resizer.resize(&src_image, &mut dst_image, &options).ok()?;
 
