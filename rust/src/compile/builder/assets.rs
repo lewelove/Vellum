@@ -5,13 +5,65 @@ use fast_image_resize::images::Image;
 use fast_image_resize::{FilterType, ResizeAlg, ResizeOptions, Resizer};
 use fast_image_resize::PixelType;
 use image::DynamicImage;
+use image::GenericImageView;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::os::unix::fs::MetadataExt;
 use std::path::Path;
 use std::time::SystemTime;
 
-pub const COVER_CANDIDATES:[&str; 4] = ["cover.jpg", "cover.png", "folder.jpg", "front.jpg"];
+pub const COVER_CANDIDATES:[&str; 4] =["cover.jpg", "cover.png", "folder.jpg", "front.jpg"];
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct CoverMetrics {
+    pub hash: String,
+    pub entropy: Option<usize>,
+    pub chroma: Option<f64>,
+    pub palette: Option<Value>,
+    pub palette_params: Option<String>,
+}
+
+pub fn calculate_chroma(img: &DynamicImage) -> f64 {
+    let (width, height) = img.dimensions();
+    let total = f64::from(width * height);
+    if total == 0.0 {
+        return 0.0;
+    }
+
+    let mut sum_rg = 0.0;
+    let mut sum_yb = 0.0;
+    let mut sum_sq_rg = 0.0;
+    let mut sum_sq_yb = 0.0;
+
+    for p in img.pixels() {
+        let r = f64::from(p.2[0]);
+        let g = f64::from(p.2[1]);
+        let b = f64::from(p.2[2]);
+        let rg = (r - g).abs();
+        let yb = (0.5f64.mul_add(r + g, -b)).abs();
+        sum_rg += rg;
+        sum_yb += yb;
+        sum_sq_rg += rg * rg;
+        sum_sq_yb += yb * yb;
+    }
+
+    let m_rg = sum_rg / total;
+    let m_yb = sum_yb / total;
+    let v_rg = m_rg.mul_add(-m_rg, sum_sq_rg / total);
+    let v_yb = m_yb.mul_add(-m_yb, sum_sq_yb / total);
+    let std_root = (v_rg.max(0.0) + v_yb.max(0.0)).sqrt();
+    let mean_root = m_rg.hypot(m_yb);
+    0.3f64.mul_add(mean_root, std_root)
+}
+
+pub fn calculate_entropy(img: &DynamicImage) -> usize {
+    let gray = img.grayscale();
+    let mut buf = Vec::new();
+    let mut cursor = std::io::Cursor::new(&mut buf);
+    let _ = gray.write_to(&mut cursor, image::ImageFormat::Png);
+    buf.len()
+}
 
 pub fn resolve_cover_info(root: &Path) -> (Option<String>, String, u64, u64) {
     for c in COVER_CANDIDATES {

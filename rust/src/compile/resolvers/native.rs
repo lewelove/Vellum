@@ -1,7 +1,5 @@
 use crate::compile::builder::context::AlbumContext;
 use crate::compile::resolvers::standard;
-use crate::compile::resolvers::cover_palette;
-use image::GenericImageView;
 use serde_json::{Value, json};
 use std::path::Path;
 
@@ -98,50 +96,15 @@ pub fn rel_path(target: &Path, base: &Path) -> String {
 }
 
 pub fn resolve_cover_chroma(ctx: &AlbumContext, _args: &str) -> Option<Value> {
-    let img = ctx.cover_image?;
-    let (width, height) = img.dimensions();
-    let total = f64::from(width * height);
-    if total == 0.0 {
-        return Some(json!(0.0));
-    }
-
-    let mut sum_rg = 0.0;
-    let mut sum_yb = 0.0;
-    let mut sum_sq_rg = 0.0;
-    let mut sum_sq_yb = 0.0;
-
-    for p in img.pixels() {
-        let r = f64::from(p.2[0]);
-        let g = f64::from(p.2[1]);
-        let b = f64::from(p.2[2]);
-        let rg = (r - g).abs();
-        let yb = (0.5f64.mul_add(r + g, -b)).abs();
-        sum_rg += rg;
-        sum_yb += yb;
-        sum_sq_rg += rg * rg;
-        sum_sq_yb += yb * yb;
-    }
-
-    let m_rg = sum_rg / total;
-    let m_yb = sum_yb / total;
-    let v_rg = m_rg.mul_add(-m_rg, sum_sq_rg / total);
-    let v_yb = m_yb.mul_add(-m_yb, sum_sq_yb / total);
-    let std_root = (v_rg.max(0.0) + v_yb.max(0.0)).sqrt();
-    let mean_root = m_rg.hypot(m_yb);
-    Some(json!(0.3f64.mul_add(mean_root, std_root)))
+    ctx.cover_metrics.and_then(|m| m.chroma).map(|c| json!(c))
 }
 
 pub fn resolve_cover_entropy(ctx: &AlbumContext, _args: &str) -> Option<Value> {
-    let img = ctx.cover_image?;
-    let gray = img.grayscale();
-    let mut buf = Vec::new();
-    let mut cursor = std::io::Cursor::new(&mut buf);
-    gray.write_to(&mut cursor, image::ImageFormat::Png).ok()?;
-    Some(json!(buf.len()))
+    ctx.cover_metrics.and_then(|m| m.entropy).map(|e| json!(e))
 }
 
-pub fn resolve_cover_palette(ctx: &AlbumContext, cfg: &Value) -> Option<Value> {
-    cover_palette::resolve(ctx, cfg)
+pub fn resolve_cover_palette(ctx: &AlbumContext, _cfg: &Value) -> Option<Value> {
+    ctx.cover_metrics.and_then(|m| m.palette.clone())
 }
 
 pub fn resolve_comment(ctx: &AlbumContext, _args: &str) -> String {

@@ -31,6 +31,7 @@ pub async fn run(port: u16) -> Result<()> {
     let state_root = expand_path(&config.storage.state);
 
     std::fs::create_dir_all(&cache_root).ok();
+    std::fs::create_dir_all(cache_root.join("cover_data")).ok();
     std::fs::create_dir_all(&state_root).ok();
 
     let shader_cfg = config.theme.as_ref().and_then(|t| t.shader.clone());

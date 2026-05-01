@@ -1,5 +1,5 @@
+use crate::compile::builder::assets::CoverMetrics;
 use crate::harvest::TrackJson;
-use image::DynamicImage;
 use serde_json::Value;
 use std::path::Path;
 
@@ -15,7 +15,7 @@ pub struct AlbumContext<'a> {
     pub cover_path: Option<&'a str>,
     pub cover_mtime: u64,
     pub cover_byte_size: u64,
-    pub cover_image: Option<&'a DynamicImage>,
+    pub cover_metrics: Option<&'a CoverMetrics>,
     pub config: &'a Value,
 }
 

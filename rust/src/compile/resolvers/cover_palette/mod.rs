@@ -5,7 +5,6 @@ pub mod kmeansnd;
 pub mod kmeansnv;
 pub mod mean_shift;
 
-use crate::compile::builder::context::AlbumContext;
 use image::imageops::FilterType;
 use image::DynamicImage;
 use palette::{FromColor, Oklab, Oklch, Srgb};
@@ -60,24 +59,26 @@ pub fn process_image_to_palette(
     let oklab_centers: Vec<Oklab> = candidate_colors.iter().map(|&c| Oklab::from_color(c)).collect();
     let mut counts = vec![0usize; oklab_centers.len()];
 
-    for p in img_to_process.to_rgb8().pixels() {
-        let pixel_oklab = Oklab::from_color(Srgb::new(
-            p[0] as f32 / 255.0,
-            p[1] as f32 / 255.0,
-            p[2] as f32 / 255.0,
-        ));
-        let mut best_idx = 0;
-        let mut min_dist_sq = f32::MAX;
-        for (i, center) in oklab_centers.iter().enumerate() {
-            let dist_sq = (pixel_oklab.l - center.l).powi(2)
-                        + (pixel_oklab.a - center.a).powi(2)
-                        + (pixel_oklab.b - center.b).powi(2);
-            if dist_sq < min_dist_sq {
-                min_dist_sq = dist_sq;
-                best_idx = i;
+    if !manually_provided {
+        for p in img_to_process.to_rgb8().pixels() {
+            let pixel_oklab = Oklab::from_color(Srgb::new(
+                p[0] as f32 / 255.0,
+                p[1] as f32 / 255.0,
+                p[2] as f32 / 255.0,
+            ));
+            let mut best_idx = 0;
+            let mut min_dist_sq = f32::MAX;
+            for (i, center) in oklab_centers.iter().enumerate() {
+                let dist_sq = (pixel_oklab.l - center.l).powi(2)
+                            + (pixel_oklab.a - center.a).powi(2)
+                            + (pixel_oklab.b - center.b).powi(2);
+                if dist_sq < min_dist_sq {
+                    min_dist_sq = dist_sq;
+                    best_idx = i;
+                }
             }
+            counts[best_idx] += 1;
         }
-        counts[best_idx] += 1;
     }
 
     let total_pixels = counts.iter().sum::<usize>() as f32;
@@ -205,10 +206,9 @@ pub fn process_image_to_palette(
     Some(palette)
 }
 
-pub fn resolve(ctx: &AlbumContext, cfg: &Value) -> Option<Value> {
-    let img = ctx.cover_image?;
-
-    let cover_palette_raw = ctx.source.get("COVER_PALETTE").or_else(|| ctx.source.get("cover_palette"));
+pub fn resolve_core(img: &DynamicImage, cfg: Option<&Value>, cover_palette_raw: Option<&Value>) -> Option<Value> {
+    let default_cfg = json!({});
+    let cfg_val = cfg.unwrap_or(&default_cfg);
 
     let mut candidate_colors = Vec::new();
     let mut manually_provided = false;
@@ -243,7 +243,7 @@ pub fn resolve(ctx: &AlbumContext, cfg: &Value) -> Option<Value> {
         return None;
     }
 
-    let palette = process_image_to_palette(img, cfg, candidate_colors, manually_provided)?;
+    let palette = process_image_to_palette(img, cfg_val, candidate_colors, manually_provided)?;
 
     let palette_json: Vec<Value> = palette.into_iter()
         .map(|(srgb, ratio)| {

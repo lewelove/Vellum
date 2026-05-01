@@ -153,6 +153,62 @@ pub fn build(
     let loaded_image =
         assets::load_or_create_thumbnail(config, album_root, c_path.as_deref(), &c_hash);
 
+    let mut cover_metrics = None;
+    if !c_hash.is_empty() {
+        let cache_str = config.get("storage").and_then(|s| s.get("cache")).and_then(Value::as_str).unwrap_or("~/.cache/vellum");
+        let cache_root = crate::expand_path(cache_str);
+        let metrics_dir = cache_root.join("cover_data");
+        std::fs::create_dir_all(&metrics_dir).ok();
+        
+        let metrics_path = metrics_dir.join(format!("{}.json", c_hash));
+        
+        let palette_cfg = config.get("compiler").and_then(|c| c.get("cover_palette"));
+        let cover_palette_raw = metadata_json.get("album").and_then(|a| a.get("cover_palette").or_else(|| a.get("COVER_PALETTE")));
+        
+        let palette_params = format!("{:?}|{:?}", palette_cfg, cover_palette_raw);
+        
+        let mut metrics = if metrics_path.exists() {
+            if let Ok(content) = std::fs::read_to_string(&metrics_path) {
+                serde_json::from_str::<assets::CoverMetrics>(&content).ok()
+            } else { None }
+        } else { None }.unwrap_or_else(|| assets::CoverMetrics {
+            hash: c_hash.clone(),
+            entropy: None,
+            chroma: None,
+            palette: None,
+            palette_params: None,
+        });
+        
+        let mut needs_save = false;
+        
+        if let Some(ref img) = loaded_image {
+            if metrics.chroma.is_none() {
+                metrics.chroma = Some(assets::calculate_chroma(img));
+                needs_save = true;
+            }
+            if metrics.entropy.is_none() {
+                metrics.entropy = Some(assets::calculate_entropy(img));
+                needs_save = true;
+            }
+            
+            if metrics.palette_params.as_deref() != Some(&palette_params) || metrics.palette.is_none() {
+                if let Some(palette_val) = resolvers::cover_palette::resolve_core(img, palette_cfg, cover_palette_raw) {
+                    metrics.palette = Some(palette_val);
+                    metrics.palette_params = Some(palette_params);
+                    needs_save = true;
+                }
+            }
+        }
+        
+        if needs_save {
+            if let Ok(content) = serde_json::to_string(&metrics) {
+                let _ = std::fs::write(&metrics_path, content);
+            }
+        }
+        
+        cover_metrics = Some(metrics);
+    }
+
     let exts: Vec<&str> = manifest_cfg
         .get("supported_extensions")
         .and_then(Value::as_array)
@@ -248,7 +304,7 @@ pub fn build(
         cover_path: c_path.as_deref(),
         cover_mtime: c_mtime,
         cover_byte_size: c_size,
-        cover_image: loaded_image.as_ref(),
+        cover_metrics: cover_metrics.as_ref(),
         config,
     };
 
