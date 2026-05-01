@@ -13,6 +13,7 @@ pub struct AppConfig {
     pub manifest: Option<ManifestConfig>,
     pub compiler: Option<CompilerConfig>,
     pub run: Option<HashMap<String, String>>,
+    pub nix: Option<NixConfig>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -85,6 +86,12 @@ pub struct KeyConfig {
     #[serde(default)]
     pub args: String,
     pub level: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct NixConfig {
+    pub store: String,
+    pub flake: String,
 }
 
 impl AppConfig {
