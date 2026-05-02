@@ -3452,6 +3452,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "vellum-nix"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap 4.5.60",
+ "log",
+ "serde",
+ "serde_json",
+ "sha2",
+ "simple_logger",
+ "tokio",
+ "vellum",
+]
+
+[[package]]
 name = "version_check"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
