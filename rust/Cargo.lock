@@ -3478,6 +3478,7 @@ dependencies = [
  "anyhow",
  "clap 4.5.60",
  "log",
+ "regex",
  "serde",
  "serde_json",
  "sha2",

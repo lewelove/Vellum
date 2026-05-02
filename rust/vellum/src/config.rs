@@ -92,6 +92,13 @@ pub struct KeyConfig {
 pub struct NixConfig {
     pub store: String,
     pub flake: String,
+    pub stage: Option<String>,
+    pub get: Option<NixGetConfig>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct NixGetConfig {
+    pub commands: Option<HashMap<String, String>>,
 }
 
 impl AppConfig {

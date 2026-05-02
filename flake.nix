@@ -75,6 +75,8 @@
             done
 
             cd "$ROOT/rust"
+
+            cargo clippy
             
             CMD=("cargo" "build")
             if [ -n "$TARGET" ]; then
