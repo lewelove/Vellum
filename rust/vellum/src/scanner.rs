@@ -1,4 +1,4 @@
-use vellum::error::VellumError;
+use crate::error::VellumError;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 

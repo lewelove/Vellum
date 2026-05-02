@@ -1,0 +1,212 @@
+use crate::error::VellumError;
+use serde_json::{Map, Value};
+use sha2::{Digest, Sha256};
+use std::collections::HashSet;
+use std::path::Path;
+use std::time::SystemTime;
+
+pub struct ManifestData {
+    pub json: Value,
+    pub meta_hash: String,
+    pub meta_mtime: u64,
+    pub manifests_mtime_sum: u64,
+}
+
+pub fn load_and_merge(
+    album_root: &Path,
+    manifest_names: Option<&Vec<Value>>,
+) -> Result<ManifestData, VellumError> {
+    let metadata_path = album_root.join("metadata.toml");
+    let meta = std::fs::metadata(&metadata_path)
+        .map_err(|_| VellumError::MissingPrimaryManifest { path: album_root.to_path_buf() })?;
+
+    let meta_mtime = meta
+        .modified()
+        .unwrap_or(SystemTime::UNIX_EPOCH)
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+
+    let mut manifests_mtime_sum: u64 = meta_mtime;
+    if let Some(manifests) = manifest_names {
+        for m_val in manifests {
+            if let Some(m_name) = m_val.as_str() {
+                let m_path = album_root.join(m_name);
+                if m_path.exists() {
+                    manifests_mtime_sum += std::fs::metadata(&m_path)
+                        .and_then(|m| m.modified())
+                        .map(|t| t.duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_secs())
+                        .unwrap_or(0);
+                }
+            }
+        }
+    }
+
+    let content = std::fs::read_to_string(&metadata_path)?;
+    let meta_hash = format!("{:x}", Sha256::digest(content.as_bytes()));
+
+    let parsed_toml = toml::from_str::<toml::Value>(&content)
+        .map_err(|source| VellumError::ManifestParseError { path: metadata_path.clone(), source })?;
+    let mut metadata_json = normalize_keys(serde_json::to_value(parsed_toml)?);
+
+    if let Some(manifests) = manifest_names {
+        for m_val in manifests {
+            if let Some(m_name) = m_val.as_str() {
+                let m_path = album_root.join(m_name);
+                if !m_path.exists() {
+                    continue;
+                }
+                let m_content = std::fs::read_to_string(&m_path)?;
+                let parsed_aux = toml::from_str::<toml::Value>(&m_content)
+                    .map_err(|source| VellumError::ManifestParseError { path: m_path.clone(), source })?;
+                let m_json = normalize_keys(serde_json::to_value(parsed_aux)?);
+                
+                if let Some(aux_album) = m_json.get("album").and_then(Value::as_object) {
+                    if let Some(primary_album) = metadata_json.get_mut("album").and_then(Value::as_object_mut) {
+                        for (k, v) in aux_album {
+                            if !primary_album.contains_key(k) {
+                                primary_album.insert(k.clone(), v.clone());
+                            }
+                        }
+                    }
+                }
+
+                if let Some(aux_tracks) = m_json.get("tracks").and_then(Value::as_array) {
+                    if !aux_tracks.is_empty() {
+                        let primary_tracks = metadata_json.get_mut("tracks")
+                            .and_then(Value::as_array_mut)
+                            .ok_or_else(|| VellumError::MissingTracksBlock { path: album_root.to_path_buf() })?;
+
+                        if aux_tracks.len() != primary_tracks.len() {
+                            return Err(VellumError::TrackCountMismatch {
+                                manifest: m_name.to_string(),
+                                path: album_root.to_path_buf(),
+                                primary_count: primary_tracks.len(),
+                                aux_count: aux_tracks.len(),
+                            });
+                        }
+
+                        let mut seen_identities = HashSet::new();
+                        for (idx, aux_t) in aux_tracks.iter().enumerate() {
+                            let a_obj = aux_t.as_object().ok_or_else(|| VellumError::InvalidManifestEntry { 
+                                manifest: m_name.to_string(), 
+                                path: album_root.to_path_buf(), 
+                                index: idx + 1 
+                            })?;
+                            
+                            let track_no = extract_strict_u32(aux_t.get("tracknumber"), "tracknumber", None)
+                                .map_err(|_| VellumError::MissingTrackIdentity {
+                                    manifest: m_name.to_string(),
+                                    path: album_root.to_path_buf(),
+                                    index: idx + 1,
+                                })?;
+                            
+                            let disc_no = extract_strict_u32(aux_t.get("discnumber"), "discnumber", Some(1))?;
+
+                            if !seen_identities.insert((disc_no, track_no)) {
+                                return Err(VellumError::DuplicateTrackIdentity {
+                                    manifest: m_name.to_string(),
+                                    path: album_root.to_path_buf(),
+                                    disc: disc_no,
+                                    track: track_no,
+                                });
+                            }
+
+                            let mut found = false;
+                            for prim_t in primary_tracks.iter_mut() {
+                                let p_track_no: u32 = extract_strict_u32(prim_t.get("tracknumber"), "tracknumber", None)?;
+                                let p_disc_no: u32 = extract_strict_u32(prim_t.get("discnumber"), "discnumber", Some(1))?;
+
+                                if track_no == p_track_no && disc_no == p_disc_no {
+                                    if let Some(p_obj) = prim_t.as_object_mut() {
+                                        for (k, v) in a_obj {
+                                            if k != "tracknumber" && k != "discnumber" {
+                                                if !p_obj.contains_key(k) {
+                                                    let val: Value = v.clone();
+                                                    p_obj.insert(k.clone(), val);
+                                                }
+                                            }
+                                        }
+                                    }
+                                    found = true;
+                                    break;
+                                }
+                            }
+                            if !found {
+                                return Err(VellumError::OrphanedAuxiliaryData {
+                                    manifest: m_name.to_string(),
+                                    path: album_root.to_path_buf(),
+                                    disc: disc_no,
+                                    track: track_no,
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(ManifestData {
+        json: metadata_json,
+        meta_hash,
+        meta_mtime,
+        manifests_mtime_sum,
+    })
+}
+
+pub fn normalize_keys(v: Value) -> Value {
+    match v {
+        Value::Object(map) => {
+            let mut new_map = Map::new();
+            for (k, val) in map {
+                new_map.insert(k.to_lowercase(), normalize_keys(val));
+            }
+            Value::Object(new_map)
+        }
+        Value::Array(arr) => Value::Array(arr.into_iter().map(normalize_keys).collect()),
+        _ => v,
+    }
+}
+
+pub fn extract_strict_u32(val: Option<&Value>, name: &str, default: Option<u32>) -> Result<u32, VellumError> {
+    let Some(v) = val else {
+        if let Some(d) = default {
+            return Ok(d);
+        }
+        return Err(VellumError::InvalidIdentityFormat {
+            field: name.to_string(),
+            message: "Missing expected integer".to_string(),
+        });
+    };
+    match v {
+        Value::Number(n) => n
+            .as_u64()
+            .and_then(|i| u32::try_from(i).ok())
+            .ok_or_else(|| VellumError::InvalidIdentityFormat {
+                field: name.to_string(),
+                message: "Value exceeds 32-bit integer limits".to_string(),
+            }),
+        Value::String(s) => {
+            let base = s.split('/').next().unwrap_or("").trim();
+            base.parse::<u32>().map_err(|_| VellumError::InvalidIdentityFormat {
+                field: name.to_string(),
+                message: format!("Cannot interpret string '{}' as integer", s),
+            })
+        }
+        Value::Null => {
+            if let Some(d) = default {
+                Ok(d)
+            } else {
+                Err(VellumError::InvalidIdentityFormat {
+                    field: name.to_string(),
+                    message: "Field cannot be null".to_string(),
+                })
+            }
+        }
+        _ => Err(VellumError::InvalidIdentityFormat {
+            field: name.to_string(),
+            message: "Unsupported data type found".to_string(),
+        }),
+    }
+}

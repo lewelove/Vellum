@@ -90,6 +90,30 @@
           '';
         };
 
+        check-cli = pkgs.writeShellApplication {
+          name = "check";
+          runtimeInputs = [ pkgs.cargo pkgs.rustc pkgs.git pkgs.clippy ];
+          text = ''
+            ROOT=$(git rev-parse --show-toplevel)
+            ARGS=()
+            LINT=false
+
+            for arg in "$@"; do
+              case "$arg" in
+                --lint) LINT=true ;;
+                *)      ARGS+=("$arg") ;;
+              esac
+            done
+
+            cd "$ROOT/rust"
+            if [ "$LINT" = true ]; then
+              cargo clippy "''${ARGS[@]}"
+            else
+              cargo check "''${ARGS[@]}"
+            fi
+          '';
+        };
+
         vellum-cli = pkgs.writeShellApplication {
           name = "vellum";
           runtimeInputs = [ 
@@ -192,6 +216,7 @@
           pkg-config
           openssl
           build-cli
+          check-cli
           vellum-cli
           vellum-nix-cli
           cargo

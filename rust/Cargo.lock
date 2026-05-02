@@ -3416,6 +3416,7 @@ checksum = "accd4ea62f7bb7a82fe23066fb0957d48ef677f6eeb8215f372f52e48bb32426"
 name = "vellum"
 version = "0.1.0"
 dependencies = [
+ "alphanumeric-sort",
  "anyhow",
  "dirs",
  "image",
@@ -3431,6 +3432,7 @@ dependencies = [
  "sha2",
  "thiserror 2.0.18",
  "toml",
+ "walkdir",
 ]
 
 [[package]]
@@ -3482,7 +3484,6 @@ dependencies = [
  "simple_logger",
  "tokio",
  "vellum",
- "vellum-cli",
 ]
 
 [[package]]

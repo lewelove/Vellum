@@ -9,10 +9,6 @@ readme = "../README.md"
 keywords = ["mpd", "music", "metadata", "audio", "server"]
 categories = ["multimedia::audio"]
 
-[lib]
-name = "vellum_cli"
-path = "src/lib.rs"
-
 [[bin]]
 name = "vellum"
 path = "src/main.rs"

@@ -58,7 +58,7 @@ async fn run_build(library: bool, album: Option<String>) -> Result<()> {
     if library {
         let lib_root = expand_path(&config.storage.library_root);
         let scan_depth = config.compiler.as_ref().and_then(|c| c.scan_depth).unwrap_or(4);
-        let dirs = vellum_cli::compile::builder::scan::find_target_albums(&lib_root, scan_depth)?;
+        let dirs = vellum::scanner::find_target_albums(&lib_root, scan_depth)?;
         for dir in dirs {
             if dir.join("album.nix").exists() {
                 targets.push(dir);
