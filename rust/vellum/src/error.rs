@@ -40,7 +40,14 @@ pub enum VellumError {
     OrphanedAuxiliaryData { manifest: String, path: PathBuf, disc: u32, track: u32 },
 
     #[error("Integrity Violation in {path}: Key '{key}' is restricted to 'album' level, but conflicting values were detected ('{val1}' in {source1} versus '{val2}' in track {index}). All track-level overrides must match the album-level value.")]
-    GlobalKeyConflict { path: PathBuf, key: String, val1: String, source1: String, val2: String, index: usize },
+    GlobalKeyConflict { 
+        path: Box<PathBuf>, 
+        key: Box<String>, 
+        val1: Box<String>, 
+        source1: Box<String>, 
+        val2: Box<String>, 
+        index: usize 
+    },
 
     #[error("Configuration Error: [compiler.keys] block is missing from config.toml")]
     MissingCompilerRegistry,

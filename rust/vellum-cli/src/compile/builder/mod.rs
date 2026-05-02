@@ -25,8 +25,7 @@ pub fn build(
     let loaded_image =
         assets::load_or_create_thumbnail(config, album_root, c_path.as_deref(), &c_hash);
 
-    let mut cover_metrics = None;
-    if !c_hash.is_empty() {
+    let cover_metrics = if !c_hash.is_empty() {
         let cache_str = config.get("storage").and_then(|s| s.get("cache")).and_then(Value::as_str).unwrap_or("~/.cache/vellum");
         let cache_root = crate::expand_path(cache_str);
         let metrics_dir = cache_root.join("cover_data");
@@ -40,10 +39,10 @@ pub fn build(
         let palette_params = format!("{palette_cfg:?}|{cover_palette_raw:?}");
         
         let mut metrics = if metrics_path.exists() {
-            if let Ok(content) = std::fs::read_to_string(&metrics_path) {
-                serde_json::from_str::<assets::CoverMetrics>(&content).ok()
-            } else { None }
-        } else { None }.unwrap_or_else(|| assets::CoverMetrics {
+            std::fs::read_to_string(&metrics_path).map_or(None, |content| serde_json::from_str::<assets::CoverMetrics>(&content).ok())
+        } else { 
+            None 
+        }.unwrap_or_else(|| assets::CoverMetrics {
             hash: c_hash.clone(),
             entropy: None,
             chroma: None,
@@ -76,8 +75,10 @@ pub fn build(
                 let _ = std::fs::write(&metrics_path, content);
             }
         
-        cover_metrics = Some(metrics);
-    }
+        Some(metrics)
+    } else {
+        None
+    };
 
     let exts: Vec<&str> = manifest_cfg
         .get("supported_extensions")
@@ -407,3 +408,4 @@ fn build_album(
     obj.insert("tags".to_string(), Value::Object(tags));
     Value::Object(obj)
 }
+

@@ -47,7 +47,7 @@ pub async fn execute(cmd: String, path_arg: Option<String>, playing: bool, id_ar
     );
 
     match cmd.as_str() {
-        "get-cover-palette" => get_cover_palette::run(&config, &target_album).await,
+        "get-cover-palette" => get_cover_palette::run(&config, &target_album),
         "get-lyrics" => get_lyrics::run(&config, &target_album, &env_vars).await,
         _ => {
             if let Some(script_path) = config.run.as_ref().and_then(|r: &HashMap<String, String>| r.get(&cmd)) {
@@ -99,3 +99,4 @@ pub async fn get_playing_album(lib_root: &str) -> Result<PathBuf> {
         
     Ok(album_dir)
 }
+

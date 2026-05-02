@@ -2,6 +2,8 @@ use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
+pub type GroupedTracks = HashMap<Vec<String>, Vec<(PathBuf, serde_json::Map<String, Value>)>>;
+
 pub fn normalize_tag(value: Option<&Value>) -> String {
     match value {
         Some(Value::String(s)) => s.trim().to_string(),
@@ -24,9 +26,8 @@ fn parse_sort_int(value: Option<&Value>) -> u32 {
 pub fn group_tracks(
     tracks: Vec<(PathBuf, serde_json::Map<String, Value>)>,
     keys: &[String],
-) -> HashMap<Vec<String>, Vec<(PathBuf, serde_json::Map<String, Value>)>> {
-    let mut buckets: HashMap<Vec<String>, Vec<(PathBuf, serde_json::Map<String, Value>)>> =
-        HashMap::new();
+) -> GroupedTracks {
+    let mut buckets: GroupedTracks = HashMap::new();
 
     for (path, mut track) in tracks {
         let group_key: Vec<String> = keys.iter().map(|k| normalize_tag(track.get(k))).collect();
@@ -129,3 +130,4 @@ pub fn resolve_anchor(
 
     (Some(abs_anchor), valid)
 }
+

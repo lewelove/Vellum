@@ -2,14 +2,15 @@ use anyhow::{Context, Result};
 use vellum::config::AppConfig;
 use vellum::utils::expand_path;
 
-pub async fn run(
-    query_str: Option<String>,
-    playing: bool,
-    toml: bool,
-    lock: bool,
-    raw: bool,
-    id_flag: bool,
-) -> Result<()> {
+pub struct QueryFlags {
+    pub playing: bool,
+    pub toml: bool,
+    pub lock: bool,
+    pub raw: bool,
+    pub id: bool,
+}
+
+pub async fn run(query_str: Option<String>, flags: QueryFlags) -> Result<()> {
     let (config, _, _): (AppConfig, toml::Value, std::path::PathBuf) = AppConfig::load().context("Failed to load config")?;
     let lib_root = expand_path(&config.storage.library_root)
         .canonicalize()
@@ -53,7 +54,7 @@ pub async fn run(
 
         let ids: Vec<String> = res.json().await.context("Invalid response from server")?;
         target_ids = ids;
-    } else if playing {
+    } else if flags.playing {
         let playing_path = crate::run::get_playing_album(&config.storage.library_root).await?;
         let rel_path = playing_path.strip_prefix(&lib_root).map_or_else(|_| playing_path.to_string_lossy().to_string(), |p| p.to_string_lossy().to_string());
         target_ids.push(rel_path);
@@ -62,18 +63,18 @@ pub async fn run(
     }
 
     for id in target_ids {
-        if raw {
+        if flags.raw {
             let lock_file_path = lib_root.join(&id).join("metadata.lock.json");
             if let Ok(content) = std::fs::read_to_string(&lock_file_path) {
                 println!("{content}");
             }
-        } else if id_flag {
+        } else if flags.id {
             println!("{id}");
         } else {
             let base_path = lib_root.join(&id);
-            let final_path = if toml {
+            let final_path = if flags.toml {
                 base_path.join("metadata.toml")
-            } else if lock {
+            } else if flags.lock {
                 base_path.join("metadata.lock.json")
             } else {
                 base_path
@@ -84,3 +85,4 @@ pub async fn run(
 
     Ok(())
 }
+

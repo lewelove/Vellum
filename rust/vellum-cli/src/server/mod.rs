@@ -18,7 +18,7 @@ use vellum::utils::expand_path;
 
 pub async fn run(port: u16) -> Result<()> {
     let (config, _, config_path): (AppConfig, toml::Value, PathBuf) = AppConfig::load().context("Failed to load application configuration")?;
-    let config_dir = config_path.parent().unwrap_or(Path::new(".")).to_path_buf();
+    let config_dir = config_path.parent().unwrap_or_else(|| Path::new(".")).to_path_buf();
 
     let lib_root_str = &config.storage.library_root;
     let thumb_size = config.theme.as_ref().and_then(|t| t.thumbnail_size).unwrap_or(200);
@@ -35,8 +35,8 @@ pub async fn run(port: u16) -> Result<()> {
     std::fs::create_dir_all(&state_root).ok();
 
     let shader_cfg = config.theme.as_ref().and_then(|t| t.shader.clone());
-    let mut resolved_shader_path = None;
-    if let Some(s) = &shader_cfg
+    
+    let resolved_shader_path = if let Some(s) = &shader_cfg
         && let Some(p) = &s.path {
             let expanded = expand_path(p);
             let absolute = if expanded.is_absolute() {
@@ -44,8 +44,10 @@ pub async fn run(port: u16) -> Result<()> {
             } else {
                 config_dir.join(expanded)
             };
-            resolved_shader_path = absolute.canonicalize().ok().or(Some(absolute));
-        }
+            absolute.canonicalize().ok().or(Some(absolute))
+        } else {
+            None
+        };
 
     let css_path = config_dir.join("vellum.css");
     let resolved_css_path = css_path.canonicalize().ok();
@@ -118,7 +120,7 @@ pub async fn run(port: u16) -> Result<()> {
         mpd_engine,
     });
 
-    watchdog::start(config_path, Arc::clone(&app_state));
+    watchdog::start(&config_path, Arc::clone(&app_state));
 
     let cors = CorsLayer::new()
         .allow_origin(Any)
@@ -133,3 +135,4 @@ pub async fn run(port: u16) -> Result<()> {
 
     Ok(())
 }
+

@@ -148,7 +148,6 @@ fn format_json_value(value: &Value, indent: usize, out: &mut String) {
                         out.push_str(", ");
                     }
                 }
-                out.push(']');
             } else {
                 out.push_str("[\n");
                 let mut it = arr.iter().peekable();
@@ -163,8 +162,8 @@ fn format_json_value(value: &Value, indent: usize, out: &mut String) {
                     }
                 }
                 out.push_str(&pad);
-                out.push(']');
             }
+            out.push(']');
         }
         _ => {
             out.push_str(&serde_json::to_string(value).unwrap_or_default());
@@ -223,13 +222,10 @@ fn finalize(
         "DISCNUMBER".to_string(),
     ];
 
-    let subset_keys: Vec<String> = if let Some(arr) = subset_keys_val {
-        arr.iter()
-            .filter_map(|val| val.as_str().map(std::string::ToString::to_string))
-            .collect()
-    } else {
-        default_keys
-    };
+    let subset_keys: Vec<String> = subset_keys_val.map_or_else(
+        || default_keys, 
+        |arr| arr.iter().filter_map(|val| val.as_str().map(ToString::to_string)).collect()
+    );
 
     let is_match = verify::calculate_file_tag_subset_match(&v, h_arr, &subset_keys);
     
@@ -273,3 +269,4 @@ fn finalize(
     }
     Ok(())
 }
+

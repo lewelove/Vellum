@@ -85,20 +85,26 @@ async fn get_tracks_internal(
     state: &Arc<AppState>,
     disc_filter: Option<String>,
 ) -> Vec<String> {
-    let query = state.query.lock().await;
-    let config_guard = state.config.read().await;
     let mut paths = Vec::new();
-
     let target_disc = disc_filter.and_then(|s| s.parse::<u32>().ok());
 
-    if let Some(json_str) = query.get_album_json(id)
-        && let Ok(parsed) = serde_json::from_str::<Value>(&json_str)
+    let json_str = {
+        let query = state.query.lock().await;
+        query.get_album_json(id)
+    };
+
+    let library_root = {
+        state.config.read().await.library_root.clone()
+    };
+
+    if let Some(raw) = json_str
+        && let Ok(parsed) = serde_json::from_str::<Value>(&raw)
             && let Some(tracks) = parsed.get("tracks").and_then(|t| t.as_array()) {
                 for track in tracks {
                     if let Some(td) = target_disc {
                         let current_disc = track.get("DISCNUMBER")
                             .and_then(serde_json::Value::as_u64)
-                            .map_or(1, |v| v as u32);
+                            .map_or(1, |v| u32::try_from(v).unwrap_or(1));
                         if current_disc != td {
                             continue;
                         }
@@ -106,8 +112,8 @@ async fn get_tracks_internal(
 
                     if let Some(info) = track.get("info")
                         && let Some(tp) = info.get("track_library_path").and_then(|v| v.as_str()) {
-                            let abs = config_guard.library_root.join(tp);
-                            if let Ok(rel) = abs.strip_prefix(&config_guard.library_root)
+                            let abs = library_root.join(tp);
+                            if let Ok(rel) = abs.strip_prefix(&library_root)
                                 && let Some(s) = rel.to_str() {
                                     paths.push(s.to_string());
                                 }
@@ -116,3 +122,4 @@ async fn get_tracks_internal(
             }
     paths
 }
+

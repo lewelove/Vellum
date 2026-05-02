@@ -1,3 +1,5 @@
+#![allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+
 use anyhow::{Context, Result};
 use vellum::config::AppConfig;
 use crate::compile::builder::assets::COVER_CANDIDATES;
@@ -5,7 +7,7 @@ use crate::compile::resolvers::cover_palette;
 use std::path::Path;
 use serde_json::json;
 
-pub async fn run(config: &AppConfig, target_album: &Path) -> Result<()> {
+pub fn run(config: &AppConfig, target_album: &Path) -> Result<()> {
     let mut cover_path = None;
     for c in COVER_CANDIDATES {
         let p = target_album.join(c);
@@ -32,7 +34,7 @@ pub async fn run(config: &AppConfig, target_album: &Path) -> Result<()> {
         .compiler
         .as_ref()
         .and_then(|c| c.cover_palette.clone())
-        .map(|p| serde_json::to_value(p).unwrap_or(default_cfg.clone()))
+        .map(|p| serde_json::to_value(p).unwrap_or_else(|_| default_cfg.clone()))
         .unwrap_or(default_cfg);
 
     let palette = cover_palette::process_image_to_palette(&img, &cfg, Vec::new(), false)
@@ -50,3 +52,4 @@ pub async fn run(config: &AppConfig, target_album: &Path) -> Result<()> {
 
     Ok(())
 }
+

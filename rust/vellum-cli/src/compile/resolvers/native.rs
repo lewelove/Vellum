@@ -81,7 +81,7 @@ pub fn resolve_album_info_unix_added(ctx: &AlbumContext, args: &str) -> u64 {
 pub fn resolve_album_info_date_added(ctx: &AlbumContext, _args: &str) -> Option<Value> {
     let ts = resolve_album_info_unix_added(ctx, "");
     if let Some(fmt) = ctx.config.get("compiler").and_then(|c| c.get("date_added")).and_then(Value::as_str)
-        && let Some(dt) = chrono::DateTime::from_timestamp(ts as i64, 0) {
+        && let Some(dt) = chrono::DateTime::from_timestamp(i64::try_from(ts).unwrap_or(0), 0) {
             return Some(json!(dt.format(fmt).to_string()));
         }
     None
@@ -229,3 +229,4 @@ pub fn resolve_lyrics_path(
 
     candidates.first().map(|(path, _)| path.clone())
 }
+

@@ -1,4 +1,4 @@
-#![warn(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
+#![warn(clippy::all, clippy::pedantic, clippy::nursery)]
 #![allow(clippy::module_name_repetitions)]
 #![allow(clippy::multiple_crate_versions)]
 
@@ -169,8 +169,12 @@ async fn main() -> Result<()> {
             let expanded = path.map(|p| expand_path(&p));
             update::run(expanded, force, jobs, verbose, silent).await
         }
-        Commands::Manifest { force } => manifest::run(force).await,
+        Commands::Manifest { force } => manifest::run(force),
         Commands::Run { script_cmd, path, playing, id } => run::execute(script_cmd, path, playing, id).await,
-        Commands::Query { query_str, playing, toml, lock, raw, id } => query::run(query_str, playing, toml, lock, raw, id).await,
+        Commands::Query { query_str, playing, toml, lock, raw, id } => {
+            let flags = query::QueryFlags { playing, toml, lock, raw, id };
+            query::run(query_str, flags).await
+        }
     }
 }
+

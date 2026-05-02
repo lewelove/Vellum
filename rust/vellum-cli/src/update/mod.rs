@@ -79,7 +79,7 @@ pub async fn run(
     let mut missing_paths = Vec::new();
     {
         let album_set: HashSet<PathBuf> = all_albums.iter().cloned().collect();
-        let scan_root_canon = scan_root.canonicalize().unwrap_or(scan_root.clone());
+        let scan_root_canon = scan_root.canonicalize().unwrap_or_else(|_| scan_root.clone());
         
         for cached_path_str in cache.keys() {
             let cached_path = PathBuf::from(cached_path_str);
@@ -93,7 +93,7 @@ pub async fn run(
         log::info!("Verifying {} albums...", all_albums.len());
     }
 
-    let results = verify_albums_parallel(all_albums, &cache, force, jobs, &exts, &manifests)?;
+    let results = verify_albums_parallel(all_albums, &cache, force, jobs, &exts, manifests.as_ref())?;
 
     let mut work_queue = Vec::new();
 
@@ -138,25 +138,27 @@ pub async fn run(
 
         let mut paths_for_server = Vec::new();
 
-        let mut c = cache_for_task.lock().await;
-        for album_root in &updated_paths {
-            let album_path_str = album_root.to_string_lossy().to_string();
-            let metadata_path = album_root.join("metadata.toml");
-            let mtime_sum = get_mtime_sum(album_root, &metadata_path, &exts_for_task, &manifests_for_task);
-            c.insert(album_path_str.clone(), AlbumCacheEntry { mtime_sum });
-            paths_for_server.push(album_path_str);
-        }
-
-        for missing in missing_paths {
-            let p_str = missing.to_string_lossy().to_string();
-            
-            if verbose && !silent {
-                let display_path = missing.strip_prefix(&*lib_root_for_task).unwrap_or(&missing);
-                log::info!("Removed: {}", display_path.display());
+        {
+            let mut c = cache_for_task.lock().await;
+            for album_root in &updated_paths {
+                let album_path_str = album_root.to_string_lossy().to_string();
+                let metadata_path = album_root.join("metadata.toml");
+                let mtime_sum = get_mtime_sum(album_root, &metadata_path, &exts_for_task, manifests_for_task.as_ref());
+                c.insert(album_path_str.clone(), AlbumCacheEntry { mtime_sum });
+                paths_for_server.push(album_path_str);
             }
 
-            c.remove(&p_str);
-            paths_for_server.push(p_str);
+            for missing in missing_paths {
+                let p_str = missing.to_string_lossy().to_string();
+                
+                if verbose && !silent {
+                    let display_path = missing.strip_prefix(&*lib_root_for_task).unwrap_or(&missing);
+                    log::info!("Removed: {}", display_path.display());
+                }
+
+                c.remove(&p_str);
+                paths_for_server.push(p_str);
+            }
         }
 
         if paths_for_server.is_empty() {
@@ -243,7 +245,7 @@ fn verify_albums_parallel(
     force: bool,
     jobs: Option<usize>,
     exts: &[String],
-    manifests: &Option<Vec<String>>,
+    manifests: Option<&Vec<String>>,
 ) -> Result<Vec<(PathBuf, u64, bool)>> {
     let default_parallelism = std::thread::available_parallelism()
         .map(std::num::NonZero::get)
@@ -269,7 +271,7 @@ fn verify_albums_parallel(
                          return (album_root, mtime_sum, false);
                     }
 
-                match verify_trust(&album_root, manifests) {
+                match verify_trust(&album_root, &manifests.cloned()) {
                     Ok(TrustState::Valid) => (album_root, mtime_sum, false),
                     Ok(_) => (album_root, mtime_sum, true),
                     Err(e) => {
@@ -293,7 +295,7 @@ fn calculate_hash(data: &str) -> String {
     format!("{:x}", hasher.finalize())
 }
 
-fn get_mtime_sum(dir: &Path, meta: &Path, exts: &[String], manifests: &Option<Vec<String>>) -> u64 {
+fn get_mtime_sum(dir: &Path, meta: &Path, exts: &[String], manifests: Option<&Vec<String>>) -> u64 {
     let d_mtime = fs::metadata(dir)
         .and_then(|m| m.modified())
         .map(|t| {
@@ -396,3 +398,4 @@ async fn trigger_server_reset() -> Result<()> {
         .await;
     Ok(())
 }
+

@@ -41,10 +41,11 @@ pub async fn notify_force_update() -> Response {
 pub async fn trigger_full_reset(State(state): State<Arc<AppState>>) -> Response {
     log::info!("Rebuilding library database...");
     let start_time = std::time::Instant::now();
+    
     let album_count = {
-        let config_guard = state.config.read().await;
+        let library_root = state.config.read().await.library_root.clone();
+        let scanner = crate::server::library::scanner::Library::new(library_root);
         let mut query = state.query.lock().await;
-        let scanner = crate::server::library::scanner::Library::new(config_guard.library_root.clone());
         scanner.scan(&mut query);
         query.dict.len()
     };
@@ -64,19 +65,19 @@ pub async fn trigger_batch_reload(
 ) -> Response {
     let start_time = std::time::Instant::now();
     let compile_time = params.get("time").map_or("0", std::string::String::as_str);
-    let config_guard = state.config.read().await;
+    
+    let library_root = state.config.read().await.library_root.clone();
     let mut processed_ids = Vec::new();
     let mut removed_ids = Vec::new();
 
     {
         let mut query = state.query.lock().await;
-        let scanner = crate::server::library::scanner::Library::new(config_guard.library_root.clone());
+        let scanner = crate::server::library::scanner::Library::new(library_root);
         for path in &paths {
-            if let Some(res) = scanner.update_album(path, &mut query) {
-                match res {
-                    crate::server::library::scanner::UpdateResult::Updated(id) => processed_ids.push(id),
-                    crate::server::library::scanner::UpdateResult::Removed(id) => removed_ids.push(id),
-                }
+            let res = scanner.update_album(path, &mut query);
+            match res {
+                crate::server::library::scanner::UpdateResult::Updated(id) => processed_ids.push(id),
+                crate::server::library::scanner::UpdateResult::Removed(id) => removed_ids.push(id),
             }
         }
         if !processed_ids.is_empty() || !removed_ids.is_empty() {
@@ -97,7 +98,7 @@ pub async fn trigger_batch_reload(
             let _ = state.tx.send(json!({
                 "type": "ALBUM_UPDATED",
                 "id": processed_ids[0],
-                "dictEntry": dict_entry.unwrap_or(json!({}))
+                "dictEntry": dict_entry.unwrap_or_else(|| json!({}))
             }).to_string());
         } else if removed_ids.len() == 1 && processed_ids.is_empty() {
             let _ = state.tx.send(json!({
@@ -118,44 +119,44 @@ pub async fn trigger_reload(
 ) -> Response {
     let start_time = std::time::Instant::now();
     if let Some(path) = params.get("path") {
-        let config_guard = state.config.read().await;
+        let library_root = state.config.read().await.library_root.clone();
+        
         let (update_res, dict_entry) = {
             let mut query = state.query.lock().await;
-            let scanner = crate::server::library::scanner::Library::new(config_guard.library_root.clone());
+            let scanner = crate::server::library::scanner::Library::new(library_root);
             let res = scanner.update_album(path, &mut query);
-            if res.is_some() {
-                let _ = query.build_cache();
-            }
+            
             let entry = match &res {
-                Some(crate::server::library::scanner::UpdateResult::Updated(id)) => query.dict.get(id).cloned(),
+                crate::server::library::scanner::UpdateResult::Updated(id) => {
+                    let _ = query.build_cache();
+                    query.dict.get(id).cloned()
+                },
                 _ => None,
             };
             (res, entry)
         };
 
-        if let Some(res) = update_res {
-            let elapsed = start_time.elapsed().as_millis();
-            log::info!("Processed 1 album.");
-            log::info!("Rebuilt Query Engine in {elapsed}ms.");
-            
-            match res {
-                crate::server::library::scanner::UpdateResult::Updated(id) => {
-                    let _ = state.tx.send(json!({
-                        "type": "ALBUM_UPDATED",
-                        "id": id,
-                        "dictEntry": dict_entry.unwrap_or(json!({}))
-                    }).to_string());
-                }
-                crate::server::library::scanner::UpdateResult::Removed(id) => {
-                    let _ = state.tx.send(json!({
-                        "type": "ALBUM_REMOVED",
-                        "id": id
-                    }).to_string());
-                }
+        let elapsed = start_time.elapsed().as_millis();
+        log::info!("Processed 1 album.");
+        log::info!("Rebuilt Query Engine in {elapsed}ms.");
+        
+        match update_res {
+            crate::server::library::scanner::UpdateResult::Updated(id) => {
+                let _ = state.tx.send(json!({
+                    "type": "ALBUM_UPDATED",
+                    "id": id,
+                    "dictEntry": dict_entry.unwrap_or_else(|| json!({}))
+                }).to_string());
             }
-            
-            return Json(json!({"status": "ok"})).into_response();
+            crate::server::library::scanner::UpdateResult::Removed(id) => {
+                let _ = state.tx.send(json!({
+                    "type": "ALBUM_REMOVED",
+                    "id": id
+                }).to_string());
+            }
         }
+        
+        return Json(json!({"status": "ok"})).into_response();
     }
     StatusCode::NOT_FOUND.into_response()
 }
@@ -245,3 +246,4 @@ pub async fn run_query(
     }
     StatusCode::BAD_REQUEST.into_response()
 }
+

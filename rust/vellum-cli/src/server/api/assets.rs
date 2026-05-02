@@ -122,10 +122,13 @@ pub async fn get_album_metadata(
     Path(id): Path<String>,
     State(state): State<Arc<AppState>>,
 ) -> Response {
-    let query = state.query.lock().await;
-    if let Some(json_str) = query.get_album_json(&id) {
+    let json_str = {
+        let query = state.query.lock().await;
+        query.get_album_json(&id)
+    };
+    if let Some(data) = json_str {
         return ([(header::CONTENT_TYPE, "application/json")],
-            json_str
+            data
         ).into_response();
     }
     StatusCode::NOT_FOUND.into_response()
@@ -138,12 +141,11 @@ pub async fn get_album_cover(
     let path_opt = {
         let query = state.query.lock().await;
         let config_guard = state.config.read().await;
-        if let Some(meta) = query.dict.get(&id) {
+        
+        query.dict.get(&id).map(|meta| {
             let cp = meta.get("cover_path").and_then(|v| v.as_str()).unwrap_or("default_cover.png");
-            Some(config_guard.library_root.join(&id).join(cp))
-        } else {
-            None
-        }
+            config_guard.library_root.join(&id).join(cp)
+        })
     };
 
     if let Some(path) = path_opt {
@@ -266,3 +268,4 @@ async fn serve_image(path: PathBuf, is_immutable: bool) -> Response {
     }
     StatusCode::NOT_FOUND.into_response()
 }
+

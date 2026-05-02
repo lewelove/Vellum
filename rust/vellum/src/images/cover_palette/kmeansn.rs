@@ -50,8 +50,8 @@ pub fn extract(img: &DynamicImage, args: &str) -> Vec<Srgb> {
     
     let mut selected = vec![lightest, darkest];
     let vibrants_needed = (n - 2).min(lch_pool.len());
-    for i in 0..vibrants_needed {
-        selected.push(lch_pool[i]);
+    for item in lch_pool.iter().take(vibrants_needed) {
+        selected.push(*item);
     }
 
     selected.into_iter().map(|(s, _)| s).collect()

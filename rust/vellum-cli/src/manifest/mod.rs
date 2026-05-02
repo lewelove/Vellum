@@ -13,7 +13,7 @@ use std::path::PathBuf;
 use std::time::SystemTime;
 use walkdir::WalkDir;
 
-pub async fn run(force: bool) -> Result<()> {
+pub fn run(force: bool) -> Result<()> {
     let (config, _raw_config, _): (AppConfig, toml::Value, PathBuf) = AppConfig::load().context("Failed to load config")?;
     let lib_root = expand_path(&config.storage.library_root).canonicalize()?;
 
@@ -166,3 +166,4 @@ pub async fn run(force: bool) -> Result<()> {
 
     Ok(())
 }
+

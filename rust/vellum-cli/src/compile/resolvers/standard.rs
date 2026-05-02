@@ -26,20 +26,20 @@ pub fn get_raw_value<'a>(source: &'a Value, key: &str, args: &str) -> Option<&'a
 }
 
 pub fn resolve_generic_string(source: &Value, key: &str, args: &str, default: &str) -> Value {
-    if let Some(v) = get_raw_value(source, key, args) {
-        match v {
+    get_raw_value(source, key, args).map_or_else(
+        || json!(default),
+        |v| match v {
             Value::String(s) => json!(s.trim()),
             Value::Array(arr) => json!(arr.iter().filter_map(|x| x.as_str()).collect::<Vec<_>>().join("; ")),
             _ => json!(v.to_string().replace('"', "").trim()),
         }
-    } else {
-        json!(default)
-    }
+    )
 }
 
 pub fn resolve_generic_list(source: &Value, key: &str, args: &str) -> Value {
-    if let Some(v) = get_raw_value(source, key, args) {
-        match v {
+    get_raw_value(source, key, args).map_or_else(
+        || json!(Vec::<String>::new()),
+        |v| match v {
             Value::Array(arr) => {
                 let list: Vec<String> = arr.iter().filter_map(|x| x.as_str().map(|s| s.trim().to_string())).filter(|s| !s.is_empty()).collect();
                 json!(list)
@@ -50,38 +50,35 @@ pub fn resolve_generic_list(source: &Value, key: &str, args: &str) -> Value {
             }
             _ => json!([v.to_string().replace('"', "").trim()]),
         }
-    } else {
-        json!(Vec::<String>::new())
-    }
+    )
 }
 
 pub fn resolve_generic_integer(source: &Value, key: &str, args: &str) -> Value {
-    if let Some(v) = get_raw_value(source, key, args) {
-        match v {
+    get_raw_value(source, key, args).map_or_else(
+        || json!(0),
+        |v| match v {
             Value::Number(n) => json!(n.as_i64().unwrap_or(0)),
             Value::String(s) => json!(s.trim().parse::<i64>().unwrap_or(0)),
             _ => json!(0),
         }
-    } else {
-        json!(0)
-    }
+    )
 }
 
 pub fn resolve_generic_float(source: &Value, key: &str, args: &str) -> Value {
-    if let Some(v) = get_raw_value(source, key, args) {
-        match v {
+    get_raw_value(source, key, args).map_or_else(
+        || json!(0.0),
+        |v| match v {
             Value::Number(n) => json!(n.as_f64().unwrap_or(0.0)),
             Value::String(s) => json!(s.trim().parse::<f64>().unwrap_or(0.0)),
             _ => json!(0.0),
         }
-    } else {
-        json!(0.0)
-    }
+    )
 }
 
 pub fn resolve_generic_bool(source: &Value, key: &str, args: &str) -> Value {
-    if let Some(v) = get_raw_value(source, key, args) {
-        match v {
+    get_raw_value(source, key, args).map_or_else(
+        || json!(false),
+        |v| match v {
             Value::Bool(b) => json!(*b),
             Value::String(s) => {
                 let s = s.trim().to_lowercase();
@@ -90,9 +87,7 @@ pub fn resolve_generic_bool(source: &Value, key: &str, args: &str) -> Value {
             Value::Number(n) => json!(n.as_i64().unwrap_or(0) > 0),
             _ => json!(false),
         }
-    } else {
-        json!(false)
-    }
+    )
 }
 
 pub fn resolve_generic_string_fallback(
@@ -111,13 +106,10 @@ pub fn resolve_generic_string_fallback(
         }
     };
 
-    if let Some(v) = source.get(key).and_then(check) {
-        json!(v)
-    } else if let Some(v) = album_source.get(album_key).and_then(check) {
-        json!(v)
-    } else {
-        json!(default)
-    }
+    source.get(key).and_then(check).map_or_else(
+        || album_source.get(album_key).and_then(check).map_or_else(|| json!(default), |v| json!(v)),
+        |v| json!(v)
+    )
 }
 
 pub fn format_ms(ms: u64) -> String {
@@ -130,3 +122,4 @@ pub fn format_ms(ms: u64) -> String {
         format!("{m}:{s:02}")
     }
 }
+

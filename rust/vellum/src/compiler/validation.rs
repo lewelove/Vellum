@@ -59,11 +59,11 @@ pub fn validate_album_level_keys(
                 if let Some((first_val, source_name)) = seen_values.first() {
                     if v != first_val {
                         return Err(VellumError::GlobalKeyConflict {
-                            path: album_root.to_path_buf(),
-                            key: key.clone(),
-                            val1: first_val.to_string(),
-                            source1: source_name.clone(),
-                            val2: v.to_string(),
+                            path: Box::new(album_root.to_path_buf()),
+                            key: Box::new(key.clone()),
+                            val1: Box::new(first_val.to_string()),
+                            source1: Box::new(source_name.clone()),
+                            val2: Box::new(v.to_string()),
                             index: idx + 1,
                         });
                     }

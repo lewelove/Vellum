@@ -15,19 +15,25 @@ async fn handle_socket(mut socket: WebSocket, state: Arc<AppState>) {
     log::info!("Client connected");
 
     let init_payload = {
-        let query_guard = state.query.lock().await;
+        let (dict, track_map, manifest) = {
+            let q = state.query.lock().await;
+            (q.dict.clone(), q.track_lookup.clone(), q.manifest.clone())
+        };
         let ui_data = state.ui_state.read().await.clone();
-        let config_guard = state.config.read().await;
+        let (thumbnail_size, shader) = {
+            let c = state.config.read().await;
+            (c.thumbnail_size, c.shader.clone())
+        };
         
         json!({
             "type": "INIT_DICT",
-            "dict": query_guard.dict,
-            "trackMap": query_guard.track_lookup,
-            "manifest": query_guard.manifest,
+            "dict": dict,
+            "trackMap": track_map,
+            "manifest": manifest,
             "ui_state": ui_data,
             "config": {
-                "thumbnail_size": config_guard.thumbnail_size,
-                "shader": config_guard.shader
+                "thumbnail_size": thumbnail_size,
+                "shader": shader
             }
         })
         .to_string()
@@ -88,3 +94,4 @@ async fn handle_socket(mut socket: WebSocket, state: Arc<AppState>) {
         }
     }
 }
+

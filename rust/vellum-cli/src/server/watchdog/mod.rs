@@ -6,11 +6,11 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
-pub fn start(config_path: PathBuf, state: Arc<AppState>) {
+pub fn start(config_path: &Path, state: Arc<AppState>) {
     let (tx, mut rx) = tokio::sync::mpsc::channel::<Vec<PathBuf>>(10);
     
-    let canon_config_path = config_path.canonicalize().unwrap_or_else(|_| config_path.clone());
-    let config_dir = canon_config_path.parent().unwrap_or(Path::new(".")).to_path_buf();
+    let canon_config_path = config_path.canonicalize().unwrap_or_else(|_| config_path.to_path_buf());
+    let config_dir = canon_config_path.parent().unwrap_or_else(|| Path::new(".")).to_path_buf();
 
     tokio::spawn(async move {
         let tx_clone = tx.clone();
@@ -109,7 +109,7 @@ pub fn start(config_path: PathBuf, state: Arc<AppState>) {
 
                 {
                     let mut guard = state.config.write().await;
-                    guard.resolved_logic_path = resolved.clone();
+                    guard.resolved_logic_path.clone_from(&resolved);
                 }
 
                 if let Some(ref lp) = resolved {
@@ -149,9 +149,11 @@ pub fn start(config_path: PathBuf, state: Arc<AppState>) {
 
             if shelf_changed && !logic_changed {
                 log::info!("Filesystem change: reloading shelf files...");
-                let mut query = state.query.lock().await;
-                if let Err(e) = query.build_cache() {
-                    log::error!("Failed to rebuild query cache: {e}");
+                {
+                    let mut query = state.query.lock().await;
+                    if let Err(e) = query.build_cache() {
+                        log::error!("Failed to rebuild query cache: {e}");
+                    }
                 }
                 let payload = json!({ "type": "LOGIC_UPDATE" }).to_string();
                 let _ = state.tx.send(payload);
@@ -165,8 +167,7 @@ pub fn start(config_path: PathBuf, state: Arc<AppState>) {
                         let thumb_size = new_config.theme.as_ref().and_then(|t| t.thumbnail_size).unwrap_or(200);
                         let shader_cfg = new_config.theme.as_ref().and_then(|t| t.shader.clone());
 
-                        let mut next_shader_path = None;
-                        if let Some(s) = &shader_cfg
+                        let next_shader_path = if let Some(s) = &shader_cfg
                             && let Some(p) = &s.path {
                                 let expanded = vellum::utils::expand_path(p);
                                 let absolute = if expanded.is_absolute() {
@@ -174,8 +175,10 @@ pub fn start(config_path: PathBuf, state: Arc<AppState>) {
                                 } else {
                                     config_dir.join(expanded)
                                 };
-                                next_shader_path = absolute.canonicalize().ok().or(Some(absolute));
-                            }
+                                absolute.canonicalize().ok().or(Some(absolute))
+                            } else {
+                                None
+                            };
 
                         if next_shader_path != current_watched_shader {
                             if let Some(ref old_p) = current_watched_shader
@@ -192,8 +195,8 @@ pub fn start(config_path: PathBuf, state: Arc<AppState>) {
                         {
                             let mut config_guard = state.config.write().await;
                             config_guard.thumbnail_size = thumb_size;
-                            config_guard.shader = shader_cfg.clone();
-                            config_guard.resolved_shader_path = next_shader_path.clone();
+                            config_guard.shader.clone_from(&shader_cfg);
+                            config_guard.resolved_shader_path.clone_from(&next_shader_path);
                         }
 
                         let payload = json!({
@@ -215,3 +218,4 @@ pub fn start(config_path: PathBuf, state: Arc<AppState>) {
         }
     });
 }
+

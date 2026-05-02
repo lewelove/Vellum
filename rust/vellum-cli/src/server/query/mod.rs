@@ -51,33 +51,33 @@ impl LogicManifest {
             .collect();
 
         for (_, collection) in &mut self.collections {
-            let mut allowed_g_ids = HashSet::new();
+            let mut allowed_grouper_ids = HashSet::new();
             for g in &collection.groupers {
-                allowed_g_ids.insert(g.clone());
+                allowed_grouper_ids.insert(g.clone());
             }
             if !collection.strict {
                 for g in &global_groupers {
-                    allowed_g_ids.insert(g.clone());
+                    allowed_grouper_ids.insert(g.clone());
                 }
             }
 
-            let mut allowed_s_ids = HashSet::new();
+            let mut allowed_sorter_ids = HashSet::new();
             for s in &collection.sorters {
-                allowed_s_ids.insert(s.clone());
+                allowed_sorter_ids.insert(s.clone());
             }
             if !collection.strict {
                 for s in &global_sorters {
-                    allowed_s_ids.insert(s.clone());
+                    allowed_sorter_ids.insert(s.clone());
                 }
             }
 
             collection.allowed_groupers = self.groupers.keys()
-                .filter(|k| allowed_g_ids.contains(*k))
+                .filter(|k| allowed_grouper_ids.contains(*k))
                 .cloned()
                 .collect();
 
             collection.allowed_sorters = self.sorters.keys()
-                .filter(|k| allowed_s_ids.contains(*k))
+                .filter(|k| allowed_sorter_ids.contains(*k))
                 .cloned()
                 .collect();
         }
@@ -212,22 +212,21 @@ impl QueryEngine {
         self.conn.execute(
             "INSERT INTO albums (id, metadata) VALUES (?1, ?2)",[id, metadata_json],
         )?;
-        let uid = self.conn.last_insert_rowid() as u32;
+        let uid = u32::try_from(self.conn.last_insert_rowid()).unwrap_or(0);
         self.uid_to_id.insert(uid, id.to_string());
 
         if let Ok(parsed) = serde_json::from_str::<Value>(metadata_json)
             && let Some(album) = parsed.get("album")
                 && let Some(info) = album.get("info") {
-                    let mut tracks_light = Vec::new();
                     if let Some(tracks) = parsed.get("tracks").and_then(Value::as_array) {
                         for track in tracks {
                             if let Some(tinfo) = track.get("info") {
                                 let tp = tinfo.get("track_library_path").and_then(Value::as_str).unwrap_or("").to_string();
-                                let track_no = track.get("TRACKNUMBER").unwrap_or(&json!(0)).clone();
-                                let disc_no = track.get("DISCNUMBER").unwrap_or(&json!(1)).clone();
-                                let title = track.get("TITLE").unwrap_or(&json!("Unknown")).clone();
-                                let artist = track.get("ARTIST").unwrap_or(&json!("Unknown")).clone();
-                                let duration = tinfo.get("track_duration_time").unwrap_or(&json!("0:00")).clone();
+                                let track_no = track.get("TRACKNUMBER").cloned().unwrap_or_else(|| json!(0));
+                                let disc_no = track.get("DISCNUMBER").cloned().unwrap_or_else(|| json!(1));
+                                let title = track.get("TITLE").cloned().unwrap_or_else(|| json!("Unknown"));
+                                let artist = track.get("ARTIST").cloned().unwrap_or_else(|| json!("Unknown"));
+                                let duration = tinfo.get("track_duration_time").cloned().unwrap_or_else(|| json!("0:00"));
                                 let duration_ms = tinfo.get("track_duration").and_then(Value::as_u64).unwrap_or(0);
                                 
                                 let track_light = json!({
@@ -240,7 +239,6 @@ impl QueryEngine {
                                     "durationMs": duration_ms,
                                     "albumId": id
                                 });
-                                tracks_light.push(track_light.clone());
                                 self.track_lookup.insert(tp.clone(), track_light);
 
                                 let raw_rel = tinfo.get("track_path").and_then(Value::as_str).unwrap_or("");
@@ -410,9 +408,9 @@ impl QueryEngine {
         res
     }
 
-    pub fn request_shelf_view(&self, shelf: &str) -> Vec<String> {
+    pub fn request_shelf_view(&self, shelf_key: &str) -> Vec<String> {
         let empty_vec = Vec::new();
-        let uids = self.shelves_cache.get(shelf).unwrap_or(&empty_vec);
+        let uids = self.shelves_cache.get(shelf_key).unwrap_or(&empty_vec);
         uids.iter().filter_map(|uid| self.uid_to_id.get(uid).cloned()).collect()
     }
 

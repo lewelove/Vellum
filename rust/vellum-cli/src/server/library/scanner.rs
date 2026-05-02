@@ -43,7 +43,7 @@ impl Library {
         log::info!("Library Query Engine Initialized.");
     }
 
-    pub fn update_album(&self, folder_path_str: &str, query_engine: &mut crate::server::query::QueryEngine) -> Option<UpdateResult> {
+    pub fn update_album(&self, folder_path_str: &str, query_engine: &mut crate::server::query::QueryEngine) -> UpdateResult {
         let folder_path = Path::new(folder_path_str);
         
         let rel_path = folder_path.strip_prefix(&self.root).unwrap_or(folder_path);
@@ -56,10 +56,11 @@ impl Library {
                     let parsed_alb_id = lock_data.album.info.album_path;
                     let _ = query_engine.remove_album(&parsed_alb_id);
                     let _ = query_engine.ingest(&parsed_alb_id, &content);
-                    return Some(UpdateResult::Updated(parsed_alb_id));
+                    return UpdateResult::Updated(parsed_alb_id);
                 }
         
         let _ = query_engine.remove_album(&alb_id);
-        Some(UpdateResult::Removed(alb_id))
+        UpdateResult::Removed(alb_id)
     }
 }
+

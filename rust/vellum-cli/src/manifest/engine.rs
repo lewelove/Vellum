@@ -46,10 +46,11 @@ pub fn render_toml_block(
                 if key_level == level {
                     let s_key = sanitize_key(key);
                     let val = pool.get(&s_key).or_else(|| pool.get(key));
-                    let rendered_val = match val {
-                        Some(v) => format_toml_value_with_cast(v, &s_key),
-                        None => "\"\"".to_string(),
-                    };
+                    
+                    let rendered_val = val.map_or_else(
+                        || "\"\"".to_string(), 
+                        |v| format_toml_value_with_cast(v, &s_key)
+                    );
 
                     let newline = meta_table
                         .get("newline")
@@ -92,3 +93,4 @@ pub fn render_toml_block(
 
     lines
 }
+
