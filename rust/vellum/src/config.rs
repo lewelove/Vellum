@@ -107,11 +107,10 @@ impl AppConfig {
     }
 
     fn resolve_config_path() -> Option<PathBuf> {
-        if let Some(home_config) = dirs::home_dir().map(|h| h.join(".config/vellum/config.toml")) {
-            if home_config.exists() {
+        if let Some(home_config) = dirs::home_dir().map(|h| h.join(".config/vellum/config.toml"))
+            && home_config.exists() {
                 return Some(home_config);
             }
-        }
 
         if let Ok(env_path) = std::env::var("VELLUM_CONFIG_PATH") {
             let p = PathBuf::from(env_path);

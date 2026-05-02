@@ -29,6 +29,7 @@ pub struct PhysicsData {
     pub format: String,
 }
 
+#[must_use] 
 pub fn sanitize_key(key: &str) -> String {
     key.chars()
         .map(|c| {
@@ -58,14 +59,13 @@ pub fn harvest_file(path: &Path) -> Result<TrackJson> {
         .read()
         .context("Read failed")?;
 
-    if let Some(lofty::file::FileType::Flac) = file_type {
-        if tagged_file.tag(TagType::Id3v2).is_some() {
+    if file_type == Some(lofty::file::FileType::Flac)
+        && tagged_file.tag(TagType::Id3v2).is_some() {
             log::warn!(
                 "ID3v2 tag encountered in FLAC (incompatible with standards): {}",
                 path.display()
             );
         }
-    }
 
     let properties = tagged_file.properties();
 
@@ -90,8 +90,8 @@ pub fn harvest_file(path: &Path) -> Result<TrackJson> {
             if let Ok(flac) = lofty::flac::FlacFile::read_from(
                 &mut file_content,
                 ParseOptions::new().read_cover_art(false),
-            ) {
-                if let Some(comments) = flac.vorbis_comments() {
+            )
+                && let Some(comments) = flac.vorbis_comments() {
                     for (k, v) in comments.items() {
                         let key = sanitize_key(k);
                         let value = v.trim();
@@ -108,7 +108,6 @@ pub fn harvest_file(path: &Path) -> Result<TrackJson> {
                     }
                     concrete_parsed = true;
                 }
-            }
         }
         Some(lofty::file::FileType::Vorbis) => {
             if let Ok(ogg) = lofty::ogg::VorbisFile::read_from(
@@ -159,8 +158,8 @@ pub fn harvest_file(path: &Path) -> Result<TrackJson> {
         _ => {}
     }
 
-    if !concrete_parsed {
-        if let Some(tag) = tagged_file
+    if !concrete_parsed
+        && let Some(tag) = tagged_file
             .primary_tag()
             .or_else(|| tagged_file.first_tag())
         {
@@ -168,9 +167,7 @@ pub fn harvest_file(path: &Path) -> Result<TrackJson> {
             for item in tag.items() {
                 let key_raw = item
                     .key()
-                    .map_key(tag_type)
-                    .map(ToString::to_string)
-                    .unwrap_or_else(|| format!("{:?}", item.key()));
+                    .map_key(tag_type).map_or_else(|| format!("{:?}", item.key()), ToString::to_string);
                 let key = sanitize_key(&key_raw);
 
                 let Some(value) = item.value().text() else {
@@ -192,7 +189,6 @@ pub fn harvest_file(path: &Path) -> Result<TrackJson> {
                     .or_insert_with(|| value.to_string());
             }
         }
-    }
 
     Ok(TrackJson {
         path: path.to_path_buf(),

@@ -165,7 +165,7 @@ pub async fn run(
 
         let client = reqwest::Client::new();
         let elapsed_ms = start_time.elapsed().as_millis();
-        let url = format!("http://127.0.0.1:8000/api/internal/batch_reload?time={}", elapsed_ms);
+        let url = format!("http://127.0.0.1:8000/api/internal/batch_reload?time={elapsed_ms}");
 
         let _ = client
             .post(&url)
@@ -197,10 +197,7 @@ pub async fn run(
     let elapsed = start_time.elapsed().as_millis();
     if !silent {
         log::info!(
-            "Update complete: {} updated, {} removed. Finished in {}ms.",
-            dirty_count,
-            missing_count,
-            elapsed
+            "Update complete: {dirty_count} updated, {missing_count} removed. Finished in {elapsed}ms."
         );
     }
 
@@ -268,11 +265,9 @@ fn verify_albums_parallel(
                 }
 
                 if let Some(entry) = cache.get(&album_path_str)
-                {
-                    if entry.mtime_sum == mtime_sum && mtime_sum != 0 {
+                    && entry.mtime_sum == mtime_sum && mtime_sum != 0 {
                          return (album_root, mtime_sum, false);
                     }
-                }
 
                 match verify_trust(&album_root, manifests) {
                     Ok(TrustState::Valid) => (album_root, mtime_sum, false),
@@ -358,23 +353,21 @@ fn get_mtime_sum(dir: &Path, meta: &Path, exts: &[String], manifests: &Option<Ve
         .filter_map(Result::ok)
     {
         let p = entry.path();
-        if p.is_file() {
-            if let Some(ext) = p.extension().and_then(|e| e.to_str()) {
+        if p.is_file()
+            && let Some(ext) = p.extension().and_then(|e| e.to_str()) {
                 let ext_lower = format!(".{}", ext.to_lowercase());
                 if exts.contains(&ext_lower) {
                     t_mtime += entry
                         .metadata()
                         .ok()
                         .and_then(|m| m.modified().ok())
-                        .map(|t| {
+                        .map_or(0, |t| {
                             t.duration_since(SystemTime::UNIX_EPOCH)
                                 .unwrap_or_default()
                                 .as_secs()
-                        })
-                        .unwrap_or(0);
+                        });
                 }
             }
-        }
     }
 
     d_mtime + m_mtime + c_mtime + t_mtime
@@ -382,11 +375,9 @@ fn get_mtime_sum(dir: &Path, meta: &Path, exts: &[String], manifests: &Option<Ve
 
 fn load_cache(path: &Path) -> HashMap<String, AlbumCacheEntry> {
     if let Ok(content) = fs::read_to_string(path)
-    {
-        if let Ok(cache) = serde_json::from_str::<HashMap<String, AlbumCacheEntry>>(&content) {
+        && let Ok(cache) = serde_json::from_str::<HashMap<String, AlbumCacheEntry>>(&content) {
              return cache;
         }
-    }
     HashMap::new()
 }
 

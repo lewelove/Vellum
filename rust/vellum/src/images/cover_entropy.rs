@@ -1,5 +1,6 @@
 use image::DynamicImage;
 
+#[must_use] 
 pub fn calculate_entropy(img: &DynamicImage) -> usize {
     let gray = img.grayscale();
     let mut buf = Vec::new();

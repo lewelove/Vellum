@@ -32,12 +32,12 @@ pub fn build(
         let metrics_dir = cache_root.join("cover_data");
         std::fs::create_dir_all(&metrics_dir).ok();
         
-        let metrics_path = metrics_dir.join(format!("{}.json", c_hash));
+        let metrics_path = metrics_dir.join(format!("{c_hash}.json"));
         
         let palette_cfg = config.get("compiler").and_then(|c| c.get("cover_palette"));
         let cover_palette_raw = manifest_data.json.get("album").and_then(|a| a.get("cover_palette").or_else(|| a.get("COVER_PALETTE")));
         
-        let palette_params = format!("{:?}|{:?}", palette_cfg, cover_palette_raw);
+        let palette_params = format!("{palette_cfg:?}|{cover_palette_raw:?}");
         
         let mut metrics = if metrics_path.exists() {
             if let Ok(content) = std::fs::read_to_string(&metrics_path) {
@@ -63,20 +63,18 @@ pub fn build(
                 needs_save = true;
             }
             
-            if metrics.palette_params.as_deref() != Some(&palette_params) || metrics.palette.is_none() {
-                if let Some(palette_val) = resolvers::cover_palette::resolve_core(img, palette_cfg, cover_palette_raw) {
+            if (metrics.palette_params.as_deref() != Some(&palette_params) || metrics.palette.is_none())
+                && let Some(palette_val) = resolvers::cover_palette::resolve_core(img, palette_cfg, cover_palette_raw) {
                     metrics.palette = Some(palette_val);
                     metrics.palette_params = Some(palette_params);
                     needs_save = true;
                 }
-            }
         }
         
-        if needs_save {
-            if let Ok(content) = serde_json::to_string(&metrics) {
+        if needs_save
+            && let Ok(content) = serde_json::to_string(&metrics) {
                 let _ = std::fs::write(&metrics_path, content);
             }
-        }
         
         cover_metrics = Some(metrics);
     }
@@ -189,11 +187,10 @@ fn process_tracks(
 
     let mut total_discs = 1;
     for t in track_entries {
-        if let Ok(d) = extract_strict_u32(t.get("discnumber"), "discnumber", Some(1)) {
-            if d > total_discs {
+        if let Ok(d) = extract_strict_u32(t.get("discnumber"), "discnumber", Some(1))
+            && d > total_discs {
                 total_discs = d;
             }
-        }
     }
 
     let mut final_tracks = Vec::new();
@@ -402,11 +399,10 @@ fn build_album(
         tags.insert(key.to_uppercase(), val);
     }
 
-    if let Some(palette_cfg) = ctx.config.get("compiler").and_then(|c| c.get("cover_palette")) {
-        if let Some(val) = resolvers::native::resolve_cover_palette(ctx, palette_cfg) {
+    if let Some(palette_cfg) = ctx.config.get("compiler").and_then(|c| c.get("cover_palette"))
+        && let Some(val) = resolvers::native::resolve_cover_palette(ctx, palette_cfg) {
             tags.insert("COVER_PALETTE".to_string(), val);
         }
-    }
 
     obj.insert("tags".to_string(), Value::Object(tags));
     Value::Object(obj)

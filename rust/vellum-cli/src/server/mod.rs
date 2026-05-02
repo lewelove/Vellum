@@ -36,8 +36,8 @@ pub async fn run(port: u16) -> Result<()> {
 
     let shader_cfg = config.theme.as_ref().and_then(|t| t.shader.clone());
     let mut resolved_shader_path = None;
-    if let Some(s) = &shader_cfg {
-        if let Some(p) = &s.path {
+    if let Some(s) = &shader_cfg
+        && let Some(p) = &s.path {
             let expanded = expand_path(p);
             let absolute = if expanded.is_absolute() {
                 expanded
@@ -46,7 +46,6 @@ pub async fn run(port: u16) -> Result<()> {
             };
             resolved_shader_path = absolute.canonicalize().ok().or(Some(absolute));
         }
-    }
 
     let css_path = config_dir.join("vellum.css");
     let resolved_css_path = css_path.canonicalize().ok();

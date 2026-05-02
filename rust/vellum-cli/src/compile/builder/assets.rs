@@ -87,7 +87,7 @@ pub fn load_or_create_thumbnail(
         .get("theme")
         .and_then(|t| t.get("thumbnail_size"))
         .and_then(Value::as_u64)
-        .map_or(200, |s| u32::try_from(s).unwrap_or(200)) as u32;
+        .map_or(200, |s| u32::try_from(s).unwrap_or(200));
 
     let cache_root = expand_path(cache_str);
     let master_blob_path = cache_root.join("covers").join(format!("{cover_hash}.bmp"));
@@ -123,10 +123,10 @@ pub fn load_or_create_thumbnail(
             let mut resizer = Resizer::new();
             let options = ResizeOptions::new()
                 .crop(
-                    ((src_width - min_dim) / 2) as f64,
-                    ((src_height - min_dim) / 2) as f64,
-                    min_dim as f64,
-                    min_dim as f64,
+                    f64::from((src_width - min_dim) / 2),
+                    f64::from((src_height - min_dim) / 2),
+                    f64::from(min_dim),
+                    f64::from(min_dim),
                 )
                 .resize_alg(ResizeAlg::Convolution(FilterType::Lanczos3));
 

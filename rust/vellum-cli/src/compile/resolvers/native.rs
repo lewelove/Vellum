@@ -45,7 +45,7 @@ pub fn resolve_album_info_unix_added(ctx: &AlbumContext, args: &str) -> u64 {
     let mut found_timestamps = Vec::new();
 
     for key in &keys {
-        if let Some(val) = ctx.source.get(key).or_else(|| ctx.source.get(&key.to_lowercase())) {
+        if let Some(val) = ctx.source.get(key).or_else(|| ctx.source.get(key.to_lowercase())) {
             if let Some(s) = val.as_str() {
                 if let Ok(ts) = s.parse::<u64>() {
                     found_timestamps.push(ts);
@@ -80,11 +80,10 @@ pub fn resolve_album_info_unix_added(ctx: &AlbumContext, args: &str) -> u64 {
 
 pub fn resolve_album_info_date_added(ctx: &AlbumContext, _args: &str) -> Option<Value> {
     let ts = resolve_album_info_unix_added(ctx, "");
-    if let Some(fmt) = ctx.config.get("compiler").and_then(|c| c.get("date_added")).and_then(Value::as_str) {
-        if let Some(dt) = chrono::DateTime::from_timestamp(ts as i64, 0) {
+    if let Some(fmt) = ctx.config.get("compiler").and_then(|c| c.get("date_added")).and_then(Value::as_str)
+        && let Some(dt) = chrono::DateTime::from_timestamp(ts as i64, 0) {
             return Some(json!(dt.format(fmt).to_string()));
         }
-    }
     None
 }
 

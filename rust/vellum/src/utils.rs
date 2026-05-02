@@ -2,8 +2,8 @@ use std::path::PathBuf;
 
 #[must_use]
 pub fn expand_path(path_str: &str) -> PathBuf {
-    if path_str.starts_with('~') {
-        if let Some(home) = dirs::home_dir() {
+    if path_str.starts_with('~')
+        && let Some(home) = dirs::home_dir() {
             if path_str == "~" {
                 return home;
             }
@@ -11,6 +11,5 @@ pub fn expand_path(path_str: &str) -> PathBuf {
                 return home.join(stripped);
             }
         }
-    }
     PathBuf::from(path_str)
 }

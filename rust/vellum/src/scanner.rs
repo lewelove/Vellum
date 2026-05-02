@@ -9,15 +9,13 @@ pub fn find_target_albums(path: &Path, max_depth: usize) -> Result<Vec<PathBuf>,
     } else {
         for entry in WalkDir::new(path)
             .max_depth(max_depth)
-            .into_iter()
         {
             match entry {
                 Ok(e) => {
-                    if e.file_name() == "metadata.toml" || e.file_name() == "album.nix" {
-                        if let Some(parent) = e.path().parent() {
+                    if (e.file_name() == "metadata.toml" || e.file_name() == "album.nix")
+                        && let Some(parent) = e.path().parent() {
                             results.insert(parent.to_path_buf());
                         }
-                    }
                 }
                 Err(e) => {
                     if let Some(io_err) = e.into_io_error() {

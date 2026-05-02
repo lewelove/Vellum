@@ -16,7 +16,7 @@ fn parse_hex(hex: &str) -> Option<Srgb> {
     let r = u8::from_str_radix(&hex[0..2], 16).ok()?;
     let g = u8::from_str_radix(&hex[2..4], 16).ok()?;
     let b = u8::from_str_radix(&hex[4..6], 16).ok()?;
-    Some(Srgb::new(r as f32 / 255.0, g as f32 / 255.0, b as f32 / 255.0))
+    Some(Srgb::new(f32::from(r) / 255.0, f32::from(g) / 255.0, f32::from(b) / 255.0))
 }
 
 pub fn process_image_to_palette(
@@ -62,16 +62,14 @@ pub fn process_image_to_palette(
     if !manually_provided {
         for p in img_to_process.to_rgb8().pixels() {
             let pixel_oklab = Oklab::from_color(Srgb::new(
-                p[0] as f32 / 255.0,
-                p[1] as f32 / 255.0,
-                p[2] as f32 / 255.0,
+                f32::from(p[0]) / 255.0,
+                f32::from(p[1]) / 255.0,
+                f32::from(p[2]) / 255.0,
             ));
             let mut best_idx = 0;
             let mut min_dist_sq = f32::MAX;
             for (i, center) in oklab_centers.iter().enumerate() {
-                let dist_sq = (pixel_oklab.l - center.l).powi(2)
-                            + (pixel_oklab.a - center.a).powi(2)
-                            + (pixel_oklab.b - center.b).powi(2);
+                let dist_sq = (pixel_oklab.b - center.b).mul_add(pixel_oklab.b - center.b, (pixel_oklab.a - center.a).mul_add(pixel_oklab.a - center.a, (pixel_oklab.l - center.l).powi(2)));
                 if dist_sq < min_dist_sq {
                     min_dist_sq = dist_sq;
                     best_idx = i;
@@ -82,7 +80,7 @@ pub fn process_image_to_palette(
     }
 
     let total_pixels = counts.iter().sum::<usize>() as f32;
-    let mut palette: Vec<(Srgb, f32)> = candidate_colors.into_iter().zip(counts.into_iter()).filter_map(|(color, count)| {
+    let mut palette: Vec<(Srgb, f32)> = candidate_colors.into_iter().zip(counts).filter_map(|(color, count)| {
         let ratio = if total_pixels > 0.0 {
             count as f32 / total_pixels
         } else {
@@ -97,9 +95,8 @@ pub fn process_image_to_palette(
     }).collect();
 
     let threshold_val = cfg.get("threshold")
-        .and_then(|v| v.as_f64())
-        .map(|f| f as f32)
-        .unwrap_or(0.001);
+        .and_then(serde_json::Value::as_f64)
+        .map_or(0.001, |f| f as f32);
 
     if !manually_provided {
         palette.retain(|&(_, ratio)| ratio >= threshold_val);
@@ -158,8 +155,7 @@ pub fn process_image_to_palette(
                     .max_by(|(_, (ok_a, _, _)), (_, (ok_b, _, _))| {
                         ok_a.l.partial_cmp(&ok_b.l).unwrap_or(std::cmp::Ordering::Equal)
                     })
-                    .map(|(i, _)| i)
-                    .unwrap_or(0);
+                    .map_or(0, |(i, _)| i);
 
                 let first = pool.remove(start_idx);
                 let mut current_ok = first.0;
@@ -180,8 +176,8 @@ pub fn process_image_to_palette(
                 while !pool.is_empty() {
                     let next_idx = pool.iter().enumerate()
                         .min_by(|(_, (ok_a, _, _)), (_, (ok_b, _, _))| {
-                            let dist_a = (ok_a.l - current_ok.l).powi(2) + (ok_a.a - current_ok.a).powi(2) + (ok_a.b - current_ok.b).powi(2);
-                            let dist_b = (ok_b.l - current_ok.l).powi(2) + (ok_b.a - current_ok.a).powi(2) + (ok_b.b - current_ok.b).powi(2);
+                            let dist_a = (ok_a.b - current_ok.b).mul_add(ok_a.b - current_ok.b, (ok_a.a - current_ok.a).mul_add(ok_a.a - current_ok.a, (ok_a.l - current_ok.l).powi(2)));
+                            let dist_b = (ok_b.b - current_ok.b).mul_add(ok_b.b - current_ok.b, (ok_b.a - current_ok.a).mul_add(ok_b.a - current_ok.a, (ok_b.l - current_ok.l).powi(2)));
                             dist_a.partial_cmp(&dist_b).unwrap_or(std::cmp::Ordering::Equal)
                         })
                         .map(|(i, _)| i)
@@ -206,6 +202,7 @@ pub fn process_image_to_palette(
     Some(palette)
 }
 
+#[must_use] 
 pub fn resolve_core(img: &DynamicImage, cfg: Option<&Value>, cover_palette_raw: Option<&Value>) -> Option<Value> {
     let default_cfg = json!({});
     let cfg_val = cfg.unwrap_or(&default_cfg);
@@ -226,11 +223,10 @@ pub fn resolve_core(img: &DynamicImage, cfg: Option<&Value>, cover_palette_raw: 
         }
         Some(Value::Array(arr)) => {
             for v in arr {
-                if let Some(s) = v.as_str() {
-                    if let Some(srgb) = parse_hex(s) {
+                if let Some(s) = v.as_str()
+                    && let Some(srgb) = parse_hex(s) {
                         candidate_colors.push(srgb);
                     }
-                }
             }
             if !candidate_colors.is_empty() {
                 manually_provided = true;
@@ -251,13 +247,13 @@ pub fn resolve_core(img: &DynamicImage, cfg: Option<&Value>, cover_palette_raw: 
             let g_u8 = (srgb.green.clamp(0.0, 1.0) * 255.0).round() as u8;
             let b_u8 = (srgb.blue.clamp(0.0, 1.0) * 255.0).round() as u8;
 
-            let hex = format!("#{:02X}{:02X}{:02X}", r_u8, g_u8, b_u8);
+            let hex = format!("#{r_u8:02X}{g_u8:02X}{b_u8:02X}");
 
             let oklch = Oklch::from_color(srgb);
             let l_pct = oklch.l * 100.0;
             let c = oklch.chroma;
             let h = oklch.hue.into_raw_degrees();
-            let oklch_str = format!("oklch({:.2}% {:.3} {:.2})", l_pct, c, h);
+            let oklch_str = format!("oklch({l_pct:.2}% {c:.3} {h:.2})");
 
             json!([hex, oklch_str, format!("{ratio:.4}")])
         })

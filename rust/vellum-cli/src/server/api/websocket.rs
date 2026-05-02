@@ -54,7 +54,7 @@ async fn handle_socket(mut socket: WebSocket, state: Arc<AppState>) {
                             if req_type == "VIEW_REQUEST" {
                                 let collection = req.get("collection").and_then(|v| v.as_str()).unwrap_or("library");
                                 let sort = req.get("sort").and_then(|v| v.as_str()).unwrap_or("default");
-                                let reverse = req.get("reverse").and_then(|v| v.as_bool()).unwrap_or(false);
+                                let reverse = req.get("reverse").and_then(serde_json::Value::as_bool).unwrap_or(false);
                                 let filter_key = req.get("filter").and_then(|v| v.get("key")).and_then(|v| v.as_str());
                                 let filter_val = req.get("filter").and_then(|v| v.get("val")).and_then(|v| v.as_str());
                                 

@@ -41,9 +41,9 @@ pub fn extract(img: &DynamicImage, args: &str) -> Vec<Srgb> {
     let img_small = img.resize_exact(64, 64, image::imageops::FilterType::Nearest);
     let sample_pixels: Vec<Oklab> = img_small.to_rgb8().pixels().map(|p| {
         Oklab::from_color(Srgb::new(
-            p[0] as f32 / 255.0,
-            p[1] as f32 / 255.0,
-            p[2] as f32 / 255.0,
+            f32::from(p[0]) / 255.0,
+            f32::from(p[1]) / 255.0,
+            f32::from(p[2]) / 255.0,
         ))
     }).collect();
     
@@ -59,7 +59,7 @@ pub fn extract(img: &DynamicImage, args: &str) -> Vec<Srgb> {
             let mut total_weight = 0.0;
             
             for &p in &sample_pixels {
-                let dist_sq = (current.l - p.l).powi(2) + (current.a - p.a).powi(2) + (current.b - p.b).powi(2);
+                let dist_sq = (current.b - p.b).mul_add(current.b - p.b, (current.a - p.a).mul_add(current.a - p.a, (current.l - p.l).powi(2)));
                 if dist_sq < bw_sq {
                     let chroma = p.a.hypot(p.b);
                     let weight = 1.0 + (chroma_gravity * chroma);
@@ -73,7 +73,7 @@ pub fn extract(img: &DynamicImage, args: &str) -> Vec<Srgb> {
             
             if total_weight > 0.0 {
                 let next = Oklab::new(sum_l / total_weight, sum_a / total_weight, sum_b / total_weight);
-                let shift_sq = (next.l - current.l).powi(2) + (next.a - current.a).powi(2) + (next.b - current.b).powi(2);
+                let shift_sq = (next.b - current.b).mul_add(next.b - current.b, (next.a - current.a).mul_add(next.a - current.a, (next.l - current.l).powi(2)));
                 current = next;
                 if shift_sq < eps {
                     break;
@@ -91,7 +91,7 @@ pub fn extract(img: &DynamicImage, args: &str) -> Vec<Srgb> {
     for pos in converged {
         let mut found = false;
         for center in &centers {
-            let dist_sq = (pos.l - center.l).powi(2) + (pos.a - center.a).powi(2) + (pos.b - center.b).powi(2);
+            let dist_sq = (pos.b - center.b).mul_add(pos.b - center.b, (pos.a - center.a).mul_add(pos.a - center.a, (pos.l - center.l).powi(2)));
             if dist_sq < merge_threshold_sq {
                 found = true;
                 break;

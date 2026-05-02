@@ -69,10 +69,10 @@ pub async fn get_resized_cover(
         let mut resizer = Resizer::new();
         let options = ResizeOptions::new()
             .crop(
-                ((src_width - min_dim) / 2) as f64,
-                ((src_height - min_dim) / 2) as f64,
-                min_dim as f64,
-                min_dim as f64,
+                f64::from((src_width - min_dim) / 2),
+                f64::from((src_height - min_dim) / 2),
+                f64::from(min_dim),
+                f64::from(min_dim),
             )
             .resize_alg(ResizeAlg::Convolution(FilterType::Mitchell));
 
@@ -189,8 +189,8 @@ pub async fn get_custom_shader(State(state): State<Arc<AppState>>) -> Response {
         guard.resolved_shader_path.clone()
     };
 
-    if let Some(path) = path_opt {
-        if let Ok(mut file) = File::open(&path).await {
+    if let Some(path) = path_opt
+        && let Ok(mut file) = File::open(&path).await {
             let mut buf = String::new();
             if file.read_to_string(&mut buf).await.is_ok() {
                 return ([
@@ -205,7 +205,6 @@ pub async fn get_custom_shader(State(state): State<Arc<AppState>>) -> Response {
                     .into_response();
             }
         }
-    }
 
     StatusCode::NOT_FOUND.into_response()
 }
@@ -216,8 +215,8 @@ pub async fn get_custom_css(State(state): State<Arc<AppState>>) -> Response {
         guard.resolved_css_path.clone()
     };
 
-    if let Some(path) = path_opt {
-        if let Ok(mut file) = File::open(&path).await {
+    if let Some(path) = path_opt
+        && let Ok(mut file) = File::open(&path).await {
             let mut buf = String::new();
             if file.read_to_string(&mut buf).await.is_ok() {
                 return ([
@@ -232,7 +231,6 @@ pub async fn get_custom_css(State(state): State<Arc<AppState>>) -> Response {
                     .into_response();
             }
         }
-    }
 
     StatusCode::NOT_FOUND.into_response()
 }

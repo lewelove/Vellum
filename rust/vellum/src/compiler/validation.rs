@@ -78,11 +78,11 @@ pub fn validate_album_level_keys(
 
 pub fn merge_local_registry(album_root: &Path, registry: &mut Map<String, Value>) {
     let local_config_path = album_root.join("config.toml");
-    if local_config_path.exists() {
-        if let Ok(local_content) = std::fs::read_to_string(&local_config_path) {
-            if let Ok(local_toml) = toml::from_str::<toml::Value>(&local_content) {
-                if let Ok(local_json) = serde_json::to_value(local_toml) {
-                    if let Some(local_keys) = local_json
+    if local_config_path.exists()
+        && let Ok(local_content) = std::fs::read_to_string(&local_config_path)
+            && let Ok(local_toml) = toml::from_str::<toml::Value>(&local_content)
+                && let Ok(local_json) = serde_json::to_value(local_toml)
+                    && let Some(local_keys) = local_json
                         .get("compiler")
                         .and_then(|c| c.get("keys"))
                         .and_then(Value::as_object)
@@ -101,8 +101,4 @@ pub fn merge_local_registry(album_root: &Path, registry: &mut Map<String, Value>
                             }
                         }
                     }
-                }
-            }
-        }
-    }
 }

@@ -18,11 +18,10 @@ pub fn compress(
     let mut forced_track_keys = HashSet::new();
     if let Some(layout) = manifest_layout {
         for (key, meta) in layout {
-            if let Some(table) = meta.as_table() {
-                if table.get("level").and_then(|v| v.as_str()) == Some("track") {
+            if let Some(table) = meta.as_table()
+                && table.get("level").and_then(|v| v.as_str()) == Some("track") {
                     forced_track_keys.insert(sanitize_key(key));
                 }
-            }
         }
     }
 

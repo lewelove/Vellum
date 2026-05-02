@@ -12,11 +12,10 @@ pub fn resolve_top_level_album_key(key: &str, ctx: &AlbumContext) -> Value {
         "DATE" => standard::resolve_generic_string(ctx.source, "date", "year,originalyear", "0000"),
         "GENRE" => {
             let mut list = standard::resolve_generic_list(ctx.source, "genre", "");
-            if let Value::Array(ref arr) = list {
-                if arr.is_empty() {
+            if let Value::Array(ref arr) = list
+                && arr.is_empty() {
                     list = json!(["Unknown"]);
                 }
-            }
             list
         },
         "COMMENT" => json!(native::resolve_comment(ctx, "")),
@@ -50,7 +49,7 @@ pub fn resolve_album_key(key: &str, meta: &Value, ctx: &AlbumContext) -> Option<
             "comment" => Some(json!(native::resolve_comment(ctx, args))),
             "unix_added" => Some(json!(native::resolve_album_info_unix_added(ctx, args))),
             _ => {
-                log::warn!("Native function for key '{}' not found, falling back to generic.", key);
+                log::warn!("Native function for key '{key}' not found, falling back to generic.");
                 None
             }
         };
@@ -68,13 +67,11 @@ pub fn resolve_album_key(key: &str, meta: &Value, ctx: &AlbumContext) -> Option<
             "string" | _ => Some(standard::resolve_generic_string(ctx.source, key, args, "")),
         }
     } else {
-        if let Some(first_track) = ctx.tracks.first() {
-            if let Some(tags) = first_track.get("tags") {
-                if let Some(t_val) = tags.get(&key.to_uppercase()) {
+        if let Some(first_track) = ctx.tracks.first()
+            && let Some(tags) = first_track.get("tags")
+                && let Some(t_val) = tags.get(key.to_uppercase()) {
                     return Some(t_val.clone());
                 }
-            }
-        }
         None
     }
 }
@@ -85,11 +82,9 @@ pub fn resolve_track_key(key: &str, meta: &Value, ctx: &TrackContext) -> Option<
     let args = meta.get("args").and_then(Value::as_str).unwrap_or("");
 
     if class == "function" {
-        let res = match key {
-            _ => {
-                log::warn!("Native function for track key '{}' not found, falling back to generic.", key);
-                None
-            }
+        let res = {
+            log::warn!("Native function for track key '{key}' not found, falling back to generic.");
+            None
         };
         if res.is_some() {
             return res;

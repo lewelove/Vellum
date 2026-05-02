@@ -61,18 +61,17 @@ pub fn load_and_merge(
                     .map_err(|source| VellumError::ManifestParseError { path: m_path.clone(), source })?;
                 let m_json = normalize_keys(serde_json::to_value(parsed_aux)?);
                 
-                if let Some(aux_album) = m_json.get("album").and_then(Value::as_object) {
-                    if let Some(primary_album) = metadata_json.get_mut("album").and_then(Value::as_object_mut) {
+                if let Some(aux_album) = m_json.get("album").and_then(Value::as_object)
+                    && let Some(primary_album) = metadata_json.get_mut("album").and_then(Value::as_object_mut) {
                         for (k, v) in aux_album {
                             if !primary_album.contains_key(k) {
                                 primary_album.insert(k.clone(), v.clone());
                             }
                         }
                     }
-                }
 
-                if let Some(aux_tracks) = m_json.get("tracks").and_then(Value::as_array) {
-                    if !aux_tracks.is_empty() {
+                if let Some(aux_tracks) = m_json.get("tracks").and_then(Value::as_array)
+                    && !aux_tracks.is_empty() {
                         let primary_tracks = metadata_json.get_mut("tracks")
                             .and_then(Value::as_array_mut)
                             .ok_or_else(|| VellumError::MissingTracksBlock { path: album_root.to_path_buf() })?;
@@ -120,12 +119,11 @@ pub fn load_and_merge(
                                 if track_no == p_track_no && disc_no == p_disc_no {
                                     if let Some(p_obj) = prim_t.as_object_mut() {
                                         for (k, v) in a_obj {
-                                            if k != "tracknumber" && k != "discnumber" {
-                                                if !p_obj.contains_key(k) {
+                                            if k != "tracknumber" && k != "discnumber"
+                                                && !p_obj.contains_key(k) {
                                                     let val: Value = v.clone();
                                                     p_obj.insert(k.clone(), val);
                                                 }
-                                            }
                                         }
                                     }
                                     found = true;
@@ -142,7 +140,6 @@ pub fn load_and_merge(
                             }
                         }
                     }
-                }
             }
         }
     }
@@ -191,7 +188,7 @@ pub fn extract_strict_u32(val: Option<&Value>, name: &str, default: Option<u32>)
             let base = s.split('/').next().unwrap_or("").trim();
             base.parse::<u32>().map_err(|_| VellumError::InvalidIdentityFormat {
                 field: name.to_string(),
-                message: format!("Cannot interpret string '{}' as integer", s),
+                message: format!("Cannot interpret string '{s}' as integer"),
             })
         }
         Value::Null => {

@@ -50,8 +50,8 @@ pub async fn trigger_full_reset(State(state): State<Arc<AppState>>) -> Response 
     };
     
     let elapsed = start_time.elapsed().as_millis();
-    log::info!("Updated {} albums.", album_count);
-    log::info!("Rebuilt Query Engine in {}ms.", elapsed);
+    log::info!("Updated {album_count} albums.");
+    log::info!("Rebuilt Query Engine in {elapsed}ms.");
     
     let _ = state.tx.send(json!({"type": "LOGIC_UPDATE"}).to_string());
     Json(json!({"status": "ok"})).into_response()
@@ -63,7 +63,7 @@ pub async fn trigger_batch_reload(
     Json(paths): Json<Vec<String>>,
 ) -> Response {
     let start_time = std::time::Instant::now();
-    let compile_time = params.get("time").map(|s| s.as_str()).unwrap_or("0");
+    let compile_time = params.get("time").map_or("0", std::string::String::as_str);
     let config_guard = state.config.read().await;
     let mut processed_ids = Vec::new();
     let mut removed_ids = Vec::new();
@@ -87,7 +87,7 @@ pub async fn trigger_batch_reload(
     if !processed_ids.is_empty() || !removed_ids.is_empty() {
         let elapsed = start_time.elapsed().as_millis();
         log::info!("Updated {} albums, Removed {} albums in {}ms.", processed_ids.len(), removed_ids.len(), compile_time);
-        log::info!("Rebuilt Query Engine in {}ms.", elapsed);
+        log::info!("Rebuilt Query Engine in {elapsed}ms.");
         
         if processed_ids.len() == 1 && removed_ids.is_empty() {
             let dict_entry = {
@@ -136,7 +136,7 @@ pub async fn trigger_reload(
         if let Some(res) = update_res {
             let elapsed = start_time.elapsed().as_millis();
             log::info!("Processed 1 album.");
-            log::info!("Rebuilt Query Engine in {}ms.", elapsed);
+            log::info!("Rebuilt Query Engine in {elapsed}ms.");
             
             match res {
                 crate::server::library::scanner::UpdateResult::Updated(id) => {

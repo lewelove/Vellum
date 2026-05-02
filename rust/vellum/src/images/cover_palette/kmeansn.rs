@@ -25,9 +25,9 @@ pub fn extract(img: &DynamicImage, args: &str) -> Vec<Srgb> {
 
     let pixels: Vec<Lab> = img.to_rgb8().pixels().map(|p| {
         Lab::from_color(Srgb::new(
-            p[0] as f32 / 255.0,
-            p[1] as f32 / 255.0,
-            p[2] as f32 / 255.0,
+            f32::from(p[0]) / 255.0,
+            f32::from(p[1]) / 255.0,
+            f32::from(p[2]) / 255.0,
         ))
     }).collect();
 
@@ -51,7 +51,7 @@ pub fn extract(img: &DynamicImage, args: &str) -> Vec<Srgb> {
     let mut selected = vec![lightest, darkest];
     let vibrants_needed = (n - 2).min(lch_pool.len());
     for i in 0..vibrants_needed {
-        selected.push(lch_pool[i].clone());
+        selected.push(lch_pool[i]);
     }
 
     selected.into_iter().map(|(s, _)| s).collect()

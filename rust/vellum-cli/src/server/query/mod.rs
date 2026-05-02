@@ -32,7 +32,7 @@ impl LogicManifest {
         self.collections_order = self.collections.keys().cloned().collect();
         self.shelves_order = self.shelves.keys().cloned().collect();
 
-        for (_, g) in self.groupers.iter_mut() {
+        for (_, g) in &mut self.groupers {
             let idx = g.index.unwrap_or(false);
             g.index = Some(idx);
             if g.count.is_none() {
@@ -50,7 +50,7 @@ impl LogicManifest {
             .map(|(id, _)| id.clone())
             .collect();
 
-        for (_, collection) in self.collections.iter_mut() {
+        for (_, collection) in &mut self.collections {
             let mut allowed_g_ids = HashSet::new();
             for g in &collection.groupers {
                 allowed_g_ids.insert(g.clone());
@@ -210,14 +210,14 @@ impl QueryEngine {
 
     pub fn ingest(&mut self, id: &str, metadata_json: &str) -> Result<()> {
         self.conn.execute(
-            "INSERT INTO albums (id, metadata) VALUES (?1, ?2)",[&id, metadata_json],
+            "INSERT INTO albums (id, metadata) VALUES (?1, ?2)",[id, metadata_json],
         )?;
         let uid = self.conn.last_insert_rowid() as u32;
         self.uid_to_id.insert(uid, id.to_string());
 
-        if let Ok(parsed) = serde_json::from_str::<Value>(metadata_json) {
-            if let Some(album) = parsed.get("album") {
-                if let Some(info) = album.get("info") {
+        if let Ok(parsed) = serde_json::from_str::<Value>(metadata_json)
+            && let Some(album) = parsed.get("album")
+                && let Some(info) = album.get("info") {
                     let mut tracks_light = Vec::new();
                     if let Some(tracks) = parsed.get("tracks").and_then(Value::as_array) {
                         for track in tracks {
@@ -267,8 +267,6 @@ impl QueryEngine {
                     });
                     self.dict.insert(id.to_string(), entry);
                 }
-            }
-        }
 
         Ok(())
     }
@@ -286,7 +284,7 @@ impl QueryEngine {
         self.collections_cache.clear();
         for (key, collection) in &self.manifest.collections {
             let expanded_filter = expand_shorthand(&collection.filter);
-            let sql = format!("SELECT uid FROM albums WHERE {}", expanded_filter);
+            let sql = format!("SELECT uid FROM albums WHERE {expanded_filter}");
             let mut stmt = self.conn.prepare(&sql)?;
             let uids: HashSet<u32> = stmt.query_map([], |row| row.get(0))?.filter_map(Result::ok).collect();
             self.collections_cache.insert(key.clone(), uids);
@@ -295,7 +293,7 @@ impl QueryEngine {
         self.sorters_cache.clear();
         for (key, sorter) in &self.manifest.sorters {
             let expanded_order = expand_shorthand(&sorter.order_by);
-            let sql = format!("SELECT uid FROM albums ORDER BY {}", expanded_order);
+            let sql = format!("SELECT uid FROM albums ORDER BY {expanded_order}");
             let mut stmt = self.conn.prepare(&sql)?;
             let uids: Vec<u32> = stmt.query_map([], |row| row.get(0))?.filter_map(Result::ok).collect();
             self.sorters_cache.insert(key.clone(), uids);
@@ -326,7 +324,7 @@ impl QueryEngine {
             } else if let (Some(filter), Some(order_by)) = (&shelf.filter, &shelf.order_by) {
                 let expanded_filter = expand_shorthand(filter);
                 let expanded_order = expand_shorthand(order_by);
-                let sql = format!("SELECT uid FROM albums WHERE {} ORDER BY {}", expanded_filter, expanded_order);
+                let sql = format!("SELECT uid FROM albums WHERE {expanded_filter} ORDER BY {expanded_order}");
                 if let Ok(mut stmt) = self.conn.prepare(&sql) {
                     let uids: Vec<u32> = stmt.query_map([], |row| row.get(0))
                         .map(|rows| rows.filter_map(Result::ok).collect())
@@ -339,7 +337,7 @@ impl QueryEngine {
         self.facets_cache.clear();
         for (key, grouper) in &self.manifest.groupers {
             let expanded_select = expand_shorthand(&grouper.select);
-            let sql = format!("SELECT uid, {} FROM albums", expanded_select);
+            let sql = format!("SELECT uid, {expanded_select} FROM albums");
             let mut stmt = self.conn.prepare(&sql)?;
             let mut rows = stmt.query([])?;
             
@@ -383,7 +381,7 @@ impl QueryEngine {
             if fk == "search" {
                 let sql = "SELECT uid FROM albums WHERE {$.album.ALBUM} LIKE ?1 OR {$.album.ALBUMARTIST} LIKE ?1";
                 if let Ok(mut stmt) = self.conn.prepare(&expand_shorthand(sql)) {
-                    let pattern = format!("%{}%", fv);
+                    let pattern = format!("%{fv}%");
                     if let Ok(match_uids_iter) = stmt.query_map([pattern], |row| row.get::<_, u32>(0)) {
                         let match_uids: HashSet<u32> = match_uids_iter.filter_map(Result::ok).collect();
                         final_mask.retain(|uid| match_uids.contains(uid));

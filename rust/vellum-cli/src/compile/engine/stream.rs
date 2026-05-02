@@ -73,10 +73,10 @@ fn spawn_builders(
                         | VellumError::ManifestParseError { .. }
                         | VellumError::JsonError(_) 
                         | VellumError::MissingCompilerRegistry => {
-                            log::error!("SYSTEM FAILURE: {}", e);
+                            log::error!("SYSTEM FAILURE: {e}");
                         }
                         _ => {
-                            log::warn!("VALIDATION REJECTED: {}", e);
+                            log::warn!("VALIDATION REJECTED: {e}");
                         }
                     }
                 }
@@ -225,7 +225,7 @@ fn finalize(
 
     let subset_keys: Vec<String> = if let Some(arr) = subset_keys_val {
         arr.iter()
-            .filter_map(|val| val.as_str().map(|s| s.to_string()))
+            .filter_map(|val| val.as_str().map(std::string::ToString::to_string))
             .collect()
     } else {
         default_keys

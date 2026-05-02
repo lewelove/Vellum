@@ -90,8 +90,7 @@ fn build_album(target: &Path, store_path: &Path, flake_uri: &str) -> Result<()> 
     log::info!("Evaluating nix expression for: {}", target.display());
 
     let expr = format!(
-        "(import ./album.nix {{ vellum = (builtins.getFlake \"{}\").lib; }})",
-        flake_uri
+        "(import ./album.nix {{ vellum = (builtins.getFlake \"{flake_uri}\").lib; }})"
     );
 
     let status = Command::new("nix")

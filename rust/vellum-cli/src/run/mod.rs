@@ -63,11 +63,11 @@ pub async fn execute(cmd: String, path_arg: Option<String>, playing: bool, id_ar
                     log::info!("Script completed successfully. Triggering library update...");
                     crate::update::run(Some(target_album), false, None, false, false).await?;
                 } else {
-                    log::error!("Script failed with status: {}", status);
+                    log::error!("Script failed with status: {status}");
                 }
                 Ok(())
             } else {
-                anyhow::bail!("Unknown command and no script configured for '{}'", cmd);
+                anyhow::bail!("Unknown command and no script configured for '{cmd}'");
             }
         }
     }

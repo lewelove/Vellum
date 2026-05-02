@@ -20,9 +20,7 @@ pub async fn run(force: bool) -> Result<()> {
     let manifest_cfg = config.manifest.context("Missing [manifest] configuration")?;
     let supported_exts: Vec<String> = manifest_cfg
         .supported_extensions
-        .as_ref()
-        .map(|exts: &Vec<String>| exts.iter().map(|e| e.to_lowercase()).collect())
-        .unwrap_or_else(|| vec![".flac".to_string()]);
+        .as_ref().map_or_else(|| vec![".flac".to_string()], |exts: &Vec<String>| exts.iter().map(|e| e.to_lowercase()).collect());
 
     let grouping_keys = vec!["ALBUMARTIST".to_string(), "ALBUM".to_string()];
 
@@ -42,14 +40,12 @@ pub async fn run(force: bool) -> Result<()> {
             let has_audio = fs::read_dir(path)
                 .map(|mut d| {
                     d.any(|e| {
-                        if let Ok(f) = e {
-                            if f.file_type().map_or(false, |ft| ft.is_file()) {
-                                if let Some(ext) = f.path().extension().and_then(|e| e.to_str()) {
+                        if let Ok(f) = e
+                            && f.file_type().is_ok_and(|ft| ft.is_file())
+                                && let Some(ext) = f.path().extension().and_then(|e| e.to_str()) {
                                     let ext_lower = format!(".{}", ext.to_lowercase());
                                     return supported_exts.contains(&ext_lower);
                                 }
-                            }
-                        }
                         false
                     })
                 })
@@ -71,14 +67,13 @@ pub async fn run(force: bool) -> Result<()> {
         if let Ok(entries) = fs::read_dir(dir) {
             for entry in entries.filter_map(Result::ok) {
                 let path = entry.path();
-                if path.is_file() {
-                    if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+                if path.is_file()
+                    && let Some(ext) = path.extension().and_then(|e| e.to_str()) {
                         let ext_lower = format!(".{}", ext.to_lowercase());
                         if supported_exts.contains(&ext_lower) {
                             audio_files.push(path);
                         }
                     }
-                }
             }
         }
     }

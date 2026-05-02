@@ -1,5 +1,6 @@
 use image::{DynamicImage, GenericImageView};
 
+#[must_use] 
 pub fn calculate_chroma(img: &DynamicImage) -> f64 {
     let (width, height) = img.dimensions();
     let total = f64::from(width * height);

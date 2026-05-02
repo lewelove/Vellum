@@ -16,11 +16,10 @@ pub fn start(config_path: PathBuf, state: Arc<AppState>) {
         let tx_clone = tx.clone();
         let mut watcher = RecommendedWatcher::new(
             move |res: notify::Result<Event>| {
-                if let Ok(event) = res {
-                    if event.kind.is_modify() || event.kind.is_create() || event.kind.is_remove() {
+                if let Ok(event) = res
+                    && (event.kind.is_modify() || event.kind.is_create() || event.kind.is_remove()) {
                         let _ = tx_clone.blocking_send(event.paths);
                     }
-                }
             },
             notify::Config::default(),
         )
@@ -35,11 +34,10 @@ pub fn start(config_path: PathBuf, state: Arc<AppState>) {
             guard.resolved_shader_path.clone()
         };
 
-        if let Some(ref p) = current_watched_shader {
-            if p.exists() && !p.starts_with(&config_dir) {
+        if let Some(ref p) = current_watched_shader
+            && p.exists() && !p.starts_with(&config_dir) {
                 let _ = watcher.watch(p, RecursiveMode::NonRecursive);
             }
-        }
 
         let mut current_watched_shelf_files: Vec<PathBuf> = {
             let guard = state.config.read().await;
@@ -70,11 +68,10 @@ pub fn start(config_path: PathBuf, state: Arc<AppState>) {
                     config_changed = true;
                 }
 
-                if let Some(ref sp) = current_watched_shader {
-                    if p == *sp {
+                if let Some(ref sp) = current_watched_shader
+                    && p == *sp {
                         config_changed = true;
                     }
-                }
 
                 if current_watched_shelf_files.contains(&p) {
                     shelf_changed = true;
@@ -118,7 +115,7 @@ pub fn start(config_path: PathBuf, state: Arc<AppState>) {
                 if let Some(ref lp) = resolved {
                     let mut query = state.query.lock().await;
                     if let Err(e) = query.reload_manifest(lp) {
-                        log::error!("Failed to reload logic.toml: {}", e);
+                        log::error!("Failed to reload logic.toml: {e}");
                     } else {
                         for shelf in query.manifest.shelves.values() {
                             if let Some(file) = &shelf.file {
@@ -154,7 +151,7 @@ pub fn start(config_path: PathBuf, state: Arc<AppState>) {
                 log::info!("Filesystem change: reloading shelf files...");
                 let mut query = state.query.lock().await;
                 if let Err(e) = query.build_cache() {
-                    log::error!("Failed to rebuild query cache: {}", e);
+                    log::error!("Failed to rebuild query cache: {e}");
                 }
                 let payload = json!({ "type": "LOGIC_UPDATE" }).to_string();
                 let _ = state.tx.send(payload);
@@ -169,8 +166,8 @@ pub fn start(config_path: PathBuf, state: Arc<AppState>) {
                         let shader_cfg = new_config.theme.as_ref().and_then(|t| t.shader.clone());
 
                         let mut next_shader_path = None;
-                        if let Some(s) = &shader_cfg {
-                            if let Some(p) = &s.path {
+                        if let Some(s) = &shader_cfg
+                            && let Some(p) = &s.path {
                                 let expanded = vellum::utils::expand_path(p);
                                 let absolute = if expanded.is_absolute() {
                                     expanded
@@ -179,19 +176,16 @@ pub fn start(config_path: PathBuf, state: Arc<AppState>) {
                                 };
                                 next_shader_path = absolute.canonicalize().ok().or(Some(absolute));
                             }
-                        }
 
                         if next_shader_path != current_watched_shader {
-                            if let Some(ref old_p) = current_watched_shader {
-                                if !old_p.starts_with(&config_dir) {
+                            if let Some(ref old_p) = current_watched_shader
+                                && !old_p.starts_with(&config_dir) {
                                     let _ = watcher.unwatch(old_p);
                                 }
-                            }
-                            if let Some(ref new_p) = next_shader_path {
-                                if new_p.exists() && !new_p.starts_with(&config_dir) {
+                            if let Some(ref new_p) = next_shader_path
+                                && new_p.exists() && !new_p.starts_with(&config_dir) {
                                     let _ = watcher.watch(new_p, RecursiveMode::NonRecursive);
                                 }
-                            }
                             current_watched_shader = next_shader_path.clone();
                         }
 
@@ -214,7 +208,7 @@ pub fn start(config_path: PathBuf, state: Arc<AppState>) {
                         let _ = state.tx.send(payload);
                     }
                     Err(e) => {
-                        log::error!("Failed to reload config: {}", e);
+                        log::error!("Failed to reload config: {e}");
                     }
                 }
             }

@@ -91,33 +91,28 @@ async fn get_tracks_internal(
 
     let target_disc = disc_filter.and_then(|s| s.parse::<u32>().ok());
 
-    if let Some(json_str) = query.get_album_json(id) {
-        if let Ok(parsed) = serde_json::from_str::<Value>(&json_str) {
-            if let Some(tracks) = parsed.get("tracks").and_then(|t| t.as_array()) {
+    if let Some(json_str) = query.get_album_json(id)
+        && let Ok(parsed) = serde_json::from_str::<Value>(&json_str)
+            && let Some(tracks) = parsed.get("tracks").and_then(|t| t.as_array()) {
                 for track in tracks {
                     if let Some(td) = target_disc {
                         let current_disc = track.get("DISCNUMBER")
-                            .and_then(|v| v.as_u64())
-                            .map(|v| v as u32)
-                            .unwrap_or(1);
+                            .and_then(serde_json::Value::as_u64)
+                            .map_or(1, |v| v as u32);
                         if current_disc != td {
                             continue;
                         }
                     }
 
-                    if let Some(info) = track.get("info") {
-                        if let Some(tp) = info.get("track_library_path").and_then(|v| v.as_str()) {
+                    if let Some(info) = track.get("info")
+                        && let Some(tp) = info.get("track_library_path").and_then(|v| v.as_str()) {
                             let abs = config_guard.library_root.join(tp);
-                            if let Ok(rel) = abs.strip_prefix(&config_guard.library_root) {
-                                if let Some(s) = rel.to_str() {
+                            if let Ok(rel) = abs.strip_prefix(&config_guard.library_root)
+                                && let Some(s) = rel.to_str() {
                                     paths.push(s.to_string());
                                 }
-                            }
                         }
-                    }
                 }
             }
-        }
-    }
     paths
 }

@@ -44,7 +44,7 @@ pub async fn run(config: &AppConfig, target_album: &Path) -> Result<()> {
         let r = (srgb.red.clamp(0.0, 1.0) * 255.0).round() as u8;
         let g = (srgb.green.clamp(0.0, 1.0) * 255.0).round() as u8;
         let b = (srgb.blue.clamp(0.0, 1.0) * 255.0).round() as u8;
-        println!("  \"#{:02X}{:02X}{:02X}\",", r, g, b);
+        println!("  \"#{r:02X}{g:02X}{b:02X}\",");
     }
     println!("]");
 

@@ -25,9 +25,9 @@ pub fn expand_shorthand(input: &str) -> String {
         let path = if inner.starts_with("$.") {
             inner.to_string()
         } else {
-            format!("$.{}", inner)
+            format!("$.{inner}")
         };
-        format!("json_extract(metadata, '{}')", path)
+        format!("json_extract(metadata, '{path}')")
     }).to_string();
 
     res = PATTERN_LITERAL_RE.replace_all(&res, |caps: &regex::Captures| {

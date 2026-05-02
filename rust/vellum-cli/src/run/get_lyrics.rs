@@ -29,7 +29,7 @@ pub async fn run(
         log::info!("get-lyrics completed successfully. Triggering library update...");
         crate::update::run(Some(target_album.to_path_buf()), false, None, false, false).await?;
     } else {
-        log::error!("get-lyrics script failed with status: {}", status);
+        log::error!("get-lyrics script failed with status: {status}");
     }
 
     Ok(())

@@ -17,14 +17,13 @@ fn format_toml_value(val: &Value) -> String {
 }
 
 fn format_toml_value_with_cast(val: &Value, key: &str) -> String {
-    if key == "TRACKNUMBER" || key == "DISCNUMBER" {
-        if let Some(s) = val.as_str() {
+    if (key == "TRACKNUMBER" || key == "DISCNUMBER")
+        && let Some(s) = val.as_str() {
             let clean = s.split('/').next().unwrap_or("").trim();
             if clean.parse::<u32>().is_ok() {
                 return clean.to_string();
             }
         }
-    }
     format_toml_value(val)
 }
 
@@ -54,14 +53,14 @@ pub fn render_toml_block(
 
                     let newline = meta_table
                         .get("newline")
-                        .and_then(|v| v.as_bool())
+                        .and_then(toml::Value::as_bool)
                         .unwrap_or(false);
 
                     if newline {
                         lines.push(String::new());
                     }
 
-                    lines.push(format!("{} = {rendered_val}", s_key));
+                    lines.push(format!("{s_key} = {rendered_val}"));
                 }
             }
         }
@@ -85,7 +84,7 @@ pub fn render_toml_block(
     }
 
     if let Some(v) = pool.get("UNIX_GENERATED").or_else(|| pool.get("unix_generated")) {
-        if !lines.is_empty() && lines.last().map_or(false, |s| !s.is_empty()) {
+        if !lines.is_empty() && lines.last().is_some_and(|s| !s.is_empty()) {
             lines.push(String::new());
         }
         lines.push(format!("UNIX_GENERATED = {}", format_toml_value(v)));

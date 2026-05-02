@@ -3,7 +3,7 @@ use kmeans_colors::get_kmeans_hamerly;
 use palette::{FromColor, Lab, Oklab, Oklch, Srgb};
 
 fn get_oklab_dist(c1: &Oklab, c2: &Oklab) -> f32 {
-    ((c1.l - c2.l).powi(2) + (c1.a - c2.a).powi(2) + (c1.b - c2.b).powi(2)).sqrt()
+    (c1.b - c2.b).mul_add(c1.b - c2.b, (c1.a - c2.a).mul_add(c1.a - c2.a, (c1.l - c2.l).powi(2))).sqrt()
 }
 
 pub fn extract(img: &DynamicImage, args: &str) -> Vec<Srgb> {
@@ -36,9 +36,9 @@ pub fn extract(img: &DynamicImage, args: &str) -> Vec<Srgb> {
 
     let pixels: Vec<Lab> = img.to_rgb8().pixels().map(|p| {
         Lab::from_color(Srgb::new(
-            p[0] as f32 / 255.0,
-            p[1] as f32 / 255.0,
-            p[2] as f32 / 255.0,
+            f32::from(p[0]) / 255.0,
+            f32::from(p[1]) / 255.0,
+            f32::from(p[2]) / 255.0,
         ))
     }).collect();
 
@@ -73,7 +73,7 @@ pub fn extract(img: &DynamicImage, args: &str) -> Vec<Srgb> {
         }
         
         if !too_close {
-            selected.push(candidate.clone());
+            selected.push(*candidate);
         }
     }
 
