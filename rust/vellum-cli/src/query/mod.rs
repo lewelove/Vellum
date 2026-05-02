@@ -85,4 +85,3 @@ pub async fn run(query_str: Option<String>, flags: QueryFlags) -> Result<()> {
 
     Ok(())
 }
-

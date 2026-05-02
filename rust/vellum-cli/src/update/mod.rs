@@ -159,6 +159,7 @@ pub async fn run(
                 c.remove(&p_str);
                 paths_for_server.push(p_str);
             }
+            drop(c);
         }
 
         if paths_for_server.is_empty() {
@@ -398,4 +399,3 @@ async fn trigger_server_reset() -> Result<()> {
         .await;
     Ok(())
 }
-

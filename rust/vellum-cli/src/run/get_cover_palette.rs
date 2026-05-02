@@ -1,5 +1,3 @@
-#![allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-
 use anyhow::{Context, Result};
 use vellum::config::AppConfig;
 use crate::compile::builder::assets::COVER_CANDIDATES;

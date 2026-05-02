@@ -99,12 +99,11 @@ pub fn resolve_track_key(key: &str, meta: &Value, ctx: &TrackContext) -> Option<
         None
     };
 
-    source.and_then(|src| match type_ {
-        "list" => Some(standard::resolve_generic_list(src, key, args)),
-        "integer" => Some(standard::resolve_generic_integer(src, key, args)),
-        "float" => Some(standard::resolve_generic_float(src, key, args)),
-        "bool" => Some(standard::resolve_generic_bool(src, key, args)),
-        _ => Some(standard::resolve_generic_string(src, key, args, "")),
+    source.map(|src| match type_ {
+        "list" => standard::resolve_generic_list(src, key, args),
+        "integer" => standard::resolve_generic_integer(src, key, args),
+        "float" => standard::resolve_generic_float(src, key, args),
+        "bool" => standard::resolve_generic_bool(src, key, args),
+        _ => standard::resolve_generic_string(src, key, args, ""),
     })
 }
-

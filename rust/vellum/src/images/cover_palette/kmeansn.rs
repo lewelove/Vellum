@@ -42,11 +42,11 @@ pub fn extract(img: &DynamicImage, args: &str) -> Vec<Srgb> {
         .map(|s| (s, Oklch::from_color(s)))
         .collect();
 
-    lch_pool.sort_by(|a, b| a.1.l.partial_cmp(&b.1.l).unwrap());
+    lch_pool.sort_by(|a, b| a.1.l.partial_cmp(&b.1.l).unwrap_or(std::cmp::Ordering::Equal));
     let darkest = lch_pool.remove(0);
     let lightest = lch_pool.pop().unwrap();
 
-    lch_pool.sort_by(|a, b| b.1.chroma.partial_cmp(&a.1.chroma).unwrap());
+    lch_pool.sort_by(|a, b| b.1.chroma.partial_cmp(&a.1.chroma).unwrap_or(std::cmp::Ordering::Equal));
     
     let mut selected = vec![lightest, darkest];
     let vibrants_needed = (n - 2).min(lch_pool.len());

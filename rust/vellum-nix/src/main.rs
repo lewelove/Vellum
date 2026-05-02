@@ -34,14 +34,14 @@ async fn main() -> Result<()> {
 
     match cli.command {
         Commands::Build { library, album } => {
-            run_build(library, album).await?;
+            run_build(library, album)?;
         }
     }
 
     Ok(())
 }
 
-async fn run_build(library: bool, album: Option<String>) -> Result<()> {
+fn run_build(library: bool, album: Option<String>) -> Result<()> {
     let (config, _, _) = AppConfig::load().context("Failed to load config")?;
     let nix_config = config.nix.as_ref().context("Missing [nix] configuration in config.toml")?;
     let store_path = expand_path(&nix_config.store).canonicalize().context("Custom nix store path does not exist or is inaccessible")?;

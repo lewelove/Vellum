@@ -131,7 +131,7 @@ pub async fn trigger_reload(
                     let _ = query.build_cache();
                     query.dict.get(id).cloned()
                 },
-                _ => None,
+                crate::server::library::scanner::UpdateResult::Removed(_) => None,
             };
             (res, entry)
         };
@@ -246,4 +246,3 @@ pub async fn run_query(
     }
     StatusCode::BAD_REQUEST.into_response()
 }
-

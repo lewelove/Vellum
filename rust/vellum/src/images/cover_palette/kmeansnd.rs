@@ -53,11 +53,11 @@ pub fn extract(img: &DynamicImage, args: &str) -> Vec<Srgb> {
         .map(|s| (s, Oklab::from_color(s), Oklch::from_color(s)))
         .collect();
 
-    data.sort_by(|a, b| a.2.l.partial_cmp(&b.2.l).unwrap());
+    data.sort_by(|a, b| a.2.l.partial_cmp(&b.2.l).unwrap_or(std::cmp::Ordering::Equal));
     let darkest = data.remove(0);
     let lightest = data.pop().unwrap();
 
-    data.sort_by(|a, b| b.2.chroma.partial_cmp(&a.2.chroma).unwrap());
+    data.sort_by(|a, b| b.2.chroma.partial_cmp(&a.2.chroma).unwrap_or(std::cmp::Ordering::Equal));
     
     let mut selected = vec![lightest, darkest];
     

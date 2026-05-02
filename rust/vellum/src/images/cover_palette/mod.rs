@@ -48,7 +48,7 @@ pub fn process_image_to_palette(
             "kmeansnh" => kmeansnh::extract(&img_to_process, args),
             "kmeansnd" => kmeansnd::extract(&img_to_process, args),
             "kmeansnv" => kmeansnv::extract(&img_to_process, args),
-            "kmeans" | _ => kmeans::extract(&img_to_process, args),
+            _ => kmeans::extract(&img_to_process, args),
         };
     }
 
@@ -180,8 +180,7 @@ pub fn process_image_to_palette(
                             let dist_b = (ok_b.b - current_ok.b).mul_add(ok_b.b - current_ok.b, (ok_b.a - current_ok.a).mul_add(ok_b.a - current_ok.a, (ok_b.l - current_ok.l).powi(2)));
                             dist_a.partial_cmp(&dist_b).unwrap_or(std::cmp::Ordering::Equal)
                         })
-                        .map(|(i, _)| i)
-                        .unwrap();
+                        .map_or(0, |(i, _)| i);
                     
                     let next = pool.remove(next_idx);
                     current_ok = next.0;
@@ -196,7 +195,7 @@ pub fn process_image_to_palette(
             }
         },
         "original" => {},
-        "ratio" | _ => palette.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal)),
+        _ => palette.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal)),
     }
 
     Some(palette)

@@ -168,13 +168,13 @@ pub fn normalize_keys(v: Value) -> Value {
 
 pub fn extract_strict_u32(val: Option<&Value>, name: &str, default: Option<u32>) -> Result<u32, VellumError> {
     let Some(v) = val else {
-        if let Some(d) = default {
-            return Ok(d);
-        }
-        return Err(VellumError::InvalidIdentityFormat {
-            field: name.to_string(),
-            message: "Missing expected integer".to_string(),
-        });
+        return default.map_or_else(
+            || Err(VellumError::InvalidIdentityFormat {
+                field: name.to_string(),
+                message: "Missing expected integer".to_string(),
+            }),
+            Ok,
+        );
     };
     match v {
         Value::Number(n) => n
@@ -192,14 +192,13 @@ pub fn extract_strict_u32(val: Option<&Value>, name: &str, default: Option<u32>)
             })
         }
         Value::Null => {
-            if let Some(d) = default {
-                Ok(d)
-            } else {
-                Err(VellumError::InvalidIdentityFormat {
+            default.map_or_else(
+                || Err(VellumError::InvalidIdentityFormat {
                     field: name.to_string(),
                     message: "Field cannot be null".to_string(),
-                })
-            }
+                }),
+                Ok,
+            )
         }
         _ => Err(VellumError::InvalidIdentityFormat {
             field: name.to_string(),

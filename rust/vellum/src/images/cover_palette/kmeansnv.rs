@@ -57,11 +57,11 @@ pub fn extract(img: &DynamicImage, args: &str) -> Vec<Srgb> {
         })
         .collect();
 
-    data.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+    data.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
     let darkest = data.remove(0);
     let lightest = data.pop().unwrap();
 
-    data.sort_by(|a, b| b.2.partial_cmp(&a.2).unwrap());
+    data.sort_by(|a, b| b.2.partial_cmp(&a.2).unwrap_or(std::cmp::Ordering::Equal));
     
     let mut selected = vec![lightest, darkest];
     
