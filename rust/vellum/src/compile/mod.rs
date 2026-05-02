@@ -61,9 +61,9 @@ pub async fn run(mut options: CompileOptions) -> Result<()> {
     let active_flags = Arc::new(options.flags);
 
     if options.compile_flags.mode == CompileMode::Intermediary {
-        for root in albums {
+        for root in &albums {
             let m = builder::build(
-                &root,
+                root,
                 &project_root,
                 &config_json,
                 &manifest_cfg,

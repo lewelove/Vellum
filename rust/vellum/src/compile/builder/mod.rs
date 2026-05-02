@@ -2,12 +2,12 @@ pub mod assets;
 pub mod context;
 pub mod scan;
 
-use crate::error::VellumError;
+use vellum_core::error::VellumError;
 use crate::compile::builder::context::{AlbumContext, TrackContext};
 use crate::compile::resolvers;
 use crate::expand_path;
 use crate::harvest;
-use serde_json::{Value, json};
+use serde_json::{Value, json, Map};
 use sha2::Digest;
 use std::collections::HashSet;
 use std::path::Path;
@@ -118,15 +118,17 @@ pub fn build(
 
                             let mut found = false;
                             for prim_t in primary_tracks.iter_mut() {
-                                let p_track_no = extract_strict_u32(prim_t.get("tracknumber"), "tracknumber", None)?;
-                                let p_disc_no = extract_strict_u32(prim_t.get("discnumber"), "discnumber", Some(1))?;
+                                let p_track_no: u32 = extract_strict_u32(prim_t.get("tracknumber"), "tracknumber", None)?;
+                                let p_disc_no: u32 = extract_strict_u32(prim_t.get("discnumber"), "discnumber", Some(1))?;
 
                                 if track_no == p_track_no && disc_no == p_disc_no {
-                                    let p_obj = prim_t.as_object_mut().unwrap();
-                                    for (k, v) in a_obj {
-                                        if k != "tracknumber" && k != "discnumber" {
-                                            if !p_obj.contains_key(k) {
-                                                p_obj.insert(k.clone(), v.clone());
+                                    if let Some(p_obj) = prim_t.as_object_mut() {
+                                        for (k, v) in a_obj {
+                                            if k != "tracknumber" && k != "discnumber" {
+                                                if !p_obj.contains_key(k) {
+                                                    let val: Value = v.clone();
+                                                    p_obj.insert(k.clone(), val);
+                                                }
                                             }
                                         }
                                     }
@@ -261,9 +263,10 @@ pub fn build(
                     {
                         for (k, v) in local_keys {
                             if let Some(existing) = registry.get_mut(k) {
-                                if let (Some(existing_obj), Some(new_obj)) = (existing.as_object_mut(), v.as_object()) {
+                                if let (Some(existing_obj), Some(new_obj)) = (existing.as_object_mut() as Option<&mut Map<String, Value>>, v.as_object()) {
                                     for (nk, nv) in new_obj {
-                                        existing_obj.insert(nk.clone(), nv.clone());
+                                        let val: Value = nv.clone();
+                                        existing_obj.insert(nk.clone(), val);
                                     }
                                 } else {
                                     registry.insert(k.clone(), v.clone());
@@ -374,7 +377,7 @@ fn extract_strict_u32(val: Option<&Value>, name: &str, default: Option<u32>) -> 
 fn validate_album_level_keys(
     album_source: &Value,
     track_entries: &[Value],
-    registry: &serde_json::Map<String, Value>,
+    registry: &Map<String, Value>,
     album_root: &Path,
 ) -> Result<(), VellumError> {
     for (key, meta) in registry {
@@ -426,7 +429,7 @@ fn process_tracks(
     album_source: &Value,
     album_root: &Path,
     library_root: &Path,
-    registry: &serde_json::Map<String, Value>,
+    registry: &Map<String, Value>,
 ) -> Result<(Vec<Value>, Vec<Value>), VellumError> {
     let mut harvested_spine = Vec::new();
     for path in audio_files {
@@ -446,13 +449,13 @@ fn process_tracks(
     let mut harvested_cache = Vec::new();
 
     for (idx, h_data) in harvested_spine.into_iter().enumerate() {
-        let track_number = extract_strict_u32(track_entries[idx].get("tracknumber"), "tracknumber", None)
+        let track_number: u32 = extract_strict_u32(track_entries[idx].get("tracknumber"), "tracknumber", None)
             .map_err(|_| VellumError::MissingTrackIdentity {
                 manifest: "metadata.toml".to_string(),
                 path: album_root.to_path_buf(),
                 index: idx + 1,
             })?;
-        let disc_number = extract_strict_u32(track_entries[idx].get("discnumber"), "discnumber", Some(1))?;
+        let disc_number: u32 = extract_strict_u32(track_entries[idx].get("discnumber"), "discnumber", Some(1))?;
 
         let t_ctx = TrackContext {
             track_number,
@@ -576,7 +579,7 @@ fn construct_track_info(ctx: &TrackContext, total_discs: u32) -> Value {
 fn build_track(
     ctx: &TrackContext,
     total_discs: u32,
-    registry: &serde_json::Map<String, Value>,
+    registry: &Map<String, Value>,
 ) -> Value {
     let mut obj = serde_json::Map::new();
 
@@ -658,7 +661,7 @@ fn construct_album_info(ctx: &AlbumContext) -> Value {
 
 fn build_album(
     ctx: &AlbumContext,
-    registry: &serde_json::Map<String, Value>,
+    registry: &Map<String, Value>,
 ) -> Value {
     let mut obj = serde_json::Map::new();
 

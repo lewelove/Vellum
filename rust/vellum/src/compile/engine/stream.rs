@@ -1,5 +1,5 @@
 use crate::compile::{ExportTarget, builder, engine::verify};
-use crate::error::VellumError;
+use vellum_core::error::VellumError;
 use anyhow::Result;
 use rayon::prelude::*;
 use serde_json::{Value, json};

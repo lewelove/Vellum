@@ -108,7 +108,7 @@
           ];
           text = ''
             ROOT=$(git rev-parse --show-toplevel)
-            BIN="$ROOT/rust/target/debug/vellum"
+            BIN="$ROOT/rust/target/release/vellum"
             COMMAND=''${1:-"help"}
             if [ "$#" -gt 0 ]; then shift; fi
 
@@ -177,7 +177,7 @@
           runtimeInputs = [ pkgs.git pkgs.nix ];
           text = ''
             ROOT=$(git rev-parse --show-toplevel)
-            BIN="$ROOT/rust/target/debug/vellum-nix"
+            BIN="$ROOT/rust/target/release/vellum-nix"
             if [ ! -f "$BIN" ]; then
               echo "Error: vellum-nix binary not found at $BIN. Run 'build vellum-nix --release' first."
               exit 1

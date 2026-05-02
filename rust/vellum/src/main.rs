@@ -3,7 +3,6 @@
 #![allow(clippy::multiple_crate_versions)]
 
 mod compile;
-pub mod error;
 mod harvest;
 mod manifest;
 mod query;
