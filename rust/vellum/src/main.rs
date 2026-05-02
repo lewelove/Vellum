@@ -7,7 +7,6 @@ mod config;
 pub mod error;
 mod harvest;
 mod manifest;
-mod nix;
 mod query;
 mod run;
 mod server;
@@ -65,14 +64,6 @@ enum Commands {
     Manifest {
         #[arg(long)]
         force: bool,
-    },
-    Nix {
-        #[arg(value_name = "ACTION", required = true)]
-        action: String,
-        #[arg(long)]
-        library: bool,
-        #[arg(long, value_name = "PATH")]
-        album: Option<String>,
     },
     Run {
         #[arg(value_name = "COMMAND", required = true)]
@@ -196,7 +187,6 @@ async fn main() -> Result<()> {
             update::run(expanded, force, jobs, verbose, silent).await
         }
         Commands::Manifest { force } => manifest::run(force).await,
-        Commands::Nix { action, library, album } => nix::run(action, library, album).await,
         Commands::Run { script_cmd, path, playing, id } => run::execute(script_cmd, path, playing, id).await,
         Commands::Query { query_str, playing, toml, lock, raw, id } => query::run(query_str, playing, toml, lock, raw, id).await,
     }

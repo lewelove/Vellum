@@ -56,6 +56,40 @@
           (lyricsgenius ps)
         ]);
 
+        build-cli = pkgs.writeShellApplication {
+          name = "build";
+          runtimeInputs = [ pkgs.cargo pkgs.rustc pkgs.git ];
+          text = ''
+            ROOT=$(git rev-parse --show-toplevel)
+            ARGS=()
+            TARGET=""
+            RELEASE_FLAG=""
+
+            for arg in "$@"; do
+              case "$arg" in
+                vellum)     TARGET="vellum" ;;
+                vellum-nix) TARGET="vellum-nix" ;;
+                --release)  RELEASE_FLAG="--release" ;;
+                *)          ARGS+=("$arg") ;;
+              esac
+            done
+
+            cd "$ROOT/rust"
+            
+            CMD=("cargo" "build")
+            if [ -n "$TARGET" ]; then
+              CMD+=("-p" "$TARGET")
+            fi
+            if [ -n "$RELEASE_FLAG" ]; then
+              CMD+=("$RELEASE_FLAG")
+            fi
+            
+            CMD+=("''${ARGS[@]}")
+            
+            "''${CMD[@]}"
+          '';
+        };
+
         vellum-cli = pkgs.writeShellApplication {
           name = "vellum";
           runtimeInputs = [ 
@@ -79,9 +113,6 @@
             if [ "$#" -gt 0 ]; then shift; fi
 
             case "$COMMAND" in
-              build)
-                cd "$ROOT/rust" && cargo build --release
-                ;;
               ui)
                 cd "$ROOT/web-app" && bun run dev
                 ;;
@@ -90,7 +121,7 @@
                 ;;
               server|manifest|compile|update|harvest|run|query)
                 if [ ! -f "$BIN" ]; then
-                  echo "Error: vellum binary not found at $BIN. Run 'vellum build' first."
+                  echo "Error: vellum binary not found at $BIN. Run 'build vellum --release' first."
                   exit 1
                 fi
                 cd "$ROOT" && "$BIN" "$COMMAND" "$@"
@@ -119,7 +150,6 @@
                 ;;
               help|--help|-h)
                 echo "Vellum CLI Commands:"
-                echo "  build           : Build the Rust backend binary"
                 echo "  ui              : Start Svelte UI Dev Server"
                 echo "  server          : Start Backend Rust Server"
                 echo "  compile         : Compile metadata locks"
@@ -142,12 +172,28 @@
           '';
         };
 
+        vellum-nix-cli = pkgs.writeShellApplication {
+          name = "vellum-nix";
+          runtimeInputs = [ pkgs.git pkgs.nix ];
+          text = ''
+            ROOT=$(git rev-parse --show-toplevel)
+            BIN="$ROOT/rust/target/release/vellum-nix"
+            if [ ! -f "$BIN" ]; then
+              echo "Error: vellum-nix binary not found at $BIN. Run 'build vellum-nix --release' first."
+              exit 1
+            fi
+            exec "$BIN" "$@"
+          '';
+        };
+
         devPackages = with pkgs; [
           pythonEnv
           bun
           pkg-config
           openssl
+          build-cli
           vellum-cli
+          vellum-nix-cli
           cargo
           rustc
           rust-analyzer
