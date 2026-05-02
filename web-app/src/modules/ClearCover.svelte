@@ -27,7 +27,6 @@
     </div>
   {:else}
     <div class="empty-cover">
-      <span>NO SIGNAL</span>
     </div>
   {/if}
 </div>
