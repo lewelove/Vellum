@@ -1,4 +1,4 @@
-use crate::config::AppConfig;
+use vellum_core::config::AppConfig;
 use crate::server::state::AppState;
 use notify::{Event, RecommendedWatcher, RecursiveMode, Watcher};
 use serde_json::json;
@@ -122,7 +122,7 @@ pub fn start(config_path: PathBuf, state: Arc<AppState>) {
                     } else {
                         for shelf in query.manifest.shelves.values() {
                             if let Some(file) = &shelf.file {
-                                let expanded = crate::expand_path(file);
+                                let expanded = vellum_core::utils::expand_path(file);
                                 new_shelf_files.push(expanded.canonicalize().unwrap_or(expanded));
                             }
                         }
@@ -169,16 +169,16 @@ pub fn start(config_path: PathBuf, state: Arc<AppState>) {
                         let shader_cfg = new_config.theme.as_ref().and_then(|t| t.shader.clone());
 
                         let mut next_shader_path = None;
-                        if let Some(ref s) = shader_cfg 
-                            && let Some(ref p) = s.path 
-                        {
-                            let expanded = crate::expand_path(p);
-                            let absolute = if expanded.is_absolute() {
-                                expanded
-                            } else {
-                                config_dir.join(expanded)
-                            };
-                            next_shader_path = absolute.canonicalize().ok().or(Some(absolute));
+                        if let Some(s) = &shader_cfg {
+                            if let Some(p) = &s.path {
+                                let expanded = vellum_core::utils::expand_path(p);
+                                let absolute = if expanded.is_absolute() {
+                                    expanded
+                                } else {
+                                    config_dir.join(expanded)
+                                };
+                                next_shader_path = absolute.canonicalize().ok().or(Some(absolute));
+                            }
                         }
 
                         if next_shader_path != current_watched_shader {

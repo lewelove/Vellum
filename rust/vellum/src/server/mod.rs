@@ -7,17 +7,17 @@ pub mod watchdog;
 
 use anyhow::{Context, Result};
 use std::net::SocketAddr;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock, broadcast};
 use tower_http::cors::{Any, CorsLayer};
 
 use self::state::{AppConfig as ServerConfig, AppState};
-use crate::config::AppConfig;
-use crate::expand_path;
+use vellum_core::config::AppConfig;
+use vellum_core::utils::expand_path;
 
 pub async fn run(port: u16) -> Result<()> {
-    let (config, _, config_path) = AppConfig::load().context("Failed to load application configuration")?;
+    let (config, _, config_path): (AppConfig, toml::Value, PathBuf) = AppConfig::load().context("Failed to load application configuration")?;
     let config_dir = config_path.parent().unwrap_or(Path::new(".")).to_path_buf();
 
     let lib_root_str = &config.storage.library_root;
@@ -36,16 +36,16 @@ pub async fn run(port: u16) -> Result<()> {
 
     let shader_cfg = config.theme.as_ref().and_then(|t| t.shader.clone());
     let mut resolved_shader_path = None;
-    if let Some(ref s) = shader_cfg 
-        && let Some(ref p) = s.path 
-    {
-        let expanded = expand_path(p);
-        let absolute = if expanded.is_absolute() {
-            expanded
-        } else {
-            config_dir.join(expanded)
-        };
-        resolved_shader_path = absolute.canonicalize().ok().or(Some(absolute));
+    if let Some(s) = &shader_cfg {
+        if let Some(p) = &s.path {
+            let expanded = expand_path(p);
+            let absolute = if expanded.is_absolute() {
+                expanded
+            } else {
+                config_dir.join(expanded)
+            };
+            resolved_shader_path = absolute.canonicalize().ok().or(Some(absolute));
+        }
     }
 
     let css_path = config_dir.join("vellum.css");

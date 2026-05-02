@@ -1,4 +1,4 @@
-use crate::config::AppConfig;
+use vellum_core::config::AppConfig;
 use anyhow::{Context, Result};
 use std::collections::HashMap;
 use std::path::Path;
@@ -12,7 +12,7 @@ pub async fn run(
     let script_path_str = config
         .run
         .as_ref()
-        .and_then(|r| r.get("get-lyrics"))
+        .and_then(|r: &HashMap<String, String>| r.get("get-lyrics"))
         .cloned()
         .unwrap_or_else(|| "python/loose_scripts/fetch_lyrics.py".to_string());
 

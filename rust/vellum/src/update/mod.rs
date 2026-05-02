@@ -12,9 +12,9 @@ use tokio::sync::Mutex;
 use tokio::sync::mpsc;
 
 use crate::compile;
-use crate::config::AppConfig;
-use crate::error::VellumError;
-use crate::expand_path;
+use vellum_core::config::AppConfig;
+use vellum_core::error::VellumError;
+use vellum_core::utils::expand_path;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum TrustState {
@@ -42,7 +42,7 @@ pub async fn run(
     verbose: bool,
     silent: bool,
 ) -> Result<()> {
-    let (config, _, _) = AppConfig::load().context("Failed to load config")?;
+    let (config, _, _): (AppConfig, toml::Value, PathBuf) = AppConfig::load().context("Failed to load config")?;
     let library_root = expand_path(&config.storage.library_root)
         .canonicalize()
         .context("Invalid library_root")?;
@@ -276,10 +276,10 @@ fn verify_albums_parallel(
                 }
 
                 if let Some(entry) = cache.get(&album_path_str)
-                    && entry.mtime_sum == mtime_sum
-                    && mtime_sum != 0
                 {
-                    return (album_root, mtime_sum, false);
+                    if entry.mtime_sum == mtime_sum && mtime_sum != 0 {
+                         return (album_root, mtime_sum, false);
+                    }
                 }
 
                 match verify_trust(&album_root, manifests) {
@@ -518,9 +518,10 @@ fn verify_trust(album_root: &Path, manifests: &Option<Vec<String>>) -> Result<Tr
 
 fn load_cache(path: &Path) -> HashMap<String, AlbumCacheEntry> {
     if let Ok(content) = fs::read_to_string(path)
-        && let Ok(cache) = serde_json::from_str::<HashMap<String, AlbumCacheEntry>>(&content)
     {
-        return cache;
+        if let Ok(cache) = serde_json::from_str::<HashMap<String, AlbumCacheEntry>>(&content) {
+             return cache;
+        }
     }
     HashMap::new()
 }

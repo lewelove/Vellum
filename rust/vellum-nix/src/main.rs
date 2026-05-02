@@ -3,8 +3,8 @@ use clap::{Parser, Subcommand};
 use std::fs;
 use std::path::Path;
 use std::process::Command;
-use vellum::config::AppConfig;
-use vellum::expand_path;
+use vellum_core::config::AppConfig;
+use vellum_core::utils::expand_path;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]

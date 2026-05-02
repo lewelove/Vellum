@@ -2,9 +2,9 @@ pub mod compressor;
 pub mod engine;
 pub mod grouper;
 
-use crate::config::AppConfig;
-use crate::expand_path;
-use crate::harvest::harvest_file;
+use vellum_core::config::AppConfig;
+use vellum_core::utils::expand_path;
+use vellum_core::harvest::harvest_file;
 use anyhow::{Context, Result};
 use indicatif::{ProgressBar, ProgressStyle};
 use rayon::prelude::*;
@@ -14,14 +14,14 @@ use std::time::SystemTime;
 use walkdir::WalkDir;
 
 pub async fn run(force: bool) -> Result<()> {
-    let (config, _raw_config, _) = AppConfig::load().context("Failed to load config")?;
+    let (config, _raw_config, _): (AppConfig, toml::Value, PathBuf) = AppConfig::load().context("Failed to load config")?;
     let lib_root = expand_path(&config.storage.library_root).canonicalize()?;
 
     let manifest_cfg = config.manifest.context("Missing [manifest] configuration")?;
     let supported_exts: Vec<String> = manifest_cfg
         .supported_extensions
         .as_ref()
-        .map(|exts| exts.iter().map(|e| e.to_lowercase()).collect())
+        .map(|exts: &Vec<String>| exts.iter().map(|e| e.to_lowercase()).collect())
         .unwrap_or_else(|| vec![".flac".to_string()]);
 
     let grouping_keys = vec!["ALBUMARTIST".to_string(), "ALBUM".to_string()];

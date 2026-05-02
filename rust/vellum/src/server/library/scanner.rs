@@ -1,4 +1,4 @@
-use crate::server::library::models::LockFile;
+use vellum_core::models::LockFile;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 

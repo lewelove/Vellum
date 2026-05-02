@@ -1,8 +1,8 @@
 pub mod get_cover_palette;
 pub mod get_lyrics;
 
-use crate::config::AppConfig;
-use crate::expand_path;
+use vellum_core::config::AppConfig;
+use vellum_core::utils::expand_path;
 use anyhow::{Context, Result};
 use mpd_client::Client;
 use std::collections::HashMap;
@@ -10,7 +10,7 @@ use std::path::PathBuf;
 use tokio::net::TcpStream;
 
 pub async fn execute(cmd: String, path_arg: Option<String>, playing: bool, id_arg: Option<String>) -> Result<()> {
-    let (config, _, _) = AppConfig::load().context("Failed to load config")?;
+    let (config, _, _): (AppConfig, toml::Value, PathBuf) = AppConfig::load().context("Failed to load config")?;
 
     let mut env_vars = HashMap::new();
     if let Some(env_path) = &config.storage.environment {
@@ -50,7 +50,7 @@ pub async fn execute(cmd: String, path_arg: Option<String>, playing: bool, id_ar
         "get-cover-palette" => get_cover_palette::run(&config, &target_album).await,
         "get-lyrics" => get_lyrics::run(&config, &target_album, &env_vars).await,
         _ => {
-            if let Some(script_path) = config.run.as_ref().and_then(|r| r.get(&cmd)) {
+            if let Some(script_path) = config.run.as_ref().and_then(|r: &HashMap<String, String>| r.get(&cmd)) {
                 log::info!("Running script '{}' on {}", cmd, target_album.display());
                 let status = std::process::Command::new("python")
                     .envs(&env_vars)
@@ -89,7 +89,7 @@ pub async fn get_playing_album(lib_root: &str) -> Result<PathBuf> {
     let song = current_song.context("No song is currently playing")?;
 
     let rel_path = song.song.url;
-    let root = crate::expand_path(lib_root);
+    let root = expand_path(lib_root);
     let full_path = root.join(rel_path);
 
     let album_dir = full_path

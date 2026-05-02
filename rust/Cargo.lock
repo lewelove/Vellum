@@ -3429,7 +3429,6 @@ dependencies = [
  "indexmap",
  "indicatif",
  "kmeans_colors",
- "lofty",
  "log",
  "mpd_client",
  "notify",
@@ -3447,8 +3446,24 @@ dependencies = [
  "tokio",
  "toml",
  "tower-http",
+ "vellum-core",
  "walkdir",
  "xxhash-rust",
+]
+
+[[package]]
+name = "vellum-core"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "dirs",
+ "indexmap",
+ "lofty",
+ "log",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "toml",
 ]
 
 [[package]]
@@ -3464,6 +3479,7 @@ dependencies = [
  "simple_logger",
  "tokio",
  "vellum",
+ "vellum-core",
 ]
 
 [[package]]

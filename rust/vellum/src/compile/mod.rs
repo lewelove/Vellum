@@ -2,7 +2,7 @@ pub mod builder;
 pub mod engine;
 pub mod resolvers;
 
-use crate::config::AppConfig;
+use vellum_core::config::AppConfig;
 use anyhow::{Context, Result};
 use serde_json::json;
 use std::path::PathBuf;
@@ -37,7 +37,7 @@ pub struct CompileOptions {
 }
 
 pub async fn run(mut options: CompileOptions) -> Result<()> {
-    let (config, _raw, path) = AppConfig::load().context("Config failed")?;
+    let (config, _raw, path): (AppConfig, toml::Value, PathBuf) = AppConfig::load().context("Config failed")?;
     let project_root = path.parent().unwrap().to_path_buf();
     if !options.flags.contains(&"default".to_string()) {
         options.flags.push("default".to_string());

@@ -3,6 +3,7 @@ use crate::server::query::QueryEngine;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock, broadcast};
+use vellum_core::config::ShaderConfig;
 
 pub struct AppState {
     pub query: Arc<Mutex<QueryEngine>>,
@@ -18,7 +19,7 @@ pub struct AppConfig {
     pub cache_root: PathBuf,
     pub state_root: PathBuf,
     pub thumbnail_size: u32,
-    pub shader: Option<crate::config::ShaderConfig>,
+    pub shader: Option<ShaderConfig>,
     pub resolved_shader_path: Option<PathBuf>,
     pub resolved_css_path: Option<PathBuf>,
     pub resolved_logic_path: Option<PathBuf>,

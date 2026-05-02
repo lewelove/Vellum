@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use crate::config::AppConfig;
+use vellum_core::config::AppConfig;
 use crate::compile::builder::assets::COVER_CANDIDATES;
 use crate::compile::resolvers::cover_palette;
 use std::path::Path;

@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
-use crate::config::AppConfig;
-use crate::expand_path;
+use vellum_core::config::AppConfig;
+use vellum_core::utils::expand_path;
 
 pub async fn run(
     query_str: Option<String>,
@@ -10,7 +10,7 @@ pub async fn run(
     raw: bool,
     id_flag: bool,
 ) -> Result<()> {
-    let (config, _, _) = AppConfig::load().context("Failed to load config")?;
+    let (config, _, _): (AppConfig, toml::Value, std::path::PathBuf) = AppConfig::load().context("Failed to load config")?;
     let lib_root = expand_path(&config.storage.library_root)
         .canonicalize()
         .unwrap_or_else(|_| expand_path(&config.storage.library_root));
