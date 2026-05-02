@@ -185,11 +185,11 @@ pub fn build(
         
         if let Some(ref img) = loaded_image {
             if metrics.chroma.is_none() {
-                metrics.chroma = Some(assets::calculate_chroma(img));
+                metrics.chroma = Some(vellum_core::images::cover_chroma::calculate_chroma(img));
                 needs_save = true;
             }
             if metrics.entropy.is_none() {
-                metrics.entropy = Some(assets::calculate_entropy(img));
+                metrics.entropy = Some(vellum_core::images::cover_entropy::calculate_entropy(img));
                 needs_save = true;
             }
             
