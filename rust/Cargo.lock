@@ -3416,6 +3416,27 @@ checksum = "accd4ea62f7bb7a82fe23066fb0957d48ef677f6eeb8215f372f52e48bb32426"
 name = "vellum"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
+ "dirs",
+ "image",
+ "indexmap",
+ "kmeans_colors",
+ "lofty",
+ "log",
+ "palette",
+ "rand 0.10.0",
+ "regex",
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror 2.0.18",
+ "toml",
+]
+
+[[package]]
+name = "vellum-cli"
+version = "0.1.0"
+dependencies = [
  "alphanumeric-sort",
  "anyhow",
  "axum",
@@ -3443,30 +3464,9 @@ dependencies = [
  "tokio",
  "toml",
  "tower-http",
- "vellum-core",
+ "vellum",
  "walkdir",
  "xxhash-rust",
-]
-
-[[package]]
-name = "vellum-core"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "dirs",
- "image",
- "indexmap",
- "kmeans_colors",
- "lofty",
- "log",
- "palette",
- "rand 0.10.0",
- "regex",
- "serde",
- "serde_json",
- "sha2",
- "thiserror 2.0.18",
- "toml",
 ]
 
 [[package]]
@@ -3482,7 +3482,7 @@ dependencies = [
  "simple_logger",
  "tokio",
  "vellum",
- "vellum-core",
+ "vellum-cli",
 ]
 
 [[package]]

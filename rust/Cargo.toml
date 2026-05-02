@@ -2,8 +2,8 @@
 
 members = [
   "vellum",
+  "vellum-cli",
   "vellum-nix",
-  "vellum-core",
 ]
 
 resolver = "2"

@@ -3,8 +3,8 @@ use clap::{Parser, Subcommand};
 use std::fs;
 use std::path::Path;
 use std::process::Command;
-use vellum_core::config::AppConfig;
-use vellum_core::utils::expand_path;
+use vellum::config::AppConfig;
+use vellum::utils::expand_path;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -58,7 +58,7 @@ async fn run_build(library: bool, album: Option<String>) -> Result<()> {
     if library {
         let lib_root = expand_path(&config.storage.library_root);
         let scan_depth = config.compiler.as_ref().and_then(|c| c.scan_depth).unwrap_or(4);
-        let dirs = vellum::compile::builder::scan::find_target_albums(&lib_root, scan_depth)?;
+        let dirs = vellum_cli::compile::builder::scan::find_target_albums(&lib_root, scan_depth)?;
         for dir in dirs {
             if dir.join("album.nix").exists() {
                 targets.push(dir);
