@@ -27,20 +27,7 @@ pub fn load_and_merge(
         .unwrap_or_default()
         .as_secs();
 
-    let mut manifests_mtime_sum: u64 = meta_mtime;
-    if let Some(manifests) = manifest_names {
-        for m_val in manifests {
-            if let Some(m_name) = m_val.as_str() {
-                let m_path = album_root.join(m_name);
-                if m_path.exists() {
-                    manifests_mtime_sum += std::fs::metadata(&m_path)
-                        .and_then(|m| m.modified())
-                        .map(|t| t.duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_secs())
-                        .unwrap_or(0);
-                }
-            }
-        }
-    }
+    let manifests_mtime_sum = calculate_manifests_mtime_sum(album_root, manifest_names, meta_mtime);
 
     let content = std::fs::read_to_string(&metadata_path)?;
     let meta_hash = format!("{:x}", Sha256::digest(content.as_bytes()));
@@ -52,94 +39,7 @@ pub fn load_and_merge(
     if let Some(manifests) = manifest_names {
         for m_val in manifests {
             if let Some(m_name) = m_val.as_str() {
-                let m_path = album_root.join(m_name);
-                if !m_path.exists() {
-                    continue;
-                }
-                let m_content = std::fs::read_to_string(&m_path)?;
-                let parsed_aux = toml::from_str::<toml::Value>(&m_content)
-                    .map_err(|source| VellumError::ManifestParseError { path: m_path.clone(), source })?;
-                let m_json = normalize_keys(serde_json::to_value(parsed_aux)?);
-                
-                if let Some(aux_album) = m_json.get("album").and_then(Value::as_object)
-                    && let Some(primary_album) = metadata_json.get_mut("album").and_then(Value::as_object_mut) {
-                        for (k, v) in aux_album {
-                            if !primary_album.contains_key(k) {
-                                primary_album.insert(k.clone(), v.clone());
-                            }
-                        }
-                    }
-
-                if let Some(aux_tracks) = m_json.get("tracks").and_then(Value::as_array)
-                    && !aux_tracks.is_empty() {
-                        let primary_tracks = metadata_json.get_mut("tracks")
-                            .and_then(Value::as_array_mut)
-                            .ok_or_else(|| VellumError::MissingTracksBlock { path: album_root.to_path_buf() })?;
-
-                        if aux_tracks.len() != primary_tracks.len() {
-                            return Err(VellumError::TrackCountMismatch {
-                                manifest: m_name.to_string(),
-                                path: album_root.to_path_buf(),
-                                primary_count: primary_tracks.len(),
-                                aux_count: aux_tracks.len(),
-                            });
-                        }
-
-                        let mut seen_identities = HashSet::new();
-                        for (idx, aux_t) in aux_tracks.iter().enumerate() {
-                            let a_obj = aux_t.as_object().ok_or_else(|| VellumError::InvalidManifestEntry { 
-                                manifest: m_name.to_string(), 
-                                path: album_root.to_path_buf(), 
-                                index: idx + 1 
-                            })?;
-                            
-                            let track_no = extract_strict_u32(aux_t.get("tracknumber"), "tracknumber", None)
-                                .map_err(|_| VellumError::MissingTrackIdentity {
-                                    manifest: m_name.to_string(),
-                                    path: album_root.to_path_buf(),
-                                    index: idx + 1,
-                                })?;
-                            
-                            let disc_no = extract_strict_u32(aux_t.get("discnumber"), "discnumber", Some(1))?;
-
-                            if !seen_identities.insert((disc_no, track_no)) {
-                                return Err(VellumError::DuplicateTrackIdentity {
-                                    manifest: m_name.to_string(),
-                                    path: album_root.to_path_buf(),
-                                    disc: disc_no,
-                                    track: track_no,
-                                });
-                            }
-
-                            let mut found = false;
-                            for prim_t in primary_tracks.iter_mut() {
-                                let p_track_no: u32 = extract_strict_u32(prim_t.get("tracknumber"), "tracknumber", None)?;
-                                let p_disc_no: u32 = extract_strict_u32(prim_t.get("discnumber"), "discnumber", Some(1))?;
-
-                                if track_no == p_track_no && disc_no == p_disc_no {
-                                    if let Some(p_obj) = prim_t.as_object_mut() {
-                                        for (k, v) in a_obj {
-                                            if k != "tracknumber" && k != "discnumber"
-                                                && !p_obj.contains_key(k) {
-                                                    let val: Value = v.clone();
-                                                    p_obj.insert(k.clone(), val);
-                                                }
-                                        }
-                                    }
-                                    found = true;
-                                    break;
-                                }
-                            }
-                            if !found {
-                                return Err(VellumError::OrphanedAuxiliaryData {
-                                    manifest: m_name.to_string(),
-                                    path: album_root.to_path_buf(),
-                                    disc: disc_no,
-                                    track: track_no,
-                                });
-                            }
-                        }
-                    }
+                merge_auxiliary_manifest(album_root, m_name, &mut metadata_json)?;
             }
         }
     }
@@ -150,6 +50,133 @@ pub fn load_and_merge(
         meta_mtime,
         manifests_mtime_sum,
     })
+}
+
+fn calculate_manifests_mtime_sum(
+    album_root: &Path,
+    manifest_names: Option<&Vec<Value>>,
+    base_mtime: u64,
+) -> u64 {
+    let mut sum = base_mtime;
+    if let Some(manifests) = manifest_names {
+        for m_val in manifests {
+            if let Some(m_name) = m_val.as_str() {
+                let m_path = album_root.join(m_name);
+                if m_path.exists() {
+                    sum += std::fs::metadata(&m_path)
+                        .and_then(|m| m.modified())
+                        .map(|t| t.duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_secs())
+                        .unwrap_or(0);
+                }
+            }
+        }
+    }
+    sum
+}
+
+fn merge_auxiliary_manifest(
+    album_root: &Path,
+    m_name: &str,
+    primary_json: &mut Value,
+) -> Result<(), VellumError> {
+    let m_path = album_root.join(m_name);
+    if !m_path.exists() {
+        return Ok(());
+    }
+    let m_content = std::fs::read_to_string(&m_path)?;
+    let parsed_aux = toml::from_str::<toml::Value>(&m_content)
+        .map_err(|source| VellumError::ManifestParseError { path: m_path.clone(), source })?;
+    let mut m_json = normalize_keys(serde_json::to_value(parsed_aux)?);
+    
+    if let Some(aux_album) = m_json.get_mut("album").and_then(Value::as_object_mut)
+        && let Some(primary_album) = primary_json.get_mut("album").and_then(Value::as_object_mut) {
+            for (k, v) in aux_album {
+                if !primary_album.contains_key(k) {
+                    primary_album.insert(k.clone(), v.clone());
+                }
+            }
+        }
+
+    if let Some(aux_tracks) = m_json.get_mut("tracks").and_then(Value::as_array_mut)
+        && !aux_tracks.is_empty() {
+            merge_aux_tracks(album_root, m_name, aux_tracks, primary_json)?;
+        }
+    Ok(())
+}
+
+fn merge_aux_tracks(
+    album_root: &Path,
+    m_name: &str,
+    aux_tracks: &mut [Value],
+    primary_json: &mut Value,
+) -> Result<(), VellumError> {
+    let primary_tracks = primary_json.get_mut("tracks")
+        .and_then(Value::as_array_mut)
+        .ok_or_else(|| VellumError::MissingTracksBlock { path: album_root.to_path_buf() })?;
+
+    if aux_tracks.len() != primary_tracks.len() {
+        return Err(VellumError::TrackCountMismatch {
+            manifest: m_name.to_string(),
+            path: album_root.to_path_buf(),
+            primary_count: primary_tracks.len(),
+            aux_count: aux_tracks.len(),
+        });
+    }
+
+    let mut seen_identities = HashSet::new();
+    for (idx, aux_t) in aux_tracks.iter_mut().enumerate() {
+        let a_obj = aux_t.as_object_mut().ok_or_else(|| VellumError::InvalidManifestEntry { 
+            manifest: m_name.to_string(), 
+            path: album_root.to_path_buf(), 
+            index: idx + 1 
+        })?;
+        
+        let track_no = extract_strict_u32(a_obj.get("tracknumber"), "tracknumber", None)
+            .map_err(|_| VellumError::MissingTrackIdentity {
+                manifest: m_name.to_string(),
+                path: album_root.to_path_buf(),
+                index: idx + 1,
+            })?;
+        
+        let disc_no = extract_strict_u32(a_obj.get("discnumber"), "discnumber", Some(1))?;
+
+        if !seen_identities.insert((disc_no, track_no)) {
+            return Err(VellumError::DuplicateTrackIdentity {
+                manifest: m_name.to_string(),
+                path: album_root.to_path_buf(),
+                disc: disc_no,
+                track: track_no,
+            });
+        }
+
+        let mut found = false;
+        for prim_t in primary_tracks.iter_mut() {
+            let p_track_no: u32 = extract_strict_u32(prim_t.get("tracknumber"), "tracknumber", None)?;
+            let p_disc_no: u32 = extract_strict_u32(prim_t.get("discnumber"), "discnumber", Some(1))?;
+
+            if track_no == p_track_no && disc_no == p_disc_no {
+                if let Some(p_obj) = prim_t.as_object_mut() {
+                    for (k, v) in a_obj {
+                        if k != "tracknumber" && k != "discnumber"
+                            && !p_obj.contains_key(k) {
+                                p_obj.insert(k.clone(), v.clone());
+                            }
+                    }
+                }
+                found = true;
+                break;
+            }
+        }
+        if !found {
+            return Err(VellumError::OrphanedAuxiliaryData {
+                manifest: m_name.to_string(),
+                path: album_root.to_path_buf(),
+                disc: disc_no,
+                track: track_no,
+            });
+        }
+    }
+    Ok(())
 }
 
 pub fn normalize_keys(v: Value) -> Value {

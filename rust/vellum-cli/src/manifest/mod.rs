@@ -9,7 +9,7 @@ use anyhow::{Context, Result};
 use indicatif::{ProgressBar, ProgressStyle};
 use rayon::prelude::*;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 use walkdir::WalkDir;
 
@@ -23,79 +23,16 @@ pub fn run(force: bool) -> Result<()> {
         .as_ref().map_or_else(|| vec![".flac".to_string()], |exts: &Vec<String>| exts.iter().map(|e| e.to_lowercase()).collect());
 
     let grouping_keys = vec!["ALBUMARTIST".to_string(), "ALBUM".to_string()];
-
     let manifest_layout = manifest_cfg.keys;
 
-    let mut dirs_to_harvest = Vec::new();
-    let mut it = WalkDir::new(&lib_root).into_iter();
-
-    while let Some(Ok(entry)) = it.next() {
-        if entry.file_type().is_dir() {
-            let path = entry.path();
-            if !force && path.join("metadata.toml").exists() {
-                it.skip_current_dir();
-                continue;
-            }
-
-            let has_audio = fs::read_dir(path)
-                .map(|mut d| {
-                    d.any(|e| {
-                        if let Ok(f) = e
-                            && f.file_type().is_ok_and(|ft| ft.is_file())
-                                && let Some(ext) = f.path().extension().and_then(|e| e.to_str()) {
-                                    let ext_lower = format!(".{}", ext.to_lowercase());
-                                    return supported_exts.contains(&ext_lower);
-                                }
-                        false
-                    })
-                })
-                .unwrap_or(false);
-
-            if has_audio {
-                dirs_to_harvest.push(path.to_path_buf());
-            }
-        }
-    }
+    let dirs_to_harvest = find_harvestable_directories(&lib_root, force, &supported_exts);
 
     if dirs_to_harvest.is_empty() {
         log::info!("No new audio directories found.");
         return Ok(());
     }
 
-    let mut audio_files = Vec::new();
-    for dir in dirs_to_harvest {
-        if let Ok(entries) = fs::read_dir(dir) {
-            for entry in entries.filter_map(Result::ok) {
-                let path = entry.path();
-                if path.is_file()
-                    && let Some(ext) = path.extension().and_then(|e| e.to_str()) {
-                        let ext_lower = format!(".{}", ext.to_lowercase());
-                        if supported_exts.contains(&ext_lower) {
-                            audio_files.push(path);
-                        }
-                    }
-            }
-        }
-    }
-
-    log::info!("Harvesting {} new audio files...", audio_files.len());
-
-    let harvested: Vec<(PathBuf, serde_json::Map<String, serde_json::Value>)> = audio_files
-        .into_par_iter()
-        .filter_map(|path| match harvest_file(&path) {
-            Ok(data) => {
-                let mut map = serde_json::Map::new();
-                for (k, v) in data.tags {
-                    map.insert(k, serde_json::Value::String(v));
-                }
-                Some((path, map))
-            }
-            Err(e) => {
-                log::warn!("Failed to harvest {}: {}", path.display(), e);
-                None
-            }
-        })
-        .collect();
+    let harvested = harvest_audio_files(dirs_to_harvest, &supported_exts);
 
     if harvested.is_empty() {
         return Ok(());
@@ -142,18 +79,7 @@ pub fn run(force: bool) -> Result<()> {
                 serde_json::Value::Number(serde_json::Number::from(unix_generated)),
             );
 
-            let mut toml_content = String::new();
-            toml_content.push_str("[album]\n");
-            let album_lines = engine::render_toml_block(&album_pool, manifest_layout.as_ref(), "album");
-            toml_content.push_str(&album_lines.join("\n"));
-            toml_content.push_str("\n\n");
-
-            for tp in track_pools {
-                toml_content.push_str("[[tracks]]\n");
-                let track_lines = engine::render_toml_block(&tp, manifest_layout.as_ref(), "track");
-                toml_content.push_str(&track_lines.join("\n"));
-                toml_content.push_str("\n\n");
-            }
+            let toml_content = serialize_manifest(&album_pool, &track_pools, manifest_layout.as_ref());
 
             let meta_path = anchor.join("metadata.toml");
             if let Err(e) = fs::write(&meta_path, toml_content) {
@@ -167,3 +93,97 @@ pub fn run(force: bool) -> Result<()> {
     Ok(())
 }
 
+fn find_harvestable_directories(lib_root: &Path, force: bool, supported_exts: &[String]) -> Vec<PathBuf> {
+    let mut dirs_to_harvest = Vec::new();
+    let mut it = WalkDir::new(lib_root).into_iter();
+
+    while let Some(Ok(entry)) = it.next() {
+        if entry.file_type().is_dir() {
+            let path = entry.path();
+            if !force && path.join("metadata.toml").exists() {
+                it.skip_current_dir();
+                continue;
+            }
+
+            let has_audio = fs::read_dir(path)
+                .map(|mut d| {
+                    d.any(|e| {
+                        if let Ok(f) = e
+                            && f.file_type().is_ok_and(|ft| ft.is_file())
+                                && let Some(ext) = f.path().extension().and_then(|e| e.to_str()) {
+                                    let ext_lower = format!(".{}", ext.to_lowercase());
+                                    return supported_exts.contains(&ext_lower);
+                                }
+                        false
+                    })
+                })
+                .unwrap_or(false);
+
+            if has_audio {
+                dirs_to_harvest.push(path.to_path_buf());
+            }
+        }
+    }
+    dirs_to_harvest
+}
+
+fn harvest_audio_files(
+    dirs_to_harvest: Vec<PathBuf>,
+    supported_exts: &[String],
+) -> Vec<(PathBuf, serde_json::Map<String, serde_json::Value>)> {
+    let mut audio_files = Vec::new();
+    for dir in dirs_to_harvest {
+        if let Ok(entries) = fs::read_dir(dir) {
+            for entry in entries.filter_map(Result::ok) {
+                let path = entry.path();
+                if path.is_file()
+                    && let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+                        let ext_lower = format!(".{}", ext.to_lowercase());
+                        if supported_exts.contains(&ext_lower) {
+                            audio_files.push(path);
+                        }
+                    }
+            }
+        }
+    }
+
+    log::info!("Harvesting {} new audio files...", audio_files.len());
+
+    audio_files
+        .into_par_iter()
+        .filter_map(|path| match harvest_file(&path) {
+            Ok(data) => {
+                let mut map = serde_json::Map::new();
+                for (k, v) in data.tags {
+                    map.insert(k, serde_json::Value::String(v));
+                }
+                Some((path, map))
+            }
+            Err(e) => {
+                log::warn!("Failed to harvest {}: {}", path.display(), e);
+                None
+            }
+        })
+        .collect()
+}
+
+fn serialize_manifest(
+    album_pool: &serde_json::Map<String, serde_json::Value>,
+    track_pools: &[serde_json::Map<String, serde_json::Value>],
+    manifest_layout: Option<&indexmap::IndexMap<String, toml::Value>>,
+) -> String {
+    let mut toml_content = String::new();
+    toml_content.push_str("[album]\n");
+    let album_lines = engine::render_toml_block(album_pool, manifest_layout, "album");
+    toml_content.push_str(&album_lines.join("\n"));
+    toml_content.push_str("\n\n");
+
+    for tp in track_pools {
+        toml_content.push_str("[[tracks]]\n");
+        let track_lines = engine::render_toml_block(tp, manifest_layout, "track");
+        toml_content.push_str(&track_lines.join("\n"));
+        toml_content.push_str("\n\n");
+    }
+
+    toml_content
+}

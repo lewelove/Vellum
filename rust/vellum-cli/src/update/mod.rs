@@ -27,6 +27,18 @@ struct CurrentState {
     pub hash: String,
 }
 
+struct NotificationTaskArgs {
+    notify_rx: mpsc::Receiver<compile::engine::stream::AlbumUpdateSignal>,
+    cache_for_task: Arc<Mutex<HashMap<String, AlbumCacheEntry>>>,
+    exts_for_task: Vec<String>,
+    manifests_for_task: Option<Vec<String>>,
+    lib_root_for_task: Arc<PathBuf>,
+    missing_paths: Vec<PathBuf>,
+    start_time: std::time::Instant,
+    verbose: bool,
+    silent: bool,
+}
+
 pub async fn run(
     target_path: Option<PathBuf>,
     force: bool,
@@ -75,19 +87,7 @@ pub async fn run(
         .unwrap_or(4);
     
     let all_albums = vellum::scanner::find_target_albums(&scan_root, scan_depth)?;
-    
-    let mut missing_paths = Vec::new();
-    {
-        let album_set: HashSet<PathBuf> = all_albums.iter().cloned().collect();
-        let scan_root_canon = scan_root.canonicalize().unwrap_or_else(|_| scan_root.clone());
-        
-        for cached_path_str in cache.keys() {
-            let cached_path = PathBuf::from(cached_path_str);
-            if cached_path.starts_with(&scan_root_canon) && !album_set.contains(&cached_path) {
-                missing_paths.push(cached_path);
-            }
-        }
-    }
+    let missing_paths = find_missing_paths(&all_albums, &scan_root, &cache);
 
     if !silent {
         log::info!("Verifying {} albums...", all_albums.len());
@@ -120,63 +120,21 @@ pub async fn run(
     let missing_count = missing_paths.len();
     let start_time = std::time::Instant::now();
 
-    let (notify_tx, mut notify_rx) = mpsc::channel::<compile::engine::stream::AlbumUpdateSignal>(100);
+    let (notify_tx, notify_rx) = mpsc::channel::<compile::engine::stream::AlbumUpdateSignal>(100);
     let cache_arc = Arc::new(Mutex::new(cache));
-    let cache_for_task = Arc::clone(&cache_arc);
-    let exts_for_task = exts.clone();
-    let manifests_for_task = manifests.clone();
-    let lib_root_for_task = Arc::new(library_root.clone());
 
-    let notification_task = tokio::spawn(async move {
-        let mut updated_paths = Vec::new();
-        while let Some(signal) = notify_rx.recv().await {
-            if verbose && !silent {
-                log::info!("Updated: {} - {}", signal.artist, signal.album);
-            }
-            updated_paths.push(signal.path);
-        }
-
-        let mut paths_for_server = Vec::new();
-
-        {
-            let mut c = cache_for_task.lock().await;
-            for album_root in &updated_paths {
-                let album_path_str = album_root.to_string_lossy().to_string();
-                let metadata_path = album_root.join("metadata.toml");
-                let mtime_sum = get_mtime_sum(album_root, &metadata_path, &exts_for_task, manifests_for_task.as_ref());
-                c.insert(album_path_str.clone(), AlbumCacheEntry { mtime_sum });
-                paths_for_server.push(album_path_str);
-            }
-
-            for missing in missing_paths {
-                let p_str = missing.to_string_lossy().to_string();
-                
-                if verbose && !silent {
-                    let display_path = missing.strip_prefix(&*lib_root_for_task).unwrap_or(&missing);
-                    log::info!("Removed: {}", display_path.display());
-                }
-
-                c.remove(&p_str);
-                paths_for_server.push(p_str);
-            }
-            drop(c);
-        }
-
-        if paths_for_server.is_empty() {
-            return;
-        }
-
-        let client = reqwest::Client::new();
-        let elapsed_ms = start_time.elapsed().as_millis();
-        let url = format!("http://127.0.0.1:8000/api/internal/batch_reload?time={elapsed_ms}");
-
-        let _ = client
-            .post(&url)
-            .json(&paths_for_server)
-            .timeout(std::time::Duration::from_secs(30))
-            .send()
-            .await;
-    });
+    let task_args = NotificationTaskArgs {
+        notify_rx,
+        cache_for_task: Arc::clone(&cache_arc),
+        exts_for_task: exts.clone(),
+        manifests_for_task: manifests.clone(),
+        lib_root_for_task: Arc::new(library_root.clone()),
+        missing_paths,
+        start_time,
+        verbose,
+        silent,
+    };
+    let notification_task = start_notification_task(task_args);
 
     if !work_queue.is_empty() {
         let compile_options = compile::CompileOptions {
@@ -208,6 +166,73 @@ pub async fn run(
     save_cache(&final_cache, &cache_file)?;
 
     Ok(())
+}
+
+fn find_missing_paths(all_albums: &[PathBuf], scan_root: &Path, cache: &HashMap<String, AlbumCacheEntry>) -> Vec<PathBuf> {
+    let mut missing_paths = Vec::new();
+    let album_set: HashSet<PathBuf> = all_albums.iter().cloned().collect();
+    let scan_root_canon = scan_root.canonicalize().unwrap_or_else(|_| scan_root.to_path_buf());
+    
+    for cached_path_str in cache.keys() {
+        let cached_path = PathBuf::from(cached_path_str);
+        if cached_path.starts_with(&scan_root_canon) && !album_set.contains(&cached_path) {
+            missing_paths.push(cached_path);
+        }
+    }
+    missing_paths
+}
+
+fn start_notification_task(mut args: NotificationTaskArgs) -> tokio::task::JoinHandle<()> {
+    tokio::spawn(async move {
+        let mut updated_paths = Vec::new();
+        while let Some(signal) = args.notify_rx.recv().await {
+            if args.verbose && !args.silent {
+                log::info!("Updated: {} - {}", signal.artist, signal.album);
+            }
+            updated_paths.push(signal.path);
+        }
+
+        let mut paths_for_server = Vec::new();
+
+        {
+            let mut c = args.cache_for_task.lock().await;
+            for album_root in &updated_paths {
+                let album_path_str = album_root.to_string_lossy().to_string();
+                let metadata_path = album_root.join("metadata.toml");
+                let mtime_sum = get_mtime_sum(album_root, &metadata_path, &args.exts_for_task, args.manifests_for_task.as_ref());
+                c.insert(album_path_str.clone(), AlbumCacheEntry { mtime_sum });
+                paths_for_server.push(album_path_str);
+            }
+
+            for missing in args.missing_paths {
+                let p_str = missing.to_string_lossy().to_string();
+                
+                if args.verbose && !args.silent {
+                    let display_path = missing.strip_prefix(&*args.lib_root_for_task).unwrap_or(&missing);
+                    log::info!("Removed: {}", display_path.display());
+                }
+
+                c.remove(&p_str);
+                paths_for_server.push(p_str);
+            }
+            drop(c);
+        }
+
+        if paths_for_server.is_empty() {
+            return;
+        }
+
+        let client = reqwest::Client::new();
+        let elapsed_ms = args.start_time.elapsed().as_millis();
+        let url = format!("http://127.0.0.1:8000/api/internal/batch_reload?time={elapsed_ms}");
+
+        let _ = client
+            .post(&url)
+            .json(&paths_for_server)
+            .timeout(std::time::Duration::from_secs(30))
+            .send()
+            .await;
+    })
 }
 
 async fn validate_library_root(cache_dir: &Path, current_hash: &str) -> Result<()> {
@@ -272,7 +297,7 @@ fn verify_albums_parallel(
                          return (album_root, mtime_sum, false);
                     }
 
-                match verify_trust(&album_root, &manifests.cloned()) {
+                match verify_trust(&album_root, manifests) {
                     Ok(TrustState::Valid) => (album_root, mtime_sum, false),
                     Ok(_) => (album_root, mtime_sum, true),
                     Err(e) => {

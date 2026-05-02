@@ -56,6 +56,29 @@ pub fn process_image_to_palette(
         return None;
     }
 
+    let threshold_val = cfg.get("threshold")
+        .and_then(serde_json::Value::as_f64)
+        .map_or(0.001, |f| f as f32);
+
+    let mut palette = calculate_palette_ratios(&img_to_process, candidate_colors, manually_provided, threshold_val);
+
+    let sort_override = if manually_provided {
+        "original"
+    } else {
+        sort_type
+    };
+
+    sort_palette(&mut palette, sort_override);
+
+    Some(palette)
+}
+
+fn calculate_palette_ratios(
+    img_to_process: &DynamicImage,
+    candidate_colors: Vec<Srgb>,
+    manually_provided: bool,
+    threshold_val: f32,
+) -> Vec<(Srgb, f32)> {
     let oklab_centers: Vec<Oklab> = candidate_colors.iter().map(|&c| Oklab::from_color(c)).collect();
     let mut counts = vec![0usize; oklab_centers.len()];
 
@@ -94,10 +117,6 @@ pub fn process_image_to_palette(
         }
     }).collect();
 
-    let threshold_val = cfg.get("threshold")
-        .and_then(serde_json::Value::as_f64)
-        .map_or(0.001, |f| f as f32);
-
     if !manually_provided {
         palette.retain(|&(_, ratio)| ratio >= threshold_val);
     }
@@ -114,13 +133,11 @@ pub fn process_image_to_palette(
         }
     }
 
-    let sort_override = if manually_provided {
-        "original"
-    } else {
-        sort_type
-    };
+    palette
+}
 
-    match sort_override {
+fn sort_palette(palette: &mut Vec<(Srgb, f32)>, sort_type: &str) {
+    match sort_type {
         "L" => palette.sort_by(|a, b| {
             let l_a = Oklch::from_color(a.0).l;
             let l_b = Oklch::from_color(b.0).l;
@@ -143,62 +160,61 @@ pub fn process_image_to_palette(
             let val_b = oklch_b.l * oklch_b.chroma;
             val_b.partial_cmp(&val_a).unwrap_or(std::cmp::Ordering::Equal)
         }),
-        "gradient" => {
-            if !palette.is_empty() {
-                let mut pool: Vec<(Oklab, Srgb, f32)> = palette.into_iter()
-                    .map(|(srgb, ratio)| (Oklab::from_color(srgb), srgb, ratio))
-                    .collect();
-
-                let mut sorted = Vec::with_capacity(pool.len());
-                
-                let start_idx = pool.iter().enumerate()
-                    .max_by(|(_, (ok_a, _, _)), (_, (ok_b, _, _))| {
-                        ok_a.l.partial_cmp(&ok_b.l).unwrap_or(std::cmp::Ordering::Equal)
-                    })
-                    .map_or(0, |(i, _)| i);
-
-                let first = pool.remove(start_idx);
-                let mut current_ok = first.0;
-                sorted.push((first.1, first.2));
-
-                let end_node_idx = if pool.is_empty() {
-                    None
-                } else {
-                    pool.iter().enumerate()
-                        .min_by(|(_, (ok_a, _, _)), (_, (ok_b, _, _))| {
-                            ok_a.l.partial_cmp(&ok_b.l).unwrap_or(std::cmp::Ordering::Equal)
-                        })
-                        .map(|(i, _)| i)
-                };
-
-                let end_node = end_node_idx.map(|idx| pool.remove(idx));
-
-                while !pool.is_empty() {
-                    let next_idx = pool.iter().enumerate()
-                        .min_by(|(_, (ok_a, _, _)), (_, (ok_b, _, _))| {
-                            let dist_a = (ok_a.b - current_ok.b).mul_add(ok_a.b - current_ok.b, (ok_a.a - current_ok.a).mul_add(ok_a.a - current_ok.a, (ok_a.l - current_ok.l).powi(2)));
-                            let dist_b = (ok_b.b - current_ok.b).mul_add(ok_b.b - current_ok.b, (ok_b.a - current_ok.a).mul_add(ok_b.a - current_ok.a, (ok_b.l - current_ok.l).powi(2)));
-                            dist_a.partial_cmp(&dist_b).unwrap_or(std::cmp::Ordering::Equal)
-                        })
-                        .map_or(0, |(i, _)| i);
-                    
-                    let next = pool.remove(next_idx);
-                    current_ok = next.0;
-                    sorted.push((next.1, next.2));
-                }
-
-                if let Some(node) = end_node {
-                    sorted.push((node.1, node.2));
-                }
-
-                palette = sorted;
-            }
-        },
+        "gradient" => sort_palette_gradient(palette),
         "original" => {},
         _ => palette.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal)),
     }
+}
 
-    Some(palette)
+fn sort_palette_gradient(palette: &mut Vec<(Srgb, f32)>) {
+    if palette.is_empty() { return; }
+    let mut pool: Vec<(Oklab, Srgb, f32)> = palette.iter()
+        .map(|&(srgb, ratio)| (Oklab::from_color(srgb), srgb, ratio))
+        .collect();
+
+    let mut sorted = Vec::with_capacity(pool.len());
+    
+    let start_idx = pool.iter().enumerate()
+        .max_by(|(_, (ok_a, _, _)), (_, (ok_b, _, _))| {
+            ok_a.l.partial_cmp(&ok_b.l).unwrap_or(std::cmp::Ordering::Equal)
+        })
+        .map_or(0, |(i, _)| i);
+
+    let first = pool.remove(start_idx);
+    let mut current_ok = first.0;
+    sorted.push((first.1, first.2));
+
+    let end_node_idx = if pool.is_empty() {
+        None
+    } else {
+        pool.iter().enumerate()
+            .min_by(|(_, (ok_a, _, _)), (_, (ok_b, _, _))| {
+                ok_a.l.partial_cmp(&ok_b.l).unwrap_or(std::cmp::Ordering::Equal)
+            })
+            .map(|(i, _)| i)
+    };
+
+    let end_node = end_node_idx.map(|idx| pool.remove(idx));
+
+    while !pool.is_empty() {
+        let next_idx = pool.iter().enumerate()
+            .min_by(|(_, (ok_a, _, _)), (_, (ok_b, _, _))| {
+                let dist_a = (ok_a.b - current_ok.b).mul_add(ok_a.b - current_ok.b, (ok_a.a - current_ok.a).mul_add(ok_a.a - current_ok.a, (ok_a.l - current_ok.l).powi(2)));
+                let dist_b = (ok_b.b - current_ok.b).mul_add(ok_b.b - current_ok.b, (ok_b.a - current_ok.a).mul_add(ok_b.a - current_ok.a, (ok_b.l - current_ok.l).powi(2)));
+                dist_a.partial_cmp(&dist_b).unwrap_or(std::cmp::Ordering::Equal)
+            })
+            .map_or(0, |(i, _)| i);
+        
+        let next = pool.remove(next_idx);
+        current_ok = next.0;
+        sorted.push((next.1, next.2));
+    }
+
+    if let Some(node) = end_node {
+        sorted.push((node.1, node.2));
+    }
+
+    *palette = sorted;
 }
 
 #[must_use] 

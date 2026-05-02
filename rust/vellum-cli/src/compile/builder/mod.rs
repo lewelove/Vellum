@@ -11,6 +11,12 @@ use crate::harvest;
 use serde_json::{Value, json, Map};
 use std::path::Path;
 
+struct PreparedContext {
+    audio_files: Vec<std::path::PathBuf>,
+    registry: Map<String, Value>,
+    library_root: std::path::PathBuf,
+}
+
 pub fn build(
     album_root: &Path,
     project_root: &Path,
@@ -25,70 +31,10 @@ pub fn build(
     let loaded_image =
         assets::load_or_create_thumbnail(config, album_root, c_path.as_deref(), &c_hash);
 
-    let cover_metrics = if c_hash.is_empty() {
-        None
-    } else {
-        let cache_str = config.get("storage").and_then(|s| s.get("cache")).and_then(Value::as_str).unwrap_or("~/.cache/vellum");
-        let cache_root = crate::expand_path(cache_str);
-        let metrics_dir = cache_root.join("cover_data");
-        std::fs::create_dir_all(&metrics_dir).ok();
-        
-        let metrics_path = metrics_dir.join(format!("{c_hash}.json"));
-        
-        let palette_cfg = config.get("compiler").and_then(|c| c.get("cover_palette"));
-        let cover_palette_raw = manifest_data.json.get("album").and_then(|a| a.get("cover_palette").or_else(|| a.get("COVER_PALETTE")));
-        
-        let palette_params = format!("{palette_cfg:?}|{cover_palette_raw:?}");
-        
-        let mut metrics = if metrics_path.exists() {
-            std::fs::read_to_string(&metrics_path).map_or(None, |content| serde_json::from_str::<assets::CoverMetrics>(&content).ok())
-        } else { 
-            None 
-        }.unwrap_or_else(|| assets::CoverMetrics {
-            hash: c_hash.clone(),
-            entropy: None,
-            chroma: None,
-            palette: None,
-            palette_params: None,
-        });
-        
-        let mut needs_save = false;
-        
-        if let Some(ref img) = loaded_image {
-            if metrics.chroma.is_none() {
-                metrics.chroma = Some(vellum::images::cover_chroma::calculate_chroma(img));
-                needs_save = true;
-            }
-            if metrics.entropy.is_none() {
-                metrics.entropy = Some(vellum::images::cover_entropy::calculate_entropy(img));
-                needs_save = true;
-            }
-            
-            if (metrics.palette_params.as_deref() != Some(&palette_params) || metrics.palette.is_none())
-                && let Some(palette_val) = resolvers::cover_palette::resolve_core(img, palette_cfg, cover_palette_raw) {
-                    metrics.palette = Some(palette_val);
-                    metrics.palette_params = Some(palette_params);
-                    needs_save = true;
-                }
-        }
-        
-        if needs_save
-            && let Ok(content) = serde_json::to_string(&metrics) {
-                let _ = std::fs::write(&metrics_path, content);
-            }
-        
-        Some(metrics)
-    };
+    let cover_metrics = resolve_cover_metrics(config, &c_hash, loaded_image.as_ref(), &manifest_data);
 
-    let exts: Vec<&str> = manifest_cfg
-        .get("supported_extensions")
-        .and_then(Value::as_array)
-        .map_or_else(
-            || vec![".flac"],
-            |arr| arr.iter().filter_map(Value::as_str).collect(),
-        );
+    let PreparedContext { audio_files, registry, library_root } = prepare_build_context(config, manifest_cfg, album_root)?;
 
-    let audio_files = vellum::scanner::scan_audio_files(album_root, &exts);
     let track_entries = manifest_data.json
         .get("tracks")
         .and_then(Value::as_array)
@@ -103,24 +49,6 @@ pub fn build(
     }
 
     validate_track_indices(track_entries, album_root)?;
-
-    let lib_root_raw = config
-        .get("storage")
-        .and_then(|s| s.get("library_root"))
-        .and_then(Value::as_str)
-        .unwrap_or(".");
-    let library_root = expand_path(lib_root_raw)
-        .canonicalize()
-        .unwrap_or_else(|_| expand_path(lib_root_raw));
-
-    let mut registry = config
-        .get("compiler")
-        .and_then(|c| c.get("keys"))
-        .and_then(Value::as_object)
-        .ok_or_else(|| VellumError::MissingCompilerRegistry)?
-        .clone();
-
-    merge_local_registry(album_root, &mut registry);
 
     let empty_obj = json!({});
     let album_source = manifest_data.json.get("album").unwrap_or(&empty_obj);
@@ -171,6 +99,104 @@ pub fn build(
     });
 
     Ok(final_json)
+}
+
+fn prepare_build_context(
+    config: &Value,
+    manifest_cfg: &Value,
+    album_root: &Path,
+) -> Result<PreparedContext, VellumError> {
+    let exts: Vec<&str> = manifest_cfg
+        .get("supported_extensions")
+        .and_then(Value::as_array)
+        .map_or_else(
+            || vec![".flac"],
+            |arr| arr.iter().filter_map(Value::as_str).collect(),
+        );
+
+    let audio_files = vellum::scanner::scan_audio_files(album_root, &exts);
+
+    let lib_root_raw = config
+        .get("storage")
+        .and_then(|s| s.get("library_root"))
+        .and_then(Value::as_str)
+        .unwrap_or(".");
+    let library_root = expand_path(lib_root_raw)
+        .canonicalize()
+        .unwrap_or_else(|_| expand_path(lib_root_raw));
+
+    let mut registry = config
+        .get("compiler")
+        .and_then(|c| c.get("keys"))
+        .and_then(Value::as_object)
+        .ok_or_else(|| VellumError::MissingCompilerRegistry)?
+        .clone();
+
+    merge_local_registry(album_root, &mut registry);
+
+    Ok(PreparedContext { audio_files, registry, library_root })
+}
+
+fn resolve_cover_metrics(
+    config: &Value,
+    c_hash: &str,
+    loaded_image: Option<&image::DynamicImage>,
+    manifest_data: &vellum::compiler::manifest::ManifestData,
+) -> Option<assets::CoverMetrics> {
+    if c_hash.is_empty() {
+        return None;
+    }
+    
+    let cache_str = config.get("storage").and_then(|s| s.get("cache")).and_then(Value::as_str).unwrap_or("~/.cache/vellum");
+    let cache_root = crate::expand_path(cache_str);
+    let metrics_dir = cache_root.join("cover_data");
+    std::fs::create_dir_all(&metrics_dir).ok();
+    
+    let metrics_path = metrics_dir.join(format!("{c_hash}.json"));
+    
+    let palette_cfg = config.get("compiler").and_then(|c| c.get("cover_palette"));
+    let cover_palette_raw = manifest_data.json.get("album").and_then(|a| a.get("cover_palette").or_else(|| a.get("COVER_PALETTE")));
+    
+    let palette_params = format!("{palette_cfg:?}|{cover_palette_raw:?}");
+    
+    let mut metrics = if metrics_path.exists() {
+        std::fs::read_to_string(&metrics_path).map_or(None, |content| serde_json::from_str::<assets::CoverMetrics>(&content).ok())
+    } else { 
+        None 
+    }.unwrap_or_else(|| assets::CoverMetrics {
+        hash: c_hash.to_string(),
+        entropy: None,
+        chroma: None,
+        palette: None,
+        palette_params: None,
+    });
+    
+    let mut needs_save = false;
+    
+    if let Some(img) = loaded_image {
+        if metrics.chroma.is_none() {
+            metrics.chroma = Some(vellum::images::cover_chroma::calculate_chroma(img));
+            needs_save = true;
+        }
+        if metrics.entropy.is_none() {
+            metrics.entropy = Some(vellum::images::cover_entropy::calculate_entropy(img));
+            needs_save = true;
+        }
+        
+        if (metrics.palette_params.as_deref() != Some(&palette_params) || metrics.palette.is_none())
+            && let Some(palette_val) = resolvers::cover_palette::resolve_core(img, palette_cfg, cover_palette_raw) {
+                metrics.palette = Some(palette_val);
+                metrics.palette_params = Some(palette_params);
+                needs_save = true;
+            }
+    }
+    
+    if needs_save
+        && let Ok(content) = serde_json::to_string(&metrics) {
+            let _ = std::fs::write(&metrics_path, content);
+        }
+    
+    Some(metrics)
 }
 
 fn process_tracks(
@@ -408,4 +434,3 @@ fn build_album(
     obj.insert("tags".to_string(), Value::Object(tags));
     Value::Object(obj)
 }
-

@@ -4,7 +4,7 @@ use std::fs;
 use std::path::Path;
 use std::time::SystemTime;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub enum TrustState {
     Valid,
     Missing,
@@ -13,7 +13,7 @@ pub enum TrustState {
     BrokenAssets,
 }
 
-pub fn verify_trust(album_root: &Path, manifests: &Option<Vec<String>>) -> Result<TrustState, VellumError> {
+pub fn verify_trust(album_root: &Path, manifests: Option<&Vec<String>>) -> Result<TrustState, VellumError> {
     let lock_path = album_root.join("metadata.lock.json");
     if !lock_path.exists() {
         return Ok(TrustState::Missing);
@@ -29,6 +29,22 @@ pub fn verify_trust(album_root: &Path, manifests: &Option<Vec<String>>) -> Resul
         return Ok(TrustState::Missing);
     };
 
+    if check_manifest_mtimes(album_root, album_data, manifests) == TrustState::BrokenIntent {
+        return Ok(TrustState::BrokenIntent);
+    }
+
+    if check_cover_integrity(album_root, album_data) == TrustState::BrokenAssets {
+        return Ok(TrustState::BrokenAssets);
+    }
+
+    if check_tracks_integrity(album_root, &lock_json) == TrustState::BrokenPhysics {
+        return Ok(TrustState::BrokenPhysics);
+    }
+
+    Ok(TrustState::Valid)
+}
+
+fn check_manifest_mtimes(album_root: &Path, album_data: &serde_json::Value, manifests: Option<&Vec<String>>) -> TrustState {
     let lock_meta_mtime = album_data
         .get("metadata_toml_mtime")
         .and_then(serde_json::Value::as_u64)
@@ -50,7 +66,7 @@ pub fn verify_trust(album_root: &Path, manifests: &Option<Vec<String>>) -> Resul
         .unwrap_or(0);
 
     if current_meta_mtime != lock_meta_mtime && lock_meta_mtime != 0 {
-        return Ok(TrustState::BrokenIntent);
+        return TrustState::BrokenIntent;
     }
 
     let mut current_manifests_sum: u64 = current_meta_mtime;
@@ -71,9 +87,13 @@ pub fn verify_trust(album_root: &Path, manifests: &Option<Vec<String>>) -> Resul
     }
 
     if current_manifests_sum != lock_manifests_sum && lock_manifests_sum != 0 {
-        return Ok(TrustState::BrokenIntent);
+        return TrustState::BrokenIntent;
     }
 
+    TrustState::Valid
+}
+
+fn check_cover_integrity(album_root: &Path, album_data: &serde_json::Value) -> TrustState {
     let lock_cover_path = album_data
         .get("cover_path")
         .and_then(serde_json::Value::as_str)
@@ -81,7 +101,7 @@ pub fn verify_trust(album_root: &Path, manifests: &Option<Vec<String>>) -> Resul
     if !lock_cover_path.is_empty() && lock_cover_path != "default_cover.png" {
         let abs_cover = album_root.join(lock_cover_path);
         if !abs_cover.exists() {
-            return Ok(TrustState::BrokenAssets);
+            return TrustState::BrokenAssets;
         }
 
         let lock_cover_size = album_data
@@ -91,10 +111,13 @@ pub fn verify_trust(album_root: &Path, manifests: &Option<Vec<String>>) -> Resul
         let current_cover_size = fs::metadata(&abs_cover).map(|m| m.len()).unwrap_or(0);
 
         if lock_cover_size != current_cover_size {
-            return Ok(TrustState::BrokenAssets);
+            return TrustState::BrokenAssets;
         }
     }
+    TrustState::Valid
+}
 
+fn check_tracks_integrity(album_root: &Path, lock_json: &serde_json::Value) -> TrustState {
     if let Some(tracks) = lock_json
         .get("tracks")
         .and_then(serde_json::Value::as_array)
@@ -105,12 +128,12 @@ pub fn verify_trust(album_root: &Path, manifests: &Option<Vec<String>>) -> Resul
                 .and_then(serde_json::Value::as_str)
                 .unwrap_or("");
             if rel_path.is_empty() {
-                return Ok(TrustState::BrokenPhysics);
+                return TrustState::BrokenPhysics;
             }
 
             let abs_path = album_root.join(rel_path);
             let Ok(meta) = fs::metadata(&abs_path) else {
-                return Ok(TrustState::BrokenPhysics);
+                return TrustState::BrokenPhysics;
             };
 
             let lock_track_mtime = track
@@ -133,10 +156,9 @@ pub fn verify_trust(album_root: &Path, manifests: &Option<Vec<String>>) -> Resul
             let current_track_size = meta.len();
 
             if lock_track_mtime != current_track_mtime || lock_track_size != current_track_size {
-                return Ok(TrustState::BrokenPhysics);
+                return TrustState::BrokenPhysics;
             }
         }
     }
-
-    Ok(TrustState::Valid)
+    TrustState::Valid
 }
