@@ -1,7 +1,3 @@
-#![warn(clippy::all, clippy::pedantic, clippy::nursery)]
-#![allow(clippy::module_name_repetitions)]
-#![allow(clippy::multiple_crate_versions)]
-
 mod compile;
 mod harvest;
 mod manifest;

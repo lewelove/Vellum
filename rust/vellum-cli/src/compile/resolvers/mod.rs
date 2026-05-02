@@ -99,7 +99,7 @@ pub fn resolve_track_key(key: &str, meta: &Value, ctx: &TrackContext) -> Option<
         None
     };
 
-    source.map_or(None, |src| match type_ {
+    source.and_then(|src| match type_ {
         "list" => Some(standard::resolve_generic_list(src, key, args)),
         "integer" => Some(standard::resolve_generic_integer(src, key, args)),
         "float" => Some(standard::resolve_generic_float(src, key, args)),

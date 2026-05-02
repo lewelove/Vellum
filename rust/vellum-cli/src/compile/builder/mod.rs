@@ -25,7 +25,9 @@ pub fn build(
     let loaded_image =
         assets::load_or_create_thumbnail(config, album_root, c_path.as_deref(), &c_hash);
 
-    let cover_metrics = if !c_hash.is_empty() {
+    let cover_metrics = if c_hash.is_empty() {
+        None
+    } else {
         let cache_str = config.get("storage").and_then(|s| s.get("cache")).and_then(Value::as_str).unwrap_or("~/.cache/vellum");
         let cache_root = crate::expand_path(cache_str);
         let metrics_dir = cache_root.join("cover_data");
@@ -76,8 +78,6 @@ pub fn build(
             }
         
         Some(metrics)
-    } else {
-        None
     };
 
     let exts: Vec<&str> = manifest_cfg
