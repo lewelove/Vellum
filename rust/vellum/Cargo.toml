@@ -3,7 +3,11 @@ name = "vellum"
 version = "0.1.0"
 edition = "2024"
 description = "Headless core library for Vellum, housing models, config, and pure domain logic."
+repository = "https://github.com/lewelove/Vellum"
 license = "AGPL-3.0-only"
+
+[lints]
+workspace = true
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }

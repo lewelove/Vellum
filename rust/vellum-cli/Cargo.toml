@@ -9,6 +9,9 @@ readme = "../README.md"
 keywords = ["mpd", "music", "metadata", "audio", "server"]
 categories = ["multimedia::audio"]
 
+[lints]
+workspace = true
+
 [[bin]]
 name = "vellum"
 path = "src/main.rs"

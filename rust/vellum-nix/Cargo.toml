@@ -1,7 +1,11 @@
 [package]
 name = "vellum-nix"
 version = "0.1.0"
+repository = "https://github.com/lewelove/Vellum"
 edition = "2024"
+
+[lints]
+workspace = true
 
 [dependencies]
 vellum = { path = "../vellum" }
