@@ -302,7 +302,6 @@
     cursor: pointer;
     border-radius: 8px;
     box-sizing: border-box;
-    transition: background-color 0.1s ease;
   }
 
   .menu-item:hover {

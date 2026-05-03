@@ -203,10 +203,9 @@
   }
 
   .album-group-header {
-    padding: 0px 0px 10px 0px;
+    padding: 0px 0px 12px 0px;
     display: flex;
     align-items: center;
-    gap: 12px;
     box-sizing: border-box;
   }
 
@@ -222,7 +221,7 @@
   .header-row {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
+    align-items: center;
   }
 
   .header-album {
