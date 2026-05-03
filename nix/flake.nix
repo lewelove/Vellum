@@ -8,6 +8,23 @@
   outputs = { self, nixpkgs }: let
     system = "x86_64-linux";
     pkgs = nixpkgs.legacyPackages.${system};
+    
+    allowedTags = [
+      "album"
+      "albumartist"
+      "artist"
+      "title"
+      "date"
+      "tracknumber"
+      "discnumber"
+      "genre"
+      "label"
+      "catalognumber"
+      "composer"
+      "performer"
+      "conductor"
+    ];
+
   in {
     lib = {
       splitCueImage = { name ? "split", cue, image }: pkgs.stdenv.mkDerivation {
@@ -21,10 +38,21 @@
         installPhase = "true";
       };
 
-      mkTrack = { name, src, metadata ? {}, writeTags ? null }: let
-        filteredMeta = if writeTags == null 
-                       then metadata 
-                       else pkgs.lib.filterAttrs (k: v: builtins.elem k writeTags) metadata;
+      mkCover = { name, src }: pkgs.stdenv.mkDerivation {
+        inherit name src;
+        buildInputs = [ pkgs.imagemagick ];
+        unpackPhase = "true";
+        buildPhase = ''
+          convert "$src" -filter Mitchell -thumbnail 1080x1080^ -gravity center -extent 1080x1080 cover.png
+        '';
+        installPhase = ''
+          mkdir -p $out
+          cp cover.png $out/cover.png
+        '';
+      };
+
+      mkTrack = { name, src, metadata ? {}, cover ? null }: let
+        filteredMeta = pkgs.lib.filterAttrs (k: v: builtins.elem (pkgs.lib.toLower k) allowedTags) metadata;
         metaJson = pkgs.writeText "meta.json" (builtins.toJSON filteredMeta);
       in pkgs.stdenv.mkDerivation {
         inherit name src;
@@ -34,10 +62,13 @@
           cp "$src" track.flac
           chmod +w track.flac
           metaflac --remove-all-tags track.flac
+          
           jq -r 'to_entries | .[] | if (.value | type) == "array" then .key as $k | .value[] | "\($k)=\(.)" else "\(.key)=\(.value)" end' ${metaJson} > tags.txt
           while IFS= read -r tag; do
             metaflac --set-tag="$tag" track.flac
           done < tags.txt
+
+          ${if cover != null then ''metaflac --import-picture-from="${cover}/cover.png" track.flac'' else ""}
         '';
         installPhase = ''
           mkdir -p $out
@@ -53,9 +84,8 @@
         sourceMagnet ? null,
         sourceUrl ? null,
         album ? { metadata = {}; },
-        tracks ?[], 
-        cover ? null,
-        writeTags ? null
+        tracks ? [], 
+        cover ? null
       }: let
         trackIds = builtins.map (t: "${toString (t.metadata.discnumber or 1)}-${toString (t.metadata.tracknumber or 0)}") tracks;
         uniqueTrackIds = pkgs.lib.unique trackIds;
@@ -64,7 +94,7 @@
         maxDisc = builtins.foldl' (acc: t: pkgs.lib.max acc (t.metadata.discnumber or 1)) 1 tracks;
         maxTrack = builtins.foldl' (acc: t: pkgs.lib.max acc (t.metadata.tracknumber or 0)) 1 tracks;
         
-        discPadLen = pkgs.lib.max 1 (builtins.stringLength (toString maxDisc));
+        discPadLen = builtins.stringLength (toString maxDisc);
         trackPadLen = pkgs.lib.max 2 (builtins.stringLength (toString maxTrack));
 
         toTomlVal = v:
@@ -86,6 +116,10 @@
           '') tracks}
         '';
         metadataToml = pkgs.writeText "metadata.toml" metadataTomlContent;
+
+        processedCover = if cover != null && cover ? file 
+                         then self.lib.mkCover { name = "${pname}-cover"; src = cover.file; }
+                         else null;
 
         rawSrc = if (builtins.getEnv "VELLUM_STAGING_SRC") != "" then
                   /. + (builtins.getEnv "VELLUM_STAGING_SRC")
@@ -116,16 +150,9 @@
             name = trackName;
             src = realSrc + "/${track.file}";
             metadata = mergedMeta;
-            inherit writeTags;
+            cover = processedCover;
           };
         }) tracks;
-
-        coverExt = if cover != null && cover ? file then pkgs.lib.strings.concatStringsSep "." (pkgs.lib.lists.tail (pkgs.lib.strings.splitString "." (baseNameOf cover.file))) else "jpg";
-        coverSrc = if cover != null && cover ? file 
-                   then (if cover ? sha256 
-                         then builtins.path { name = "${pname}-cover"; path = cover.file; sha256 = cover.sha256; } 
-                         else builtins.path { name = "${pname}-cover"; path = cover.file; }) 
-                   else null;
 
       in if hasDuplicates then throw "Duplicate discnumber and tracknumber combinations found in tracks." else pkgs.stdenv.mkDerivation {
         name = pname;
@@ -137,7 +164,6 @@
             ln -s "${t.drv}/track.flac" "$out/${t.fileName}"
           '') builtTracks}
           cp ${metadataToml} $out/metadata.toml
-          ${if coverSrc != null then "cp ${coverSrc} $out/cover.${coverExt}" else ""}
         '';
         installPhase = "true";
       };

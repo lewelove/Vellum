@@ -180,13 +180,15 @@ fn materialize_output(store_dir: &Path, target_dir: &Path, store_path: &Path) ->
             }
         }
 
-        std::os::unix::fs::symlink(&store_file, &target_file).with_context(|| {
-            format!(
-                "Failed to symlink {} to {}",
-                store_file.display(),
-                target_file.display()
-            )
-        })?;
+        if fs::hard_link(&store_file, &target_file).is_err() {
+            std::os::unix::fs::symlink(&store_file, &target_file).with_context(|| {
+                format!(
+                    "Failed to create link (hard or sym) for {} at {}",
+                    store_file.display(),
+                    target_file.display()
+                )
+            })?;
+        }
     }
     Ok(())
 }

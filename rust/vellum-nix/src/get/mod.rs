@@ -55,7 +55,8 @@ pub fn calculate_staging_path(info: &AlbumInfo, stage: &Path, album_dir: &Path) 
     }
     
     let hash = format!("{:x}", hasher.finalize());
-    let dir_name = format!("{hash}-{}", info.pname);
+    let hash_32 = &hash[..32];
+    let dir_name = format!("{}-{}", info.pname, hash_32);
     
     Ok(stage.join(dir_name))
 }
