@@ -39,7 +39,7 @@ pub fn run(config: &AppConfig, target_album: &Path) -> Result<()> {
         .context("Failed to extract palette")?;
 
     println!("[album]\n");
-    println!("COVER_PALETTE = [");
+    println!("cover_palette = [");
     for (srgb, _) in palette {
         let r = (srgb.red.clamp(0.0, 1.0) * 255.0).round() as u8;
         let g = (srgb.green.clamp(0.0, 1.0) * 255.0).round() as u8;

@@ -17,8 +17,8 @@ class LibraryState {
       let a = this.dict[id];
       return a ? {
           id: a.id,
-          title: a.ALBUM,
-          artist: a.ALBUMARTIST,
+          title: a.album,
+          artist: a.albumartist,
           cover_hash: a.cover_hash,
           total_discs: a.total_discs,
           total_tracks: a.total_tracks,
@@ -445,3 +445,4 @@ class LibraryState {
 }
 
 export const library = new LibraryState();
+

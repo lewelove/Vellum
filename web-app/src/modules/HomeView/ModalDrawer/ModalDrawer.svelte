@@ -22,10 +22,10 @@
   let infoData = $derived(albumData.info || {});
 
   let coverHash = $derived(infoData.cover_hash || "");
-  let title = $derived(albumData.ALBUM || "Untitled");
-  let artist = $derived(albumData.ALBUMARTIST || "Unknown");
-  let genreString = $derived(Array.isArray(albumData.GENRE) ? albumData.GENRE.join(" ; ") : (albumData.GENRE || ""));
-  let dateString = $derived(albumData.DATE || "");
+  let title = $derived(albumData.album || "Untitled");
+  let artist = $derived(albumData.albumartist || "Unknown");
+  let genreString = $derived(Array.isArray(albumData.genre) ? albumData.genre.join(" ; ") : (albumData.genre || ""));
+  let dateString = $derived(albumData.date || "");
 
   let discCount = $derived(parseInt(infoData.total_discs || "1"));
   let trackCount = $derived(parseInt(infoData.total_tracks || "0"));
@@ -58,11 +58,11 @@
   async function handlePlayTrack(index) {
     try {
       const track = album.tracks[index];
-      const discNumber = track.DISCNUMBER;
+      const discNumber = track.discnumber;
       
       let intraDiscOffset = 0;
       for (let i = 0; i < index; i++) {
-        if (album.tracks[i].DISCNUMBER === discNumber) {
+        if (album.tracks[i].discnumber === discNumber) {
           intraDiscOffset++;
         }
       }
@@ -318,3 +318,4 @@
     width: 0px;
   }
 </style>
+

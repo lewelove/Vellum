@@ -14,7 +14,7 @@ def clean_genius_lyrics(lyrics, title):
     if lines and "Contributors" in lines[0]:
         lines.pop(0)
     
-    filtered_lines = []
+    filtered_lines =[]
     for line in lines:
         trimmed = line.strip()
         if trimmed.startswith("[") and trimmed.endswith("]"):
@@ -46,9 +46,9 @@ def fetch_album_lyrics(album_root_path, access_token):
     with open(lock_file, "r", encoding="utf-8") as f:
         data = json.load(f)
 
-    album_artist = data.get("album", {}).get("ALBUMARTIST")
+    album_artist = data.get("album", {}).get("albumartist")
     total_discs = int(data.get("album", {}).get("info", {}).get("total_discs", 1))
-    tracks = data.get("tracks", [])
+    tracks = data.get("tracks",[])
 
     if not album_artist or not tracks:
         print("Error: Invalid metadata structure in lock file.")
@@ -61,12 +61,12 @@ def fetch_album_lyrics(album_root_path, access_token):
     lyrics_dir = root / "Lyrics"
     lyrics_dir.mkdir(exist_ok=True)
 
-    print(f"Fetching lyrics for: {album_artist} - {data.get('album', {}).get('ALBUM')}")
+    print(f"Fetching lyrics for: {album_artist} - {data.get('album', {}).get('album')}")
 
     for track in tracks:
-        title = track.get("TITLE")
-        track_num = str(track.get("TRACKNUMBER", "0")).zfill(2)
-        disc_num = str(track.get("DISCNUMBER", "1"))
+        title = track.get("title")
+        track_num = str(track.get("tracknumber", "0")).zfill(2)
+        disc_num = str(track.get("discnumber", "1"))
         
         if not title:
             continue
@@ -118,3 +118,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

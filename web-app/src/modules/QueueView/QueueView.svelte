@@ -19,9 +19,9 @@
   
   let fullAlbum = $derived(activeId ? library.fullAlbumCache[activeId] : null);
 
-  let palette = $derived(fullAlbum?.album?.tags?.COVER_PALETTE || activeAlbum?.tags?.COVER_PALETTE ||[]);
+  let palette = $derived(fullAlbum?.album?.tags?.cover_palette || activeAlbum?.tags?.cover_palette ||[]);
   let hasPalette = $derived(palette && palette.length > 0);
-  let hasLyrics = $derived(fullAlbum?.tracks?.some(t => !!t.info?.lyrics_path || t.tags?.INSTRUMENTAL === true) ?? false);
+  let hasLyrics = $derived(fullAlbum?.tracks?.some(t => !!t.info?.lyrics_path || t.tags?.instrumental === true) ?? false);
 
   let isViewVisible = $derived(nav.activeTab === 'queue');
   let isPlaying = $derived(player.state === "play");
@@ -244,3 +244,4 @@
     pointer-events: none;
   }
 </style>
+

@@ -110,11 +110,11 @@
         <div class="album-group-header">
           <div class="header-content">
             <div class="header-row">
-              <span class="v-truncate header-album">{group.albumMeta.ALBUM}</span>
-              <span class="v-mono header-meta">{group.albumMeta.DATE?.substring(0,4)}</span>
+              <span class="v-truncate header-album">{group.albumMeta.album}</span>
+              <span class="v-mono header-meta">{group.albumMeta.date?.substring(0,4)}</span>
             </div>
             <div class="header-row">
-              <span class="v-truncate header-artist">{group.albumMeta.ALBUMARTIST}</span>
+              <span class="v-truncate header-artist">{group.albumMeta.albumartist}</span>
               <span class="v-mono header-meta">{group.albumMeta.album_duration_time}</span>
             </div>
           </div>
@@ -145,7 +145,7 @@
         >
           <div class="v-track-body track-body">
             <span class="v-truncate v-track-title track-title">{track.title}</span>
-            {#if track.artist && group.albumMeta && track.artist.toLowerCase() !== group.albumMeta.ALBUMARTIST.toLowerCase()}
+            {#if track.artist && group.albumMeta && track.artist.toLowerCase() !== group.albumMeta.albumartist.toLowerCase()}
               <span class="v-truncate v-track-artist track-artist">{track.artist}</span>
             {/if}
           </div>
@@ -289,3 +289,4 @@
     margin-top: 4px;
   }
 </style>
+

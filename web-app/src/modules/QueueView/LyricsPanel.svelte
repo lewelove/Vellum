@@ -11,7 +11,7 @@
   let lyricsText = $state("");
   let isLoading = $state(false);
   
-  let isInstrumental = $derived(currentTrackFull?.tags?.INSTRUMENTAL === true);
+  let isInstrumental = $derived(currentTrackFull?.tags?.instrumental === true);
 
   async function fetchLyrics(trackFull) {
     if (!trackFull) {
@@ -19,7 +19,7 @@
       return;
     }
 
-    if (trackFull.tags?.INSTRUMENTAL === true) {
+    if (trackFull.tags?.instrumental === true) {
       lyricsText = "";
       isLoading = false;
       return;
@@ -41,8 +41,8 @@
       } catch (e) {}
     }
     
-    if (trackFull.tags && trackFull.tags.LYRICS) {
-      lyricsText = trackFull.tags.LYRICS;
+    if (trackFull.tags && trackFull.tags.lyrics) {
+      lyricsText = trackFull.tags.lyrics;
     } else {
       lyricsText = "";
     }
@@ -124,3 +124,4 @@
     text-align: center;
   }
 </style>
+

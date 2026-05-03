@@ -26,20 +26,20 @@ def process_metadata_path(raw_path):
             lines = f.readlines()
         with open(path, "w", encoding="utf-8") as f:
             for line in lines:
-                if not line.lstrip().startswith("MUSICBRAINZ_"):
+                if not line.lstrip().to_lowercase().startswith("musicbrainz_"):
                     f.write(line)
     except Exception as e:
         print(f"WRITE_ERROR: Failed to strip IDs from metadata.toml at \"{path}\": {e}", file=sys.stderr)
 
     allowed_prefixes = (
         "[album]",
-        "ALBUMARTIST",
-        "ALBUM",
-        "DATE",
+        "albumartist",
+        "album",
+        "date",
         "[[tracks]]",
-        "TRACKNUMBER",
-        "TITLE",
-        "MUSICBRAINZ_"
+        "tracknumber",
+        "title",
+        "musicbrainz_"
     )
 
     try:
@@ -47,7 +47,7 @@ def process_metadata_path(raw_path):
             lines = f.readlines()
         with open(mbid_path, "w", encoding="utf-8") as f:
             for line in lines:
-                stripped = line.strip()
+                stripped = line.strip().lower()
                 if not stripped:
                     f.write(line)
                     continue
@@ -68,3 +68,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

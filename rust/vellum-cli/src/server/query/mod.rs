@@ -251,10 +251,10 @@ impl QueryEngine {
 
                     let entry = json!({
                         "id": id,
-                        "ALBUM": album.get("album"),
-                        "ALBUMARTIST": album.get("albumartist"),
-                        "DATE": album.get("date"),
-                        "GENRE": album.get("genre"),
+                        "album": album.get("album"),
+                        "albumartist": album.get("albumartist"),
+                        "date": album.get("date"),
+                        "genre": album.get("genre"),
                         "cover_path": info.get("cover_path"),
                         "cover_hash": info.get("cover_hash"),
                         "album_duration_time": info.get("album_duration_time"),
@@ -450,4 +450,3 @@ impl QueryEngine {
         None
     }
 }
-

@@ -194,8 +194,8 @@ fn finalize(
     target: ExportTarget,
     notify_tx: Option<Arc<mpsc::Sender<AlbumUpdateSignal>>>,
 ) -> Result<()> {
-    let artist = v.get("album").and_then(|a| a.get("ALBUMARTIST")).and_then(Value::as_str).unwrap_or("Unknown").to_string();
-    let album = v.get("album").and_then(|a| a.get("ALBUM")).and_then(Value::as_str).unwrap_or("Unknown").to_string();
+    let artist = v.get("album").and_then(|a| a.get("albumartist")).and_then(Value::as_str).unwrap_or("Unknown").to_string();
+    let album = v.get("album").and_then(|a| a.get("album")).and_then(Value::as_str).unwrap_or("Unknown").to_string();
 
     let ctx = v
         .as_object_mut()
@@ -211,15 +211,15 @@ fn finalize(
         .and_then(Value::as_array);
 
     let default_keys = vec![
-        "ALBUM".to_string(),
-        "ALBUMARTIST".to_string(),
-        "DATE".to_string(),
-        "GENRE".to_string(),
-        "COMMENT".to_string(),
-        "TITLE".to_string(),
-        "ARTIST".to_string(),
-        "TRACKNUMBER".to_string(),
-        "DISCNUMBER".to_string(),
+        "album".to_string(),
+        "albumartist".to_string(),
+        "date".to_string(),
+        "genre".to_string(),
+        "comment".to_string(),
+        "title".to_string(),
+        "artist".to_string(),
+        "tracknumber".to_string(),
+        "discnumber".to_string(),
     ];
 
     let subset_keys: Vec<String> = subset_keys_val.map_or_else(
@@ -269,4 +269,3 @@ fn finalize(
     }
     Ok(())
 }
-

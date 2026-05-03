@@ -43,7 +43,7 @@
 
   function getDiscDuration(discNumber) {
     const totalMs = tracks
-      .filter(t => t.DISCNUMBER === discNumber)
+      .filter(t => t.discnumber === discNumber)
       .reduce((acc, t) => acc + (parseInt(t.info?.track_duration) || 0), 0);
     return formatMs(totalMs);
   }
@@ -60,7 +60,7 @@
     if (onplaydisc) {
       onplaydisc(discNumber);
     } else {
-      const firstIndex = tracks.findIndex(t => t.DISCNUMBER === discNumber);
+      const firstIndex = tracks.findIndex(t => t.discnumber === discNumber);
       if (firstIndex !== -1 && onplay) {
         onplay(firstIndex);
       }
@@ -76,19 +76,19 @@
 
 <div class="tracks-list">
   {#each tracks as track, i}
-    {#if multiDisc && (i === 0 || track.DISCNUMBER !== tracks[i-1].DISCNUMBER)}
+    {#if multiDisc && (i === 0 || track.discnumber !== tracks[i-1].discnumber)}
       {#if i > 0}
         <div class="disc-separator"></div>
       {/if}
       <div class="disc-header-row">
-        <span class="disc-label">Disc {track.DISCNUMBER}</span>
+        <span class="disc-label">Disc {track.discnumber}</span>
         
         <div class="disc-header-right">
-          <span class="v-mono disc-duration-label">{getDiscDuration(track.DISCNUMBER)}</span>
+          <span class="v-mono disc-duration-label">{getDiscDuration(track.discnumber)}</span>
           <button 
             class="v-btn-icon disc-play-btn" 
-            onclick={() => handlePlayDisc(track.DISCNUMBER)}
-            title="Play Disc {track.DISCNUMBER}"
+            onclick={() => handlePlayDisc(track.discnumber)}
+            title="Play Disc {track.discnumber}"
           >
             <img src="/icons/outlined/24px/play_arrow.svg" alt="Play Disc" />
           </button>
@@ -104,13 +104,13 @@
       ondblclick={() => handlePlay(i)}
       onkeydown={(e) => handleKeydown(e, i)}
       role="button"
-      aria-label="Track {track.TRACKNUMBER}: {track.TITLE}"
+      aria-label="Track {track.tracknumber}: {track.title}"
     >
-      <span class="v-mono v-track-index track-index">{track.TRACKNUMBER}</span>
+      <span class="v-mono v-track-index track-index">{track.tracknumber}</span>
       <div class="v-track-body track-body">
-        <span class="v-truncate v-track-title track-title">{track.TITLE}</span>
-        {#if track.ARTIST && albumArtist && track.ARTIST.toLowerCase() !== albumArtist.toLowerCase()}
-          <span class="v-truncate v-track-artist track-artist">{track.ARTIST}</span>
+        <span class="v-truncate v-track-title track-title">{track.title}</span>
+        {#if track.artist && albumArtist && track.artist.toLowerCase() !== albumArtist.toLowerCase()}
+          <span class="v-truncate v-track-artist track-artist">{track.artist}</span>
         {/if}
       </div>
       <span class="v-mono v-track-meta track-meta">{formatDuration(track.info?.track_duration_time)}</span>
@@ -198,3 +198,4 @@
     color: #888888;
   }
 </style>
+
