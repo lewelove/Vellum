@@ -1,16 +1,22 @@
-<script>
+<script lang="ts">
   let { 
-    tracks = [], 
+    tracks =[], 
     totalDiscs = "1", 
     albumArtist = "",
     onplay, 
     onplaydisc 
+  }: { 
+    tracks?: any[], 
+    totalDiscs?: string, 
+    albumArtist?: string, 
+    onplay?: (index: number) => void, 
+    onplaydisc?: (disc: number) => void 
   } = $props();
 
   let selectedIndex = $state(-1);
   let multiDisc = $derived(parseInt(totalDiscs) > 1);
 
-  function formatDuration(str) {
+  function formatDuration(str: string) {
     if (!str) return "0:00";
     
     let parts = str.split(':');
@@ -26,14 +32,14 @@
     return parts.join(':');
   }
 
-  function formatMs(ms) {
+  function formatMs(ms: number) {
     if (!ms) return "0:00";
     const totalSeconds = Math.floor(ms / 1000);
     const h = Math.floor(totalSeconds / 3600);
     const m = Math.floor((totalSeconds % 3600) / 60);
     const s = totalSeconds % 60;
     
-    const pad = (num) => String(num).padStart(2, '0');
+    const pad = (num: number) => String(num).padStart(2, '0');
 
     if (h > 0) {
       return `${h}:${pad(m)}:${pad(s)}`;
@@ -41,22 +47,22 @@
     return `${m}:${pad(s)}`;
   }
 
-  function getDiscDuration(discNumber) {
+  function getDiscDuration(discNumber: number) {
     const totalMs = tracks
       .filter(t => t.discnumber === discNumber)
       .reduce((acc, t) => acc + (parseInt(t.info?.track_duration) || 0), 0);
     return formatMs(totalMs);
   }
 
-  function handleSelect(index) {
+  function handleSelect(index: number) {
     selectedIndex = index;
   }
 
-  function handlePlay(index) {
+  function handlePlay(index: number) {
     if (onplay) onplay(index);
   }
 
-  function handlePlayDisc(discNumber) {
+  function handlePlayDisc(discNumber: number) {
     if (onplaydisc) {
       onplaydisc(discNumber);
     } else {
@@ -67,7 +73,7 @@
     }
   }
 
-  function handleKeydown(e, index) {
+  function handleKeydown(e: KeyboardEvent, index: number) {
     if (e.key === 'Enter') {
       handlePlay(index);
     }

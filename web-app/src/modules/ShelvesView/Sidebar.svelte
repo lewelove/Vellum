@@ -1,9 +1,9 @@
-<script>
-  import { library } from "../../library.svelte.js";
+<script lang="ts">
+  import { library } from "../../library.svelte.ts";
 
   let activeShelf = $derived(library.activeShelf || (library.manifest.shelves_order && library.manifest.shelves_order[0]) || Object.keys(library.availableShelves)[0]);
 
-  function selectShelf(key) {
+  function selectShelf(key: string) {
     library.setShelf(key);
   }
 </script>
@@ -34,27 +34,6 @@
     background-color: var(--background-drawer); 
     padding: 6px 12px; 
     box-sizing: border-box;
-  }
-
-  .sidebar-controls {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    padding-bottom: 12px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    margin-bottom: 0px;
-    flex-shrink: 0;
-  }
-
-  .header-icon {
-    opacity: 0.7;
-    margin-right: 8px;
-    flex-shrink: 0;
-  }
-
-  .header-title {
-    font-size: 14px;
-    font-weight: 500;
   }
 
   .sidebar-scroll {
@@ -114,3 +93,4 @@
     margin-right: 8px;
   }
 </style>
+

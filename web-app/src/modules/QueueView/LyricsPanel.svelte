@@ -1,19 +1,19 @@
-<script>
-  import { player } from "../player.svelte.js";
-  import { library } from "../../library.svelte.js";
+<script lang="ts">
+  import { player } from "../player.svelte.ts";
+  import { library } from "../../library.svelte.ts";
 
   let currentFile = $derived(player.currentFile);
   let activeId = $derived(player.currentAlbumId);
   
   let fullAlbum = $derived(activeId ? library.fullAlbumCache[activeId] : null);
-  let currentTrackFull = $derived(fullAlbum?.tracks?.find(t => t.info?.track_library_path === currentFile) || null);
+  let currentTrackFull = $derived(fullAlbum?.tracks?.find((t: any) => t.info?.track_library_path === currentFile) || null);
 
   let lyricsText = $state("");
   let isLoading = $state(false);
   
   let isInstrumental = $derived(currentTrackFull?.tags?.instrumental === true);
 
-  async function fetchLyrics(trackFull) {
+  async function fetchLyrics(trackFull: any) {
     if (!trackFull) {
       lyricsText = "";
       return;
@@ -28,7 +28,7 @@
     if (trackFull.info?.lyrics_path) {
       isLoading = true;
       try {
-          const encodedId = encodeURIComponent(activeId);
+          const encodedId = encodeURIComponent(activeId as string);
           const pathPart = trackFull.info.lyrics_path; 
           const url = `/api/assets/lyrics/${encodedId}/${pathPart}`;
           

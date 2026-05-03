@@ -1,11 +1,11 @@
-<script>
-  import { library } from "../../library.svelte.js";
+<script lang="ts">
+  import { library } from "../../library.svelte.ts";
   import SidebarIndex from "./SidebarIndex.svelte";
 
   let isCollectionMenuOpen = $state(false);
   let isSortMenuOpen = $state(false);
   let isGroupMenuOpen = $state(false);
-  let scrollContainer = $state(null);
+  let scrollContainer: HTMLDivElement | null = $state(null);
 
   let collectionLabel = $derived(library.availableCollections[library.activeCollection]?.label || "Unknown");
   let groupLabel = $derived(library.availableFacets[library.activeSidebarGrouper]?.label || "Unknown");
@@ -43,17 +43,17 @@
     }
   }
 
-  function selectCollection(key) {
+  function selectCollection(key: string) {
     library.setCollection(key);
     isCollectionMenuOpen = false;
   }
 
-  function selectSorter(key) {
+  function selectSorter(key: string) {
     library.setUserSort(key);
     isSortMenuOpen = false;
   }
 
-  function selectGrouper(key) {
+  function selectGrouper(key: string) {
     library.setSidebarGrouper(key);
     isGroupMenuOpen = false;
   }
@@ -63,7 +63,7 @@
   }
 </script>
 
-{#snippet Item({ index, label, count, active, onclick })}
+{#snippet Item({ index, label, count, active, onclick }: { index: number, label: string, count: number, active: boolean, onclick: () => void })}
   <button id="sidebar-item-{index}" class="sidebar-item" class:active {onclick}>
     <span class="v-truncate label" title={label}>{label}</span>
     {#if showCount}
@@ -246,11 +246,6 @@
     flex-shrink: 0;
   }
 
-  /* .dir-btn img { */
-  /*   width: 20px; */
-  /*   height: 20px; */
-  /* } */
-
   .dir-btn img.mirrored {
     transform: scaleY(-1);
   }
@@ -382,3 +377,4 @@
     font-family: var(--font-mono);
   }
 </style>
+

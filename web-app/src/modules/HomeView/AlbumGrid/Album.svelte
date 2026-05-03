@@ -1,8 +1,8 @@
-<script>
-  import { theme } from "../../../theme.svelte.js";
-  import { library } from "../../../library.svelte.js";
+<script lang="ts">
+  import { theme } from "../../../theme.svelte.ts";
+  import { library } from "../../../library.svelte.ts";
 
-  let { album, active, onclick, scrollY = 0, rowY = 0 } = $props();
+  let { album, active, onclick, scrollY = 0, rowY = 0 }: { album: any, active: boolean, onclick: () => void, scrollY?: number, rowY?: number } = $props();
 
   let originalUrl = $derived(library.getThumbnailUrl(album));
   let coverBitmap = $derived(library.pinnedTextures.get(originalUrl));
@@ -27,15 +27,15 @@
     return Math.max(0, diff);
   });
 
-  let canvas;
-  let coverCanvas = $state();
+  let canvas: HTMLCanvasElement | undefined = $state();
+  let coverCanvas: HTMLCanvasElement | undefined = $state();
   
   const lhTitle = $derived(theme.albumGrid["font-line-height-title"]);
   const gapLesser = $derived(theme.albumGrid["text-gap-lesser"]);
   const lhArtist = $derived(theme.albumGrid["font-line-height-artist"]);
   const textBlockHeight = $derived(lhTitle + gapLesser + lhArtist);
   
-  function fitText(ctx, text, maxWidth) {
+  function fitText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number) {
     if (!text) return "";
     let ellipsis = "...";
     let width = ctx.measureText(text).width;
@@ -49,7 +49,7 @@
     return text.substring(0, len) + ellipsis;
   }
 
-  function applyEffects(ctx) {
+  function applyEffects(ctx: CanvasRenderingContext2D) {
     ctx.shadowColor = "rgba(0, 0, 0, 0.1)";
     ctx.shadowBlur = 4;
     ctx.shadowOffsetX = 0;
@@ -69,6 +69,7 @@
     canvas.height = (h + 2) * dpr;
     
     const ctx = canvas.getContext('2d', { alpha: false });
+    if (!ctx) return;
     ctx.scale(dpr, dpr);
     ctx.translate(0, 1);
     
@@ -80,7 +81,10 @@
     
     applyEffects(ctx);
 
-    const cTitle = theme.palette[theme.colors["text-main"]] || "#ffffff";
+    const palette = theme.palette as Record<string, string>;
+    const colors = theme.colors as Record<string, string>;
+
+    const cTitle = palette[colors["text-main"]] || "#ffffff";
     const sTitle = theme.typography["font-size-title"];
     const wTitle = theme.typography["font-weight-title"];
     
@@ -92,7 +96,7 @@
     const titleText = fitText(ctx, album.title, w);
     ctx.fillText(titleText, 0, titleY);
     
-    const cArtist = theme.palette[theme.colors["text-muted"]] || "#cccccc";
+    const cArtist = palette[colors["text-muted"]] || "#cccccc";
     const sArtist = theme.typography["font-size-artist"];
     const wArtist = theme.typography["font-weight-artist"];
     
@@ -121,6 +125,7 @@
   $effect(() => {
     if (coverCanvas && coverBitmap) {
       const ctx = coverCanvas.getContext('2d', { alpha: false });
+      if (!ctx) return;
       const dpr = window.devicePixelRatio || 1;
       coverCanvas.width = coverSize * dpr;
       coverCanvas.height = (coverSize + 2) * dpr;

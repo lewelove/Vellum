@@ -8,13 +8,16 @@
     "resolveJsonModule": true,
     "sourceMap": true,
     "esModuleInterop": true,
-    "types": ["vite/client"],
+    "strict": true,
+    "allowJs": true,
+    "checkJs": false,
     "skipLibCheck": true,
-    "checkJs": true,
-    "baseUrl": ".",
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "types": ["vite/client"],
     "paths": {
-      "$modules/*": ["./src/modules/*"]
+      "$modules/*":["./src/modules/*"]
     }
   },
-  "include": ["src/**/*.d.ts", "src/**/*.js", "src/**/*.svelte"]
+  "include":["src/**/*.d.ts", "src/**/*.ts", "src/**/*.svelte"]
 }

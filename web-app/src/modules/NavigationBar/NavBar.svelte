@@ -1,11 +1,11 @@
-<script>
-  import { nav, setTab } from "../../navigation.svelte.js";
+<script lang="ts">
+  import { nav, setTab } from "../../navigation.svelte.ts";
   import Control from "./Control.svelte";
 
   let { variant = "solid" } = $props();
 </script>
 
-{#snippet NavButton({ icon, tab })}
+{#snippet NavButton({ icon, tab }: { icon: string, tab: string })}
   <button 
     class="v-btn-icon nav-button" 
     class:active={nav.activeTab === tab} 
@@ -23,8 +23,6 @@
     {@render NavButton({ icon: "icons/outlined/24px/newsstand.svg", tab: "shelves" })}
   </div>
 
-  <!-- <div class="nav-separator"></div> -->
-  
   <div class="nav-group bottom">
     <Control />
   </div>
@@ -56,14 +54,6 @@
     width: 100%;
   }
 
-  .nav-separator {
-    width: 36px;
-    height: 1px;
-    background-color: oklch(100% 0 0 / 0.10);
-    margin: 16px 0;
-    flex-shrink: 0;
-  }
-
   .nav-group.bottom {
     flex: 1;
   }
@@ -82,3 +72,4 @@
     height: 22px;
   }
 </style>
+

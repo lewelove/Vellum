@@ -1,12 +1,14 @@
-import { LayoutManager } from "./Layout.svelte.js";
-import { ScrollEngine } from "./Scroll.svelte.js";
+import { LayoutManager } from "./Layout.svelte.ts";
+import { ScrollEngine } from "./Scroll.svelte.ts";
 
 export class GridController {
   layout = new LayoutManager();
   scroll = new ScrollEngine();
-  viewportHeight = $state(0);
+  viewportHeight: number = $state(0);
   
-  constructor(getAlbums) {
+  getAlbums: () => any[] = () => [];
+
+  constructor(getAlbums: () => any[]) {
     this.getAlbums = getAlbums;
   }
 
@@ -27,7 +29,7 @@ export class GridController {
       this.allRows.length
     );
 
-    const indicesToRender = [];
+    const indicesToRender: number[] =[];
     for (let i = start; i <= end; i++) {
       indicesToRender.push(i);
     }
@@ -39,7 +41,7 @@ export class GridController {
     }));
   });
 
-  update(mainEl, dpr = 1) {
+  update(mainEl: HTMLElement | null, dpr: number = 1) {
     this.scroll.update(this.layout.rowHeight, dpr);
     
     if (mainEl) {
@@ -47,11 +49,11 @@ export class GridController {
     }
   }
 
-  handleWheel(e) {
+  handleWheel(e: WheelEvent) {
     this.scroll.handleWheel(e, this.maxSlots);
   }
 
-  scrollRow(delta) {
+  scrollRow(delta: number) {
     const newSlot = this.scroll.targetSlot + delta;
     this.scroll.targetSlot = Math.max(0, Math.min(newSlot, this.maxSlots));
   }

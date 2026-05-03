@@ -1,8 +1,8 @@
-<script>
+<script lang="ts">
   import { onMount } from "svelte";
-  import { player } from "../player.svelte.js";
-  import { library } from "../../library.svelte.js";
-  import { jumpToQueueIndex } from "../../api.js";
+  import { player } from "../player.svelte.ts";
+  import { library } from "../../library.svelte.ts";
+  import { jumpToQueueIndex } from "../../api.ts";
   import ClearCover from "../ClearCover.svelte";
 
   let tickingElapsed = $state(0);
@@ -22,7 +22,7 @@
     return () => cancelAnimationFrame(raf);
   });
 
-  function formatDuration(str) {
+  function formatDuration(str: string) {
     if (!str) return "0:00";
     
     let parts = str.split(':');
@@ -38,14 +38,14 @@
     return parts.join(':');
   }
 
-  function formatMs(ms) {
+  function formatMs(ms: number) {
     if (!ms) return "0:00";
     const totalSeconds = Math.floor(ms / 1000);
     const h = Math.floor(totalSeconds / 3600);
     const m = Math.floor((totalSeconds % 3600) / 60);
     const s = totalSeconds % 60;
     
-    const pad = (num) => String(num).padStart(2, '0');
+    const pad = (num: number) => String(num).padStart(2, '0');
 
     if (h > 0) {
       return `${h}:${pad(m)}:${pad(s)}`;
@@ -53,14 +53,14 @@
     return `${m}:${pad(s)}`;
   }
 
-  function getDiscDuration(tracks, discNumber) {
+  function getDiscDuration(tracks: any[], discNumber: number) {
     const totalMs = tracks
       .filter(t => t.discNo === discNumber)
       .reduce((acc, t) => acc + t.durationMs, 0);
     return formatMs(totalMs);
   }
 
-  async function handleJump(id) {
+  async function handleJump(id: string | number) {
     try { await jumpToQueueIndex(id); } catch (e) {}
   }
 
@@ -86,7 +86,7 @@
   }));
 
   let groupedQueue = $derived.by(() => {
-    const groups = [];
+    const groups: any[] =[];
     mappedTracks.forEach(track => {
       if (groups.length === 0 || groups[groups.length - 1].albumId !== track.albumId) {
         const albumMeta = library.dict[track.albumId];
@@ -142,6 +142,8 @@
           class="v-track-row track-row" 
           class:active={track.isPlaying}
           ondblclick={() => handleJump(track.id)}
+          role="button"
+          tabindex="0"
         >
           <div class="v-track-body track-body">
             <span class="v-truncate v-track-title track-title">{track.title}</span>

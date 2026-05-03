@@ -1,7 +1,7 @@
-<script>
+<script lang="ts">
   import { onMount } from "svelte";
-  import { player } from "../player.svelte.js";
-  import { library } from "../../library.svelte.js";
+  import { player } from "../player.svelte.ts";
+  import { library } from "../../library.svelte.ts";
 
   let activeId = $derived(player.currentAlbumId);
 
@@ -11,7 +11,7 @@
     }
   });
 
-  function stripSlashes(str) {
+  function stripSlashes(str: string | null) {
     return (str || "").replace(/^\/+/, "");
   }
 
@@ -19,7 +19,7 @@
   
   let currentTrackFull = $derived(
     (fullAlbum?.tracks && player.currentFile)
-      ? fullAlbum.tracks.find(t => stripSlashes(t.info?.track_library_path) === stripSlashes(player.currentFile))
+      ? fullAlbum.tracks.find((t: any) => stripSlashes(t.info?.track_library_path) === stripSlashes(player.currentFile))
       : null
   );
 
@@ -44,11 +44,11 @@
   let duration = $derived(player.duration || 0);
   let progress = $derived(duration > 0 ? (Math.floor(tickingElapsed) / duration) * 100 : 0);
 
-  function formatTime(totalSeconds) {
+  function formatTime(totalSeconds: number) {
     const s = Math.floor(totalSeconds || 0);
     const m = Math.floor(s / 60);
     const rs = s % 60;
-    const pad = (n) => String(n).padStart(2, '0');
+    const pad = (n: number) => String(n).padStart(2, '0');
     return `${m}:${pad(rs)}`;
   }
 
@@ -199,3 +199,4 @@
     border-radius: 1px;
   }
 </style>
+

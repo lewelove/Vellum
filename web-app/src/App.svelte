@@ -1,16 +1,16 @@
-<script>
+<script lang="ts">
   import { onMount } from "svelte";
-  import { library } from "./library.svelte.js";
-  import { nav, setTab } from "./navigation.svelte.js";
+  import { library } from "./library.svelte.ts";
+  import { nav, setTab } from "./navigation.svelte.ts";
   
   import HomeView from "./modules/HomeView/HomeView.svelte";
   import ShelvesView from "./modules/ShelvesView/ShelvesView.svelte";
   import QueueView from "./modules/QueueView/QueueView.svelte";
 
-  const tabOrder = { home: 1, queue: 2, shelves: 3 };
+  const tabOrder: Record<string, number> = { home: 1, queue: 2, shelves: 3 };
   let currentTab = $state(nav.activeTab);
-  let retentionTab = $state(null);
-  let instantTab = $state(null);
+  let retentionTab: string | null = $state(null);
+  let instantTab: string | null = $state(null);
 
   $effect(() => {
     if (nav.activeTab !== currentTab) {
@@ -48,8 +48,8 @@
 
   let isModalVisible = $derived(!!library.focusedAlbum);
 
-  function handleKeydown(e) {
-    if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
+  function handleKeydown(e: KeyboardEvent) {
+    if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName ?? "")) return;
     
     const code = e.code;
     
@@ -130,22 +130,12 @@
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
-    /* transition: opacity 0.1s linear, visibility 0.1s linear; */
-    /* transition: opacity 0.08s ease-out, visibility 0.08s ease-out; */
-    /* transition: opacity 0.8s ease-out, visibility 0.8s ease-out; */
-    /* transition: opacity 0.2s ease-out, visibility 0.2s ease-out; */
-    /* transition: opacity 0.1s ease-out, visibility 0.1s ease-out; */
     transition: opacity 0.0s ease-out, visibility 0.0s ease-out;
   }
 
   .view-layer.visible {
     opacity: 1;
     visibility: visible;
-    /* transition: opacity 0.1s linear, visibility 0.1s linear; */
-    /* transition: opacity 0.08s ease-out, visibility 0.08s ease-out; */
-    /* transition: opacity 0.8s ease-out, visibility 0.8s ease-out; */
-    /* transition: opacity 0.2s ease-out, visibility 0.2s ease-out; */
-    /* transition: opacity 0.1s ease-out, visibility 0.1s ease-out; */
     transition: opacity 0.0s ease-out, visibility 0.0s ease-out;
   }
 
@@ -172,3 +162,4 @@
     background-color: var(--background-main);
   }
 </style>
+

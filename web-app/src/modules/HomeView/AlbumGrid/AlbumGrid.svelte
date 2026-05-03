@@ -1,13 +1,13 @@
-<script>
+<script lang="ts">
   import { onMount, onDestroy } from "svelte";
-  import { library } from "../../../library.svelte.js";
-  import { GridController } from "./GridController.svelte.js";
+  import { library } from "../../../library.svelte.ts";
+  import { GridController } from "./GridController.svelte.ts";
   import Album from "./Album.svelte";
 
-  let { albums =[], version = 0, activeAlbumId = null, onfocus = () => {} } = $props();
+  let { albums = [], version = 0, activeAlbumId = null, onfocus = () => {} }: { albums?: any[], version?: number, activeAlbumId?: string | null, onfocus?: (album: any) => void } = $props();
 
   const ctrl = new GridController(() => albums);
-  let rafId;
+  let rafId: number;
   let dpr = $state(1);
 
   const activeKeys = new Set();
@@ -26,8 +26,8 @@
     rafId = requestAnimationFrame(loop);
   }
 
-  function handleKeydown(e) {
-    if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
+  function handleKeydown(e: KeyboardEvent) {
+    if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName ?? "")) return;
     if (activeAlbumId) return;
 
     const key = e.key.toLowerCase();
@@ -37,7 +37,7 @@
     }
   }
 
-  function handleKeyup(e) {
+  function handleKeyup(e: KeyboardEvent) {
     const key = e.key.toLowerCase();
     if (activeKeys.has(key)) activeKeys.delete(key);
   }
@@ -168,3 +168,4 @@
         height: 100%;
     }
 </style>
+

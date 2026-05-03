@@ -1,8 +1,8 @@
-<script>
+<script lang="ts">
   import { onMount, onDestroy } from "svelte";
-  import { player } from "../player.svelte.js";
-  import { library } from "../../library.svelte.js";
-  import { nav } from "../../navigation.svelte.js";
+  import { player } from "../player.svelte.ts";
+  import { library } from "../../library.svelte.ts";
+  import { nav } from "../../navigation.svelte.ts";
   import { fade } from "svelte/transition";
   
   import TracklistPanel from "./TracklistPanel.svelte";
@@ -21,7 +21,7 @@
 
   let palette = $derived(fullAlbum?.album?.tags?.cover_palette || activeAlbum?.tags?.cover_palette ||[]);
   let hasPalette = $derived(palette && palette.length > 0);
-  let hasLyrics = $derived(fullAlbum?.tracks?.some(t => !!t.info?.lyrics_path || t.tags?.instrumental === true) ?? false);
+  let hasLyrics = $derived(fullAlbum?.tracks?.some((t: any) => !!t.info?.lyrics_path || t.tags?.instrumental === true) ?? false);
 
   let isViewVisible = $derived(nav.activeTab === 'queue');
   let isPlaying = $derived(player.state === "play");
@@ -43,7 +43,7 @@
   let glassOpacity = $derived.by(() => {
     if (!palette || palette.length === 0) return 0.5;
     
-    const lValues = palette.map(entry => {
+    const lValues = palette.map((entry: any) => {
       if (!Array.isArray(entry) || entry.length < 2) return 0.5;
       const match = entry[1].match(/oklch\(([\d.]+)%/);
       return match ? parseFloat(match[1]) / 100 : 0.5;
@@ -65,7 +65,7 @@
     }
   }
 
-  function handleKeydown(e) {
+  function handleKeydown(e: KeyboardEvent) {
     if (isExpanded && e.key === "Escape") {
       isExpanded = false;
     }

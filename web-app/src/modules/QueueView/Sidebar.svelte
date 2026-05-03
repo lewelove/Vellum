@@ -1,15 +1,15 @@
-<script>
-  import { library } from "../../library.svelte.js";
-  import { player } from "../player.svelte.js";
+<script lang="ts">
+  import { library } from "../../library.svelte.ts";
+  import { player } from "../player.svelte.ts";
   import { 
     playAlbum, 
     openAlbumFolder, 
     openLockFile, 
     openManifestFile, 
     updateAlbum 
-  } from "../../api.js";
+  } from "../../api.ts";
 
-  let { hasLyrics, hasPalette } = $props();
+  let { hasLyrics, hasPalette }: { hasLyrics: boolean, hasPalette: boolean } = $props();
 
   let activeId = $derived(player.currentAlbumId);
   let isStopped = $derived(player.state === "stop");
@@ -35,13 +35,13 @@
   }
 </script>
 
-{#snippet NavButton({ icon, label, disabled, active, onclick })}
+{#snippet NavButton({ icon, label, disabled, active, onclick }: { icon: string, label: string, disabled?: boolean, active?: boolean, onclick: () => void })}
   <button class="v-btn-icon queue-nav-button" class:active {disabled} {onclick} title={label}>
     <img src="/{icon}" alt={label} class="nav-icon" />
   </button>
 {/snippet}
 
-{#snippet ActButton({ icon, label, disabled, active, onclick })}
+{#snippet ActButton({ icon, label, disabled, active, onclick }: { icon: string, label: string, disabled?: boolean, active?: boolean, onclick: () => void })}
   <button class="v-btn-icon queue-act-button" class:active {disabled} {onclick} title={label}>
     <img src="/{icon}" alt={label} class="act-icon" />
   </button>
@@ -131,3 +131,4 @@
     height: 20px;
   }
 </style>
+

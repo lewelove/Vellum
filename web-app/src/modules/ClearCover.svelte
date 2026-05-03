@@ -1,5 +1,5 @@
-<script>
-  let { hash, width, height } = $props();
+<script lang="ts">
+  let { hash, width, height }: { hash?: string, width: number, height: number } = $props();
 
   let dpr = $derived(window.devicePixelRatio || 1);
   let targetWidth = $derived(Math.round(width * dpr));
@@ -69,11 +69,5 @@
     justify-content: center;
     box-sizing: border-box;
   }
-
-  .empty-cover span {
-    font-family: var(--font-mono);
-    color: #444;
-    font-size: 12px;
-    letter-spacing: 2px;
-  }
 </style>
+

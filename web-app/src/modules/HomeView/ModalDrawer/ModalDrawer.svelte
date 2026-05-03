@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
   import { fade } from "svelte/transition";
   import { cubicOut } from "svelte/easing";
   import { 
@@ -8,13 +8,13 @@
     playDisc,
     openLockFile,
     openManifestFile,
-    updateAlbum
-  } from "../../../api.js";
-  import { library } from "../../../library.svelte.js";
+    updateAlbum 
+  } from "../../../api.ts";
+  import { library } from "../../../library.svelte.ts";
   import ClearCover from "../../ClearCover.svelte";
   import ModalDrawerTracks from "./ModalDrawerTracks.svelte";
 
-  let { album, onclose } = $props();
+  let { album, onclose }: { album: any, onclose: () => void } = $props();
 
   let leftColumnWidth = $state(0);
 
@@ -55,7 +55,7 @@
     try { await updateAlbum(album.id); } catch (err) { console.error(err); }
   }
 
-  async function handlePlayTrack(index) {
+  async function handlePlayTrack(index: number) {
     try {
       const track = album.tracks[index];
       const discNumber = track.discnumber;
@@ -73,11 +73,11 @@
     }
   }
 
-  async function handlePlayDisc(discNumber) {
+  async function handlePlayDisc(discNumber: number) {
     try { await playDisc(album.id, discNumber); } catch (err) { console.error(err); }
   }
 
-  function handleBackdropClick(e) {
+  function handleBackdropClick(e: MouseEvent) {
     if (e.target === e.currentTarget) {
       onclose();
     }

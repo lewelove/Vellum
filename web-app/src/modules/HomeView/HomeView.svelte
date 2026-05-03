@@ -1,5 +1,5 @@
-<script>
-  import { library } from "../../library.svelte.js";
+<script lang="ts">
+  import { library } from "../../library.svelte.ts";
 
   import NavBar from "../NavigationBar/NavBar.svelte";
   import AlbumGrid from "./AlbumGrid/AlbumGrid.svelte";
@@ -12,7 +12,7 @@
 
   function startResizing() {
     isResizing = true;
-    const move = (e) => { 
+    const move = (e: MouseEvent) => { 
       const w = window.innerWidth;
       library.sidebarWidth = Math.max(140, Math.min(w - e.clientX, 400)); 
     };
@@ -48,7 +48,7 @@
       class:dormant={isModalVisible}
     >
       <div class="sidebar-panel">
-        <div class="sidebar-resizer" onmousedown={startResizing} role="separator" tabindex="0"></div>
+        <button class="sidebar-resizer" onmousedown={startResizing} aria-label="Resize sidebar"></button>
         <div class="sidebar-inner"><Sidebar /></div>
       </div>
     </aside>
@@ -138,6 +138,9 @@
     transform: translateX(-50%);
     pointer-events: auto;
     background: transparent;
+    border: none;
+    padding: 0;
+    margin: 0;
   }
 
   .sidebar-inner { 
@@ -151,3 +154,4 @@
     z-index: 150;
   }
 </style>
+

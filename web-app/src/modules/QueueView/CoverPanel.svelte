@@ -1,8 +1,8 @@
-<script>
-  import { player } from "../player.svelte.js";
+<script lang="ts">
+  import { player } from "../player.svelte.ts";
   import ClearCover from "../ClearCover.svelte";
 
-  let { coverHash = "", onclick, width = $bindable(0) } = $props();
+  let { coverHash = "", onclick, width = $bindable(0) }: { coverHash?: string, onclick?: () => void, width?: number } = $props();
   let isStopped = $derived(player.state === "stop");
 </script>
 
@@ -67,3 +67,4 @@
     justify-content: center;
   }
 </style>
+

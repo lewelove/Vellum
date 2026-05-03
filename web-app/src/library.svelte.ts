@@ -1,18 +1,18 @@
-import { connectSocket } from "./api.js";
-import { player, updatePlayerState } from "./modules/player.svelte.js";
-import { nav } from "./navigation.svelte.js";
+import { connectSocket } from "./api.ts";
+import { player, updatePlayerState } from "./modules/player.svelte.ts";
+import { nav } from "./navigation.svelte.ts";
 
 class LibraryState {
-  dict = $state({});
-  trackPathMap = $state({});
+  dict: Record<string, any> = $state({});
+  trackPathMap: Record<string, any> = $state({});
   
-  libraryViewIds = $state([]);
-  shelfViewIds = $state([]);
+  libraryViewIds: string[] = $state([]);
+  shelfViewIds: string[] = $state([]);
   
   libraryAlbums = $derived(this.mapIdsToAlbums(this.libraryViewIds));
   shelfAlbums = $derived(this.mapIdsToAlbums(this.shelfViewIds));
   
-  mapIdsToAlbums(ids) {
+  mapIdsToAlbums(ids: string[]): any[] {
     return ids.map(id => {
       let a = this.dict[id];
       return a ? {
@@ -28,63 +28,63 @@ class LibraryState {
     }).filter(Boolean);
   }
   
-  sidebarGroups = $state(new Map()); 
-  isLoading = $state(true);
-  isConnected = $state(false);
+  sidebarGroups: Map<string, any[]> = $state(new Map()); 
+  isLoading: boolean = $state(true);
+  isConnected: boolean = $state(false);
   
-  focusedAlbums = $state({ home: null, shelves: null, queue: null });
+  focusedAlbums: Record<string, any> = $state({ home: null, shelves: null, queue: null });
 
-  get focusedAlbum() {
+  get focusedAlbum(): any {
     return this.focusedAlbums[nav.activeTab] || null;
   }
 
-  set focusedAlbum(val) {
+  set focusedAlbum(val: any) {
     this.focusedAlbums[nav.activeTab] = val;
   }
   
-  activeCollection = $state("library");
-  activeFilter = $state({ key: null, val: null });
-  activeSort = $state({ key: "default", order: "default" });
-  userSortPreference = $state("default");
-  userSortOrder = $state("default");
-  activeSidebarGrouper = $state("genre");
-  activeShelf = $state(null);
+  activeCollection: string = $state("library");
+  activeFilter: { key: string | null, val: string | null } = $state({ key: null, val: null });
+  activeSort: { key: string, order: string } = $state({ key: "default", order: "default" });
+  userSortPreference: string = $state("default");
+  userSortOrder: string = $state("default");
+  activeSidebarGrouper: string = $state("genre");
+  activeShelf: string | null = $state(null);
   
-  libraryVersion = $state(0);
-  shelfVersion = $state(0);
+  libraryVersion: number = $state(0);
+  shelfVersion: number = $state(0);
 
-  pinnedTextures = $state(new Map());
-  fullAlbumCache = $state({});
-  isShaderEnabled = $state(true);
-  isShaderActive = $derived(this.isShaderEnabled && player.state !== "stop");
-  queuePanels = $state({ lyrics: false, tracks: true });
-  themeVersion = $state(Date.now());
+  pinnedTextures: Map<string, ImageBitmap> = $state(new Map());
+  fullAlbumCache: Record<string, any> = $state({});
+  isShaderEnabled: boolean = $state(true);
+  isShaderActive: boolean = $derived(this.isShaderEnabled && player.state !== "stop");
+  queuePanels: Record<string, boolean> = $state({ lyrics: false, tracks: true });
+  themeVersion: number = $state(Date.now());
   
-  sidebarWidth = $state(280);
+  sidebarWidth: number = $state(280);
   
-  manifest = $state({ collections: {}, groupers: {}, sorters: {}, shelves: {} });
+  manifest: Record<string, any> = $state({ collections: {}, groupers: {}, sorters: {}, shelves: {} });
 
-  config = $state({
+  config: Record<string, any> = $state({
     thumbnail_size: 200,
     shader: null
   });
 
-  _ws = null;
-  _pendingViewReset = false;
+  _ws: WebSocket | null = null;
+  _pendingViewReset: boolean = false;
 
   init() {
     this._ws = connectSocket(
       () => { this.isConnected = true; },
-      (event) => this.handleSocketMessage(event)
+      (event: MessageEvent) => this.handleSocketMessage(event)
     );
   }
 
-  handleSocketMessage(event) {
+  handleSocketMessage(event: MessageEvent) {
     if (event.data instanceof Blob) {
       const reader = new FileReader();
       reader.onload = () => {
         try {
-          const json = JSON.parse(reader.result);
+          const json = JSON.parse(reader.result as string);
           this.dispatchSocketAction(json);
         } catch (err) {
           console.error(err);
@@ -101,7 +101,7 @@ class LibraryState {
     }
   }
 
-  dispatchSocketAction(json) {
+  dispatchSocketAction(json: any) {
     if (json.type === "INIT_DICT") {
       this.dict = json.dict || {};
       this.trackPathMap = json.trackMap || {};
@@ -212,7 +212,7 @@ class LibraryState {
     if (pendingUpdates) flush();
   }
 
-  applyPersistedState(state) {
+  applyPersistedState(state: any) {
       nav.activeTab = state.activeTab || "home";
       this.activeCollection = state.activeCollection || "library";
       this.userSortPreference = state.sortKey || "default";
@@ -245,7 +245,7 @@ class LibraryState {
       }).catch(err => console.error(err));
   }
 
-  refreshView(resetScroll = true) {
+  refreshView(resetScroll: boolean = true) {
     if (!this._ws || this._ws.readyState !== WebSocket.OPEN) return;
     this._pendingViewReset = resetScroll;
     
@@ -275,7 +275,7 @@ class LibraryState {
     }));
   }
 
-  getSidebarGroup(key) {
+  getSidebarGroup(key: string): any[] {
     if (!this.sidebarGroups.has(key) && this._ws?.readyState === WebSocket.OPEN) {
         this.refreshSidebar();
         return[];
@@ -283,64 +283,64 @@ class LibraryState {
     return this.sidebarGroups.get(key) ||[];
   }
 
-  getTrackByPath(path) {
+  getTrackByPath(path: string): any {
     return this.trackPathMap[path];
   }
 
-  getThumbnailUrl(album) {
+  getThumbnailUrl(album: any): string {
     if (!album || !album.cover_hash) return "";
     const size = this.config.thumbnail_size || 200;
     return `/api/covers/${size}px/${album.cover_hash}`;
   }
 
-  getAlbumCoverUrl(albumId) {
+  getAlbumCoverUrl(albumId: string): string {
     const album = this.dict[albumId];
     if (!album || !album.cover_hash) return "";
     return `/api/assets/cover/${encodeURIComponent(albumId)}?v=${album.cover_hash}`;
   }
 
-  get availableCollections() { return this.manifest.collections || {}; }
-  get availableFacets() { return this.manifest.groupers || {}; }
-  get availableSorters() { return this.manifest.sorters || {}; }
-  get availableShelves() { return this.manifest.shelves || {}; }
+  get availableCollections(): Record<string, any> { return this.manifest.collections || {}; }
+  get availableFacets(): Record<string, any> { return this.manifest.groupers || {}; }
+  get availableSorters(): Record<string, any> { return this.manifest.sorters || {}; }
+  get availableShelves(): Record<string, any> { return this.manifest.shelves || {}; }
 
-  get collectionsList() {
+  get collectionsList(): any[] {
     const order = this.manifest.collections_order || Object.keys(this.availableCollections);
-    return order.map(k => ({ key: k, ...this.availableCollections[k] }));
+    return order.map((k: string) => ({ key: k, ...this.availableCollections[k] }));
   }
 
-  get shelvesList() {
+  get shelvesList(): any[] {
     const order = this.manifest.shelves_order || Object.keys(this.availableShelves);
-    return order.map(k => ({ key: k, ...this.availableShelves[k] }));
+    return order.map((k: string) => ({ key: k, ...this.availableShelves[k] }));
   }
 
-  get visibleFacets() {
+  get visibleFacets(): any[] {
     const collection = this.availableCollections[this.activeCollection];
     const order = this.manifest.groupers_order || Object.keys(this.availableFacets);
     if (collection && collection.allowed_groupers) {
       return collection.allowed_groupers
-        .filter(k => this.availableFacets[k])
-        .map(k => ({ key: k, label: this.availableFacets[k].label || k }));
+        .filter((k: string) => this.availableFacets[k])
+        .map((k: string) => ({ key: k, label: this.availableFacets[k].label || k }));
     }
     return order
-      .filter(k => this.availableFacets[k])
-      .map(k => ({ key: k, label: this.availableFacets[k].label || k }));
+      .filter((k: string) => this.availableFacets[k])
+      .map((k: string) => ({ key: k, label: this.availableFacets[k].label || k }));
   }
 
-  get visibleSorters() {
+  get visibleSorters(): any[] {
     const collection = this.availableCollections[this.activeCollection];
     const order = this.manifest.sorters_order || Object.keys(this.availableSorters);
     if (collection && collection.allowed_sorters) {
       return collection.allowed_sorters
-        .filter(k => this.availableSorters[k])
-        .map(k => ({ key: k, label: this.availableSorters[k].label || k }));
+        .filter((k: string) => this.availableSorters[k])
+        .map((k: string) => ({ key: k, label: this.availableSorters[k].label || k }));
     }
     return order
-      .filter(k => this.availableSorters[k])
-      .map(k => ({ key: k, label: this.availableSorters[k].label || k }));
+      .filter((k: string) => this.availableSorters[k])
+      .map((k: string) => ({ key: k, label: this.availableSorters[k].label || k }));
   }
 
-  setCollection(key) {
+  setCollection(key: string) {
     this.activeCollection = key;
     this.activeFilter = { key: null, val: null };
     this.focusedAlbum = null;
@@ -359,20 +359,20 @@ class LibraryState {
     this.persistState();
   }
 
-  setShelf(key) {
+  setShelf(key: string) {
     this.activeShelf = key;
     this.focusedAlbum = null;
     this.refreshView(true);
     this.persistState();
   }
 
-  setSidebarGrouper(key) {
+  setSidebarGrouper(key: string) {
     this.activeSidebarGrouper = key;
     this.refreshSidebar();
     this.persistState();
   }
 
-  applyFilter(key, val) {
+  applyFilter(key: string, val: string) {
     if (this.activeFilter.key === key && this.activeFilter.val === val) {
       this.activeFilter = { key: null, val: null };
     } else {
@@ -384,12 +384,12 @@ class LibraryState {
     this.persistState();
   }
 
-  applySort(key) {
+  applySort(key: string) {
     this.activeSort = { key, order: "default" };
     this.refreshView(true);
   }
 
-  setUserSort(key) {
+  setUserSort(key: string) {
     this.userSortPreference = key;
     this.activeSort = { key, order: this.userSortOrder };
     this.refreshView(true);
@@ -408,7 +408,7 @@ class LibraryState {
     this.refreshView(true);
   }
 
-  async ensureFullAlbum(id) {
+  async ensureFullAlbum(id: string): Promise<any> {
     if (!id) return null;
     if (this.fullAlbumCache[id]) return this.fullAlbumCache[id];
     try {
@@ -425,7 +425,7 @@ class LibraryState {
     return null;
   }
 
-  async setFocus(album) {
+  async setFocus(album: any) {
     this.focusedAlbums[nav.activeTab] = await this.ensureFullAlbum(album.id);
   }
 
@@ -438,11 +438,10 @@ class LibraryState {
     this.persistState();
   }
 
-  toggleQueuePanel(key) {
+  toggleQueuePanel(key: string) {
     this.queuePanels[key] = !this.queuePanels[key];
     this.persistState();
   }
 }
 
 export const library = new LibraryState();
-

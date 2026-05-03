@@ -1,6 +1,6 @@
-<script>
+<script lang="ts">
   import { onMount } from "svelte";
-  import { player } from "../player.svelte.js";
+  import { player } from "../player.svelte.ts";
 
   let isPlaying = $derived(player.state === "play");
 
@@ -65,7 +65,7 @@
     const waveHeight = Math.max(0, waveEnd - waveStart);
     const actualTransition = Math.min(transitionLen, waveHeight / 2);
     
-    const getX = (y) => {
+    const getX = (y: number) => {
       if (height <= straightLen * 2 + pad * 2) return midX;
       if (y <= waveStart || y >= waveEnd) return midX;
 
@@ -102,7 +102,7 @@
 
     if (pts.length === 0) return { d: "", cx: midX, cy: pad, thumbR: THUMB_R, targetY: pad };
 
-    const lefts =[];
+    const lefts = [];
     const rights =[];
 
     for (let i = 0; i < pts.length; i++) {
@@ -264,3 +264,4 @@
     transform: rotate(90deg);
   }
 </style>
+

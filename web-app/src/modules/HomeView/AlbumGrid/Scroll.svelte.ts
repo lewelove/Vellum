@@ -1,14 +1,16 @@
 export class ScrollEngine {
-  currentY = $state(0);
-  targetSlot = $state(0); 
-  wheelAccumulator = 0;
+  currentY: number = $state(0);
+  targetSlot: number = $state(0); 
+  wheelAccumulator: number = 0;
+  damping: number;
+  threshold: number;
   
-  constructor(damping = 0.18, threshold = 40) {
+  constructor(damping: number = 0.18, threshold: number = 40) {
     this.damping = damping;
     this.threshold = threshold;
   }
 
-  update(rowHeight, dpr = 1) {
+  update(rowHeight: number, dpr: number = 1) {
     const idealTargetY = this.targetSlot * rowHeight;
     const snappedTargetY = Math.round(idealTargetY * dpr) / dpr;
     
@@ -22,7 +24,7 @@ export class ScrollEngine {
     }
   }
 
-  handleWheel(e, maxSlots) {
+  handleWheel(e: WheelEvent, maxSlots: number) {
     this.wheelAccumulator += e.deltaY;
     
     if (Math.abs(this.wheelAccumulator) > this.threshold) {
@@ -34,13 +36,14 @@ export class ScrollEngine {
     }
   }
 
-  syncToSlot(slot) {
+  syncToSlot(slot: number) {
     this.targetSlot = slot;
   }
 
-  shiftPosition(deltaY, rowHeight, maxSlots) {
+  shiftPosition(deltaY: number, rowHeight: number, maxSlots: number) {
     this.currentY += deltaY;
     const slotDelta = deltaY / rowHeight;
     this.targetSlot = Math.max(0, Math.min(this.targetSlot + slotDelta, maxSlots));
   }
 }
+

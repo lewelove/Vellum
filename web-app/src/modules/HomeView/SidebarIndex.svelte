@@ -1,17 +1,17 @@
-<script>
+<script lang="ts">
   import { fade } from "svelte/transition";
 
-  let { items =[], container = null } = $props();
+  let { items = [], container = null }: { items?: any[], container?: HTMLElement | null } = $props();
 
   const ALL_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ#".split("");
   
-  let indexContainer = $state(null);
-  let charsWrapper = $state(null);
+  let indexContainer: HTMLDivElement | null = $state(null);
+  let charsWrapper: HTMLDivElement | null = $state(null);
   let isScrubbing = $state(false);
   let scrubChar = $state("");
   let bubbleY = $state(0);
 
-  function getBucketChar(label) {
+  function getBucketChar(label: string) {
     if (!label) return "#";
     const normalized = label.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
     const char = normalized.charAt(0);
@@ -39,7 +39,7 @@
     return map;
   });
 
-  function calculateScrub(e) {
+  function calculateScrub(e: PointerEvent) {
     if (!charsWrapper || !indexContainer || ALL_CHARS.length === 0) return;
     
     const wrapperRect = charsWrapper.getBoundingClientRect();
@@ -60,12 +60,12 @@
       if (container) {
         const jumpIndex = charJumpMap.get(targetChar);
         if (jumpIndex !== undefined && jumpIndex < items.length) {
-          const targetEl = container.querySelector(`#sidebar-item-${jumpIndex}`);
+          const targetEl = container.querySelector(`#sidebar-item-${jumpIndex}`) as HTMLElement;
           if (targetEl) {
             container.scrollTop = targetEl.offsetTop - 12;
           }
         } else if (jumpIndex === items.length - 1 && items.length > 0) {
-          const targetEl = container.querySelector(`#sidebar-item-${jumpIndex}`);
+          const targetEl = container.querySelector(`#sidebar-item-${jumpIndex}`) as HTMLElement;
           if (targetEl) {
              container.scrollTop = targetEl.offsetTop;
           }
@@ -74,18 +74,18 @@
     }
   }
 
-  function onPointerDown(e) {
+  function onPointerDown(e: PointerEvent) {
     if (e.button !== 0) return;
     isScrubbing = true;
-    indexContainer.setPointerCapture(e.pointerId);
+    indexContainer?.setPointerCapture(e.pointerId);
     calculateScrub(e);
   }
 
-  function onPointerMove(e) {
+  function onPointerMove(e: PointerEvent) {
     if (isScrubbing) calculateScrub(e);
   }
 
-  function onPointerUp(e) {
+  function onPointerUp(e: PointerEvent) {
     isScrubbing = false;
     scrubChar = "";
     if (indexContainer && indexContainer.hasPointerCapture(e.pointerId)) {
@@ -101,6 +101,9 @@
   onpointermove={onPointerMove}
   onpointerup={onPointerUp}
   onpointercancel={onPointerUp}
+  role="slider"
+  aria-valuenow={0}
+  tabindex="0"
 >
   <div class="chars-wrapper" bind:this={charsWrapper}>
     {#each ALL_CHARS as char}
@@ -184,3 +187,4 @@
     box-shadow: var(--panel-shadow);
   }
 </style>
+
