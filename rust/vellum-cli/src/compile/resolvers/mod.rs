@@ -7,10 +7,10 @@ use serde_json::{Value, json};
 
 pub fn resolve_top_level_album_key(key: &str, ctx: &AlbumContext) -> Value {
     match key {
-        "ALBUM" => standard::resolve_generic_string(ctx.source, "album", "", "Untitled"),
-        "ALBUMARTIST" => standard::resolve_generic_string(ctx.source, "albumartist", "artistartist", "Unknown"),
-        "DATE" => standard::resolve_generic_string(ctx.source, "date", "year,originalyear", "0000"),
-        "GENRE" => {
+        "album" => standard::resolve_generic_string(ctx.source, "album", "", "Untitled"),
+        "albumartist" => standard::resolve_generic_string(ctx.source, "albumartist", "artistartist", "Unknown"),
+        "date" => standard::resolve_generic_string(ctx.source, "date", "year,originalyear", "0000"),
+        "genre" => {
             let mut list = standard::resolve_generic_list(ctx.source, "genre", "");
             if let Value::Array(ref arr) = list
                 && arr.is_empty() {
@@ -18,17 +18,17 @@ pub fn resolve_top_level_album_key(key: &str, ctx: &AlbumContext) -> Value {
                 }
             list
         },
-        "COMMENT" => json!(native::resolve_comment(ctx, "")),
-        "ORIGINAL_YYYY_MM" => json!(native::resolve_yyyy_mm(ctx, "original_yyyy_mm", "")),
-        "RELEASE_YYYY_MM" => json!(native::resolve_yyyy_mm(ctx, "release_yyyy_mm", "")),
+        "comment" => json!(native::resolve_comment(ctx, "")),
+        "original_yyyy_mm" => json!(native::resolve_yyyy_mm(ctx, "original_yyyy_mm", "")),
+        "release_yyyy_mm" => json!(native::resolve_yyyy_mm(ctx, "release_yyyy_mm", "")),
         _ => Value::Null,
     }
 }
 
 pub fn resolve_top_level_track_key(key: &str, ctx: &TrackContext) -> Value {
     match key {
-        "TITLE" => standard::resolve_generic_string(ctx.source, "title", "", "Untitled"),
-        "ARTIST" => standard::resolve_generic_string_fallback(
+        "title" => standard::resolve_generic_string(ctx.source, "title", "", "Untitled"),
+        "artist" => standard::resolve_generic_string_fallback(
             ctx.source, ctx.album_source, "artist", "albumartist", "Unknown"
         ),
         _ => Value::Null,
@@ -69,7 +69,7 @@ pub fn resolve_album_key(key: &str, meta: &Value, ctx: &AlbumContext) -> Option<
     } else {
         if let Some(first_track) = ctx.tracks.first()
             && let Some(tags) = first_track.get("tags")
-                && let Some(t_val) = tags.get(key.to_uppercase()) {
+                && let Some(t_val) = tags.get(key) {
                     return Some(t_val.clone());
                 }
         None
@@ -107,3 +107,4 @@ pub fn resolve_track_key(key: &str, meta: &Value, ctx: &TrackContext) -> Option<
         _ => standard::resolve_generic_string(src, key, args, ""),
     })
 }
+

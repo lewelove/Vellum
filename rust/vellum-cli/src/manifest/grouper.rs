@@ -43,14 +43,14 @@ pub fn group_tracks(
 
 pub fn sort_album_tracks(tracks: &mut[(PathBuf, serde_json::Map<String, Value>)]) {
     tracks.sort_by(|(p_a, t_a), (p_b, t_b)| {
-        let disc_a = parse_sort_int(t_a.get("DISCNUMBER"));
-        let disc_b = parse_sort_int(t_b.get("DISCNUMBER"));
+        let disc_a = parse_sort_int(t_a.get("discnumber"));
+        let disc_b = parse_sort_int(t_b.get("discnumber"));
         if disc_a != disc_b {
             return disc_a.cmp(&disc_b);
         }
 
-        let trk_a = parse_sort_int(t_a.get("TRACKNUMBER"));
-        let trk_b = parse_sort_int(t_b.get("TRACKNUMBER"));
+        let trk_a = parse_sort_int(t_a.get("tracknumber"));
+        let trk_b = parse_sort_int(t_b.get("tracknumber"));
         if trk_a != trk_b {
             return trk_a.cmp(&trk_b);
         }

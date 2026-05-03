@@ -6,7 +6,7 @@ use std::path::Path;
 pub fn calculate_total_discs(tracks: &[Value]) -> u32 {
     let mut discs = std::collections::HashSet::new();
     for t in tracks {
-        let val = match t.get("DISCNUMBER") {
+        let val = match t.get("discnumber") {
             Some(Value::Number(n)) => n.as_u64().unwrap_or(0),
             Some(Value::String(s)) => s
                 .split('/')
@@ -45,7 +45,7 @@ pub fn resolve_album_info_unix_added(ctx: &AlbumContext, args: &str) -> u64 {
     let mut found_timestamps = Vec::new();
 
     for key in &keys {
-        if let Some(val) = ctx.source.get(key).or_else(|| ctx.source.get(key.to_lowercase())) {
+        if let Some(val) = ctx.source.get(key) {
             if let Some(s) = val.as_str() {
                 if let Ok(ts) = s.parse::<u64>() {
                     found_timestamps.push(ts);
@@ -62,7 +62,7 @@ pub fn resolve_album_info_unix_added(ctx: &AlbumContext, args: &str) -> u64 {
         return ts;
     }
 
-    if let Some(val) = ctx.source.get("UNIX_GENERATED").or_else(|| ctx.source.get("unix_generated")) {
+    if let Some(val) = ctx.source.get("unix_generated") {
         if let Some(s) = val.as_str() {
             if let Ok(ts) = s.parse::<u64>() {
                 return ts;

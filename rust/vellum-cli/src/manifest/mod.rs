@@ -22,7 +22,7 @@ pub fn run(force: bool) -> Result<()> {
         .supported_extensions
         .as_ref().map_or_else(|| vec![".flac".to_string()], |exts: &Vec<String>| exts.iter().map(|e| e.to_lowercase()).collect());
 
-    let grouping_keys = vec!["ALBUMARTIST".to_string(), "ALBUM".to_string()];
+    let grouping_keys = vec!["albumartist".to_string(), "album".to_string()];
     let manifest_layout = manifest_cfg.keys;
 
     let dirs_to_harvest = find_harvestable_directories(&lib_root, force, &supported_exts);
@@ -75,7 +75,7 @@ pub fn run(force: bool) -> Result<()> {
                 .unwrap_or_default()
                 .as_secs();
             album_pool.insert(
-                "UNIX_GENERATED".to_string(),
+                "unix_generated".to_string(),
                 serde_json::Value::Number(serde_json::Number::from(unix_generated)),
             );
 

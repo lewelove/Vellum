@@ -17,7 +17,7 @@ fn format_toml_value(val: &Value) -> String {
 }
 
 fn format_toml_value_with_cast(val: &Value, key: &str) -> String {
-    if (key == "TRACKNUMBER" || key == "DISCNUMBER")
+    if (key == "tracknumber" || key == "discnumber")
         && let Some(s) = val.as_str() {
             let clean = s.split('/').next().unwrap_or("").trim();
             if clean.parse::<u32>().is_ok() {
@@ -71,7 +71,7 @@ pub fn render_toml_block(
         .keys()
         .filter(|k| {
             let s_k = sanitize_key(k);
-            !layout_keys.contains(&s_k) && s_k != "UNIX_GENERATED"
+            !layout_keys.contains(&s_k) && s_k != "unix_generated"
         })
         .cloned()
         .collect();
@@ -84,13 +84,12 @@ pub fn render_toml_block(
         }
     }
 
-    if let Some(v) = pool.get("UNIX_GENERATED").or_else(|| pool.get("unix_generated")) {
+    if let Some(v) = pool.get("unix_generated") {
         if !lines.is_empty() && lines.last().is_some_and(|s| !s.is_empty()) {
             lines.push(String::new());
         }
-        lines.push(format!("UNIX_GENERATED = {}", format_toml_value(v)));
+        lines.push(format!("unix_generated = {}", format_toml_value(v)));
     }
 
     lines
 }
-

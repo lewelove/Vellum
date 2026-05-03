@@ -38,7 +38,6 @@ pub fn validate_album_level_keys(
             continue;
         }
         
-        let key_lower = key.to_lowercase();
         let mut seen_values: Vec<(Value, String)> = Vec::new();
         
         let check_val = |v: &Value| -> bool {
@@ -50,12 +49,12 @@ pub fn validate_album_level_keys(
             }
         };
 
-        if let Some(v) = album_source.get(&key_lower).filter(|v| check_val(v)) {
+        if let Some(v) = album_source.get(key).filter(|v| check_val(v)) {
             seen_values.push((v.clone(), "album section".to_string()));
         }
 
         for (idx, track) in track_entries.iter().enumerate() {
-            if let Some(v) = track.get(&key_lower).filter(|v| check_val(v)) {
+            if let Some(v) = track.get(key).filter(|v| check_val(v)) {
                 if let Some((first_val, source_name)) = seen_values.first() {
                     if v != first_val {
                         return Err(VellumError::GlobalKeyConflict {

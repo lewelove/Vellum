@@ -30,13 +30,13 @@ pub struct TrackInfo {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TrackLock {
     pub info: TrackInfo,
-    #[serde(rename = "TITLE")]
+    #[serde(rename = "title")]
     pub title: String,
-    #[serde(rename = "ARTIST")]
+    #[serde(rename = "artist")]
     pub artist: String,
-    #[serde(rename = "TRACKNUMBER")]
+    #[serde(rename = "tracknumber")]
     pub tracknumber: u32,
-    #[serde(rename = "DISCNUMBER")]
+    #[serde(rename = "discnumber")]
     pub discnumber: u32,
     #[serde(default)]
     pub tags: HashMap<String, serde_json::Value>,
@@ -79,31 +79,31 @@ pub struct AlbumInfo {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AlbumLock {
     pub info: AlbumInfo,
-    #[serde(rename = "ALBUM")]
+    #[serde(rename = "album")]
     pub album: String,
-    #[serde(rename = "ALBUMARTIST")]
+    #[serde(rename = "albumartist")]
     pub albumartist: String,
-    #[serde(rename = "DATE")]
+    #[serde(rename = "date")]
     pub date: String,
     #[serde(
-        rename = "GENRE",
+        rename = "genre",
         default,
         deserialize_with = "deserialize_vec_or_string"
     )]
     pub genre: Vec<String>,
-    #[serde(rename = "COMMENT", default)]
+    #[serde(rename = "comment", default)]
     pub comment: String,
-    #[serde(rename = "ORIGINAL_DATE", default)]
+    #[serde(rename = "original_date", default)]
     pub original_date: String,
-    #[serde(rename = "ORIGINAL_YEAR", default)]
+    #[serde(rename = "original_year", default)]
     pub original_year: String,
-    #[serde(rename = "ORIGINAL_YYYY_MM", default)]
+    #[serde(rename = "original_yyyy_mm", default)]
     pub original_yyyy_mm: String,
-    #[serde(rename = "RELEASE_DATE", default)]
+    #[serde(rename = "release_date", default)]
     pub release_date: String,
-    #[serde(rename = "RELEASE_YEAR", default)]
+    #[serde(rename = "release_year", default)]
     pub release_year: String,
-    #[serde(rename = "RELEASE_YYYY_MM", default)]
+    #[serde(rename = "release_yyyy_mm", default)]
     pub release_yyyy_mm: String,
     #[serde(default)]
     pub tags: HashMap<String, serde_json::Value>,
@@ -135,3 +135,4 @@ pub struct LockFile {
     pub album: AlbumLock,
     pub tracks: Vec<TrackLock>,
 }
+

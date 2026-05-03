@@ -155,7 +155,7 @@ fn resolve_cover_metrics(
     let metrics_path = metrics_dir.join(format!("{c_hash}.json"));
     
     let palette_cfg = config.get("compiler").and_then(|c| c.get("cover_palette"));
-    let cover_palette_raw = manifest_data.json.get("album").and_then(|a| a.get("cover_palette").or_else(|| a.get("COVER_PALETTE")));
+    let cover_palette_raw = manifest_data.json.get("album").and_then(|a| a.get("cover_palette"));
     
     let palette_params = format!("{palette_cfg:?}|{cover_palette_raw:?}");
     
@@ -323,10 +323,10 @@ fn build_track(
 
     obj.insert("info".to_string(), construct_track_info(ctx, total_discs));
 
-    obj.insert("TITLE".to_string(), resolvers::resolve_top_level_track_key("TITLE", ctx));
-    obj.insert("ARTIST".to_string(), resolvers::resolve_top_level_track_key("ARTIST", ctx));
-    obj.insert("TRACKNUMBER".to_string(), json!(ctx.track_number));
-    obj.insert("DISCNUMBER".to_string(), json!(ctx.disc_number));
+    obj.insert("title".to_string(), resolvers::resolve_top_level_track_key("title", ctx));
+    obj.insert("artist".to_string(), resolvers::resolve_top_level_track_key("artist", ctx));
+    obj.insert("tracknumber".to_string(), json!(ctx.track_number));
+    obj.insert("discnumber".to_string(), json!(ctx.disc_number));
 
     let mut tags = serde_json::Map::new();
     for (key, meta) in registry {
@@ -335,12 +335,11 @@ fn build_track(
             continue;
         }
 
-        let key_lower = key.to_lowercase();
-        if key_lower == "title" || key_lower == "artist" || key_lower == "tracknumber" || key_lower == "discnumber" {
+        if["title", "artist", "tracknumber", "discnumber"].contains(&key.as_str()) {
             continue;
         }
         let val = resolvers::resolve_track_key(key, meta, ctx).unwrap_or(Value::Null);
-        tags.insert(key.to_uppercase(), val);
+        tags.insert(key.clone(), val);
     }
     obj.insert("tags".to_string(), Value::Object(tags));
     Value::Object(obj)
@@ -404,13 +403,13 @@ fn build_album(
     let mut obj = serde_json::Map::new();
 
     obj.insert("info".to_string(), construct_album_info(ctx));
-    obj.insert("ALBUM".to_string(), resolvers::resolve_top_level_album_key("ALBUM", ctx));
-    obj.insert("ALBUMARTIST".to_string(), resolvers::resolve_top_level_album_key("ALBUMARTIST", ctx));
-    obj.insert("DATE".to_string(), resolvers::resolve_top_level_album_key("DATE", ctx));
-    obj.insert("GENRE".to_string(), resolvers::resolve_top_level_album_key("GENRE", ctx));
-    obj.insert("COMMENT".to_string(), resolvers::resolve_top_level_album_key("COMMENT", ctx));
-    obj.insert("ORIGINAL_YYYY_MM".to_string(), resolvers::resolve_top_level_album_key("ORIGINAL_YYYY_MM", ctx));
-    obj.insert("RELEASE_YYYY_MM".to_string(), resolvers::resolve_top_level_album_key("RELEASE_YYYY_MM", ctx));
+    obj.insert("album".to_string(), resolvers::resolve_top_level_album_key("album", ctx));
+    obj.insert("albumartist".to_string(), resolvers::resolve_top_level_album_key("albumartist", ctx));
+    obj.insert("date".to_string(), resolvers::resolve_top_level_album_key("date", ctx));
+    obj.insert("genre".to_string(), resolvers::resolve_top_level_album_key("genre", ctx));
+    obj.insert("comment".to_string(), resolvers::resolve_top_level_album_key("comment", ctx));
+    obj.insert("original_yyyy_mm".to_string(), resolvers::resolve_top_level_album_key("original_yyyy_mm", ctx));
+    obj.insert("release_yyyy_mm".to_string(), resolvers::resolve_top_level_album_key("release_yyyy_mm", ctx));
 
     let mut tags = serde_json::Map::new();
     for (key, meta) in registry {
@@ -418,17 +417,16 @@ fn build_album(
             continue;
         }
 
-        let key_lower = key.to_lowercase();
-        if["album", "albumartist", "date", "genre", "comment", "original_yyyy_mm", "release_yyyy_mm"].contains(&key_lower.as_str()) {
+        if["album", "albumartist", "date", "genre", "comment", "original_yyyy_mm", "release_yyyy_mm"].contains(&key.as_str()) {
             continue;
         }
         let val = resolvers::resolve_album_key(key, meta, ctx).unwrap_or(Value::Null);
-        tags.insert(key.to_uppercase(), val);
+        tags.insert(key.clone(), val);
     }
 
     if let Some(palette_cfg) = ctx.config.get("compiler").and_then(|c| c.get("cover_palette"))
         && let Some(val) = resolvers::native::resolve_cover_palette(ctx, palette_cfg) {
-            tags.insert("COVER_PALETTE".to_string(), val);
+            tags.insert("cover_palette".to_string(), val);
         }
 
     obj.insert("tags".to_string(), Value::Object(tags));

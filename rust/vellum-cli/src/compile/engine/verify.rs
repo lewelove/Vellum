@@ -24,25 +24,25 @@ pub fn calculate_file_tag_subset_match(
         };
 
         for key in subset_keys {
-            let k_upper = key.to_uppercase();
+            let k_lower = key.to_lowercase();
 
-            let mut compiled_val = t_obj.get(&k_upper);
+            let mut compiled_val = t_obj.get(&k_lower);
             if compiled_val.is_none() {
-                compiled_val = t_obj.get("tags").and_then(|tags| tags.get(&k_upper));
+                compiled_val = t_obj.get("tags").and_then(|tags| tags.get(&k_lower));
             }
             if compiled_val.is_none() {
-                compiled_val = album_obj.get(&k_upper);
+                compiled_val = album_obj.get(&k_lower);
             }
             if compiled_val.is_none() {
-                compiled_val = album_obj.get("tags").and_then(|tags| tags.get(&k_upper));
+                compiled_val = album_obj.get("tags").and_then(|tags| tags.get(&k_lower));
             }
 
             if let Some(v) = compiled_val {
                 let p_val = p_tags
-                    .get(&k_upper)
+                    .get(&k_lower)
                     .and_then(Value::as_str)
                     .unwrap_or("");
-                if !compare_values(&k_upper, v, p_val) {
+                if !compare_values(&k_lower, v, p_val) {
                     return false;
                 }
             }
@@ -78,3 +78,4 @@ fn compare_values(key: &str, compiled: &Value, physical: &str) -> bool {
     }
     s_c == s_p
 }
+

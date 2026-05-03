@@ -34,7 +34,7 @@ pub fn sanitize_key(key: &str) -> String {
     key.chars()
         .map(|c| {
             if c.is_ascii_alphanumeric() {
-                c.to_ascii_uppercase()
+                c.to_ascii_lowercase()
             } else {
                 '_'
             }

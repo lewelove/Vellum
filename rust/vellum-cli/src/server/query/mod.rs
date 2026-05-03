@@ -222,10 +222,10 @@ impl QueryEngine {
                         for track in tracks {
                             if let Some(tinfo) = track.get("info") {
                                 let tp = tinfo.get("track_library_path").and_then(Value::as_str).unwrap_or("").to_string();
-                                let track_no = track.get("TRACKNUMBER").cloned().unwrap_or_else(|| json!(0));
-                                let disc_no = track.get("DISCNUMBER").cloned().unwrap_or_else(|| json!(1));
-                                let title = track.get("TITLE").cloned().unwrap_or_else(|| json!("Unknown"));
-                                let artist = track.get("ARTIST").cloned().unwrap_or_else(|| json!("Unknown"));
+                                let track_no = track.get("tracknumber").cloned().unwrap_or_else(|| json!(0));
+                                let disc_no = track.get("discnumber").cloned().unwrap_or_else(|| json!(1));
+                                let title = track.get("title").cloned().unwrap_or_else(|| json!("Unknown"));
+                                let artist = track.get("artist").cloned().unwrap_or_else(|| json!("Unknown"));
                                 let duration = tinfo.get("track_duration_time").cloned().unwrap_or_else(|| json!("0:00"));
                                 let duration_ms = tinfo.get("track_duration").and_then(Value::as_u64).unwrap_or(0);
                                 
@@ -251,10 +251,10 @@ impl QueryEngine {
 
                     let entry = json!({
                         "id": id,
-                        "ALBUM": album.get("ALBUM"),
-                        "ALBUMARTIST": album.get("ALBUMARTIST"),
-                        "DATE": album.get("DATE"),
-                        "GENRE": album.get("GENRE"),
+                        "ALBUM": album.get("album"),
+                        "ALBUMARTIST": album.get("albumartist"),
+                        "DATE": album.get("date"),
+                        "GENRE": album.get("genre"),
                         "cover_path": info.get("cover_path"),
                         "cover_hash": info.get("cover_hash"),
                         "album_duration_time": info.get("album_duration_time"),
@@ -377,7 +377,7 @@ impl QueryEngine {
 
         if let (Some(fk), Some(fv)) = (filter_key, filter_val) {
             if fk == "search" {
-                let sql = "SELECT uid FROM albums WHERE {$.album.ALBUM} LIKE ?1 OR {$.album.ALBUMARTIST} LIKE ?1";
+                let sql = "SELECT uid FROM albums WHERE {$.album.album} LIKE ?1 OR {$.album.albumartist} LIKE ?1";
                 if let Ok(mut stmt) = self.conn.prepare(&expand_shorthand(sql)) {
                     let pattern = format!("%{fv}%");
                     if let Ok(match_uids_iter) = stmt.query_map([pattern], |row| row.get::<_, u32>(0)) {
@@ -450,3 +450,4 @@ impl QueryEngine {
         None
     }
 }
+

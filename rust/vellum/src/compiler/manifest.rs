@@ -1,5 +1,5 @@
 use crate::error::VellumError;
-use serde_json::{Map, Value};
+use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::collections::HashSet;
 use std::path::Path;
@@ -34,7 +34,7 @@ pub fn load_and_merge(
 
     let parsed_toml = toml::from_str::<toml::Value>(&content)
         .map_err(|source| VellumError::ManifestParseError { path: metadata_path.clone(), source })?;
-    let mut metadata_json = normalize_keys(serde_json::to_value(parsed_toml)?);
+    let mut metadata_json = serde_json::to_value(parsed_toml)?;
 
     if let Some(manifests) = manifest_names {
         for m_val in manifests {
@@ -86,7 +86,7 @@ fn merge_auxiliary_manifest(
     let m_content = std::fs::read_to_string(&m_path)?;
     let parsed_aux = toml::from_str::<toml::Value>(&m_content)
         .map_err(|source| VellumError::ManifestParseError { path: m_path.clone(), source })?;
-    let mut m_json = normalize_keys(serde_json::to_value(parsed_aux)?);
+    let mut m_json = serde_json::to_value(parsed_aux)?;
     
     if let Some(aux_album) = m_json.get_mut("album").and_then(Value::as_object_mut)
         && let Some(primary_album) = primary_json.get_mut("album").and_then(Value::as_object_mut) {
@@ -177,20 +177,6 @@ fn merge_aux_tracks(
         }
     }
     Ok(())
-}
-
-pub fn normalize_keys(v: Value) -> Value {
-    match v {
-        Value::Object(map) => {
-            let mut new_map = Map::new();
-            for (k, val) in map {
-                new_map.insert(k.to_lowercase(), normalize_keys(val));
-            }
-            Value::Object(new_map)
-        }
-        Value::Array(arr) => Value::Array(arr.into_iter().map(normalize_keys).collect()),
-        _ => v,
-    }
 }
 
 pub fn extract_strict_u32(val: Option<&Value>, name: &str, default: Option<u32>) -> Result<u32, VellumError> {
