@@ -21,8 +21,11 @@
         installPhase = "true";
       };
 
-      mkTrack = { name, src, metadata ? {} }: let
-        metaJson = pkgs.writeText "meta.json" (builtins.toJSON metadata);
+      mkTrack = { name, src, metadata ? {}, writeTags ? null }: let
+        filteredMeta = if writeTags == null 
+                       then metadata 
+                       else pkgs.lib.filterAttrs (k: v: builtins.elem k writeTags) metadata;
+        metaJson = pkgs.writeText "meta.json" (builtins.toJSON filteredMeta);
       in pkgs.stdenv.mkDerivation {
         inherit name src;
         buildInputs = [ pkgs.flac pkgs.jq ];
@@ -50,9 +53,40 @@
         sourceMagnet ? null,
         sourceUrl ? null,
         album ? { metadata = {}; },
-        tracks ? [], 
-        cover ? null
+        tracks ?[], 
+        cover ? null,
+        writeTags ? null
       }: let
+        trackIds = builtins.map (t: "${toString (t.metadata.discnumber or 1)}-${toString (t.metadata.tracknumber or 0)}") tracks;
+        uniqueTrackIds = pkgs.lib.unique trackIds;
+        hasDuplicates = builtins.length trackIds != builtins.length uniqueTrackIds;
+
+        maxDisc = builtins.foldl' (acc: t: pkgs.lib.max acc (t.metadata.discnumber or 1)) 1 tracks;
+        maxTrack = builtins.foldl' (acc: t: pkgs.lib.max acc (t.metadata.tracknumber or 0)) 1 tracks;
+        
+        discPadLen = pkgs.lib.max 1 (builtins.stringLength (toString maxDisc));
+        trackPadLen = pkgs.lib.max 2 (builtins.stringLength (toString maxTrack));
+
+        toTomlVal = v:
+          if builtins.isString v then "\"${pkgs.lib.escape ["\"" "\\"] v}\""
+          else if builtins.isInt v then toString v
+          else if builtins.isBool v then (if v then "true" else "false")
+          else if builtins.isList v then "[ " + pkgs.lib.concatMapStringsSep ", " toTomlVal v + " ]"
+          else "\"\"";
+        
+        toTomlTable = attrs: pkgs.lib.concatStringsSep "\n" (pkgs.lib.mapAttrsToList (k: v: "${k} = ${toTomlVal v}") attrs);
+
+        metadataTomlContent = ''
+          [album]
+          ${toTomlTable album.metadata}
+
+          ${pkgs.lib.concatMapStringsSep "\n\n" (t: ''
+            [[tracks]]
+            ${toTomlTable (t.metadata or {})}
+          '') tracks}
+        '';
+        metadataToml = pkgs.writeText "metadata.toml" metadataTomlContent;
+
         rawSrc = if (builtins.getEnv "VELLUM_STAGING_SRC") != "" then
                   /. + (builtins.getEnv "VELLUM_STAGING_SRC")
                  else if sourceDisk != null then 
@@ -65,19 +99,26 @@
                   else builtins.path { name = "${pname}-source"; path = rawSrc; };
         
         builtTracks = pkgs.lib.lists.imap1 (idx: track: let
-          mergedMeta = album.metadata // (track.metadata or {});
-          trackName = "${pname}-track-${toString idx}";
-        in self.lib.mkTrack {
-          name = trackName;
-          src = realSrc + "/${track.file}";
-          metadata = mergedMeta;
-        }) tracks;
+          disc = track.metadata.discnumber or 1;
+          trk = track.metadata.tracknumber or 0;
+          title = track.metadata.title or "Untitled";
 
-        tomlFormat = pkgs.formats.toml {};
-        metadataToml = tomlFormat.generate "metadata.toml" {
-          album = album.metadata;
-          tracks = pkgs.lib.lists.map (t: t.metadata or {}) tracks;
-        };
+          discStr = pkgs.lib.fixedWidthString discPadLen "0" (toString disc);
+          trkStr = pkgs.lib.fixedWidthString trackPadLen "0" (toString trk);
+          
+          fileName = if maxDisc == 1 then "${trkStr} - ${title}.flac" else "${discStr}.${trkStr} - ${title}.flac";
+
+          mergedMeta = album.metadata // (track.metadata or {});
+          trackName = "${pname}-disc${toString disc}-track${toString trk}";
+        in {
+          inherit fileName;
+          drv = self.lib.mkTrack {
+            name = trackName;
+            src = realSrc + "/${track.file}";
+            metadata = mergedMeta;
+            inherit writeTags;
+          };
+        }) tracks;
 
         coverExt = if cover != null && cover ? file then pkgs.lib.strings.concatStringsSep "." (pkgs.lib.lists.tail (pkgs.lib.strings.splitString "." (baseNameOf cover.file))) else "jpg";
         coverSrc = if cover != null && cover ? file 
@@ -86,15 +127,14 @@
                          else builtins.path { name = "${pname}-cover"; path = cover.file; }) 
                    else null;
 
-      in pkgs.stdenv.mkDerivation {
+      in if hasDuplicates then throw "Duplicate discnumber and tracknumber combinations found in tracks." else pkgs.stdenv.mkDerivation {
         name = pname;
         src = realSrc;
         unpackPhase = "true";
         buildPhase = ''
           mkdir -p $out
-          ${pkgs.lib.strings.concatImapStringsSep "\n" (idx: trackDrv: ''
-            index_padded=$(printf "%02d" ${toString idx})
-            ln -s ${trackDrv}/track.flac $out/''${index_padded}.flac
+          ${pkgs.lib.strings.concatMapStringsSep "\n" (t: ''
+            ln -s "${t.drv}/track.flac" "$out/${t.fileName}"
           '') builtTracks}
           cp ${metadataToml} $out/metadata.toml
           ${if coverSrc != null then "cp ${coverSrc} $out/cover.${coverExt}" else ""}

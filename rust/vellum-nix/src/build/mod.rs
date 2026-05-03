@@ -180,27 +180,13 @@ fn materialize_output(store_dir: &Path, target_dir: &Path, store_path: &Path) ->
             }
         }
 
-        if store_file.is_file() {
-            if fs::hard_link(&store_file, &target_file).is_err() {
-                std::os::unix::fs::symlink(&store_file, &target_file).with_context(|| {
-                    format!(
-                        "Failed to link {} to {}",
-                        store_file.display(),
-                        target_file.display()
-                    )
-                })?;
-            }
-        } else if store_file.is_dir() {
-            std::os::unix::fs::symlink(&store_file, &target_file).with_context(|| {
-                format!(
-                    "Failed to symlink directory {} to {}",
-                    store_file.display(),
-                    target_file.display()
-                )
-            })?;
-        } else {
-            log::warn!("Skipping unsupported file type or broken link: {}", store_file.display());
-        }
+        std::os::unix::fs::symlink(&store_file, &target_file).with_context(|| {
+            format!(
+                "Failed to symlink {} to {}",
+                store_file.display(),
+                target_file.display()
+            )
+        })?;
     }
     Ok(())
 }
