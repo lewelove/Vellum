@@ -93,17 +93,6 @@ pub struct NixConfig {
     pub store: String,
     pub flake: String,
     pub stage: Option<String>,
-    pub get: Option<NixGetConfig>,
-    pub build: Option<NixBuildConfig>,
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct NixGetConfig {
-    pub commands: Option<HashMap<String, String>>,
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct NixBuildConfig {
     pub commands: Option<HashMap<String, String>>,
 }
 

@@ -79,7 +79,7 @@
 
       mkAlbum = { 
         pname, 
-        sourceDisk ? null,
+        sourceDisk ? { path = ""; hash = ""; },
         sha256 ? null,
         sourceTorrent ? null,
         sourceMagnet ? null,
@@ -130,7 +130,7 @@
           remainingKeys = builtins.filter (k: !(builtins.elem k order)) (builtins.attrNames attrs);
           sortedRemainingKeys = builtins.sort (a: b: a < b) remainingKeys;
           appendixLines = builtins.map (k: "${k} = ${toTomlVal attrs.${k}}") sortedRemainingKeys;
-          allLines = orderedLines ++ (if builtins.length appendixLines > 0 then [ "" ] ++ appendixLines else []);
+          allLines = orderedLines ++ (if builtins.length appendixLines > 0 then [ "" ] ++ appendixLines else[]);
         in pkgs.lib.concatStringsSep "\n" allLines;
 
         albumBlock = "[album]\n${toTomlTable albumOrder album.metadata}";
@@ -141,10 +141,12 @@
         stagingSrc = builtins.getEnv "VELLUM_STAGING_SRC";
 
         rawSrcPath = if stagingSrc != "" then stagingSrc
-                     else if sourceDisk != null then sourceDisk
-                     else throw "sourceDisk required or VELLUM_STAGING_SRC must be set";
+                     else throw "VELLUM_STAGING_SRC must be set during build initialization";
 
-        realSrc = /. + rawSrcPath;
+        realSrc = if builtins.match ".*/[0-9a-df-np-sv-z]{32}-.*" rawSrcPath != null 
+                  then /. + rawSrcPath 
+                  else if sourceDisk.hash == "" then throw "sourceDisk.hash is required to guarantee fixed output integrity"
+                  else builtins.path { name = "${pname}-source"; path = /. + rawSrcPath; sha256 = sourceDisk.hash; };
 
         processedCover = if cover != null 
                          then (
@@ -180,6 +182,11 @@
       in if hasDuplicates then throw "Duplicate discnumber and tracknumber combinations found in tracks." else pkgs.stdenv.mkDerivation {
         name = pname;
         src = realSrc;
+        
+        passthru = {
+          sourceStorePath = realSrc;
+        };
+
         unpackPhase = "true";
         buildPhase = ''
           mkdir -p $out
