@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use lava_torrent::torrent::v1::Torrent;
 use std::collections::HashMap;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::Command;
 use vellum::config::AppConfig;
 use vellum::utils::expand_path;
@@ -61,10 +61,6 @@ fn build_album(
     let album_info = crate::get::parse_album_nix(target_path)?;
     let source_disk = crate::get::resolve_source_disk(&album_info, target, config);
 
-    // Deep resolve the physical path for the staging source.
-    // Nix evaluates path literals based on whether they fall within the
-    // current `builtins.storeDir`. With `--store`, `storeDir` becomes the
-    // full physical path, so passing it fully resolved prevents redundant caching.
     let physical_source_disk = source_disk
         .canonicalize()
         .unwrap_or_else(|_| source_disk.clone());
@@ -109,13 +105,16 @@ fn build_album(
     let result_link = gc_roots_albums.join(&link_name);
     execute_nix_build(target, store_path, &staging_src_env, flake_uri, &result_link)?;
 
-    let physical_store_path = result_link.canonicalize().with_context(|| {
+    let logical_path = fs::read_link(&result_link).with_context(|| {
         format!(
-            "Nix build claimed success but result link {} was not found or failed to resolve.",
+            "Nix build claimed success but result link {} was not found",
             result_link.display()
         )
     })?;
 
+    let physical_store_path =
+        store_path.join(logical_path.strip_prefix("/").unwrap_or(&logical_path));
+        
     materialize_output(&physical_store_path, target, store_path)?;
 
     pin_source_and_seed(
@@ -221,7 +220,6 @@ fn pin_source_and_seed(
         "(import ./album.nix {{ vellix = (builtins.getFlake \"{flake_uri}\").lib; }}).sourceStorePath"
     );
     
-    // Crucial: pass `--store` to nix eval so it shares the same physical store context
     let eval_output = Command::new("nix")
         .env("VELLUM_STAGING_SRC", staging_src_env)
         .arg("eval")
@@ -235,11 +233,14 @@ fn pin_source_and_seed(
         .output()?;
 
     let source_store_path_raw = String::from_utf8_lossy(&eval_output.stdout).trim().to_string();
-    if source_store_path_raw.is_empty() {
+    if source_store_path_raw.is_empty() || !source_store_path_raw.starts_with("/nix/store") {
         return Ok(());
     }
 
-    let mapped_source_store_path = PathBuf::from(&source_store_path_raw);
+    let mapped_source_store_path = source_store_path_raw.strip_prefix("/").map_or_else(
+        || source_store_path_raw.clone(),
+        |stripped| store_path.join(stripped).to_string_lossy().to_string(),
+    );
 
     let gc_roots_source = store_path.join("gcroots").join("source");
     fs::create_dir_all(&gc_roots_source)?;
@@ -257,7 +258,7 @@ fn pin_source_and_seed(
         );
     }
 
-    vars.insert("sourceStorePath".to_string(), mapped_source_store_path.to_string_lossy().to_string());
+    vars.insert("sourceStorePath".to_string(), mapped_source_store_path);
 
     if let Some(nix_cfg) = &config.nix
         && let Some(cmds) = &nix_cfg.commands
@@ -305,8 +306,6 @@ fn materialize_output(store_dir: &Path, target_dir: &Path, store_path: &Path) ->
 
         if file_type.is_symlink() {
             let resolved_path = fs::read_link(&store_file)?;
-            // Internal symlinks inside the custom store sandbox still point to the logical /nix/store
-            // namespace, so we must map them back to the physical path.
             if resolved_path.starts_with("/nix/store") {
                 let stripped = resolved_path.strip_prefix("/").unwrap();
                 store_file = store_path.join(stripped);
