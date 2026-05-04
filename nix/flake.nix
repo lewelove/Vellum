@@ -105,17 +105,37 @@
           else if builtins.isList v then "[ " + pkgs.lib.concatMapStringsSep ", " toTomlVal v + " ]"
           else "\"\"";
         
-        toTomlTable = attrs: pkgs.lib.concatStringsSep "\n" (pkgs.lib.mapAttrsToList (k: v: "${k} = ${toTomlVal v}") attrs);
+        albumOrder = [
+          "albumartist"
+          "album"
+          "date"
+          "\n"
+          "genre"
+          "comment"
+        ];
 
-        metadataTomlContent = ''
-          [album]
-          ${toTomlTable album.metadata}
+        trackOrder = [
+          "tracknumber"
+          "discnumber"
+          "title"
+          "artist"
+        ];
 
-          ${pkgs.lib.concatMapStringsSep "\n" (t: ''
-            [[tracks]]
-            ${toTomlTable (t.metadata or {})}
-          '') tracks}
-        '';
+        toTomlTable = order: attrs: let
+          orderedLines = pkgs.lib.concatMap (k:
+            if k == "\n" then [ "" ]
+            else if builtins.hasAttr k attrs then [ "${k} = ${toTomlVal attrs.${k}}" ]
+            else []
+          ) order;
+          remainingKeys = builtins.filter (k: !(builtins.elem k order)) (builtins.attrNames attrs);
+          sortedRemainingKeys = builtins.sort (a: b: a < b) remainingKeys;
+          appendixLines = builtins.map (k: "${k} = ${toTomlVal attrs.${k}}") sortedRemainingKeys;
+          allLines = orderedLines ++ (if builtins.length appendixLines > 0 then [ "" ] ++ appendixLines else []);
+        in pkgs.lib.concatStringsSep "\n" allLines;
+
+        albumBlock = "[album]\n${toTomlTable albumOrder album.metadata}";
+        trackBlocks = builtins.map (t: "[[tracks]]\n${toTomlTable trackOrder (t.metadata or {})}") tracks;
+        metadataTomlContent = pkgs.lib.concatStringsSep "\n\n" ([ albumBlock ] ++ trackBlocks) + "\n";
         metadataToml = pkgs.writeText "metadata.toml" metadataTomlContent;
 
         stagingSrc = builtins.getEnv "VELLUM_STAGING_SRC";
