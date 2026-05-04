@@ -1668,6 +1668,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "libvellum"
+version = "0.1.0"
+dependencies = [
+ "alphanumeric-sort",
+ "anyhow",
+ "dirs",
+ "image",
+ "indexmap",
+ "kmeans_colors",
+ "lofty",
+ "log",
+ "palette",
+ "rand 0.10.0",
+ "regex",
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror 2.0.18",
+ "toml",
+ "walkdir",
+]
+
+[[package]]
 name = "litemap"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3450,48 +3473,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "accd4ea62f7bb7a82fe23066fb0957d48ef677f6eeb8215f372f52e48bb32426"
 
 [[package]]
-name = "vellix"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap 4.5.60",
- "lava_torrent",
- "log",
- "regex",
- "serde",
- "serde_json",
- "sha1",
- "sha2",
- "simple_logger",
- "tokio",
- "vellum",
-]
-
-[[package]]
 name = "vellum"
-version = "0.1.0"
-dependencies = [
- "alphanumeric-sort",
- "anyhow",
- "dirs",
- "image",
- "indexmap",
- "kmeans_colors",
- "lofty",
- "log",
- "palette",
- "rand 0.10.0",
- "regex",
- "serde",
- "serde_json",
- "sha2",
- "thiserror 2.0.18",
- "toml",
- "walkdir",
-]
-
-[[package]]
-name = "vellum-cli"
 version = "0.1.0"
 dependencies = [
  "alphanumeric-sort",
@@ -3506,22 +3488,25 @@ dependencies = [
  "image",
  "indexmap",
  "indicatif",
+ "lava_torrent",
+ "libvellum",
  "log",
  "mpd_client",
  "notify",
  "rand 0.10.0",
  "rayon",
+ "regex",
  "reqwest",
  "rusqlite",
  "serde",
  "serde_json",
+ "sha1",
  "sha2",
  "simple_logger",
  "thiserror 2.0.18",
  "tokio",
  "toml",
  "tower-http",
- "vellum",
  "walkdir",
  "xxhash-rust",
 ]

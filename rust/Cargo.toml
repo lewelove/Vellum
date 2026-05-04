@@ -1,9 +1,8 @@
 [workspace]
 
 members = [
+  "libvellum",
   "vellum",
-  "vellum-cli",
-  "vellix",
 ]
 
 resolver = "2"

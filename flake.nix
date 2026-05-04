@@ -67,8 +67,8 @@
 
             for arg in "$@"; do
               case "$arg" in
+                libvellum)  TARGET="libvellum" ;;
                 vellum)     TARGET="vellum" ;;
-                vellix)     TARGET="vellix" ;;
                 --release)  RELEASE_FLAG="--release" ;;
                 *)          ARGS+=("$arg") ;;
               esac
@@ -116,7 +116,7 @@
           '';
         };
 
-        vellum-cli = pkgs.writeShellApplication {
+        vellum-bin = pkgs.writeShellApplication {
           name = "vellum";
           runtimeInputs = [ 
             pythonEnv 
@@ -146,7 +146,7 @@
               ui-npm)
                 cd "$ROOT/web-app" && npm run dev
                 ;;
-              server|manifest|compile|update|harvest|run|query)
+              server|manifest|compile|update|harvest|run|query|nix)
                 if [ ! -f "$BIN" ]; then
                   echo "Error: vellum binary not found at $BIN. Run 'build vellum --release' first."
                   exit 1
@@ -182,6 +182,7 @@
                 echo "  compile         : Compile metadata locks"
                 echo "  update          : Update library"
                 echo "  query           : Run SQL queries against the library"
+                echo "  nix             : Orchestrate reproducible builds via Nix"
                 echo "  generate        : Initialize metadata from files"
                 echo "  harvest         : Harvest raw metadata to JSON"
                 echo "  write           : Sync metadata to audio tags"
@@ -199,20 +200,6 @@
           '';
         };
 
-        vellix-cli = pkgs.writeShellApplication {
-          name = "vellix";
-          runtimeInputs = [ pkgs.git pkgs.nix pkgs.intermodal ];
-          text = ''
-            ROOT=$(git rev-parse --show-toplevel)
-            BIN="$ROOT/rust/target/release/vellix"
-            if [ ! -f "$BIN" ]; then
-              echo "Error: vellix binary not found at $BIN. Run 'build vellix --release' first."
-              exit 1
-            fi
-            exec "$BIN" "$@"
-          '';
-        };
-
         devPackages = with pkgs; [
           pythonEnv
           bun
@@ -220,8 +207,7 @@
           openssl
           build-cli
           check-cli
-          vellum-cli
-          vellix-cli
+          vellum-bin
           cargo
           rustc
           rust-analyzer
