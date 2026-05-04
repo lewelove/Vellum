@@ -38,12 +38,13 @@
         installPhase = "true";
       };
 
-      mkCover = { name, src }: pkgs.stdenv.mkDerivation {
-        inherit name src;
+      mkCover = { name, src, relPath ? null }: pkgs.stdenv.mkDerivation {
+        inherit name src relPath;
         buildInputs = [ pkgs.imagemagick ];
         unpackPhase = "true";
         buildPhase = ''
-          convert "$src" -filter Mitchell -thumbnail 1080x1080^ -gravity center -extent 1080x1080 cover.png
+          INPUT_FILE="${if relPath == null then "$src" else "$src/$relPath"}"
+          magick "$INPUT_FILE" -filter Mitchell -thumbnail 1080x1080^ -gravity center -extent 1080x1080 cover.png
         '';
         installPhase = ''
           mkdir -p $out
@@ -51,15 +52,15 @@
         '';
       };
 
-      mkTrack = { name, src, metadata ? {}, cover ? null }: let
+      mkTrack = { name, src, relPath, metadata ? {}, cover ? null }: let
         filteredMeta = pkgs.lib.filterAttrs (k: v: builtins.elem (pkgs.lib.toLower k) allowedTags) metadata;
         metaJson = pkgs.writeText "meta.json" (builtins.toJSON filteredMeta);
       in pkgs.stdenv.mkDerivation {
-        inherit name src;
+        inherit name src relPath;
         buildInputs = [ pkgs.flac pkgs.jq ];
         unpackPhase = "true";
         buildPhase = ''
-          cp "$src" track.flac
+          cp "$src/$relPath" track.flac
           chmod +w track.flac
           metaflac --remove-all-tags track.flac
           
@@ -110,27 +111,28 @@
           [album]
           ${toTomlTable album.metadata}
 
-          ${pkgs.lib.concatMapStringsSep "\n\n" (t: ''
+          ${pkgs.lib.concatMapStringsSep "\n" (t: ''
             [[tracks]]
             ${toTomlTable (t.metadata or {})}
           '') tracks}
         '';
         metadataToml = pkgs.writeText "metadata.toml" metadataTomlContent;
 
-        processedCover = if cover != null && cover ? file 
-                         then self.lib.mkCover { name = "${pname}-cover"; src = cover.file; }
-                         else null;
+        stagingSrc = builtins.getEnv "VELLUM_STAGING_SRC";
 
-        rawSrc = if (builtins.getEnv "VELLUM_STAGING_SRC") != "" then
-                  /. + (builtins.getEnv "VELLUM_STAGING_SRC")
-                 else if sourceDisk != null then 
-                  (if builtins.isString sourceDisk && builtins.substring 0 1 sourceDisk == "/" then /. + sourceDisk else sourceDisk)
-                 else 
-                  throw "sourceDisk required or VELLUM_STAGING_SRC must be set";
-                  
-        realSrc = if sha256 != null 
-                  then builtins.path { name = "${pname}-source"; path = rawSrc; inherit sha256; }
-                  else builtins.path { name = "${pname}-source"; path = rawSrc; };
+        rawSrcPath = if stagingSrc != "" then stagingSrc
+                     else if sourceDisk != null then sourceDisk
+                     else throw "sourceDisk required or VELLUM_STAGING_SRC must be set";
+
+        realSrc = /. + rawSrcPath;
+
+        processedCover = if cover != null 
+                         then (
+                           if builtins.isPath cover 
+                           then self.lib.mkCover { name = "${pname}-cover"; src = cover; }
+                           else self.lib.mkCover { name = "${pname}-cover"; src = realSrc; relPath = cover; }
+                         )
+                         else null;
         
         builtTracks = pkgs.lib.lists.imap1 (idx: track: let
           disc = track.metadata.discnumber or 1;
@@ -148,7 +150,8 @@
           inherit fileName;
           drv = self.lib.mkTrack {
             name = trackName;
-            src = realSrc + "/${track.file}";
+            src = realSrc;
+            relPath = track.file;
             metadata = mergedMeta;
             cover = processedCover;
           };

@@ -53,25 +53,22 @@ pub fn run(torrent_path_str: &str, tracks_filter: &str) -> Result<()> {
     }
 
     let torrent_file_name = torrent_path.file_name().unwrap_or_default().to_string_lossy();
-    let source_disk_path = format!("./{}", torrent.name);
     
     let mut out = String::new();
     out.push_str("{ vellix ? (import <nixpkgs> {}).lib }:\n");
     out.push_str("vellix.mkAlbum {\n");
-    let _ = writeln!(out, "  pname = \"{}\";", torrent.name);
-    let _ = writeln!(out, "  sourceDisk = {source_disk_path};");
+    let _ = writeln!(out, "  pname = \"{}\";", torrent.name.replace(' ', "-").to_lowercase());
     out.push_str("  sourceTorrent = {\n");
     let _ = writeln!(out, "    file = ./{torrent_file_name};");
     let _ = writeln!(out, "    sha256 = \"{torrent_sha256}\";");
-    out.push_str("  };\n");
-    out.push_str("  sha256 = \"sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\";\n\n");
+    out.push_str("  };\n\n");
     out.push_str("  album.metadata = {\n");
     let _ = writeln!(out, "    album = \"{}\";", torrent.name);
     let _ = writeln!(out, "    albumartist = \"Unknown Artist\";");
     out.push_str("    date = \"0000\";\n");
-    out.push_str("    genre =[ \"Unknown\" ];\n");
+    out.push_str("    genre = [ \"Unknown\" ];\n");
     out.push_str("  };\n\n");
-    out.push_str("  tracks =[\n");
+    out.push_str("  tracks = [\n");
     for line in track_lines {
         out.push_str(&line);
         out.push('\n');

@@ -58,7 +58,7 @@
 
         build-cli = pkgs.writeShellApplication {
           name = "build";
-          runtimeInputs = [ pkgs.cargo pkgs.rustc pkgs.git ];
+          runtimeInputs = [ pkgs.cargo pkgs.rustc pkgs.git pkgs.clippy ];
           text = ''
             ROOT=$(git rev-parse --show-toplevel)
             ARGS=()
@@ -76,7 +76,7 @@
 
             cd "$ROOT/rust"
 
-            cargo clippy
+            cargo clippy --workspace -- -D warnings
             
             CMD=("cargo" "build")
             if [ -n "$TARGET" ]; then
@@ -109,7 +109,7 @@
 
             cd "$ROOT/rust"
             if [ "$LINT" = true ]; then
-              cargo clippy "''${ARGS[@]}"
+              cargo clippy --workspace -- "''${ARGS[@]}" -D warnings
             else
               cargo check "''${ARGS[@]}"
             fi
@@ -131,6 +131,7 @@
             pkgs.openssl 
             pkgs.nix
             pkgs.git
+            pkgs.intermodal
           ];
           text = ''
             ROOT=$(git rev-parse --show-toplevel)
@@ -200,7 +201,7 @@
 
         vellix-cli = pkgs.writeShellApplication {
           name = "vellix";
-          runtimeInputs = [ pkgs.git pkgs.nix ];
+          runtimeInputs = [ pkgs.git pkgs.nix pkgs.intermodal ];
           text = ''
             ROOT=$(git rev-parse --show-toplevel)
             BIN="$ROOT/rust/target/release/vellix"
@@ -229,6 +230,7 @@
           cargo-deny
           glib
           gtk3
+          intermodal
         ] ++ runtimeLibs;
       in
       {

@@ -1,78 +1,11 @@
 use anyhow::{Context, Result};
-use sha1::{Sha1, Digest};
+use lava_torrent::torrent::v1::Torrent;
+use sha2::Digest;
 use std::fs;
-use std::io::Read;
 use std::path::Path;
 use std::process::Command;
 use vellum::config::AppConfig;
 use vellum::utils::expand_path;
-
-pub fn verify_seedability(torrent_path: &Path, source_disk: &Path) -> Result<()> {
-    let torrent = lava_torrent::torrent::v1::Torrent::read_from_file(torrent_path)
-        .map_err(|e| anyhow::anyhow!("Failed to parse torrent: {e}"))?;
-        
-    let piece_length = torrent.piece_length as usize;
-    let pieces = &torrent.pieces;
-    let mut piece_idx = 0;
-    let mut hasher = Sha1::new();
-    let mut bytes_in_piece = 0;
-
-    let mut paths_and_sizes = Vec::new();
-    if let Some(files) = &torrent.files {
-        for f in files {
-            let mut p = source_disk.to_path_buf();
-            for segment in &f.path {
-                p.push(segment);
-            }
-            paths_and_sizes.push((p, f.length as u64));
-        }
-    } else {
-        paths_and_sizes.push((source_disk.to_path_buf(), torrent.length as u64));
-    }
-
-    for (path, size) in paths_and_sizes {
-        if !path.exists() {
-            anyhow::bail!("Missing file: {}", path.display());
-        }
-        if std::fs::metadata(&path)?.len() != size {
-            anyhow::bail!("Size mismatch for {}. Expected {size}, found {}", path.display(), std::fs::metadata(&path)?.len());
-        }
-        
-        let mut file = std::fs::File::open(&path)?;
-        let mut buffer = vec![0u8; 65536];
-        loop {
-            let n = file.read(&mut buffer)?;
-            if n == 0 { break; }
-            
-            let mut slice = &buffer[..n];
-            while !slice.is_empty() {
-                let needed = piece_length - bytes_in_piece;
-                let take = std::cmp::min(slice.len(), needed);
-                hasher.update(&slice[..take]);
-                bytes_in_piece += take;
-                slice = &slice[take..];
-                
-                if bytes_in_piece == piece_length {
-                    let hash = hasher.finalize_reset();
-                    if piece_idx >= pieces.len() || hash.as_slice() != pieces[piece_idx] {
-                        anyhow::bail!("Hash mismatch at piece {piece_idx}");
-                    }
-                    piece_idx += 1;
-                    bytes_in_piece = 0;
-                }
-            }
-        }
-    }
-    
-    if bytes_in_piece > 0 {
-        let hash = hasher.finalize();
-        if piece_idx >= pieces.len() || hash.as_slice() != pieces[piece_idx] {
-            anyhow::bail!("Final piece failed hash check");
-        }
-    }
-    
-    Ok(())
-}
 
 pub fn run(album_path: Option<String>) -> Result<()> {
     let (config, _, _) = AppConfig::load().context("Failed to load config")?;
@@ -115,7 +48,7 @@ pub fn run(album_path: Option<String>) -> Result<()> {
         }
     };
 
-    build_album(&target_path, &store_path, &flake_uri)?;
+    build_album(&target_path, &store_path, &flake_uri, &config)?;
 
     Ok(())
 }
@@ -130,16 +63,47 @@ fn build_album(
     target_path: &Path,
     store_path: &Path,
     flake_uri: &str,
+    config: &AppConfig,
 ) -> Result<()> {
-    let album_info = crate::get::parse_album_nix(target_path)?;
     let target = target_path.parent().unwrap();
-    
-    let torrent_path = target.join(album_info.torrent_file.trim_start_matches("./"));
-    let source_disk = target.join(album_info.source_disk.trim_start_matches("./"));
+    let album_info = crate::get::parse_album_nix(target_path)?;
 
-    log::info!("Verifying seedability (Black Box Check)...");
-    verify_seedability(&torrent_path, &source_disk)?;
-    log::info!("Seeding check passed! Files perfectly match torrent.");
+    let torrent_file_path = if album_info.torrent_file.starts_with("./") {
+        target.join(album_info.torrent_file.trim_start_matches("./"))
+    } else {
+        target.join(&album_info.torrent_file)
+    };
+    
+    let source_disk = crate::get::resolve_source_disk(&album_info, target, config);
+
+    let torrent_name = Torrent::read_from_file(&torrent_file_path)
+        .map_or_else(|_| album_info.pname.clone(), |t| t.name);
+
+    let mut vars = std::collections::HashMap::new();
+    vars.insert("sourceDisk".to_string(), source_disk.to_string_lossy().to_string());
+    vars.insert("sourceTorrent.file".to_string(), torrent_file_path.to_string_lossy().to_string());
+    vars.insert("sourceTorrent.sha256".to_string(), album_info.torrent_sha256);
+    vars.insert("sourceTorrent.name".to_string(), torrent_name);
+
+    if let Some(nix_cfg) = &config.nix
+        && let Some(build_cfg) = &nix_cfg.build
+        && let Some(cmds) = &build_cfg.commands
+        && let Some(verify_cmd_tpl) = cmds.get("verify_torrent")
+    {
+        let final_cmd = crate::get::resolve_template(verify_cmd_tpl, &vars);
+        log::info!("Executing verification: {final_cmd}");
+        
+        let status = Command::new("sh")
+            .arg("-c")
+            .arg(&final_cmd)
+            .current_dir(target)
+            .status()?;
+            
+        if !status.success() {
+            anyhow::bail!("Verification command failed with status: {status}");
+        }
+        log::info!("Seeding check passed!");
+    }
 
     let album_id = calculate_hash(&target.to_string_lossy());
     let gc_roots_dir = store_path.join("gcroots").join("albums");
@@ -149,6 +113,7 @@ fn build_album(
     let expr = format!("(import ./album.nix {{ vellix = (builtins.getFlake \"{flake_uri}\").lib; }})");
 
     let mut cmd = Command::new("nix");
+    cmd.env("VELLUM_STAGING_SRC", &source_disk);
     cmd.arg("build")
         .arg("--store")
         .arg(store_path)
