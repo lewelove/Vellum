@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use lava_torrent::torrent::v1::Torrent;
 use std::collections::HashMap;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use vellum::config::AppConfig;
 use vellum::utils::expand_path;
@@ -61,10 +61,14 @@ fn build_album(
     let album_info = crate::get::parse_album_nix(target_path)?;
     let source_disk = crate::get::resolve_source_disk(&album_info, target, config);
 
+    // Deep resolve the physical path for the staging source.
+    // Nix evaluates path literals based on whether they fall within the
+    // current `builtins.storeDir`. With `--store`, `storeDir` becomes the
+    // full physical path, so passing it fully resolved prevents redundant caching.
     let physical_source_disk = source_disk
         .canonicalize()
         .unwrap_or_else(|_| source_disk.clone());
-    
+
     let staging_src_env = physical_source_disk.to_string_lossy().to_string();
 
     verify_source_hash(&physical_source_disk, &album_info.source_disk_hash)?;
@@ -79,9 +83,18 @@ fn build_album(
         .map_or_else(|_| album_info.pname.clone(), |t| t.name);
 
     let mut vars = HashMap::new();
-    vars.insert("sourceDisk.path".to_string(), physical_source_disk.to_string_lossy().to_string());
-    vars.insert("sourceTorrent.file".to_string(), torrent_file_path.to_string_lossy().to_string());
-    vars.insert("sourceTorrent.sha256".to_string(), album_info.torrent_sha256.clone());
+    vars.insert(
+        "sourceDisk.path".to_string(),
+        physical_source_disk.to_string_lossy().to_string(),
+    );
+    vars.insert(
+        "sourceTorrent.file".to_string(),
+        torrent_file_path.to_string_lossy().to_string(),
+    );
+    vars.insert(
+        "sourceTorrent.sha256".to_string(),
+        album_info.torrent_sha256.clone(),
+    );
     vars.insert("sourceTorrent.name".to_string(), torrent_name);
 
     run_verification(config, &vars, target)?;
@@ -96,14 +109,24 @@ fn build_album(
     let result_link = gc_roots_albums.join(&link_name);
     execute_nix_build(target, store_path, &staging_src_env, flake_uri, &result_link)?;
 
-    let logical_path = fs::read_link(&result_link).with_context(|| {
-        format!("Nix build claimed success but result link {} was not found", result_link.display())
+    let physical_store_path = result_link.canonicalize().with_context(|| {
+        format!(
+            "Nix build claimed success but result link {} was not found or failed to resolve.",
+            result_link.display()
+        )
     })?;
 
-    let physical_store_path = store_path.join(logical_path.strip_prefix("/").unwrap_or(&logical_path));
     materialize_output(&physical_store_path, target, store_path)?;
 
-    pin_source_and_seed(target, store_path, &staging_src_env, flake_uri, config, &link_name, &mut vars)?;
+    pin_source_and_seed(
+        target,
+        store_path,
+        &staging_src_env,
+        flake_uri,
+        config,
+        &link_name,
+        &mut vars,
+    )?;
 
     Ok(())
 }
@@ -117,7 +140,7 @@ fn verify_source_hash(source_disk: &Path, expected_hash: &str) -> Result<()> {
         .args(["hash", "path", source_disk.to_str().unwrap()])
         .output()
         .context("Failed to compute source hash using nix")?;
-        
+
     let actual_hash = String::from_utf8_lossy(&hash_output.stdout).trim().to_string();
 
     if expected_hash.is_empty() || expected_hash != actual_hash {
@@ -138,13 +161,13 @@ fn run_verification(config: &AppConfig, vars: &HashMap<String, String>, target: 
     {
         let final_cmd = crate::get::resolve_template(verify_cmd_tpl, vars);
         log::info!("Executing verification: {final_cmd}");
-        
+
         let status = Command::new("sh")
             .arg("-c")
             .arg(&final_cmd)
             .current_dir(target)
             .status()?;
-            
+
         if !status.success() {
             anyhow::bail!("Verification command failed with status: {status}");
         }
@@ -160,7 +183,8 @@ fn execute_nix_build(
     flake_uri: &str,
     result_link: &Path,
 ) -> Result<()> {
-    let expr = format!("(import ./album.nix {{ vellix = (builtins.getFlake \"{flake_uri}\").lib; }})");
+    let expr =
+        format!("(import ./album.nix {{ vellix = (builtins.getFlake \"{flake_uri}\").lib; }})");
     let mut cmd = Command::new("nix");
     cmd.env("VELLUM_STAGING_SRC", staging_src_env);
     cmd.arg("build")
@@ -175,7 +199,11 @@ fn execute_nix_build(
 
     let status = cmd.status().context("Failed to execute nix build binary")?;
     if !status.success() {
-        anyhow::bail!("Nix build failed with exit code {} for {}", status.code().unwrap_or(-1), target.display());
+        anyhow::bail!(
+            "Nix build failed with exit code {} for {}",
+            status.code().unwrap_or(-1),
+            target.display()
+        );
     }
     Ok(())
 }
@@ -189,35 +217,47 @@ fn pin_source_and_seed(
     link_name: &str,
     vars: &mut HashMap<String, String>,
 ) -> Result<()> {
-    let expr_source = format!("(import ./album.nix {{ vellix = (builtins.getFlake \"{flake_uri}\").lib; }}).sourceStorePath");
+    let expr_source = format!(
+        "(import ./album.nix {{ vellix = (builtins.getFlake \"{flake_uri}\").lib; }}).sourceStorePath"
+    );
+    
+    // Crucial: pass `--store` to nix eval so it shares the same physical store context
     let eval_output = Command::new("nix")
         .env("VELLUM_STAGING_SRC", staging_src_env)
-        .arg("eval").arg("--raw").arg("--impure").arg("--expr").arg(&expr_source)
-        .current_dir(target).output()?;
-        
+        .arg("eval")
+        .arg("--store")
+        .arg(store_path)
+        .arg("--raw")
+        .arg("--impure")
+        .arg("--expr")
+        .arg(&expr_source)
+        .current_dir(target)
+        .output()?;
+
     let source_store_path_raw = String::from_utf8_lossy(&eval_output.stdout).trim().to_string();
-    if source_store_path_raw.is_empty() || !source_store_path_raw.starts_with("/nix/store") {
+    if source_store_path_raw.is_empty() {
         return Ok(());
     }
 
-    let mapped_source_store_path = source_store_path_raw.strip_prefix("/").map_or_else(
-        || source_store_path_raw.clone(),
-        |stripped| store_path.join(stripped).to_string_lossy().to_string(),
-    );
+    let mapped_source_store_path = PathBuf::from(&source_store_path_raw);
 
     let gc_roots_source = store_path.join("gcroots").join("source");
     fs::create_dir_all(&gc_roots_source)?;
     let source_link = gc_roots_source.join(link_name);
-    
+
     if source_link.exists() || source_link.symlink_metadata().is_ok() {
         fs::remove_file(&source_link)?;
     }
-    
+
     if let Err(e) = std::os::unix::fs::symlink(&mapped_source_store_path, &source_link) {
-        log::warn!("Failed to create source GC root link {}: {}", source_link.display(), e);
+        log::warn!(
+            "Failed to create source GC root link {}: {}",
+            source_link.display(),
+            e
+        );
     }
 
-    vars.insert("sourceStorePath".to_string(), mapped_source_store_path);
+    vars.insert("sourceStorePath".to_string(), mapped_source_store_path.to_string_lossy().to_string());
 
     if let Some(nix_cfg) = &config.nix
         && let Some(cmds) = &nix_cfg.commands
@@ -225,15 +265,22 @@ fn pin_source_and_seed(
     {
         let final_seed_cmd = crate::get::resolve_template(seed_cmd_tpl, vars);
         log::info!("Executing seed command: {final_seed_cmd}");
-        let _ = Command::new("sh").arg("-c").arg(&final_seed_cmd).current_dir(target).status();
+        let _ = Command::new("sh")
+            .arg("-c")
+            .arg(&final_seed_cmd)
+            .current_dir(target)
+            .status();
     }
-    
+
     Ok(())
 }
 
 fn materialize_output(store_dir: &Path, target_dir: &Path, store_path: &Path) -> Result<()> {
     let entries = fs::read_dir(store_dir).with_context(|| {
-        format!("Could not read nix store directory: {}", store_dir.display())
+        format!(
+            "Could not read nix store directory: {}",
+            store_dir.display()
+        )
     })?;
 
     for entry in entries {
@@ -258,6 +305,8 @@ fn materialize_output(store_dir: &Path, target_dir: &Path, store_path: &Path) ->
 
         if file_type.is_symlink() {
             let resolved_path = fs::read_link(&store_file)?;
+            // Internal symlinks inside the custom store sandbox still point to the logical /nix/store
+            // namespace, so we must map them back to the physical path.
             if resolved_path.starts_with("/nix/store") {
                 let stripped = resolved_path.strip_prefix("/").unwrap();
                 store_file = store_path.join(stripped);
@@ -270,7 +319,11 @@ fn materialize_output(store_dir: &Path, target_dir: &Path, store_path: &Path) ->
 
         if fs::hard_link(&store_file, &target_file).is_err() {
             std::os::unix::fs::symlink(&store_file, &target_file).with_context(|| {
-                format!("Failed to create link (hard or sym) for {} at {}", store_file.display(), target_file.display())
+                format!(
+                    "Failed to create link (hard or sym) for {} at {}",
+                    store_file.display(),
+                    target_file.display()
+                )
             })?;
         }
     }
