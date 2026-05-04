@@ -1,5 +1,5 @@
 [package]
-name = "vellum-nix"
+name = "vellix"
 version = "0.1.0"
 repository = "https://github.com/lewelove/Vellum"
 edition = "2024"
@@ -18,3 +18,5 @@ log = "0.4.29"
 simple_logger = "5.1.0"
 clap = { version = "4.4", features = ["derive"] }
 regex = "1.11.1"
+lava_torrent = "0.9"
+sha1 = "0.10"

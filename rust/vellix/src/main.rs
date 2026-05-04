@@ -1,5 +1,6 @@
 mod build;
 mod get;
+mod manifest;
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
@@ -13,19 +14,19 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    Build {
-        #[arg(value_name = "PATH")]
-        path: Option<String>,
+    Manifest {
         #[arg(long)]
-        library: bool,
+        torrent: String,
+        #[arg(long, default_value = "flac,wav")]
+        tracks: String,
     },
     Get {
         #[arg(value_name = "PATH")]
         path: Option<String>,
-        #[arg(long)]
-        torrent: bool,
-        #[arg(long)]
-        url: bool,
+    },
+    Build {
+        #[arg(value_name = "PATH")]
+        path: Option<String>,
     },
 }
 
@@ -39,11 +40,14 @@ async fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Build { path, library } => {
-            build::run(library, path)?;
+        Commands::Manifest { torrent, tracks } => {
+            manifest::run(&torrent, &tracks)?;
         }
-        Commands::Get { path, torrent, url } => {
-            get::run(torrent, url, path)?;
+        Commands::Get { path } => {
+            get::run(path)?;
+        }
+        Commands::Build { path } => {
+            build::run(path)?;
         }
     }
 

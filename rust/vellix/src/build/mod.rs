@@ -1,12 +1,80 @@
 use anyhow::{Context, Result};
-use sha2::{Digest, Sha256};
+use sha1::{Sha1, Digest};
 use std::fs;
+use std::io::Read;
 use std::path::Path;
 use std::process::Command;
 use vellum::config::AppConfig;
 use vellum::utils::expand_path;
 
-pub fn run(library: bool, album_path: Option<String>) -> Result<()> {
+pub fn verify_seedability(torrent_path: &Path, source_disk: &Path) -> Result<()> {
+    let torrent = lava_torrent::torrent::v1::Torrent::read_from_file(torrent_path)
+        .map_err(|e| anyhow::anyhow!("Failed to parse torrent: {e}"))?;
+        
+    let piece_length = torrent.piece_length as usize;
+    let pieces = &torrent.pieces;
+    let mut piece_idx = 0;
+    let mut hasher = Sha1::new();
+    let mut bytes_in_piece = 0;
+
+    let mut paths_and_sizes = Vec::new();
+    if let Some(files) = &torrent.files {
+        for f in files {
+            let mut p = source_disk.to_path_buf();
+            for segment in &f.path {
+                p.push(segment);
+            }
+            paths_and_sizes.push((p, f.length as u64));
+        }
+    } else {
+        paths_and_sizes.push((source_disk.to_path_buf(), torrent.length as u64));
+    }
+
+    for (path, size) in paths_and_sizes {
+        if !path.exists() {
+            anyhow::bail!("Missing file: {}", path.display());
+        }
+        if std::fs::metadata(&path)?.len() != size {
+            anyhow::bail!("Size mismatch for {}. Expected {size}, found {}", path.display(), std::fs::metadata(&path)?.len());
+        }
+        
+        let mut file = std::fs::File::open(&path)?;
+        let mut buffer = vec![0u8; 65536];
+        loop {
+            let n = file.read(&mut buffer)?;
+            if n == 0 { break; }
+            
+            let mut slice = &buffer[..n];
+            while !slice.is_empty() {
+                let needed = piece_length - bytes_in_piece;
+                let take = std::cmp::min(slice.len(), needed);
+                hasher.update(&slice[..take]);
+                bytes_in_piece += take;
+                slice = &slice[take..];
+                
+                if bytes_in_piece == piece_length {
+                    let hash = hasher.finalize_reset();
+                    if piece_idx >= pieces.len() || hash.as_slice() != pieces[piece_idx] {
+                        anyhow::bail!("Hash mismatch at piece {piece_idx}");
+                    }
+                    piece_idx += 1;
+                    bytes_in_piece = 0;
+                }
+            }
+        }
+    }
+    
+    if bytes_in_piece > 0 {
+        let hash = hasher.finalize();
+        if piece_idx >= pieces.len() || hash.as_slice() != pieces[piece_idx] {
+            anyhow::bail!("Final piece failed hash check");
+        }
+    }
+    
+    Ok(())
+}
+
+pub fn run(album_path: Option<String>) -> Result<()> {
     let (config, _, _) = AppConfig::load().context("Failed to load config")?;
     let nix_config = config.nix.as_ref().context("Missing [nix] configuration in config.toml")?;
     let store_path = expand_path(&nix_config.store)
@@ -27,78 +95,58 @@ pub fn run(library: bool, album_path: Option<String>) -> Result<()> {
         flake_uri = format!("path:{}", flake_dir.display());
     }
 
-    let mut targets = Vec::new();
-
-    if library {
-        let lib_root = expand_path(&config.storage.library_root);
-        let scan_depth = config
-            .compiler
-            .as_ref()
-            .and_then(|c| c.scan_depth)
-            .unwrap_or(4);
-        let dirs = vellum::scanner::find_target_albums(&lib_root, scan_depth)?;
-        for dir in dirs {
-            if dir.join("album.nix").exists() {
-                targets.push(dir);
-            }
-        }
-    } else if let Some(a) = album_path {
+    let target_path = if let Some(a) = album_path {
         let p = expand_path(&a)
             .canonicalize()
             .context("Album path does not exist")?;
         if p.is_dir() && p.join("album.nix").exists() {
-            targets.push(p);
+            p.join("album.nix")
         } else if p.is_file() && p.file_name().unwrap_or_default() == "album.nix" {
-            targets.push(p.parent().unwrap().to_path_buf());
+            p
+        } else {
+            anyhow::bail!("No album.nix found at specified path");
         }
-    }
+    } else {
+        let curr = std::env::current_dir()?;
+        if curr.join("album.nix").exists() {
+            curr.join("album.nix")
+        } else {
+            anyhow::bail!("No album.nix found in current directory");
+        }
+    };
 
-    for target in targets {
-        build_album(&target, &store_path, &flake_uri, nix_config.stage.as_deref())?;
-    }
+    build_album(&target_path, &store_path, &flake_uri)?;
 
     Ok(())
 }
 
 fn calculate_hash(data: &str) -> String {
-    let mut hasher = Sha256::new();
+    let mut hasher = sha2::Sha256::new();
     hasher.update(data.as_bytes());
     format!("{:x}", hasher.finalize())
 }
 
 fn build_album(
-    target: &Path,
+    target_path: &Path,
     store_path: &Path,
     flake_uri: &str,
-    stage_path_str: Option<&str>,
 ) -> Result<()> {
+    let album_info = crate::get::parse_album_nix(target_path)?;
+    let target = target_path.parent().unwrap();
+    
+    let torrent_path = target.join(album_info.torrent_file.trim_start_matches("./"));
+    let source_disk = target.join(album_info.source_disk.trim_start_matches("./"));
+
+    log::info!("Verifying seedability (Black Box Check)...");
+    verify_seedability(&torrent_path, &source_disk)?;
+    log::info!("Seeding check passed! Files perfectly match torrent.");
+
     let album_id = calculate_hash(&target.to_string_lossy());
     let gc_roots_dir = store_path.join("gcroots").join("albums");
     fs::create_dir_all(&gc_roots_dir).context("Failed to create gcroots directory")?;
 
     let result_link = gc_roots_dir.join(&album_id);
-
-    let album_info = crate::get::parse_album_nix(&target.join("album.nix"))?;
-
-    let mut staging_src_env = None;
-    if album_info.source_disk.is_none() {
-        if let Some(stage) = stage_path_str {
-            let stage_dir = expand_path(stage);
-            let staging_path = crate::get::calculate_staging_path(&album_info, &stage_dir, target)?;
-            
-            if staging_path.exists() {
-                staging_src_env = Some(staging_path.to_string_lossy().to_string());
-            } else {
-                anyhow::bail!("Source not found in stage: {}. Please run `vellum-nix get` for this album.", staging_path.display());
-            }
-        } else {
-            anyhow::bail!("No sourceDisk found in album.nix and [nix] stage is not configured.");
-        }
-    }
-
-    log::info!("Evaluating nix expression for: {}", target.display());
-
-    let expr = format!("(import ./album.nix {{ vellum = (builtins.getFlake \"{flake_uri}\").lib; }})");
+    let expr = format!("(import ./album.nix {{ vellix = (builtins.getFlake \"{flake_uri}\").lib; }})");
 
     let mut cmd = Command::new("nix");
     cmd.arg("build")
@@ -110,10 +158,6 @@ fn build_album(
         .arg("--out-link")
         .arg(&result_link)
         .current_dir(target);
-
-    if let Some(staging_src) = staging_src_env {
-        cmd.env("VELLUM_STAGING_SRC", staging_src);
-    }
 
     let status = cmd.status().context("Failed to execute nix build binary")?;
 

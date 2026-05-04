@@ -68,7 +68,7 @@
             for arg in "$@"; do
               case "$arg" in
                 vellum)     TARGET="vellum" ;;
-                vellum-nix) TARGET="vellum-nix" ;;
+                vellix)     TARGET="vellix" ;;
                 --release)  RELEASE_FLAG="--release" ;;
                 *)          ARGS+=("$arg") ;;
               esac
@@ -198,14 +198,14 @@
           '';
         };
 
-        vellum-nix-cli = pkgs.writeShellApplication {
-          name = "vellum-nix";
+        vellix-cli = pkgs.writeShellApplication {
+          name = "vellix";
           runtimeInputs = [ pkgs.git pkgs.nix ];
           text = ''
             ROOT=$(git rev-parse --show-toplevel)
-            BIN="$ROOT/rust/target/release/vellum-nix"
+            BIN="$ROOT/rust/target/release/vellix"
             if [ ! -f "$BIN" ]; then
-              echo "Error: vellum-nix binary not found at $BIN. Run 'build vellum-nix --release' first."
+              echo "Error: vellix binary not found at $BIN. Run 'build vellix --release' first."
               exit 1
             fi
             exec "$BIN" "$@"
@@ -220,7 +220,7 @@
           build-cli
           check-cli
           vellum-cli
-          vellum-nix-cli
+          vellix-cli
           cargo
           rustc
           rust-analyzer

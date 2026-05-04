@@ -3,7 +3,7 @@
 members = [
   "vellum",
   "vellum-cli",
-  "vellum-nix",
+  "vellix",
 ]
 
 resolver = "2"
