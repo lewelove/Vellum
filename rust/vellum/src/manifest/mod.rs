@@ -112,21 +112,6 @@ fn process_album_group(
         log::info!("Generated metadata manifest: {}", out_path.display());
     }
 
-    if !options.stdout {
-        write_system_toml(&anchor)?;
-    }
-
-    Ok(())
-}
-
-fn write_system_toml(anchor: &Path) -> Result<()> {
-    let system_toml_path = anchor.join("system.toml");
-    if !system_toml_path.exists() {
-        let now = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
-        let system_toml_content = format!("[album.system]\n\ndate_generated = {now}\n");
-        fs::write(&system_toml_path, system_toml_content)?;
-        log::info!("Generated system manifest: {}", system_toml_path.display());
-    }
     Ok(())
 }
 

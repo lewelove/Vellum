@@ -326,7 +326,6 @@ impl QueryEngine {
                         "duration_formatted": info.get("duration_formatted"),
                         "total_discs": info.get("total_discs"),
                         "total_tracks": info.get("total_tracks"),
-                        "unix_added": info.get("date_added"),
                         "virtual": info.get("virtual"),
                         "keys": album.get("keys")
                     });

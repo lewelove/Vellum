@@ -48,8 +48,6 @@ pub struct AlbumInfo {
     pub total_discs: u32,
     pub total_tracks: u32,
     #[serde(default)]
-    pub date_added: String,
-    #[serde(default)]
     pub duration_milliseconds: u64,
     #[serde(default)]
     pub duration_formatted: String,

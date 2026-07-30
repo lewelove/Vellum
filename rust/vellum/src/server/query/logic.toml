@@ -31,12 +31,6 @@ sql.select = '''
 CAST(COALESCE(json_extract(metadata, '$.album.info.total_discs'), 1) AS TEXT)
 '''
 
-[groupers.year_added]
-label = "Year Added"
-sql.select = '''
-substr(json_extract(metadata, '$.album.info.date_added'), 1, 4)
-'''
-
 [groupers.chroma]
 label = "Chroma"
 sql.select = '''
@@ -96,12 +90,6 @@ sql.order_by = '''
 CAST(json_extract(metadata, '$.album.keys.cover_entropy') AS INT) DESC
 '''
 
-[orders.date_added]
-label = "Date Added"
-sql.order_by = '''
-json_extract(metadata, '$.album.info.date_added') DESC
-'''
-
 [orders.last_edited]
 label = "Last Edited"
 sql.order_by = '''
@@ -113,13 +101,4 @@ label = "Entire Library"
 filters = ["all"]
 sql.where = '''
 1 = 1
-'''
-
-[shelves.recently_added]
-label = "Recently Added"
-sql.where = '''
-1 = 1
-'''
-sql.order_by = '''
-json_extract(metadata, '$.album.info.date_added') DESC
 '''

@@ -4,12 +4,11 @@ use std::path::Path;
 use std::collections::BTreeMap;
 
 pub fn is_virtual_album(album_root: &Path) -> bool {
-    let system_path = album_root.join("system.toml");
-    if let Ok(content) = std::fs::read_to_string(&system_path)
+    let virtual_path = album_root.join("virtual.toml");
+    if let Ok(content) = std::fs::read_to_string(&virtual_path)
         && let Ok(parsed) = toml::from_str::<toml::Value>(&content)
         && let Some(album) = parsed.get("album")
-        && let Some(system) = album.get("system")
-        && let Some(virt) = system.get("virtual").and_then(toml::Value::as_bool)
+        && let Some(virt) = album.get("virtual").and_then(toml::Value::as_bool)
     {
         return virt;
     }

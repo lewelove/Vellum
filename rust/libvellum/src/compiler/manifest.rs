@@ -1,6 +1,6 @@
 use crate::error::VellumError;
 use serde_json::{Value, json};
-use std::collections::{HashSet};
+use std::collections::HashSet;
 use std::path::Path;
 use crate::types::toml_to_json;
 
@@ -31,12 +31,6 @@ pub fn load_manifests(
                 result_manifests.insert(m_key.to_string(), aux_json);
             }
         }
-    }
-
-    let system_path = album_root.join("system.toml");
-    if system_path.exists() && !result_manifests.contains_key("system") {
-        let system_json = parse_single_manifest(&system_path, album_root, "system", Some(expected_tracks))?;
-        result_manifests.insert("system".to_string(), system_json);
     }
 
     Ok(result_manifests)
