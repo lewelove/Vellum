@@ -15,13 +15,13 @@
   let canvasEl: HTMLCanvasElement | undefined;
   let ctx: CanvasRenderingContext2D | null = null;
 
-  const activeKeys = new Set();
+  const activeKeys = new Set<string>();
   const SCROLL_SPEED = 0.20;
-  let isAnimating = false;
 
   let hoveredAlbum: any = null;
   let textCache = new Map();
   let emptyCoverCanvas: any = null;
+  let isTabVisible = true;
 
   function fitText(cCtx: CanvasRenderingContext2D, text: string, maxWidth: number) {
     if (!text) return "";
@@ -201,35 +201,25 @@
   }
 
   function loop() {
+    if (!isTabVisible) {
+      rafId = requestAnimationFrame(loop);
+      return;
+    }
+
     let delta = 0;
     if (activeKeys.has('j') || activeKeys.has('arrowdown')) delta += SCROLL_SPEED;
     if (activeKeys.has('k') || activeKeys.has('arrowup')) delta -= SCROLL_SPEED;
 
     if (delta !== 0) ctrl.scrollRow(delta);
 
-    const idealTargetY = ctrl.scroll.targetSlot * ctrl.layout.rowHeight;
-    const snappedTargetY = Math.round(idealTargetY * dpr) / dpr;
-    const diff = Math.abs(snappedTargetY - ctrl.scroll.currentY);
+    ctrl.update(dpr);
+    renderCanvas();
 
-    if (delta !== 0 || diff > 0.01) {
-      ctrl.update(dpr);
-      renderCanvas();
-      rafId = requestAnimationFrame(loop);
-    } else {
-      ctrl.update(dpr);
-      renderCanvas();
-      isAnimating = false;
-      rafId = null;
-    }
+    rafId = requestAnimationFrame(loop);
   }
 
-  function wakeUp() {
-    if (!isAnimating) {
-      isAnimating = true;
-      rafId = requestAnimationFrame(loop);
-    } else if (!rafId) {
-      rafId = requestAnimationFrame(loop);
-    }
+  function handleVisibilityChange() {
+    isTabVisible = !document.hidden;
   }
 
   function getAlbumAt(clientX: number, clientY: number) {
@@ -273,7 +263,6 @@
     if (['j', 'k', 'arrowdown', 'arrowup'].includes(key)) {
       e.preventDefault();
       activeKeys.add(key);
-      wakeUp();
     }
   }
 
@@ -322,17 +311,6 @@
     ctrl.albums = albums;
   });
 
-  $effect(() => {
-    const _w = ctrl.layout.containerWidth;
-    const _h = ctrl.viewportHeight;
-    const _r = ctrl.virtualRows;
-    const _p = prewarmer.pinnedTextures;
-    
-    if (_w > 0 && _h > 0) {
-      wakeUp();
-    }
-  });
-
   let prevCols = 0;
   $effect(() => {
     const cols = ctrl.layout.cols;
@@ -340,7 +318,6 @@
       const topAlbumIdx = ctrl.scroll.targetSlot * prevCols;
       const newSlot = Math.floor(topAlbumIdx / cols);
       ctrl.scroll.syncToSlot(newSlot);
-      wakeUp();
     }
     prevCols = cols;
   });
@@ -349,7 +326,6 @@
     const _v = version;
     ctrl.resetScroll();
     textCache.clear();
-    wakeUp();
   });
 
   $effect(() => {
@@ -357,7 +333,6 @@
     const _pal = config.palette;
     textCache.clear();
     emptyCoverCanvas = null;
-    wakeUp();
   });
 
   onMount(() => {
@@ -368,13 +343,16 @@
     window.addEventListener("keydown", handleKeydown);
     window.addEventListener("keyup", handleKeyup);
     window.addEventListener("blur", handleBlur);
-    wakeUp();
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    rafId = requestAnimationFrame(loop);
   });
 
   onDestroy(() => {
     window.removeEventListener("keydown", handleKeydown);
     window.removeEventListener("keyup", handleKeyup);
     window.removeEventListener("blur", handleBlur);
+    document.removeEventListener("visibilitychange", handleVisibilityChange);
     if (rafId) cancelAnimationFrame(rafId);
   });
 </script>
@@ -388,7 +366,6 @@
       if (activeAlbumId) return;
       e.preventDefault(); 
       ctrl.handleWheel(e); 
-      wakeUp();
     }}
     onpointermove={handlePointerMove}
     onpointerleave={handlePointerLeave}
