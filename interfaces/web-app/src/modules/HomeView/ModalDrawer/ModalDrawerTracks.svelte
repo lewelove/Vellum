@@ -13,7 +13,6 @@
     onplaydisc?: (disc: number) => void 
   } = $props();
 
-  let selectedIndex = $state(-1);
   let multiDisc = $derived(Number(totalDiscs) > 1);
 
   function formatDuration(str: string) {
@@ -52,10 +51,6 @@
       .filter(t => t.discnumber === discNumber)
       .reduce((acc, t) => acc + (parseInt(t.info?.duration_milliseconds) || 0), 0);
     return formatMs(totalMs);
-  }
-
-  function handleSelect(index: number) {
-    selectedIndex = index;
   }
 
   function handlePlay(index: number) {
@@ -98,16 +93,11 @@
 
     <div 
       class="v-track-row track-row" 
-      class:active={selectedIndex === i}
-      onclick={() => handleSelect(i)}
       ondblclick={() => handlePlay(i)}
       onkeydown={(e) => {
         if (e.key === 'Enter') {
           e.preventDefault();
           handlePlay(i);
-        } else if (e.key === ' ') {
-          e.preventDefault();
-          handleSelect(i);
         }
       }}
       role="button"
