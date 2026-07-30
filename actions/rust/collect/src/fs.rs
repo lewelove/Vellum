@@ -30,6 +30,9 @@ pub async fn create_album_directory(
     let meta_path = album_path.join("metadata.toml");
     write_metadata_toml(data, &meta_path)?;
 
+    let history_path = album_path.join("history.toml");
+    write_history_toml(&history_path)?;
+
     let virtual_path = album_path.join("virtual.toml");
     write_virtual_toml(&virtual_path)?;
 
@@ -124,8 +127,15 @@ fn write_metadata_toml(data: &AlbumData, path: &Path) -> Result<()> {
     Ok(())
 }
 
+fn write_history_toml(path: &Path) -> Result<()> {
+    let now = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
+    let content = format!("[album]\n\ndate_added_vellum = \"{now}\"\n");
+    fs::write(path, content)?;
+    Ok(())
+}
+
 fn write_virtual_toml(path: &Path) -> Result<()> {
-    let content = "[album]\n\nvirtual = true\n";
+    let content = "[album]\n\nvirtual = true\n".to_string();
     fs::write(path, content)?;
     Ok(())
 }
