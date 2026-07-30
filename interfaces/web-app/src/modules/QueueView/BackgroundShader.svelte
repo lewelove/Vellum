@@ -14,6 +14,7 @@
   let gl;
   let program;
   let animationFrame;
+  let locations = {};
   
   let totalTime = 0;
   let lastFrameTime = 0;
@@ -25,7 +26,6 @@
   let activeColorCount = 0;
   const DEFAULT_PALETTE = ["#242424"];
 
-  let needsRedraw = true;
   let shaderSource = $state(internalFragmentShader);
 
   function hexToOklab(hex) {
@@ -96,7 +96,7 @@
 
   $effect(() => {
     let palette = (colors && colors.length > 0) ? [...colors] : [...DEFAULT_PALETTE];
-    const order = config.shader?.order || "random";
+    const order = config.shader?.order || "original";
     
     if (order !== "original") {
       palette.sort((a, b) => getChroma(b) - getChroma(a));
@@ -179,7 +179,6 @@
         floatRatios[i] = 0.0;
       }
     }
-    needsRedraw = true;
   });
 
   function createShader(gl, type, source) {
@@ -199,7 +198,7 @@
       alpha: false, 
       antialias: true,
       premultipliedAlpha: false,
-      preserveDrawingBuffer: false
+      preserveDrawingBuffer: true
     });
     
     if (!gl) return;
@@ -214,6 +213,21 @@
     gl.attachShader(program, vs);
     gl.attachShader(program, fs);
     gl.linkProgram(program);
+
+    locations = {
+      iTime: gl.getUniformLocation(program, "iTime"),
+      iRandom: gl.getUniformLocation(program, "iRandom"),
+      iResolution: gl.getUniformLocation(program, "iResolution"),
+      iCoverSize: gl.getUniformLocation(program, "iCoverSize"),
+      iColorsOklab: gl.getUniformLocation(program, "iColorsOklab"),
+      iRatios: gl.getUniformLocation(program, "iRatios"),
+      iCount: gl.getUniformLocation(program, "iCount"),
+      iSpeed: gl.getUniformLocation(program, "iSpeed"),
+      iZoom: gl.getUniformLocation(program, "iZoom"),
+      iBlur: gl.getUniformLocation(program, "iBlur"),
+      iGrain: gl.getUniformLocation(program, "iGrain"),
+      iEqualize: gl.getUniformLocation(program, "iEqualize"),
+    };
 
     const vertices = new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]);
     const buffer = gl.createBuffer();
@@ -247,42 +261,36 @@
     }
 
     const now = performance.now();
-    let timeAdvanced = false;
-
     if (isPlaying) {
       let delta = (now - lastFrameTime) / 1000;
       if (delta > 0.1) delta = 0.016;
       totalTime += delta;
-      timeAdvanced = true;
     }
     lastFrameTime = now;
 
-    if (timeAdvanced || needsRedraw) {
-      gl.viewport(0, 0, canvasEl.width, canvasEl.height);
-      gl.useProgram(program);
+    gl.viewport(0, 0, canvasEl.width, canvasEl.height);
+    gl.useProgram(program);
 
-      gl.uniform1f(gl.getUniformLocation(program, "iTime"), totalTime);
-      gl.uniform1f(gl.getUniformLocation(program, "iRandom"), randomOffset);
-      gl.uniform2f(gl.getUniformLocation(program, "iResolution"), canvasEl.width, canvasEl.height);
-      
-      const dpr = window.devicePixelRatio || 1;
-      gl.uniform1f(gl.getUniformLocation(program, "iCoverSize"), coverSize * dpr);
+    gl.uniform1f(locations.iTime, totalTime);
+    gl.uniform1f(locations.iRandom, randomOffset);
+    gl.uniform2f(locations.iResolution, canvasEl.width, canvasEl.height);
+    
+    const dpr = window.devicePixelRatio || 1;
+    gl.uniform1f(locations.iCoverSize, coverSize * dpr);
 
-      gl.uniform3fv(gl.getUniformLocation(program, "iColorsOklab"), floatColorsOklab);
-      gl.uniform1fv(gl.getUniformLocation(program, "iRatios"), floatRatios);
-      gl.uniform1i(gl.getUniformLocation(program, "iCount"), activeColorCount);
+    gl.uniform3fv(locations.iColorsOklab, floatColorsOklab);
+    gl.uniform1fv(locations.iRatios, floatRatios);
+    gl.uniform1i(locations.iCount, activeColorCount);
 
-      const s = config.shader || {};
-      gl.uniform1f(gl.getUniformLocation(program, "iSpeed"), s.speed ?? 0.007);
-      gl.uniform1f(gl.getUniformLocation(program, "iZoom"), s.zoom ?? 0.4);
-      gl.uniform1f(gl.getUniformLocation(program, "iBlur"), s.blur ?? 0.8);
+    const s = config.shader || {};
+    gl.uniform1f(locations.iSpeed, s.speed ?? 0.007);
+    gl.uniform1f(locations.iZoom, s.zoom ?? 0.4);
+    gl.uniform1f(locations.iBlur, s.blur ?? 0.8);
 
-      gl.uniform1f(gl.getUniformLocation(program, "iGrain"), s.grain ?? 0.01);
-      gl.uniform1f(gl.getUniformLocation(program, "iEqualize"), s.equalize ?? 1.0);
+    gl.uniform1f(locations.iGrain, s.grain ?? 0.01);
+    gl.uniform1f(locations.iEqualize, s.equalize ?? 1.0);
 
-      gl.drawArrays(gl.TRIANGLES, 0, 6);
-      needsRedraw = false;
-    }
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
 
     animationFrame = requestAnimationFrame(render);
   }
@@ -292,7 +300,6 @@
       const dpr = window.devicePixelRatio || 1;
       canvasEl.width = window.innerWidth * dpr;
       canvasEl.height = window.innerHeight * dpr;
-      needsRedraw = true;
     }
   }
 
@@ -309,7 +316,6 @@
   $effect(() => {
     if (visible && isTabVisible) {
       lastFrameTime = performance.now();
-      needsRedraw = true;
     }
   });
 
