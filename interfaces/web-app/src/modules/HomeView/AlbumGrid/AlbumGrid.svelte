@@ -19,27 +19,39 @@
   const SCROLL_SPEED = 0.20;
 
   let hoveredAlbum: any = null;
-  let textCache = new Map();
+  let textCache = new Map<string, HTMLCanvasElement>();
   let emptyCoverCanvas: any = null;
   let isTabVisible = true;
 
   function fitText(cCtx: CanvasRenderingContext2D, text: string, maxWidth: number) {
     if (!text) return "";
     let ellipsis = "...";
-    let width = cCtx.measureText(text).width;
-    if (width <= maxWidth) return text;
-    
-    let len = text.length;
-    while (width > maxWidth && len > 0) {
-      len--;
-      width = cCtx.measureText(text.substring(0, len) + ellipsis).width;
+    let fullWidth = cCtx.measureText(text).width;
+    if (fullWidth <= maxWidth) return text;
+
+    let low = 0;
+    let high = text.length;
+    let bestLen = 0;
+
+    while (low <= high) {
+      const mid = (low + high) >> 1;
+      const testStr = text.substring(0, mid) + ellipsis;
+      const w = cCtx.measureText(testStr).width;
+
+      if (w <= maxWidth) {
+        bestLen = mid;
+        low = mid + 1;
+      } else {
+        high = mid - 1;
+      }
     }
-    return text.substring(0, len) + ellipsis;
+
+    return text.substring(0, bestLen) + ellipsis;
   }
 
   function getTextCanvas(album: any, coverSize: number, textBlockHeight: number, textConfig: any) {
     if (textBlockHeight <= 0) return null;
-    if (textCache.has(album.id)) return textCache.get(album.id);
+    if (textCache.has(album.id)) return textCache.get(album.id)!;
     
     const c = document.createElement('canvas');
     c.width = coverSize * dpr;
