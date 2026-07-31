@@ -6,7 +6,6 @@ export function connectSocket(onOpen?: () => void, onMessage?: (e: MessageEvent)
   let socket = new WebSocket(url);
 
   socket.onopen = () => {
-    console.log("Vellum WebSocket: Connected to backend");
     if (onOpen) onOpen();
   };
 
@@ -15,14 +14,12 @@ export function connectSocket(onOpen?: () => void, onMessage?: (e: MessageEvent)
   };
 
   socket.onclose = () => {
-    console.log("Vellum WebSocket: Disconnected. Reconnecting...");
     setTimeout(() => {
       connectSocket(onOpen, onMessage);
     }, 2000);
   };
 
   socket.onerror = (err: Event) => {
-    console.error("Vellum WebSocket: Error", err);
   };
 
   return socket;
@@ -51,21 +48,9 @@ export async function jumpToQueueIndex(index: string | number): Promise<any> {
   return await response.json();
 }
 
-export async function openAlbumFolder(id: string): Promise<any> {
-  const encodedId = encodeURIComponent(id);
-  const response = await fetch(`/api/open/${encodedId}`, { method: "POST" });
-  return await response.json();
-}
-
-export async function openLockFile(id: string): Promise<any> {
-  const encodedId = encodeURIComponent(id);
-  const response = await fetch(`/api/open-lock/${encodedId}`, { method: "POST" });
-  return await response.json();
-}
-
-export async function openManifestFile(id: string): Promise<any> {
-  const encodedId = encodeURIComponent(id);
-  const response = await fetch(`/api/open-manifest/${encodedId}`, { method: "POST" });
+export async function executeAction(name: string, id: string, extraParams: Record<string, string> = {}): Promise<any> {
+  const params = new URLSearchParams({ id, ...extraParams });
+  const response = await fetch(`/api/actions/${name}?${params.toString()}`, { method: "POST" });
   return await response.json();
 }
 

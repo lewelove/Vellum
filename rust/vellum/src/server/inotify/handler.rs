@@ -1,12 +1,9 @@
-use crate::server::state::AppState;
 use crate::server::inotify::classifier::ChangeFlags;
+use crate::server::state::AppState;
 use serde_json::json;
 use std::sync::Arc;
 
-pub async fn process_events(
-    flags: ChangeFlags,
-    state: &Arc<AppState>,
-) {
+pub async fn process_events(flags: ChangeFlags, state: &Arc<AppState>) {
     if flags.logic {
         handle_logic_change(state).await;
     }
@@ -24,10 +21,13 @@ pub async fn process_events(
 
     for intf_name in flags.interfaces_asset {
         log::info!("Interface '{intf_name}' asset changed.");
-        let _ = state.tx.send(json!({
-            "type": "INTERFACE_ASSET_UPDATE",
-            "name": intf_name
-        }).to_string());
+        let _ = state.tx.send(
+            json!({
+                "type": "INTERFACE_ASSET_UPDATE",
+                "name": intf_name
+            })
+            .to_string(),
+        );
     }
 
     if flags.config {
@@ -41,8 +41,12 @@ async fn handle_logic_change(state: &Arc<AppState>) {
         let guard = state.config.read().await;
         guard.config_dir.join("logic.toml")
     };
-    
-    let resolved = if logic_path.exists() { logic_path.canonicalize().ok() } else { None };
+
+    let resolved = if logic_path.exists() {
+        logic_path.canonicalize().ok()
+    } else {
+        None
+    };
 
     let mut new_shelves = Vec::new();
     {
@@ -79,28 +83,36 @@ async fn handle_config_change(state: &Arc<AppState>) {
         Ok(new_config) => {
             let covers = new_config.covers.clone();
             let new_interfaces = new_config.interfaces.clone();
+            let new_actions = new_config.actions.clone();
             let dependencies = new_config.dependencies.clone();
 
             {
                 let mut config_guard = state.config.write().await;
                 config_guard.covers.clone_from(&covers);
                 config_guard.interfaces.clone_from(&new_interfaces);
+                config_guard.actions.clone_from(&new_actions);
                 config_guard.resolved_dependencies.clone_from(&dependencies);
             }
 
-            let _ = state.tx.send(json!({
-                "type": "CONFIG_UPDATE",
-                "config": {
-                    "covers": covers
-                }
-            }).to_string());
+            let _ = state.tx.send(
+                json!({
+                    "type": "CONFIG_UPDATE",
+                    "config": {
+                        "covers": covers
+                    }
+                })
+                .to_string(),
+            );
 
             for (name, cfg) in &new_interfaces {
-                let _ = state.tx.send(json!({
-                    "type": "INTERFACE_CONFIG_UPDATE",
-                    "name": name,
-                    "config": cfg.config
-                }).to_string());
+                let _ = state.tx.send(
+                    json!({
+                        "type": "INTERFACE_CONFIG_UPDATE",
+                        "name": name,
+                        "config": cfg.config
+                    })
+                    .to_string(),
+                );
             }
         }
         Err(e) => {

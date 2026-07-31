@@ -278,51 +278,6 @@ pub async fn trigger_reload(
     StatusCode::NOT_FOUND.into_response()
 }
 
-pub async fn open_album_folder(
-    Path(id): Path<String>,
-    State(state): State<Arc<AppState>>,
-) -> Response {
-    let path = {
-        let config_guard = state.config.read().await;
-        config_guard.library_root.join(id)
-    };
-    if path.exists() {
-        let _ = std::process::Command::new("xdg-open").arg(path).spawn();
-        return Json(json!({"status": "ok"})).into_response();
-    }
-    StatusCode::NOT_FOUND.into_response()
-}
-
-pub async fn open_lock_file(
-    Path(id): Path<String>,
-    State(state): State<Arc<AppState>>,
-) -> Response {
-    let path = {
-        let config_guard = state.config.read().await;
-        config_guard.library_root.join(id).join("album.lock.json")
-    };
-    if path.exists() {
-        let _ = std::process::Command::new("xdg-open").arg(path).spawn();
-        return Json(json!({"status": "ok"})).into_response();
-    }
-    StatusCode::NOT_FOUND.into_response()
-}
-
-pub async fn open_manifest_file(
-    Path(id): Path<String>,
-    State(state): State<Arc<AppState>>,
-) -> Response {
-    let path = {
-        let config_guard = state.config.read().await;
-        config_guard.library_root.join(id).join("metadata.toml")
-    };
-    if path.exists() {
-        let _ = std::process::Command::new("xdg-open").arg(path).spawn();
-        return Json(json!({"status": "ok"})).into_response();
-    }
-    StatusCode::NOT_FOUND.into_response()
-}
-
 pub async fn force_update_album(
     Path(id): Path<String>,
     State(state): State<Arc<AppState>>,

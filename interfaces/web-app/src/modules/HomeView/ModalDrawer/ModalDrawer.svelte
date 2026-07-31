@@ -4,11 +4,8 @@
   import { view } from "../../../library/view.svelte.ts";
   import { 
     playAlbum, 
-    queueAlbum, 
-    openAlbumFolder, 
     playDisc,
-    openLockFile,
-    openManifestFile,
+    executeAction,
     updateAlbum 
   } from "../../../api.ts";
   import ClearCover from "../../ClearCover.svelte";
@@ -21,7 +18,6 @@
 
   let albumData = $derived(album.album || {});
   let infoData = $derived(albumData.info || {});
-  let keysData = $derived(albumData.keys || {});
 
   let coverHash = $derived(albumData.covers?.main?.file?.address || "");
   let title = $derived(albumData.album || "Untitled");
@@ -40,27 +36,11 @@
   }
 
   async function handlePlay() {
-    try { await playAlbum(album.id); } catch (err) { console.error(err); }
-  }
-
-  async function handleQueue() {
-    try { await queueAlbum(album.id); } catch (err) { console.error(err); }
-  }
-
-  async function handleOpenFolder() {
-    try { await openAlbumFolder(album.id); } catch (err) { console.error(err); }
-  }
-
-  async function handleOpenLock() {
-    try { await openLockFile(album.id); } catch (err) { console.error(err); }
-  }
-
-  async function handleOpenManifest() {
-    try { await openManifestFile(album.id); } catch (err) { console.error(err); }
+    try { await playAlbum(album.id); } catch (err) {}
   }
 
   async function handleUpdate() {
-    try { await updateAlbum(album.id); } catch (err) { console.error(err); }
+    try { await updateAlbum(album.id); } catch (err) {}
   }
 
   async function handlePlayTrack(index: number) {
@@ -76,13 +56,11 @@
       }
 
       await playDisc(album.id, discNumber, intraDiscOffset);
-    } catch (err) { 
-      console.error(err); 
-    }
+    } catch (err) {}
   }
 
   async function handlePlayDisc(discNumber: number) {
-    try { await playDisc(album.id, discNumber); } catch (err) { console.error(err); }
+    try { await playDisc(album.id, discNumber); } catch (err) {}
   }
 
   function handleBackdropClick(e: MouseEvent) {
@@ -144,14 +122,17 @@
             <button class="v-btn-icon icon-btn" onclick={handleUpdate} title="Update Album">
               <span class="icon">refresh</span>
             </button>
-            <button class="v-btn-icon icon-btn" onclick={handleOpenFolder} title="Open Local Folder">
+            <button class="v-btn-icon icon-btn" onclick={() => executeAction("open_folder", album.id)} title="Open Local Folder">
               <span class="icon">folder</span>
             </button>
-            <button class="v-btn-icon icon-btn" onclick={handleOpenManifest} title="Open Manifest">
+            <button class="v-btn-icon icon-btn" onclick={() => executeAction("open_manifest", album.id)} title="Open Manifest">
               <span class="icon">edit_document</span>
             </button>
-            <button class="v-btn-icon icon-btn" onclick={handleOpenLock} title="Open Data Object">
+            <button class="v-btn-icon icon-btn" onclick={() => executeAction("open_lock", album.id)} title="Open Data Object">
               <span class="icon">code</span>
+            </button>
+            <button class="v-btn-icon icon-btn" onclick={() => executeAction("open_terminal", album.id)} title="Open Terminal">
+              <span class="icon">terminal_2</span>
             </button>
           </div>
 

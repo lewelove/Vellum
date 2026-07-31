@@ -12,6 +12,7 @@ const LUA_CORE: &str = include_str!("core.lua");
 const LUA_UTILS: &str = include_str!("utils.lua");
 const LUA_CONFIG: &str = include_str!("config.lua");
 const LUA_COMPILER: &str = include_str!("compiler.lua");
+const LUA_ACTIONS: &str = include_str!("actions.lua");
 
 pub struct LuaEngine {
     pub lua: Lua,
@@ -44,6 +45,10 @@ impl LuaEngine {
             .exec()
             .map_err(|e| anyhow::anyhow!("{e}"))
             .context("Failed to load compiler.lua")?;
+        lua.load(LUA_ACTIONS)
+            .exec()
+            .map_err(|e| anyhow::anyhow!("{e}"))
+            .context("Failed to load actions.lua")?;
         Ok(Self { lua })
     }
 
