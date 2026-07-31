@@ -102,7 +102,6 @@
     width: 36px;
     height: 36px;
     border-radius: 10px;
-    box-shadow: var(--button-shadow-lesser);
     flex-shrink: 0;
     pointer-events: auto;
   }
