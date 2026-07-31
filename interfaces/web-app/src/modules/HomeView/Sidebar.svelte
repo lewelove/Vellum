@@ -114,10 +114,10 @@
         </button>
     
         {#if isLibraryMenuOpen}
-          <div class="control-menu">
+          <div class="v-menu">
             {#each collection.librariesList as lib}
               <button 
-                class="menu-item" 
+                class="v-menu-item" 
                 class:selected={view.activeLibrary === lib.key}
                 onclick={() => selectLibrary(lib.key)}
               >
@@ -139,10 +139,10 @@
           </button>
       
           {#if isLibraryFilterMenuOpen}
-            <div class="control-menu">
+            <div class="v-menu">
               {#each allowedFilters as fKey}
                 <button 
-                  class="menu-item" 
+                  class="v-menu-item" 
                   class:selected={view.activeLibraryFilter === fKey}
                   onclick={() => {
                     view.setLibraryFilter(fKey);
@@ -167,10 +167,10 @@
         </button>
     
         {#if isGroupMenuOpen}
-          <div class="control-menu">
+          <div class="v-menu">
             {#each collection.getVisibleFacets(view.activeLibrary) as {key, label}}
               <button 
-                class="menu-item" 
+                class="v-menu-item" 
                 class:selected={view.activeSidebarGrouper === key}
                 onclick={() => selectGrouper(key)}
               >
@@ -191,10 +191,10 @@
         </button>
 
         {#if isSortMenuOpen}
-          <div class="control-menu">
+          <div class="v-menu">
             {#each collection.getVisibleOrders(view.activeLibrary) as {key, label}}
               <button 
-                class="menu-item" 
+                class="v-menu-item" 
                 class:selected={view.userSortPreference === key}
                 onclick={() => selectOrder(key)}
               >
@@ -313,47 +313,6 @@
     padding-left: 7px;
     text-align: left;
     font-family: var(--font-stack);
-  }
-
-  .control-menu {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    width: 100%;
-    margin-top: 6px;
-    z-index: 50;
-    border: none;
-    border-radius: 12px;
-    padding: 4px;
-    box-sizing: border-box;
-    background-color: var(--bg-panel);
-    box-shadow: var(--panel-shadow);
-  }
-
-  .menu-item {
-    display: block;
-    width: 100%;
-    text-align: left;
-    padding: 6px 10px;
-    margin-bottom: 2px;
-    background: none;
-    border: none;
-    color: var(--text-muted);
-    font-size: 14px;
-    font-family: var(--font-stack);
-    cursor: pointer;
-    border-radius: 8px;
-    box-sizing: border-box;
-  }
-
-  .menu-item:hover {
-    background-color: var(--bg-item-hover);
-    color: var(--text-main);
-  }
-
-  .menu-item.selected {
-    color: var(--text-main);
-    background-color: var(--bg-item-active);
   }
 
   .sidebar-body {

@@ -34,7 +34,8 @@
 
   --bg-queue: var(--color-ok300);
 
-  --bg-panel: var(--color-ok300)
+  --bg-panel: var(--color-ok300);
+  --bg-menu: var(--color-ok300);
   --bg-album-grid: var(--color-ok200);
 
   --bg-modal-backdrop: oklch(0 0 0 / 0.6);
@@ -180,6 +181,47 @@ main {
 
 .shader-off .v-glass {
   --glass-bg: var(--bg-panel);
+}
+
+.v-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  margin-top: 6px;
+  z-index: 50;
+  border: none;
+  border-radius: 12px;
+  padding: 4px;
+  box-sizing: border-box;
+  background-color: var(--bg-menu);
+  box-shadow: var(--panel-shadow);
+}
+
+.v-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 6px 10px;
+  margin-bottom: 2px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 14px;
+  font-family: var(--font-stack);
+  cursor: pointer;
+  border-radius: 8px;
+  box-sizing: border-box;
+}
+
+.v-menu-item:hover {
+  background-color: var(--bg-item-hover);
+  color: var(--text-main);
+}
+
+.v-menu-item.selected {
+  color: var(--text-main);
+  background-color: var(--bg-item-active);
 }
 
 .icon {
