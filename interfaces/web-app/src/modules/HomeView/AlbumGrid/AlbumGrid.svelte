@@ -341,7 +341,7 @@
 
   $effect(() => {
     const _c = config.album_grid;
-    const _col = colorsState.palette;
+    const _col = $state.snapshot(colorsState.palette);
     textCache.clear();
     emptyCoverCanvas = null;
   });
