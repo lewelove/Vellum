@@ -13,7 +13,7 @@
 
 {#snippet NavButton({ icon, tab }: { icon: string, tab: string })}
   <button 
-    class="v-btn-icon nav-button" 
+    class="v-btn-icon v-sidebar-button" 
     class:active={nav.activeTab === tab} 
     onclick={() => setTab(tab)}
     title={tab}
@@ -32,7 +32,7 @@
 
   <div class="nav-group bottom">
     <button 
-      class="v-btn-icon nav-button" 
+      class="v-btn-icon v-sidebar-button" 
       onclick={handleOpenConfig}
       title="Open Config"
     >
@@ -81,21 +81,5 @@
     align-items: center;
     gap: 8px;
     width: 100%;
-  }
-
-  .nav-button {
-    width: 36px;
-    height: 36px;
-    border-radius: 10px;
-    flex-shrink: 0;
-    pointer-events: auto;
-  }
-
-  .nav-button.round {
-    border-radius: 18px;
-  }
-
-  .icon {
-    font-size: 20px;
   }
 </style>

@@ -275,6 +275,28 @@ main {
   opacity: var(--a1);
 }
 
+.v-sidebar-button {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  pointer-events: auto;
+}
+
+.v-sidebar-button.round {
+  border-radius: 16px;
+}
+
+.v-sidebar-button:disabled {
+  opacity: 0.3;
+  pointer-events: none;
+  box-shadow: none;
+}
+
+.v-sidebar-button .icon {
+  font-size: 18px;
+}
+
 .v-scroll-fade-top {
   position: sticky;
   top: 0;

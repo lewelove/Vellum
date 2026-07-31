@@ -23,7 +23,7 @@
     <div class="sidebar-group top">
       {#if hasPalette}
         <button 
-          class="v-btn-icon sidebar-button" 
+          class="v-btn-icon v-sidebar-button" 
           class:active={view.isShaderEnabled}
           disabled={isStopped}
           onclick={() => view.toggleShader()} 
@@ -33,7 +33,7 @@
         </button>
       {/if}
       <button 
-        class="v-btn-icon sidebar-button round" 
+        class="v-btn-icon v-sidebar-button round" 
         disabled={!activeId}
         onclick={handleFocus}
         title="Focus Album"
@@ -77,27 +77,5 @@
     align-items: center;
     gap: 8px;
     width: 100%;
-  }
-
-  .sidebar-button {
-    width: 36px;
-    height: 36px;
-    border-radius: 10px;
-    flex-shrink: 0;
-    pointer-events: auto;
-  }
-
-  .sidebar-button.round {
-    border-radius: 18px;
-  }
-
-  .sidebar-button:disabled {
-    opacity: 0.3;
-    pointer-events: none;
-    box-shadow: none;
-  }
-
-  .icon {
-    font-size: 20px;
   }
 </style>

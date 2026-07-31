@@ -35,12 +35,12 @@
 <div class="sidebar-container">
   <div class="sidebar-controls">
     <div class="control-row">
-      <button class="v-btn-icon mode-btn" onclick={toggleSubView} title={view.homeSubView === 'library' ? "Libraries" : "Shelves"}>
+      <button class="v-btn-icon v-sidebar-button" onclick={toggleSubView} title={view.homeSubView === 'library' ? "Libraries" : "Shelves"}>
         <span class="icon">{view.homeSubView === 'library' ? "auto_stories" : "newsstand"}</span>
       </button>
 
       <div class="button-wrapper flex-grow">
-        <button class="v-btn-icon sidebar-btn" onclick={toggleShelfMenu} class:active={isShelfMenuOpen} title="Shelf">
+        <button class="v-btn-icon v-sidebar-button sidebar-btn" onclick={toggleShelfMenu} class:active={isShelfMenuOpen} title="Shelf">
           <span class="v-truncate btn-label iconless">{shelfLabel}</span>
           <span class="icon end-icon">{isShelfMenuOpen ? "arrow_drop_up" : "arrow_drop_down"}</span>
         </button>
@@ -117,26 +117,12 @@
 
   .sidebar-btn {
     width: 100%;
-    height: 36px;
     padding: 0 8px;
     justify-content: space-between;
-    border-radius: 10px;
     color: var(--text-muted);
     font-size: 16px;
     font-family: var(--font-stack);
     font-weight: 500;
-  }
-
-  .mode-btn {
-    width: 36px;
-    height: 36px;
-    border-radius: 10px;
-    flex-shrink: 0;
-  }
-
-  .start-icon {
-    font-size: 20px;
-    flex-shrink: 0;
   }
 
   .end-icon {
