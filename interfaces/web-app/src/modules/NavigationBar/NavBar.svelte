@@ -12,7 +12,7 @@
     onclick={() => setTab(tab)}
     title={tab}
   >
-    <img src="/{icon}" alt={tab} class="nav-icon" />
+    <span class="icon">{icon}</span>
   </button>
 {/snippet}
 
@@ -28,22 +28,22 @@
     }}
     {title}
   >
-    <img src="/{icon}" alt={title} class="nav-icon" />
+    <span class="icon">{icon}</span>
   </button>
 {/snippet}
 
 <nav class="nav-bar" class:v-glass={variant === 'glass'} class:transparent={variant === 'transparent'}>
   <div class="nav-top-section">
     <div class="nav-group top">
-      {@render NavButton({ icon: "icons/outlined/24px/house.svg", tab: "home" })}
-      {@render NavButton({ icon: "icons/outlined/24px/queue_music.svg", tab: "queue" })}
+      {@render NavButton({ icon: "house", tab: "home" })}
+      {@render NavButton({ icon: "queue_music", tab: "queue" })}
     </div>
 
     {#if nav.activeTab === 'home'}
       <div class="nav-separator"></div>
       <div class="nav-group middle">
-        {@render SubNavButton({ icon: "icons/outlined/20px/auto_stories.svg", viewId: "library", title: "Library" })}
-        {@render SubNavButton({ icon: "icons/outlined/24px/newsstand.svg", viewId: "shelves", title: "Shelves" })}
+        {@render SubNavButton({ icon: "auto_stories", viewId: "library", title: "Library" })}
+        {@render SubNavButton({ icon: "newsstand", viewId: "shelves", title: "Shelves" })}
       </div>
     {/if}
   </div>
@@ -107,8 +107,7 @@
     pointer-events: auto;
   }
 
-  .nav-icon {
-    width: 20px;
-    height: 20px;
+  .icon {
+    font-size: 20px;
   }
 </style>

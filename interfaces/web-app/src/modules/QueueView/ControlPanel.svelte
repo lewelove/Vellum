@@ -129,13 +129,13 @@
 
         <div class="controls-container">
           <button class="v-btn-icon control-btn-lesser" onclick={prev} title="Previous">
-            <img src="/icons/outlined/24px/skip_previous.svg" alt="" />
+            <span class="icon filled">skip_previous</span>
           </button>
           <button class="v-btn-icon control-btn" onclick={togglePlay} title="Toggle Play">
-            <img src={isPlaying ? "/icons/outlined/24px/pause.svg" : "/icons/outlined/24px/play_arrow.svg"} alt="" />
+            <span class="icon filled">{isPlaying ? "pause" : "play_arrow"}</span>
           </button>
           <button class="v-btn-icon control-btn-lesser" onclick={next} title="Next">
-            <img src="/icons/outlined/24px/skip_next.svg" alt="" />
+            <span class="icon filled">skip_next</span>
           </button>
         </div>
       </div>
@@ -239,26 +239,17 @@
     text-wrap: balance;
   }
 
-  .status-msg, .instrumental-msg {
+  .instrumental-msg {
     margin: auto;
     font-family: var(--font-mono);
-    font-size: 14px;
-    font-style: italic;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100%;
-  }
-
-  .status-msg {
-    color: var(--text-muted);
-  }
-
-  .instrumental-msg {
     font-size: 15px;
     line-height: 1.2;
     color: var(--text-main);
     text-align: center;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
   }
 
   .panel-footer {
@@ -315,20 +306,10 @@
     flex-shrink: 0;
   }
 
-  .control-btn img {
-    width: 20px;
-    height: 20px;
-  }
-
   .control-btn-lesser {
     width: 32px;
     height: 32px;
     border-radius: 16px;
     flex-shrink: 0;
-  }
-
-  .control-btn-lesser img {
-    width: 18px;
-    height: 18px;
   }
 </style>

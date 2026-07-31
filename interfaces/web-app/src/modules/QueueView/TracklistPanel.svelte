@@ -91,14 +91,14 @@
 
 {#snippet NavButton({ icon, label, disabled, active, round, onclick }: { icon: string, label: string, disabled?: boolean, active?: boolean, round?: boolean, onclick: () => void })}
   <button class="v-btn-icon queue-nav-button" class:active class:round {disabled} {onclick} title={label}>
-    <img src="/{icon}" alt={label} class="nav-icon" />
+    <span class="icon">{icon}</span>
   </button>
 {/snippet}
 
 {#snippet NavButtons()}
   {#if hasPalette}
     {@render NavButton({ 
-      icon: "icons/outlined/24px/colors.svg", 
+      icon: "colors", 
       label: "Toggle Shader", 
       active: view.isShaderEnabled, 
       disabled: isStopped,
@@ -106,7 +106,7 @@
     })}
   {/if}
   {@render NavButton({
-    icon: "icons/outlined/24px/album.svg",
+    icon: "album",
     label: "Focus Album",
     disabled: !activeId,
     round: true,
@@ -236,11 +236,6 @@
     opacity: 0.3;
     pointer-events: none;
     box-shadow: none;
-  }
-
-  .nav-icon {
-    width: 20px;
-    height: 20px;
   }
 
   .header-album,

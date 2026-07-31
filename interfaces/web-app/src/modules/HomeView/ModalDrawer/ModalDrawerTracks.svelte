@@ -85,7 +85,7 @@
             onclick={() => handlePlayDisc(track.discnumber)}
             title="Play Disc {track.discnumber}"
           >
-            <img src="/icons/outlined/24px/play_arrow.svg" alt="Play Disc" />
+            <span class="icon filled disc-play-icon">play_arrow</span>
           </button>
         </div>
       </div>
@@ -174,9 +174,8 @@
     border-radius: 18px;
   }
 
-  .disc-play-btn img {
-    width: 14px;
-    height: 14px;
+  .disc-play-icon {
+    font-size: 14px;
   }
 
   .track-index {

@@ -108,13 +108,9 @@
     <div class="control-row">
       <div class="button-wrapper flex-grow">
         <button class="v-btn-icon sidebar-btn" onclick={toggleLibraryMenu} class:active={isLibraryMenuOpen} title="Library">
-          <img src="icons/outlined/20px/auto_stories.svg" alt="" class="start-icon" />
+          <span class="icon start-icon">auto_stories</span>
           <span class="v-truncate btn-label">{libraryLabel}</span>
-          <img 
-            src={isLibraryMenuOpen ? "icons/outlined/24px/arrow_drop_up.svg" : "icons/outlined/24px/arrow_drop_down.svg"}  
-            class="end-icon" 
-            alt="" 
-          />
+          <span class="icon end-icon">{isLibraryMenuOpen ? "arrow_drop_up" : "arrow_drop_down"}</span>
         </button>
     
         {#if isLibraryMenuOpen}
@@ -137,13 +133,9 @@
       <div class="control-row">
         <div class="button-wrapper flex-grow">
           <button class="v-btn-icon sidebar-btn" onclick={toggleLibraryFilterMenu} class:active={isLibraryFilterMenuOpen} title="Filter">
-            <img src="icons/outlined/24px/format_list_bulleted.svg" alt="" class="start-icon" />
+            <span class="icon start-icon">format_list_bulleted</span>
             <span class="v-truncate btn-label">{filterLabel}</span>
-            <img 
-              src={isLibraryFilterMenuOpen ? "icons/outlined/24px/arrow_drop_up.svg" : "icons/outlined/24px/arrow_drop_down.svg"}  
-              class="end-icon" 
-              alt="" 
-            />
+            <span class="icon end-icon">{isLibraryFilterMenuOpen ? "arrow_drop_up" : "arrow_drop_down"}</span>
           </button>
       
           {#if isLibraryFilterMenuOpen}
@@ -169,13 +161,9 @@
     <div class="control-row">
       <div class="button-wrapper flex-grow">
         <button class="v-btn-icon sidebar-btn" onclick={toggleGroupMenu} class:active={isGroupMenuOpen} title="Group By">
-          <img src="icons/outlined/20px/stack_group.svg" alt="" class="start-icon" />
+          <span class="icon start-icon">stacks</span>
           <span class="v-truncate btn-label">{groupLabel}</span>
-          <img 
-            src={isGroupMenuOpen ? "icons/outlined/24px/arrow_drop_up.svg" : "icons/outlined/24px/arrow_drop_down.svg"}  
-            class="end-icon" 
-            alt="" 
-          />
+          <span class="icon end-icon">{isGroupMenuOpen ? "arrow_drop_up" : "arrow_drop_down"}</span>
         </button>
     
         {#if isGroupMenuOpen}
@@ -197,13 +185,9 @@
     <div class="control-row">
       <div class="button-wrapper flex-grow">
         <button class="v-btn-icon sidebar-btn" onclick={toggleSortMenu} class:active={isSortMenuOpen} title="Sort By">
-          <img src="icons/outlined/20px/swap_vert.svg" alt="" class="start-icon" />
+          <span class="icon start-icon">swap_vert</span>
           <span class="v-truncate btn-label">{sortLabel}</span>
-          <img 
-            src={isSortMenuOpen ? "icons/outlined/24px/arrow_drop_up.svg" : "icons/outlined/24px/arrow_drop_down.svg"} 
-            class="end-icon" 
-            alt="" 
-          />
+          <span class="icon end-icon">{isSortMenuOpen ? "arrow_drop_up" : "arrow_drop_down"}</span>
         </button>
 
         {#if isSortMenuOpen}
@@ -222,11 +206,7 @@
       </div>
       
       <button class="v-btn-icon dir-btn" onclick={toggleDirection} title={isReverse ? "Reverse Order" : "Default Order"}>
-        <img 
-          class:mirrored={isReverse}
-          src="/icons/outlined/24px/arrow_shape_up_stack.svg" 
-          alt="Direction" 
-        />
+        <span class="icon order-arrow" class:mirrored={isReverse}>arrow_shape_up_stack</span>
       </button>
     </div>
   </div>
@@ -309,19 +289,21 @@
     flex-shrink: 0;
   }
 
-  .dir-btn img.mirrored {
+  .order-arrow {
+    font-size: 24px;
+  }
+
+  .order-arrow.mirrored {
     transform: scaleY(-1);
   }
 
   .start-icon {
-    width: 20px;
-    height: 20px;
+    font-size: 20px;
     flex-shrink: 0;
   }
 
   .end-icon {
-    width: 20px;
-    height: 20px;
+    font-size: 20px;
     margin-left: 4px;
     flex-shrink: 0;
   }

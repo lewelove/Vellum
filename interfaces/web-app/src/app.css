@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Noto+Music&family=Noto+Sans+Arabic:wght@400;700&family=Noto+Sans+JP:wght@400;700&family=Noto+Sans+KR:wght@400;700&family=Noto+Sans+SC:wght@400;700&family=Noto+Sans+TC:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-25..200');
 
 @font-face {
   font-family: 'Inter Vellum';
@@ -181,6 +182,29 @@ main {
   --glass-bg: var(--bg-panel);
 }
 
+.icon {
+  font-family: 'Material Symbols Outlined', sans-serif;
+  font-weight: normal;
+  font-style: normal;
+  font-size: 20px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-smoothing: antialiased;
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  user-select: none;
+  color: var(--text-main);
+}
+
+.icon.filled,
+.icon-filled {
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
 .v-btn-icon {
   background-color: var(--bg-button-inactive);
   border: none;
@@ -193,7 +217,7 @@ main {
   position: relative;
 }
 
-.v-btn-icon img {
+.v-btn-icon img, .v-btn-icon .icon {
   opacity: var(--a2);
   pointer-events: none;
 }
@@ -208,7 +232,8 @@ main {
   opacity: var(--a1);
 }
 
-.v-btn-icon:hover img, .v-btn-icon.active img {
+.v-btn-icon:hover img, .v-btn-icon.active img,
+.v-btn-icon:hover .icon, .v-btn-icon.active .icon {
   opacity: var(--a1);
 }
 

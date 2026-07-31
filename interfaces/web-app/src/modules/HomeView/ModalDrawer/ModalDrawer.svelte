@@ -142,22 +142,22 @@
         <div class="button-bar">
           <div class="bar-group">
             <button class="v-btn-icon icon-btn" onclick={handleUpdate} title="Update Album">
-              <img src="/icons/outlined/24px/refresh.svg" alt="Update"/>
+              <span class="icon">refresh</span>
             </button>
             <button class="v-btn-icon icon-btn" onclick={handleOpenFolder} title="Open Local Folder">
-              <img src="/icons/outlined/24px/folder.svg" alt="Open"/>
+              <span class="icon">folder</span>
             </button>
             <button class="v-btn-icon icon-btn" onclick={handleOpenManifest} title="Open Manifest">
-              <img src="/icons/outlined/24px/edit_document.svg" alt="Manifest"/>
+              <span class="icon">edit_document</span>
             </button>
             <button class="v-btn-icon icon-btn" onclick={handleOpenLock} title="Open Data Object">
-              <img src="/icons/outlined/24px/code.svg" alt="Data Object"/>
+              <span class="icon">code</span>
             </button>
           </div>
 
           <div class="bar-group right">
             <button class="v-btn-icon icon-btn" onclick={handlePlay} title="Play Album">
-              <img src="/icons/outlined/24px/play_arrow.svg" alt="" />
+              <span class="icon filled">play_arrow</span>
             </button>
           </div>
         </div>
@@ -308,11 +308,6 @@
     width: 36px;
     height: 36px;
     border-radius: 18px;
-  }
-
-  .icon-btn img {
-    width: 20px;
-    height: 20px;
   }
 
   .tracks-scroll-area {
