@@ -255,8 +255,7 @@
   .header-artist,
   .track-artist,
   .disc-label,
-  .disc-duration-label,
-  .track-meta {
+  .disc-duration-label {
     color: var(--text-muted);
   }
 

@@ -62,15 +62,12 @@
 
     cCtx.scale(dpr, dpr);
 
-    cCtx.fillStyle = colorsState.colors.background;
-    cCtx.fillRect(0, 0, coverSize, textBlockHeight);
-
-    cCtx.fillStyle = colorsState.colors.foreground;
-    cCtx.globalAlpha = 0.07;
+    cCtx.fillStyle = colorsState.palette.ok200;
     cCtx.fillRect(0, 0, coverSize, textBlockHeight);
 
     const fontStack = "'Inter Vellum', 'Noto Sans', system-ui, sans-serif";
 
+    cCtx.fillStyle = colorsState.palette.ok100;
     cCtx.globalAlpha = 1.0;
     const sTitle = textConfig.title.size;
     const lhTitle = Math.round(sTitle * 1.2);
@@ -106,7 +103,7 @@
 
     cCtx.scale(dpr, dpr);
 
-    cCtx.fillStyle = colorsState.colors.background;
+    cCtx.fillStyle = colorsState.palette.ok200;
 
     cCtx.shadowColor = "oklch(0 0 0 / 0.3)";
     cCtx.shadowBlur = 12;
@@ -122,10 +119,6 @@
     cCtx.fillRect(pad, pad, size, size);
 
     cCtx.shadowColor = "transparent";
-    cCtx.fillStyle = colorsState.colors.foreground;
-    cCtx.globalAlpha = 0.07;
-    cCtx.fillRect(pad, pad, size, size);
-    cCtx.globalAlpha = 1.0;
 
     emptyCoverCanvas = { canvas: c, size, dpr, pad };
     return emptyCoverCanvas;
@@ -153,13 +146,8 @@
     ctx.save();
     ctx.scale(dpr, dpr);
 
-    ctx.fillStyle = colorsState.colors.background;
+    ctx.fillStyle = colorsState.palette.ok200;
     ctx.fillRect(0, 0, w, h);
-
-    ctx.fillStyle = colorsState.colors.foreground;
-    ctx.globalAlpha = 0.07;
-    ctx.fillRect(0, 0, w, h);
-    ctx.globalAlpha = 1.0;
 
     const coverSize = ctrl.layout.cardSize;
     const gapX = ctrl.layout.gapX;
@@ -353,7 +341,7 @@
 
   $effect(() => {
     const _c = config.album_grid;
-    const _col = colorsState.colors;
+    const _col = colorsState.palette;
     textCache.clear();
     emptyCoverCanvas = null;
   });

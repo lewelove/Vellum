@@ -66,7 +66,7 @@
   }
 
   .nav-bar:not(:global(.v-glass)):not(.transparent) {
-    background-color: var(--background-drawer);
+    background-color: var(--bg-panel);
   }
 
   .nav-bar.transparent {

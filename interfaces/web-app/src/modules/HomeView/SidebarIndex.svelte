@@ -183,7 +183,7 @@
     color: var(--text-main);
     pointer-events: none;
     box-shadow: var(--panel-shadow);
-    background-color: var(--background-drawer);
-    border: 1px solid var(--border-muted);
+    background-color: var(--bg-panel);
+    border: none;
   }
 </style>

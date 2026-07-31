@@ -9,9 +9,12 @@ export const config = $state({
     grain: 0.1,
     equalize: 1.0,
   },
-  colors: {
-    foreground: "oklch(1.00 0 0)",
-    background: "oklch(0.26 0 0)"
+  palette: {
+    ok100: "oklch(1.00 0 0)",
+    ok200: "oklch(0.32 0 0)",
+    ok300: "oklch(0.26 0 0)",
+    ok400: "oklch(0.20 0 0)",
+    ok500: "oklch(0.14 0 0)"
   },
   album_grid: {
     spacing: { x: 20, y: 16, top: 20 },
@@ -30,8 +33,8 @@ export const config = $state({
 export function updateConfig(newData: any) {
   if (!newData) return;
 
-  if (newData.colors) {
-    Object.assign(config.colors, newData.colors);
+  if (newData.palette) {
+    Object.assign(config.palette, newData.palette);
     applyColors(newData);
   }
 

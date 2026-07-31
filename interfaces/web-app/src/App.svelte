@@ -144,7 +144,7 @@
     width: 100%;
     height: 100%;
     overflow: hidden;
-    background-color: var(--background-main);
+    background-color: var(--bg-main);
     outline: none;
   }
 
@@ -178,11 +178,11 @@
 
   .view-layer.home {
     z-index: 1;
-    background-color: var(--background-main);
+    background-color: var(--bg-main);
   }
 
   .view-layer.queue {
     z-index: 2;
-    background-color: var(--background-drawer);
+    background-color: var(--bg-panel);
   }
 </style>

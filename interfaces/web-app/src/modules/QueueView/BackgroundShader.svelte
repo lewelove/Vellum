@@ -108,7 +108,7 @@
   });
 
   $effect(() => {
-    let palette = (colors && colors.length > 0) ? [...colors] : [colorsState.colors.background];
+    let palette = (colors && colors.length > 0) ? [...colors] : [colorsState.palette.ok300];
     const order = config.shader?.order || "original";
     
     if (order !== "original") {

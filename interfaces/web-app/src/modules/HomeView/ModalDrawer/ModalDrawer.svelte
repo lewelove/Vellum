@@ -183,7 +183,7 @@
     display: flex;
     justify-content: flex-end;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     padding-bottom: 12px;
     border-bottom: 1px solid var(--border-muted);
     width: 100%;
@@ -192,7 +192,7 @@
   .bar-group {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
   }
 
   .bar-group.right {
@@ -202,7 +202,7 @@
   .modal-backdrop {
     position: fixed;
     inset: 0;
-    background-color: var(--modal-backdrop-bg);
+    background-color: var(--bg-modal-backdrop);
     backdrop-filter: blur(2px);
     display: flex;
     align-items: center;
@@ -228,7 +228,7 @@
     display: flex;
     flex-direction: column;
     padding: 32px;
-    background-color: var(--background-drawer);
+    background-color: var(--bg-modal-left);
     min-width: 0;
     min-height: 0;
     box-sizing: border-box;
@@ -300,7 +300,7 @@
     min-height: 0;
     height: 100%;
     box-sizing: border-box;
-    background-color: var(--background-drawer);
+    background-color: var(--bg-modal-right);
   }
 
   .icon-btn {
@@ -310,8 +310,8 @@
   }
 
   .icon-btn img {
-    width: 18px;
-    height: 18px;
+    width: 20px;
+    height: 20px;
   }
 
   .tracks-scroll-area {
@@ -319,7 +319,7 @@
     flex: 1;
     overflow-y: scroll;
     min-height: 0;
-    background-color: var(--background-drawer);
+    background-color: var(--bg-panel);
     transform: translateZ(0);
     border-bottom: 1px solid var(--border-muted);
   }

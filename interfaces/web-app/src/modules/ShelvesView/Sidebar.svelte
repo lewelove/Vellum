@@ -32,7 +32,7 @@
     height: 100%;
     display: flex;
     flex-direction: column;
-    background-color: var(--background-drawer); 
+    background-color: var(--bg-panel); 
     padding: 6px 12px; 
     box-sizing: border-box;
   }

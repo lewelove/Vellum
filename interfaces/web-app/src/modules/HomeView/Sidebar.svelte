@@ -259,7 +259,7 @@
     height: 100%;
     display: flex;
     flex-direction: column;
-    background-color: var(--background-drawer); 
+    background-color: var(--bg-panel); 
     padding: 10px; 
     box-sizing: border-box;
     font-family: var(--font-stack);
@@ -297,7 +297,7 @@
     justify-content: space-between;
     border-radius: 10px;
     color: var(--text-muted);
-    font-size: 14px;
+    font-size: 16px;
     font-family: var(--font-stack);
     font-weight: 500;
   }
@@ -340,11 +340,11 @@
     width: 100%;
     margin-top: 6px;
     z-index: 50;
-    border: 2px solid var(--border-muted);
+    border: none;
     border-radius: 12px;
     padding: 4px;
     box-sizing: border-box;
-    background-color: var(--background-drawer);
+    background-color: var(--bg-panel);
     box-shadow: var(--panel-shadow);
   }
 
@@ -365,13 +365,13 @@
   }
 
   .menu-item:hover {
-    background-color: var(--bg-surface-hover);
+    background-color: var(--bg-item-hover);
     color: var(--text-main);
   }
 
   .menu-item.selected {
     color: var(--text-main);
-    background-color: var(--bg-surface-active);
+    background-color: var(--bg-item-active);
   }
 
   .sidebar-body {
@@ -420,12 +420,12 @@
   }
 
   .sidebar-item:hover {
-    background-color: var(--bg-surface-hover);
+    background-color: var(--bg-item-hover);
     color: var(--text-main);
   }
 
   .sidebar-item.active {
-    background-color: var(--bg-surface-active);
+    background-color: var(--bg-item-active);
     color: var(--text-main);
   }
 

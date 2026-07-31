@@ -129,7 +129,7 @@
   .sidebar-panel {
     position: absolute;
     inset: 0;
-    background-color: var(--background-drawer);
+    background-color: var(--bg-panel);
     pointer-events: auto; 
     display: flex;
     flex-direction: row;

@@ -11,31 +11,49 @@
 }
 
 :root {
-  --color-foreground: oklch(1.00 0 0);
-  --color-background: oklch(0.26 0 0);
+  --color-ok100: oklch(1.00 0 0);
+  --color-ok200: oklch(0.32 0 0);
+  --color-ok300: oklch(0.26 0 0);
+  --color-ok400: oklch(0.20 0 0);
+  --color-ok500: oklch(0.14 0 0);
+
+  --color-foreground: var(--color-ok100);
+  --color-background: var(--color-ok300);
 
   --a1: 1.0;
-  --a2: 0.7;
-  --a3: 0.4;
+  --a2: 0.66;
+  --a3: 0.5;
   --a4: 0.2;
   --a5: 0.1;
   --a6: 0.07;
   --a7: 0.04;
   --a8: 0.02;
 
-  --background-drawer: var(--color-background);
-  --background-main: color-mix(in oklch, var(--color-foreground) 6%, var(--color-background));
-  --modal-backdrop-bg: oklch(0 0 0 / 0.6);
+  --bg-panel: var(--color-ok300)
+  --bg-modal-left: var(--color-ok300);
+  --bg-modal-right: var(--color-ok200);
 
-  --text-main: oklch(from var(--color-foreground) l c h / var(--a1));
-  --text-muted: oklch(from var(--color-foreground) l c h / var(--a2));
-  --text-subtle: oklch(from var(--color-foreground) l c h / var(--a3));
+  --bg-main: var(--color-ok300);
+  --bg-album-grid: var(--color-ok200);
+  --bg-modal-backdrop: oklch(0 0 0 / 0.6);
 
-  --border-muted: oklch(from var(--color-foreground) l c h / var(--a7));
-  --border-subtle: oklch(from var(--color-foreground) l c h / var(--a8));
+  --text-main: oklch(from var(--color-ok100) l c h / var(--a1));
+  --text-muted: oklch(from var(--color-ok100) l c h / var(--a2));
+  --text-subtle: oklch(from var(--color-ok100) l c h / var(--a3));
 
-  --bg-surface-hover: oklch(from var(--color-foreground) l c h / var(--a8));
-  --bg-surface-active: oklch(from var(--color-foreground) l c h / var(--a7));
+  --border-muted: oklch(from var(--color-ok100) l c h / var(--a7));
+  --border-subtle: oklch(from var(--color-ok100) l c h / var(--a8));
+
+  --bg-surface-hover: oklch(from var(--color-ok100) l c h / 0.05);
+  --bg-surface-active: oklch(from var(--color-ok100) l c h / 0.08);
+
+  --bg-item-inactive: oklch(from var(--color-ok100) l c h / 0.00);
+  --bg-item-hover: oklch(from var(--color-ok100) l c h / 0.07);
+  --bg-item-active: oklch(from var(--color-ok100) l c h / 0.07);
+
+  --bg-button-inactive: oklch(from var(--color-ok100) l c h / 0.05);
+  --bg-button-hover: oklch(from var(--color-ok100) l c h / 0.10);
+  --bg-button-active: oklch(from var(--color-ok100) l c h / 0.10);
 
   --glass-bg: transparent;
 
@@ -98,7 +116,7 @@
 html, body, #app {
   margin: 0;
   padding: 0;
-  background-color: var(--background-main);
+  background-color: var(--bg-main);
   color: var(--text-muted);
   font-family: var(--font-stack);
   font-weight: var(--font-weight) !important;
@@ -141,7 +159,7 @@ main {
 }
 
 .v-panel {
-  background-color: var(--background-drawer);
+  background-color: var(--bg-panel);
   box-shadow:
     0 0 64px oklch(0 0 0 / 0.15),
     0 0 48px oklch(0 0 0 / 0.4),
@@ -154,37 +172,22 @@ main {
   backdrop-filter: blur(0px);
   background-color: transparent;
   box-shadow: var(--panel-shadow);
-  transition: background-color 0.3s ease;
 }
 
 .shader-off .v-glass {
-  --glass-bg: var(--background-drawer);
+  --glass-bg: var(--bg-panel);
 }
 
 .v-btn-icon {
-  background-color: transparent;
-  border: 2px solid transparent;
+  background-color: var(--bg-button-inactive);
+  border: none;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: var(--button-shadow);
+  box-shadow: none;
   box-sizing: border-box;
   position: relative;
-}
-
-.v-btn-icon::before {
-  content: "";
-  position: absolute;
-  inset: -2px;
-  border-radius: inherit;
-  padding: 2px;
-  background: linear-gradient(135deg, oklch(from var(--color-foreground) l c h / var(--a3)) 0%, oklch(from var(--color-foreground) l c h / var(--a5)) 100%);
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  mask-composite: exclude;
-  pointer-events: none;
 }
 
 .v-btn-icon img {
@@ -192,7 +195,13 @@ main {
   pointer-events: none;
 }
 
-.v-btn-icon:hover, .v-btn-icon.active {
+.v-btn-icon:hover {
+  background-color: var(--bg-button-hover);
+  opacity: var(--a1);
+}
+
+.v-btn-icon.active {
+  background-color: var(--bg-button-active);
   opacity: var(--a1);
 }
 
@@ -206,7 +215,7 @@ main {
   left: 0;
   right: 0;
   height: 12px;
-  background: linear-gradient(to bottom, var(--background-drawer) 0%, transparent 100%);
+  background: linear-gradient(to bottom, var(--bg-panel) 0%, transparent 100%);
   z-index: 10;
   pointer-events: none;
 }
@@ -217,24 +226,31 @@ main {
   left: 0;
   right: 0;
   height: 12px;
-  background: linear-gradient(to top, var(--background-drawer) 0%, transparent 100%);
+  background: linear-gradient(to top, var(--bg-panel) 0%, transparent 100%);
   z-index: 10;
   pointer-events: none;
 }
 
 .v-track-row {
+  background-color: var(--bg-item-inactive);
   display: flex;
   align-items: flex-start;
   color: var(--text-main);
   cursor: default;
   outline: none;
   user-select: none;
-  background-color: transparent;
   contain: layout;
   box-sizing: border-box;
   border-radius: 10px;
   padding: 6px 0px;
-  /* border: 1px solid transparent; */
+}
+
+.v-track-row:hover {
+  background-color: var(--bg-item-hover);
+}
+
+.v-track-row.active {
+  background-color: var(--bg-item-active);
 }
 
 .v-track-body {
@@ -254,6 +270,7 @@ main {
   flex: 0 0 40px;
   text-align: center;
   line-height: 18px;
+  color: var(--text-subtle);
 }
 
 .v-track-meta {
@@ -263,6 +280,7 @@ main {
   padding-right: 14px;
   min-width: 44px;
   line-height: 18px;
+  color: var(--text-subtle);
 }
 
 .v-track-title {
@@ -276,15 +294,6 @@ main {
   margin-top: 4px;
   line-height: 16px;
   color: var(--text-muted);
-}
-
-.v-track-row:hover {
-  background-color: var(--bg-surface-hover);
-}
-
-.v-track-row.active {
-  background-color: var(--bg-surface-active);
-  border-color: var(--border-muted);
 }
 
 .v-truncate {
