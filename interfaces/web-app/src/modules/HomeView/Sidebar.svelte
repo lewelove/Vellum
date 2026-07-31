@@ -133,7 +133,7 @@
       <div class="control-row">
         <div class="button-wrapper flex-grow">
           <button class="v-btn-icon sidebar-btn" onclick={toggleLibraryFilterMenu} class:active={isLibraryFilterMenuOpen} title="Filter">
-            <span class="icon start-icon">format_list_bulleted</span>
+            <span class="icon start-icon">texture</span>
             <span class="v-truncate btn-label">{filterLabel}</span>
             <span class="icon end-icon">{isLibraryFilterMenuOpen ? "arrow_drop_up" : "arrow_drop_down"}</span>
           </button>
@@ -161,7 +161,7 @@
     <div class="control-row">
       <div class="button-wrapper flex-grow">
         <button class="v-btn-icon sidebar-btn" onclick={toggleGroupMenu} class:active={isGroupMenuOpen} title="Group By">
-          <span class="icon start-icon">stacks</span>
+          <span class="icon start-icon">stack_group</span>
           <span class="v-truncate btn-label">{groupLabel}</span>
           <span class="icon end-icon">{isGroupMenuOpen ? "arrow_drop_up" : "arrow_drop_down"}</span>
         </button>
@@ -350,7 +350,7 @@
     background-color: transparent;
     border: none;
     padding: 6px 10px;
-    margin-bottom: 2px;
+    margin-bottom: 4px;
     cursor: pointer;
     color: var(--text-muted);
     font-size: 14px;

@@ -67,9 +67,9 @@
     0px 0px 8px 0px oklch(0 0 0 / 0.7);
 
   --album-cover-shadow:
-    0px 0px 16px 0px oklch(0 0 0 / 0.4),
-    0px 0px 12px 0px oklch(0 0 0 / 0.15),
-    0px 0px 6px -1px oklch(0 0 0 / 0.15);
+    0px 0px 16px 0px oklch(0 0 0 / 0.2),
+    0px 0px 12px 0px oklch(0 0 0 / 0.1),
+    0px 0px 6px -1px oklch(0 0 0 / 0.1);
 
   --modal-shadow:
     0px 0px 8px 0px oklch(0 0 0 / 0.15),
@@ -192,7 +192,7 @@ main {
   z-index: 50;
   border: none;
   border-radius: 12px;
-  padding: 4px;
+  padding: 8px;
   box-sizing: border-box;
   background-color: var(--bg-menu);
   box-shadow: var(--panel-shadow);
