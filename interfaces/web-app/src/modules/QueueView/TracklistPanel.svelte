@@ -1,23 +1,7 @@
 <script lang="ts">
   import { player } from "../player.svelte.ts";
   import { collection } from "../../library/collection.svelte.ts";
-  import { view } from "../../library/view.svelte.ts";
   import { jumpToQueueIndex } from "../../api.ts";
-  import { setTab } from "../../navigation.svelte.ts";
-  import { tick } from "svelte";
-
-  let { hasPalette } = $props();
-
-  let activeId = $derived(player.currentAlbumId);
-  let isStopped = $derived(player.state === "stop");
-
-  async function handleFocus() {
-    if (activeId) {
-      await view.setFocus({ id: activeId }, true);
-      await tick();
-      await setTab("home");
-    }
-  }
 
   function formatDuration(str: string) {
     if (!str) return "0:00";
@@ -89,31 +73,6 @@
   });
 </script>
 
-{#snippet NavButton({ icon, label, disabled, active, round, onclick }: { icon: string, label: string, disabled?: boolean, active?: boolean, round?: boolean, onclick: () => void })}
-  <button class="v-btn-icon queue-nav-button" class:active class:round {disabled} {onclick} title={label}>
-    <span class="icon">{icon}</span>
-  </button>
-{/snippet}
-
-{#snippet NavButtons()}
-  {#if hasPalette}
-    {@render NavButton({ 
-      icon: "colors", 
-      label: "Toggle Shader", 
-      active: view.isShaderEnabled, 
-      disabled: isStopped,
-      onclick: () => view.toggleShader() 
-    })}
-  {/if}
-  {@render NavButton({
-    icon: "album",
-    label: "Focus Album",
-    disabled: !activeId,
-    round: true,
-    onclick: handleFocus
-  })}
-{/snippet}
-
 <div class="module-panel v-glass">
   <div class="panel-inner">
     <div class="tracks-list-container">
@@ -174,12 +133,6 @@
       </div>
     </div>
   </div>
-
-  <div class="panel-splitter"></div>
-
-  <div class="sidebar-buttons">
-    {@render NavButtons()}
-  </div>
 </div>
 
 <style>
@@ -202,41 +155,6 @@
     min-height: 0;
   }
 
-  .panel-splitter {
-    height: 1px;
-    background-color: var(--border-muted);
-    margin: 0 20px;
-    flex-shrink: 0;
-  }
-
-  .sidebar-buttons {
-    display: flex;
-    flex-direction: row;
-    justify-content: flex-end;
-    align-items: center;
-    gap: 8px;
-    padding: 12px 20px 20px;
-    flex-shrink: 0;
-  }
-
-  .queue-nav-button {
-    width: 36px;
-    height: 36px;
-    border-radius: 10px;
-    flex-shrink: 0;
-    pointer-events: auto;
-  }
-
-  .queue-nav-button.round {
-    border-radius: 18px;
-  }
-
-  .queue-nav-button:disabled {
-    opacity: 0.3;
-    pointer-events: none;
-    box-shadow: none;
-  }
-
   .header-album,
   .track-title {
     color: var(--text-main);
@@ -248,11 +166,6 @@
 
   .header-artist,
   .track-artist,
-  .disc-label,
-  .disc-duration-label {
-    color: var(--text-muted);
-  }
-
   .disc-label,
   .disc-duration-label {
     color: var(--text-muted);

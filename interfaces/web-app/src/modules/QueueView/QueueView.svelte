@@ -9,6 +9,7 @@
   import BackgroundShader from "./BackgroundShader.svelte";
   import NavigationBar from "../NavigationBar.svelte";
   import CoverPanel from "./CoverPanel.svelte";
+  import Sidebar from "./Sidebar.svelte";
 
   let activeId = $derived(player.currentAlbumId);
   let activeAlbum = $derived(activeId ? collection.dict[activeId] : null);
@@ -49,7 +50,8 @@
     </div>
 
     <div class="right-wing">
-      <TracklistPanel {hasPalette} />
+      <TracklistPanel />
+      <Sidebar {hasPalette} />
     </div>
   </div>
 </div>
@@ -79,12 +81,8 @@
     height: 100%;
   }
 
-  .left-wing {
+  .left-wing, .right-wing {
     flex-direction: row;
-  }
-
-  .right-wing {
-    flex-direction: column;
   }
 
   .center-wing {
