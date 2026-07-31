@@ -101,7 +101,7 @@
   .home-grid {
     z-index: 1;
     left: 0;
-    width: calc(100% - (var(--sidebar-width) - 1px));
+    width: calc(100% - (var(--sidebar-width)));
     transition: width 0.25s cubic-bezier(0.2, 0, 0, 1);
   }
 

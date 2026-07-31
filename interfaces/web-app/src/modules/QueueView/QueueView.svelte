@@ -58,7 +58,7 @@
   .queue-view-container {
     width: 100%;
     height: 100%;
-    background-color: transparent;
+    background-color: var(--bg-queue);
     position: relative;
     overflow: hidden;
   }

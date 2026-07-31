@@ -29,13 +29,16 @@
   --a7: 0.04;
   --a8: 0.02;
 
-  --bg-panel: var(--color-ok300)
-  --bg-modal-left: var(--color-ok300);
-  --bg-modal-right: var(--color-ok200);
-
   --bg-main: var(--color-ok300);
+
+  --bg-queue: var(--color-ok300);
+
+  --bg-panel: var(--color-ok300)
   --bg-album-grid: var(--color-ok200);
+
   --bg-modal-backdrop: oklch(0 0 0 / 0.6);
+  --bg-modal-left: var(--color-ok300);
+  --bg-modal-right: var(--color-ok300);
 
   --text-main: oklch(from var(--color-ok100) l c h / var(--a1));
   --text-muted: oklch(from var(--color-ok100) l c h / var(--a2));

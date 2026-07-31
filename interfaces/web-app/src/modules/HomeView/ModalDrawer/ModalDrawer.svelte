@@ -211,7 +211,7 @@
   }
 
   .modal-chassis {
-    height: 85vh;
+    height: 88vh;
     width: 80vw;
   }
 
@@ -232,6 +232,7 @@
     min-width: 0;
     min-height: 0;
     box-sizing: border-box;
+    border-right: 1px solid var(--border-muted);
   }
 
   .cover-container {
