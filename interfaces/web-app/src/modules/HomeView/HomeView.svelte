@@ -1,8 +1,6 @@
 <script lang="ts">
   import { view } from "../../library/view.svelte.ts";
-  import { collection } from "../../library/collection.svelte.ts";
-
-  import NavBar from "../NavigationBar/NavBar.svelte";
+  import NavigationBar from "../NavigationBar.svelte";
   import AlbumGrid from "./AlbumGrid/AlbumGrid.svelte";
   import SidebarLibrary from "./Sidebar.svelte";
   import SidebarShelves from "../ShelvesView/Sidebar.svelte";
@@ -30,7 +28,7 @@
 </script>
 
 <div class="home-view-container" style="--sidebar-width: {view.sidebarWidth}px;">
-  <NavBar />
+  <NavigationBar />
   
   <div class="workspace">
     <section 

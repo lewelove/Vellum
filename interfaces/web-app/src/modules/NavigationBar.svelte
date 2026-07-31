@@ -1,6 +1,5 @@
 <script lang="ts">
-  import { nav, setTab } from "../../navigation.svelte.ts";
-  import { view } from "../../library/view.svelte.ts";
+  import { nav, setTab } from "../navigation.svelte.ts";
 
   let { variant = "solid" } = $props();
 </script>
@@ -16,36 +15,12 @@
   </button>
 {/snippet}
 
-{#snippet SubNavButton({ icon, viewId, title }: { icon: string, viewId: "library" | "shelves", title: string })}
-  <button 
-    class="v-btn-icon nav-button" 
-    class:active={view.homeSubView === viewId} 
-    onclick={() => {
-      view.homeSubView = viewId;
-      view.focusedAlbum = null;
-      view.refreshView(true);
-      view.persistState();
-    }}
-    {title}
-  >
-    <span class="icon">{icon}</span>
-  </button>
-{/snippet}
-
 <nav class="nav-bar" class:v-glass={variant === 'glass'} class:transparent={variant === 'transparent'}>
   <div class="nav-top-section">
     <div class="nav-group top">
       {@render NavButton({ icon: "house", tab: "home" })}
       {@render NavButton({ icon: "queue_music", tab: "queue" })}
     </div>
-
-    {#if nav.activeTab === 'home'}
-      <div class="nav-separator"></div>
-      <div class="nav-group middle">
-        {@render SubNavButton({ icon: "auto_stories", viewId: "library", title: "Library" })}
-        {@render SubNavButton({ icon: "newsstand", viewId: "shelves", title: "Shelves" })}
-      </div>
-    {/if}
   </div>
 
   <div class="nav-group bottom"></div>
@@ -83,13 +58,6 @@
     width: 100%;
   }
 
-  .nav-separator {
-    width: 100%;
-    height: 1px;
-    background-color: var(--border-muted);
-    margin: 4px 0;
-  }
-  
   .nav-group {
     display: flex;
     flex-direction: column;

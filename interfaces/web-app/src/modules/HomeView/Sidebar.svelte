@@ -35,6 +35,13 @@
     }
   }
 
+  function toggleSubView() {
+    view.homeSubView = view.homeSubView === "library" ? "shelves" : "library";
+    view.focusedAlbum = null;
+    view.refreshView(true);
+    view.persistState();
+  }
+
   function toggleLibraryMenu() {
     isLibraryMenuOpen = !isLibraryMenuOpen;
     if (isLibraryMenuOpen) {
@@ -106,10 +113,13 @@
 
   <div class="sidebar-controls">
     <div class="control-row">
+      <button class="v-btn-icon mode-btn" onclick={toggleSubView} title={view.homeSubView === 'library' ? "Libraries" : "Shelves"}>
+        <span class="icon">{view.homeSubView === 'library' ? "auto_stories" : "newsstand"}</span>
+      </button>
+
       <div class="button-wrapper flex-grow">
         <button class="v-btn-icon sidebar-btn" onclick={toggleLibraryMenu} class:active={isLibraryMenuOpen} title="Library">
-          <span class="icon start-icon">auto_stories</span>
-          <span class="v-truncate btn-label">{libraryLabel}</span>
+          <span class="v-truncate btn-label iconless">{libraryLabel}</span>
           <span class="icon end-icon">{isLibraryMenuOpen ? "arrow_drop_up" : "arrow_drop_down"}</span>
         </button>
     
@@ -282,6 +292,13 @@
     font-weight: 500;
   }
 
+  .mode-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    flex-shrink: 0;
+  }
+
   .dir-btn {
     width: 36px;
     height: 36px;
@@ -299,6 +316,7 @@
 
   .start-icon {
     font-size: 20px;
+    margin-right: 6px;
     flex-shrink: 0;
   }
 
@@ -310,10 +328,14 @@
 
   .btn-label {
     flex: 1;
-    padding-left: 7px;
     text-align: left;
     font-family: var(--font-stack);
   }
+
+  .btn-label.iconless {
+    padding-left: 2px;
+  }
+
 
   .sidebar-body {
     position: relative;

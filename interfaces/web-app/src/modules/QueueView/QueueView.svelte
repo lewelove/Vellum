@@ -7,7 +7,7 @@
   import TracklistPanel from "./TracklistPanel.svelte";
   import ControlPanel from "./ControlPanel.svelte";
   import BackgroundShader from "./BackgroundShader.svelte";
-  import NavBar from "../NavigationBar/NavBar.svelte";
+  import NavigationBar from "../NavigationBar.svelte";
   import CoverPanel from "./CoverPanel.svelte";
 
   let activeId = $derived(player.currentAlbumId);
@@ -40,7 +40,7 @@
 
   <div class="queue-layout">
     <div class="left-wing">
-      <NavBar variant="transparent" />
+      <NavigationBar variant="transparent" />
       <ControlPanel />
     </div>
 
