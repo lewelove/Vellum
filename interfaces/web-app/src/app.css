@@ -13,9 +13,9 @@
 
 :root {
   --color-ok100: oklch(1.00 0 0);
-  --color-ok200: oklch(0.32 0 0);
-  --color-ok300: oklch(0.26 0 0);
-  --color-ok400: oklch(0.20 0 0);
+  --color-ok200: oklch(0.31 0 0);
+  --color-ok300: oklch(0.24 0 0);
+  --color-ok400: oklch(0.22 0 0);
   --color-ok500: oklch(0.14 0 0);
 
   --color-foreground: var(--color-ok100);
@@ -32,14 +32,14 @@
 
   --bg-main: var(--color-ok300);
 
-  --bg-queue: var(--color-ok300);
+  --bg-queue: var(--color-ok200);
 
   --bg-panel: var(--color-ok300);
   --bg-menu: var(--color-ok300);
   --bg-album-grid: var(--color-ok200);
 
   --bg-modal-backdrop: oklch(0 0 0 / 0.6);
-  --bg-modal-left: var(--color-ok300);
+  --bg-modal-left: var(--color-ok400);
   --bg-modal-right: var(--color-ok300);
 
   --text-main: oklch(from var(--color-ok100) l c h / var(--a1));

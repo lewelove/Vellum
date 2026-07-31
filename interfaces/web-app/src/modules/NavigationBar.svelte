@@ -32,7 +32,7 @@
 
   <div class="nav-group bottom">
     <button 
-      class="v-btn-icon nav-button round" 
+      class="v-btn-icon nav-button" 
       onclick={handleOpenConfig}
       title="Open Config"
     >
@@ -61,8 +61,10 @@
 
   .nav-bar.transparent {
     background-color: transparent;
-    box-shadow: none;
-    border-right: 1px solid var(--border-muted);
+  }
+
+  :global(.shader-off) .nav-bar.transparent {
+    background-color: var(--bg-panel);
   }
 
   .nav-top-section {
