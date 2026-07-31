@@ -11,59 +11,82 @@
 }
 
 :root {
-  --background-main: var(--palette-200);
-  --background-drawer: var(--palette-100);
-  --text-main: var(--palette-500);
-  --text-muted: var(--palette-400);
-  --border-muted: var(--palette-300);
+  --color-foreground: oklch(1.00 0 0);
+  --color-background: oklch(0.26 0 0);
 
-  --glass-bg: oklch(32% 0 0 / 0.0);
+  --a1: 1.0;
+  --a2: 0.7;
+  --a3: 0.4;
+  --a4: 0.2;
+  --a5: 0.1;
+  --a6: 0.07;
+  --a7: 0.04;
+  --a8: 0.02;
+
+  --background-drawer: var(--color-background);
+  --background-main: color-mix(in oklch, var(--color-foreground) 6%, var(--color-background));
+  --modal-backdrop-bg: oklch(0 0 0 / 0.6);
+
+  --text-main: oklch(from var(--color-foreground) l c h / var(--a1));
+  --text-muted: oklch(from var(--color-foreground) l c h / var(--a2));
+  --text-subtle: oklch(from var(--color-foreground) l c h / var(--a3));
+
+  --border-muted: oklch(from var(--color-foreground) l c h / var(--a7));
+  --border-subtle: oklch(from var(--color-foreground) l c h / var(--a8));
+
+  --bg-surface-hover: oklch(from var(--color-foreground) l c h / var(--a8));
+  --bg-surface-active: oklch(from var(--color-foreground) l c h / var(--a7));
+
+  --glass-bg: transparent;
 
   --album-cover-shadow-thumbnail:
-    0px 0px 10px 0px oklch(0% 0 0 / 0.3),
-    0px 0px 8px 0px oklch(0% 0 0 / 0.4);
-  
+    0px 0px 10px 0px oklch(0 0 0 / 0.4),
+    0px 0px 8px 0px oklch(0 0 0 / 0.7);
+
   --album-cover-shadow:
-    0px 0px 16px 0px oklch(0% 0 0 / 0.3),
-    0px 0px 12px 0px oklch(0% 0 0 / 0.1),
-    0px 0px 6px -1px oklch(0% 0 0 / 0.1);
+    0px 0px 16px 0px oklch(0 0 0 / 0.4),
+    0px 0px 12px 0px oklch(0 0 0 / 0.15),
+    0px 0px 6px -1px oklch(0 0 0 / 0.15);
 
   --modal-shadow:
-    0px 0px 8px 0px oklch(0% 0 0 / 0.2),
-    0px 0px 6px 0px oklch(0% 0 0 / 0.2);
+    0px 0px 8px 0px oklch(0 0 0 / 0.15),
+    0px 0px 6px 0px oklch(0 0 0 / 0.15);
 
   --panel-shadow:
-    0 0 12px 0px oklch(0% 0 0 / 0.1),
-    0 0 8px -1px oklch(0% 0 0 / 0.2),
-    0 0 4px -1px oklch(0% 0 0 / 0.2);
+    0 0 12px 0px oklch(0 0 0 / 0.2),
+    0 0 8px -1px oklch(0 0 0 / 0.2),
+    0 0 4px -1px oklch(0 0 0 / 0.2);
 
   --button-shadow:
-    0px 0px 4px 0px oklch(0% 0 0 / 0.1),
-    0px 0px 2px 0px oklch(0% 0 0 / 0.1);
-  
-  --button-shadow-lesser:
-    0px 0px 4px 0px oklch(0% 0 0 / 0.1),
-    0px 0px 2px 0px oklch(0% 0 0 / 0.1);
+    0px 0px 4px 0px oklch(0 0 0 / 0.15),
+    0px 0px 2px 0px oklch(0 0 0 / 0.15);
 
-  --font-stack: 
-    'Inter Vellum', 
-    'Noto Sans', 
-    'Noto Sans JP', 
-    'Noto Sans SC', 
-    'Noto Sans TC', 
-    'Noto Sans KR', 
-    'system-ui', 
+  --button-shadow-lesser:
+    0px 0px 4px 0px oklch(0 0 0 / 0.15),
+    0px 0px 2px 0px oklch(0 0 0 / 0.15);
+
+  --panel-text-shadow:
+    0 1px 3px oklch(0 0 0 / 0.3);
+
+  --font-stack:
+    'Inter Vellum',
+    'Noto Sans',
+    'Noto Sans JP',
+    'Noto Sans SC',
+    'Noto Sans TC',
+    'Noto Sans KR',
+    'system-ui',
     sans-serif;
 
   --font-mono:
-    'Inter Vellum Tnum', 
-    'Inter Vellum', 
-    'Noto Sans', 
-    'Noto Sans JP', 
-    'Noto Sans SC', 
-    'Noto Sans TC', 
-    'Noto Sans KR', 
-    'system-ui', 
+    'Inter Vellum Tnum',
+    'Inter Vellum',
+    'Noto Sans',
+    'Noto Sans JP',
+    'Noto Sans SC',
+    'Noto Sans TC',
+    'Noto Sans KR',
+    'system-ui',
     sans-serif,
     monospace;
 }
@@ -79,8 +102,8 @@ html, body, #app {
   color: var(--text-muted);
   font-family: var(--font-stack);
   font-weight: var(--font-weight) !important;
-  overflow: hidden; 
-  height: 100%; 
+  overflow: hidden;
+  height: 100%;
   width: 100%;
   user-select: none;
   touch-action: manipulation;
@@ -99,7 +122,7 @@ main {
   height: 100%;
   box-sizing: border-box;
   position: relative;
-  overflow: hidden; 
+  overflow: hidden;
   overscroll-behavior: none;
 }
 
@@ -120,16 +143,15 @@ main {
 .v-panel {
   background-color: var(--background-drawer);
   box-shadow:
-    0 0 64px oklch(0% 0 0 / 0.1),
-    0 0 48px oklch(0% 0 0 / 0.3),
-    0 0 32px oklch(0% 0 0 / 0.5);
+    0 0 64px oklch(0 0 0 / 0.15),
+    0 0 48px oklch(0 0 0 / 0.4),
+    0 0 32px oklch(0 0 0 / 0.7);
   border-radius: 16px;
   overflow: hidden;
 }
 
 .v-glass {
   backdrop-filter: blur(0px);
-  /* background-color: var(--glass-bg); */
   background-color: transparent;
   box-shadow: var(--panel-shadow);
   transition: background-color 0.3s ease;
@@ -140,8 +162,7 @@ main {
 }
 
 .v-btn-icon {
-  opacity: 0.8;
-  background-color: oklch(100% 0 0 / 0.0);
+  background-color: transparent;
   border: 2px solid transparent;
   display: flex;
   align-items: center;
@@ -158,7 +179,7 @@ main {
   inset: -2px;
   border-radius: inherit;
   padding: 2px;
-  background: linear-gradient(135deg, oklch(100% 0 0 / 0.3) 0%, oklch(100% 0 0 / 0.1) 100%);
+  background: linear-gradient(135deg, oklch(from var(--color-foreground) l c h / var(--a3)) 0%, oklch(from var(--color-foreground) l c h / var(--a5)) 100%);
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
@@ -167,16 +188,16 @@ main {
 }
 
 .v-btn-icon img {
-  opacity: 0.5;
+  opacity: var(--a2);
   pointer-events: none;
 }
 
 .v-btn-icon:hover, .v-btn-icon.active {
-  opacity: 1;
+  opacity: var(--a1);
 }
 
 .v-btn-icon:hover img, .v-btn-icon.active img {
-  opacity: 1;
+  opacity: var(--a1);
 }
 
 .v-scroll-fade-top {
@@ -212,8 +233,8 @@ main {
   contain: layout;
   box-sizing: border-box;
   border-radius: 10px;
-  padding: 5px 0px;
-  border: 1px solid transparent;
+  padding: 6px 0px;
+  /* border: 1px solid transparent; */
 }
 
 .v-track-body {
@@ -247,21 +268,23 @@ main {
 .v-track-title {
   font-size: 15px;
   line-height: 18px;
+  color: var(--text-main);
 }
 
 .v-track-artist {
   font-size: 14px;
   margin-top: 4px;
   line-height: 16px;
+  color: var(--text-muted);
 }
 
 .v-track-row:hover {
-  background-color: oklch(100% 0 0 / 0.02);
+  background-color: var(--bg-surface-hover);
 }
 
 .v-track-row.active {
-  background-color: oklch(100% 0 0 / 0.03);
-  border-color: oklch(100% 0 0 / 0.05);
+  background-color: var(--bg-surface-active);
+  border-color: var(--border-muted);
 }
 
 .v-truncate {

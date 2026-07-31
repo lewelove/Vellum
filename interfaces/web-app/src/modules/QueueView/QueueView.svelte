@@ -23,17 +23,6 @@
 
   let moduleWidth = $state(0);
 
-  let glassOpacity = $derived.by(() => {
-    if (!palette || palette.length === 0) return 0.5;
-    const lValues = palette.map((entry: any) => {
-      if (!Array.isArray(entry) || entry.length < 2) return 0.5;
-      const match = entry[1].match(/oklch\(([\d.]+)%/);
-      return match ? parseFloat(match[1]) / 100 : 0.5;
-    });
-    const maxL = Math.max(...lValues);
-    return (Math.abs(maxL - 0.5) * 0.6 + 0.2).toFixed(3);
-  });
-
   $effect(() => {
     const uniqueIds = [...new Set(player.queue.map(item => item.album_id).filter(Boolean))];
     if (activeId && !uniqueIds.includes(activeId)) {
@@ -46,7 +35,6 @@
 <div 
   class="queue-view-container" 
   class:shader-off={!view.isShaderActive || !hasPalette}
-  style="--glass-bg: oklch(26% 0 0 / {glassOpacity});"
 >
   <BackgroundShader colors={palette} coverSize={moduleWidth} visible={isViewVisible} {isPlaying} />
 

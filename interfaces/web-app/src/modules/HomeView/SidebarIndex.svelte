@@ -4,7 +4,7 @@
   let { items = [], container = null }: { items?: any[], container?: HTMLElement | null } = $props();
 
   const ALL_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ#".split("");
-  
+
   let indexContainer: HTMLDivElement | null = $state(null);
   let charsWrapper: HTMLDivElement | null = $state(null);
   let isScrubbing = $state(false);
@@ -41,22 +41,22 @@
 
   function calculateScrub(e: PointerEvent) {
     if (!charsWrapper || !indexContainer || ALL_CHARS.length === 0) return;
-    
+
     const wrapperRect = charsWrapper.getBoundingClientRect();
     const containerRect = indexContainer.getBoundingClientRect();
-    
+
     const wrapperY = e.clientY - wrapperRect.top;
     bubbleY = Math.max(0, Math.min(e.clientY - containerRect.top, containerRect.height));
 
     let pct = wrapperY / wrapperRect.height;
     pct = Math.max(0, Math.min(1, pct));
-    
+
     const charIndex = Math.min(Math.floor(pct * ALL_CHARS.length), ALL_CHARS.length - 1);
     const targetChar = ALL_CHARS[charIndex];
-    
+
     if (targetChar !== scrubChar) {
       scrubChar = targetChar;
-      
+
       if (container) {
         const jumpIndex = charJumpMap.get(targetChar);
         if (jumpIndex !== undefined && jumpIndex < items.length) {
@@ -156,8 +156,7 @@
   .index-char {
     font-size: 12px;
     font-weight: 700;
-    color: var(--text-muted);
-    opacity: 0.5;
+    color: var(--text-subtle);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -167,7 +166,6 @@
 
   .index-char.active {
     color: var(--text-main);
-    opacity: 1;
   }
 
   .scrub-callout {
@@ -185,6 +183,7 @@
     color: var(--text-main);
     pointer-events: none;
     box-shadow: var(--panel-shadow);
+    background-color: var(--background-drawer);
+    border: 1px solid var(--border-muted);
   }
 </style>
-

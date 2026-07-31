@@ -1,3 +1,5 @@
+import { applyColors } from "./colors.svelte.ts";
+
 export const config = $state({
   shader: {
     order: "original",
@@ -7,13 +9,10 @@ export const config = $state({
     grain: 0.1,
     equalize: 1.0,
   },
-  palette: {
-    "100": "#242424",
-    "200": "#323232",
-    "300": "#424242",
-    "400": "#CCCCCC",
-    "500": "#FFFFFF"
-  } as Record<string, string>,
+  colors: {
+    foreground: "oklch(1.00 0 0)",
+    background: "oklch(0.26 0 0)"
+  },
   album_grid: {
     spacing: { x: 20, y: 16, top: 20 },
     album_card: {
@@ -30,25 +29,26 @@ export const config = $state({
 
 export function updateConfig(newData: any) {
   if (!newData) return;
-  
+
+  if (newData.colors) {
+    Object.assign(config.colors, newData.colors);
+    applyColors(newData);
+  }
+
   if (newData.shader) {
     Object.assign(config.shader, newData.shader);
   }
-  
-  if (newData.palette) {
-    Object.assign(config.palette, newData.palette);
-  }
-  
+
   if (newData.album_grid) {
     if (newData.album_grid.spacing) {
       Object.assign(config.album_grid.spacing, newData.album_grid.spacing);
     }
-    
+
     if (newData.album_grid.album_card) {
       if (newData.album_grid.album_card.cover) {
         Object.assign(config.album_grid.album_card.cover, newData.album_grid.album_card.cover);
       }
-      
+
       if (newData.album_grid.album_card.text) {
         if (newData.album_grid.album_card.text.title) {
           Object.assign(config.album_grid.album_card.text.title, newData.album_grid.album_card.text.title);

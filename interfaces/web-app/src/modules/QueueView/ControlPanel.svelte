@@ -159,7 +159,7 @@
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    text-shadow: 0 1px 3px oklch(0% 0 0 / 0.3);
+    text-shadow: var(--panel-text-shadow);
     min-height: 0;
   }
 
@@ -179,7 +179,7 @@
     display: flex;
     align-items: center;
     box-sizing: border-box;
-    border-bottom: 1px solid oklch(100% 0 0 / 0.07);
+    border-bottom: 1px solid var(--border-muted);
     margin-bottom: 16px;
     width: 100%;
   }
@@ -201,12 +201,12 @@
   }
 
   .header-title {
-    color: oklch(100% 0 0);
+    color: var(--text-main);
     font-size: 19px;
   }
 
   .header-artist {
-    color: oklch(100% 0 0 / 0.7);
+    color: var(--text-muted);
     font-size: 17px;
   }
 
@@ -251,13 +251,13 @@
   }
 
   .status-msg {
-    color: oklch(100% 0 0 / 0.8);
+    color: var(--text-muted);
   }
 
   .instrumental-msg {
     font-size: 15px;
     line-height: 1.2;
-    color: oklch(100% 0 0);
+    color: var(--text-main);
     text-align: center;
   }
 
@@ -267,7 +267,7 @@
     flex-direction: column;
     padding-top: 16px;
     margin-top: 16px;
-    border-top: 1px solid oklch(100% 0 0 / 0.07);
+    border-top: 1px solid var(--border-muted);
     gap: 16px;
   }
 
@@ -280,7 +280,7 @@
 
   .time-display {
     font-size: 12px;
-    color: oklch(100% 0 0 / 0.6);
+    color: var(--text-subtle);
     user-select: none;
     width: 40px;
     text-align: center;
@@ -289,7 +289,7 @@
   .progress-track {
     flex: 1;
     height: 4px;
-    background-color: oklch(100% 0 0 / 0.1);
+    background-color: var(--border-muted);
     border-radius: 2px;
     position: relative;
     overflow: hidden;
@@ -297,7 +297,7 @@
 
   .progress-fill {
     height: 100%;
-    background-color: oklch(100% 0 0 / 0.5);
+    background-color: var(--text-muted);
     border-radius: 2px;
   }
 

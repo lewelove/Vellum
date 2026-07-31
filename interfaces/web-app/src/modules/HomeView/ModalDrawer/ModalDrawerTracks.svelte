@@ -131,7 +131,7 @@
 
   .disc-separator {
     height: 1px;
-    background-color: rgba(255, 255, 255, 0.05);
+    background-color: var(--border-muted);
     margin: 12px 0;
     width: 100%;
   }
@@ -156,9 +156,9 @@
     padding: 0 12px;
     font-size: 12px;
     font-weight: 600;
-    color: #666;
-    background-color: rgba(255, 255, 255, 0.00);
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    color: var(--text-muted);
+    background-color: transparent;
+    border: 1px solid var(--border-muted);
     border-radius: 8px;
     height: 24px;
     box-sizing: border-box;
@@ -180,19 +180,20 @@
   }
 
   .track-index {
-    color: #888888;
+    color: var(--text-subtle);
   }
 
   .track-title {
     word-break: keep-all;
     overflow-wrap: break-word;
+    color: var(--text-main);
   }
 
   .track-artist {
-    color: #999999;
+    color: var(--text-muted);
   }
 
   .track-meta {
-    color: #888888;
+    color: var(--text-subtle);
   }
 </style>

@@ -72,7 +72,7 @@
   .nav-bar.transparent {
     background-color: transparent;
     box-shadow: none;
-    border-right: 1px solid oklch(100% 0 0 / 0.07);
+    border-right: 1px solid var(--border-muted);
   }
 
   .nav-top-section {
@@ -86,7 +86,7 @@
   .nav-separator {
     width: 100%;
     height: 1px;
-    background-color: oklch(100% 0 0 / 0.07);
+    background-color: var(--border-muted);
     margin: 4px 0;
   }
   

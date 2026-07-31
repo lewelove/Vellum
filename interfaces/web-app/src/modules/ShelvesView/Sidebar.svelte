@@ -45,7 +45,7 @@
     min-height: 0;
     scrollbar-width: none;
     -ms-overflow-style: none;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    border-bottom: 1px solid var(--border-muted);
   }
 
   .sidebar-scroll::-webkit-scrollbar {
@@ -78,13 +78,13 @@
   }
 
   .sidebar-item:hover {
-    background-color: rgba(255, 255, 255, 0.03);
+    background-color: var(--bg-surface-hover);
     color: var(--text-main);
     cursor: pointer;
   }
 
   .sidebar-item.active {
-    background-color: rgba(255, 255, 255, 0.05);
+    background-color: var(--bg-surface-active);
     color: var(--text-main);
   }
 

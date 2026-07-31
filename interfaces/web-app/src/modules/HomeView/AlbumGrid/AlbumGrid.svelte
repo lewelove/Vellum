@@ -2,13 +2,14 @@
   import { onMount, onDestroy } from "svelte";
   import { GridController } from "./GridController.svelte.ts";
   import { config } from "../../../config.svelte.ts";
+  import { colorsState } from "../../../colors.svelte.ts";
   import { collection } from "../../../library/collection.svelte.ts";
   import { prewarmer } from "../../../library/prewarmer.svelte.ts";
 
   let { albums = [], version = 0, activeAlbumId = null, onfocus = () => {} }: { albums?: any[], version?: number, activeAlbumId?: string | null, onfocus?: (album: any) => void } = $props();
 
   const ctrl = new GridController();
-  
+
   let rafId: number | null = null;
   let dpr = 1;
 
@@ -52,44 +53,42 @@
   function getTextCanvas(album: any, coverSize: number, textBlockHeight: number, textConfig: any) {
     if (textBlockHeight <= 0) return null;
     if (textCache.has(album.id)) return textCache.get(album.id)!;
-    
+
     const c = document.createElement('canvas');
     c.width = coverSize * dpr;
     c.height = textBlockHeight * dpr;
     const cCtx = c.getContext('2d', { alpha: false });
     if (!cCtx) return c;
-    
+
     cCtx.scale(dpr, dpr);
-    
-    const bgHex = config.palette["200"] || "#323232";
-    cCtx.fillStyle = bgHex;
+
+    cCtx.fillStyle = colorsState.colors.background;
     cCtx.fillRect(0, 0, coverSize, textBlockHeight);
 
-    cCtx.shadowColor = "rgba(0, 0, 0, 0.1)";
-    cCtx.shadowBlur = 4;
-    cCtx.shadowOffsetX = 0;
-    cCtx.shadowOffsetY = 0;
+    cCtx.fillStyle = colorsState.colors.foreground;
+    cCtx.globalAlpha = 0.07;
+    cCtx.fillRect(0, 0, coverSize, textBlockHeight);
 
     const fontStack = "'Inter Vellum', 'Noto Sans', system-ui, sans-serif";
-    
-    const cTitle = config.palette["500"] || "#ffffff";
+
+    cCtx.globalAlpha = 1.0;
     const sTitle = textConfig.title.size;
     const lhTitle = Math.round(sTitle * 1.2);
-    cCtx.fillStyle = cTitle;
     cCtx.font = `400 ${sTitle}px ${fontStack}`;
     cCtx.textBaseline = "middle";
     const titleText = fitText(cCtx, album.title, coverSize);
     cCtx.fillText(titleText, 0, lhTitle / 2);
 
-    const cArtist = config.palette["400"] || "#cccccc";
+    cCtx.globalAlpha = 0.7;
     const sArtist = textConfig.albumartist.size;
     const gapLesser = textConfig.spacing.middle;
     const lhArtist = Math.round(sArtist * 1.2);
-    cCtx.fillStyle = cArtist;
     cCtx.font = `400 ${sArtist}px ${fontStack}`;
     const artistY = lhTitle + gapLesser + (lhArtist / 2);
     const artistText = fitText(cCtx, album.artist, coverSize);
     cCtx.fillText(artistText, 0, artistY);
+
+    cCtx.globalAlpha = 1.0;
 
     textCache.set(album.id, c);
     return c;
@@ -97,29 +96,36 @@
 
   function getEmptyCoverCanvas(size: number) {
     if (emptyCoverCanvas && emptyCoverCanvas.size === size && emptyCoverCanvas.dpr === dpr) return emptyCoverCanvas;
-    
+
     const pad = 24;
     const c = document.createElement('canvas');
     c.width = (size + pad * 2) * dpr;
     c.height = (size + pad * 2) * dpr;
     const cCtx = c.getContext('2d');
     if (!cCtx) return { canvas: c, size, dpr, pad };
-    
+
     cCtx.scale(dpr, dpr);
-    
-    cCtx.shadowColor = "rgba(0, 0, 0, 0.3)";
-    cCtx.shadowBlur = 16;
+
+    cCtx.fillStyle = colorsState.colors.background;
+
+    cCtx.shadowColor = "oklch(0 0 0 / 0.3)";
+    cCtx.shadowBlur = 12;
     cCtx.shadowOffsetX = 0;
     cCtx.shadowOffsetY = 0;
-    cCtx.fillStyle = "#292929";
     cCtx.fillRect(pad, pad, size, size);
 
-    cCtx.shadowColor = "rgba(0, 0, 0, 0.1)";
-    cCtx.shadowBlur = 12;
+    cCtx.shadowColor = "oklch(0 0 0 / 0.1)";
+    cCtx.shadowBlur = 8;
     cCtx.fillRect(pad, pad, size, size);
-    
+
     cCtx.shadowBlur = 6;
     cCtx.fillRect(pad, pad, size, size);
+
+    cCtx.shadowColor = "transparent";
+    cCtx.fillStyle = colorsState.colors.foreground;
+    cCtx.globalAlpha = 0.07;
+    cCtx.fillRect(pad, pad, size, size);
+    cCtx.globalAlpha = 1.0;
 
     emptyCoverCanvas = { canvas: c, size, dpr, pad };
     return emptyCoverCanvas;
@@ -146,24 +152,29 @@
 
     ctx.save();
     ctx.scale(dpr, dpr);
-    
-    ctx.fillStyle = config.palette["200"] || "#323232";
+
+    ctx.fillStyle = colorsState.colors.background;
     ctx.fillRect(0, 0, w, h);
+
+    ctx.fillStyle = colorsState.colors.foreground;
+    ctx.globalAlpha = 0.07;
+    ctx.fillRect(0, 0, w, h);
+    ctx.globalAlpha = 1.0;
 
     const coverSize = ctrl.layout.cardSize;
     const gapX = ctrl.layout.gapX;
     const gapY = ctrl.layout.gapY;
     const gridWidth = ctrl.layout.gridWidth;
     const startX = Math.floor((w - gridWidth) / 2);
-    
+
     const textConfig = config.album_grid.album_card.text;
     const textGap = textConfig.enable ? textConfig.spacing.top : 0;
     const lhTitle = Math.round(textConfig.title.size * 1.2);
     const lhArtist = Math.round(textConfig.albumartist.size * 1.2);
     const textBlockHeight = textConfig.enable ? (lhTitle + textConfig.spacing.middle + lhArtist) : 0;
-    
+
     const shadowTile = getEmptyCoverCanvas(coverSize);
-    
+
     const scrollY = ctrl.scroll.currentY;
     const rows = ctrl.virtualRows;
 
@@ -171,7 +182,7 @@
       if (!row || !row.data) continue;
 
       const rowY = row.y - scrollY;
-      if (rowY + ctrl.layout.rowHeight < -100 || rowY > h + 100) continue; 
+      if (rowY + ctrl.layout.rowHeight < -100 || rowY > h + 100) continue;
 
       for (let i = 0; i < row.data.length; i++) {
         const album = row.data[i];
@@ -182,7 +193,7 @@
 
         const url = collection.getThumbnailUrl(album);
         const bitmap = prewarmer.pinnedTextures.get(url);
-        
+
         if (bitmap) {
           ctx.drawImage(bitmap, x, y, coverSize, coverSize);
         } else {
@@ -256,7 +267,7 @@
     const rowYPos = rowIndex * rowHeight + topOffset;
     const localY = absoluteY - rowYPos;
 
-    if (localY < gapY || localY > gapY + cardSize) return null; 
+    if (localY < gapY || localY > gapY + cardSize) return null;
 
     if (rowIndex < ctrl.allRows.length && colIndex < cols) {
       const row = ctrl.allRows[rowIndex];
@@ -292,7 +303,7 @@
     const rect = canvasEl.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    
+
     const hovered = getAlbumAt(x, y);
     if (hovered !== hoveredAlbum) {
       hoveredAlbum = hovered;
@@ -312,7 +323,7 @@
     const rect = canvasEl.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    
+
     const clicked = getAlbumAt(x, y);
     if (clicked) {
       onfocus(clicked);
@@ -342,7 +353,7 @@
 
   $effect(() => {
     const _c = config.album_grid;
-    const _pal = config.palette;
+    const _col = colorsState.colors;
     textCache.clear();
     emptyCoverCanvas = null;
   });

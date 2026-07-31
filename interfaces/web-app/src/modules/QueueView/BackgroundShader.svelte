@@ -1,6 +1,7 @@
 <script>
   import { onMount, onDestroy } from "svelte";
   import { config } from "../../config.svelte.ts";
+  import { colorsState } from "../../colors.svelte.ts";
   import { view } from "../../library/view.svelte.ts";
   
   import vertexShaderSource from "./Shaders/Quad.vert?raw";
@@ -24,11 +25,23 @@
   const floatColorsOklab = new Float32Array(24 * 3);
   const floatRatios = new Float32Array(24);
   let activeColorCount = 0;
-  const DEFAULT_PALETTE = ["#242424"];
 
   let shaderSource = $state(internalFragmentShader);
 
-  function hexToOklab(hex) {
+  function parseColorToOklab(colorStr) {
+    if (!colorStr) return [0.26, 0, 0];
+    if (colorStr.startsWith('oklch(')) {
+      const m = colorStr.match(/oklch\(([\d.]+)%\s+([\d.]+)\s+([\d.]+)\)/) || colorStr.match(/oklch\(([\d.]+)\s+([\d.]+)\s+([\d.]+)\)/);
+      if (m) {
+        let L = parseFloat(m[1]);
+        if (colorStr.includes('%')) L /= 100;
+        const C = parseFloat(m[2]);
+        const H = parseFloat(m[3]) * (Math.PI / 180);
+        return [L, C * Math.cos(H), C * Math.sin(H)];
+      }
+      return [0.26, 0, 0];
+    }
+    let hex = colorStr;
     if (hex.startsWith('#')) hex = hex.slice(1);
     if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
     
@@ -95,7 +108,7 @@
   });
 
   $effect(() => {
-    let palette = (colors && colors.length > 0) ? [...colors] : [...DEFAULT_PALETTE];
+    let palette = (colors && colors.length > 0) ? [...colors] : [colorsState.colors.background];
     const order = config.shader?.order || "original";
     
     if (order !== "original") {
@@ -165,8 +178,8 @@
     for (let i = 0; i < 24; i++) {
       if (i < activeColorCount) {
         const c = palette[i];
-        const hex = Array.isArray(c) ? c[0] : (c.hex || c);
-        const [L, a, b] = hexToOklab(hex);
+        const colorVal = Array.isArray(c) ? c[0] : (c.hex || c);
+        const [L, a, b] = parseColorToOklab(colorVal);
         
         floatColorsOklab[i * 3 + 0] = L;
         floatColorsOklab[i * 3 + 1] = a;

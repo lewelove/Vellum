@@ -85,7 +85,7 @@
 
   .time-display {
     font-size: 10px;
-    color: oklch(100% 0 0 / 0.6);
+    color: var(--text-muted);
     text-align: center;
     width: 100%;
     user-select: none;
@@ -106,7 +106,7 @@
     flex: 1;
     position: relative;
     min-height: 60px;
-    background-color: oklch(100% 0 0 / 0.1);
+    background-color: var(--border-muted);
     border-radius: 2px;
     overflow: hidden;
     display: flex;
@@ -116,7 +116,7 @@
 
   .progress-fill {
     width: 100%;
-    background-color: oklch(100% 0 0 / 0.5);
+    background-color: var(--text-muted);
     border-radius: 2px;
   }
 

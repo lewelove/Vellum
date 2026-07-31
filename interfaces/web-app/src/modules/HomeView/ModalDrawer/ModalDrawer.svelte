@@ -26,7 +26,6 @@
   let coverHash = $derived(albumData.covers?.main?.file?.address || "");
   let title = $derived(albumData.album || "Untitled");
   let artist = $derived(albumData.albumartist || "Unknown");
-  let genreString = $derived(Array.isArray(keysData.genre) ? keysData.genre.join(" ; ") : (keysData.genre || ""));
   let dateString = $derived(albumData.date || "");
 
   let discCount = $derived(Number(infoData.total_discs) || 1);
@@ -186,7 +185,7 @@
     align-items: center;
     gap: 10px;
     padding-bottom: 12px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    border-bottom: 1px solid var(--border-muted);
     width: 100%;
   }
 
@@ -203,7 +202,7 @@
   .modal-backdrop {
     position: fixed;
     inset: 0;
-    background-color: oklch(0% 0 0 / 0.5);
+    background-color: var(--modal-backdrop-bg);
     backdrop-filter: blur(2px);
     display: flex;
     align-items: center;
@@ -229,7 +228,7 @@
     display: flex;
     flex-direction: column;
     padding: 32px;
-    background-color: #1f1f1f;
+    background-color: var(--background-drawer);
     min-width: 0;
     min-height: 0;
     box-sizing: border-box;
@@ -277,7 +276,7 @@
     display: flex;
     align-items: center;
     font-size: 16px;
-    color: #888888;
+    color: var(--text-muted);
     gap: 12px;
   }
 
@@ -288,7 +287,7 @@
   }
 
   .meta-sep {
-    color: #777777;
+    color: var(--text-subtle);
     font-size: 12px;
     flex-shrink: 0;
   }
@@ -322,7 +321,7 @@
     min-height: 0;
     background-color: var(--background-drawer);
     transform: translateZ(0);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    border-bottom: 1px solid var(--border-muted);
   }
 
   .tracks-scroll-area::-webkit-scrollbar {

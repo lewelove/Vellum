@@ -198,13 +198,13 @@
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    text-shadow: 0 1px 3px oklch(0% 0 0 / 0.3);
+    text-shadow: var(--panel-text-shadow);
     min-height: 0;
   }
 
   .panel-splitter {
     height: 1px;
-    background-color: oklch(100% 0 0 / 0.07);
+    background-color: var(--border-muted);
     margin: 0 20px;
     flex-shrink: 0;
   }
@@ -245,11 +245,11 @@
 
   .header-album,
   .track-title {
-    color: oklch(100% 0 0);
+    color: var(--text-main);
   }
 
   .header-meta {
-    color: oklch(100% 0 0 / 0.6);
+    color: var(--text-subtle);
   }
 
   .header-artist,
@@ -257,12 +257,12 @@
   .disc-label,
   .disc-duration-label,
   .track-meta {
-    color: oklch(100% 0 0 / 0.7);
+    color: var(--text-muted);
   }
 
   .disc-label,
   .disc-duration-label {
-    color: oklch(100% 0 0 / 0.6);
+    color: var(--text-muted);
   }
 
   .tracks-list-container {
@@ -291,7 +291,7 @@
     display: flex;
     align-items: center;
     box-sizing: border-box;
-    border-bottom: 1px solid oklch(100% 0 0 / 0.07);
+    border-bottom: 1px solid var(--border-muted);
     margin-bottom: 16px;
   }
 
@@ -325,7 +325,7 @@
 
   .disc-separator {
     height: 1px;
-    background-color: oklch(100% 0 0 / 0.07);
+    background-color: var(--border-muted);
     margin: 10px 0 12px 0;
   }
 
@@ -352,7 +352,7 @@
     align-items: center;
     padding: 0 12px;
     font-size: 12px;
-    border: 1px solid oklch(100% 0 0 / 0.07);
+    border: 1px solid var(--border-muted);
     border-radius: 8px;
     height: 24px;
     box-sizing: border-box;
