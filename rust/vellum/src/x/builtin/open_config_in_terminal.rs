@@ -1,6 +1,5 @@
 use anyhow::Result;
 use std::env;
-use std::path::Path;
 use std::process::Command;
 
 const COMMON_TERMINALS: &[&str] = &[
@@ -15,7 +14,8 @@ const COMMON_TERMINALS: &[&str] = &[
     "xterm",
 ];
 
-pub fn run(album_path: &Path, config: &serde_json::Value) -> Result<()> {
+pub fn run(config: &serde_json::Value) -> Result<()> {
+    let config_dir = libvellum::utils::expand_path("~/.config/vellum");
     let term_bin = config
         .get("terminal")
         .and_then(|v| v.as_str())
@@ -30,7 +30,7 @@ pub fn run(album_path: &Path, config: &serde_json::Value) -> Result<()> {
 
     if let Some(term) = term_bin {
         let mut cmd = Command::new(term);
-        cmd.current_dir(album_path);
+        cmd.current_dir(config_dir);
 
         if let Some(inner_cmd) = config.get("cmd").and_then(|v| v.as_str()) {
             cmd.arg("-e").arg("sh").arg("-c").arg(inner_cmd);

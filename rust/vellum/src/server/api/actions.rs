@@ -27,7 +27,9 @@ async fn resolve_target_ids(
             target_ids = ids;
         }
     } else if let Some(id) = id_arg {
-        target_ids.push(id);
+        if !id.is_empty() {
+            target_ids.push(id);
+        }
     } else if playing {
         if let Ok(path) = crate::x::get_playing_album(&library_root.to_string_lossy()).await
             && let Ok(rel) = path.strip_prefix(library_root)
@@ -217,13 +219,23 @@ pub async fn execute_action(
     }
 
     let mut executed = false;
-    for target_id in &target_ids {
-        let album_path = library_root.join(target_id);
+    if name_key == "open_config_in_terminal" || target_ids.is_empty() {
+        let dummy_path = std::path::Path::new("");
         if matches!(
-            crate::x::builtin::execute_builtin(&name_key, &album_path, &merged_config),
+            crate::x::builtin::execute_builtin(&name_key, dummy_path, &merged_config),
             Ok(true)
         ) {
             executed = true;
+        }
+    } else {
+        for target_id in &target_ids {
+            let album_path = library_root.join(target_id);
+            if matches!(
+                crate::x::builtin::execute_builtin(&name_key, &album_path, &merged_config),
+                Ok(true)
+            ) {
+                executed = true;
+            }
         }
     }
 

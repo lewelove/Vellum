@@ -1,7 +1,14 @@
 <script lang="ts">
   import { nav, setTab } from "../navigation.svelte.ts";
+  import { executeAction } from "../api.ts";
 
   let { variant = "solid" } = $props();
+
+  async function handleOpenConfig() {
+    try {
+      await executeAction("open_config_in_terminal", "");
+    } catch (err) {}
+  }
 </script>
 
 {#snippet NavButton({ icon, tab }: { icon: string, tab: string })}
@@ -23,7 +30,15 @@
     </div>
   </div>
 
-  <div class="nav-group bottom"></div>
+  <div class="nav-group bottom">
+    <button 
+      class="v-btn-icon nav-button round" 
+      onclick={handleOpenConfig}
+      title="Open Config"
+    >
+      <span class="icon">settings</span>
+    </button>
+  </div>
 </nav>
 
 <style>
@@ -72,6 +87,10 @@
     border-radius: 10px;
     flex-shrink: 0;
     pointer-events: auto;
+  }
+
+  .nav-button.round {
+    border-radius: 18px;
   }
 
   .icon {

@@ -1,3 +1,4 @@
+pub mod open_config_in_terminal;
 pub mod open_folder;
 pub mod open_lock;
 pub mod open_manifest;
@@ -22,6 +23,10 @@ pub fn execute_builtin(name: &str, album_path: &Path, config: &serde_json::Value
         }
         "open_terminal" => {
             open_terminal::run(album_path, config)?;
+            Ok(true)
+        }
+        "open_config_in_terminal" => {
+            open_config_in_terminal::run(config)?;
             Ok(true)
         }
         _ => Ok(false),

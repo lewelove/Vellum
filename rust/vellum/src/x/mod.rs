@@ -125,6 +125,67 @@ async fn resolve_target_ids(
     }
 }
 
+fn load_lock_jsons(library_root: &Path, target_ids: &[String]) -> Vec<serde_json::Value> {
+    let mut lock_jsons = Vec::new();
+    for target_id in target_ids {
+        let lock_file_path = library_root.join(target_id).join("album.lock.json");
+        if let Ok(json_data) = std::fs::read_to_string(&lock_file_path)
+            && let Ok(lock_json) = serde_json::from_str::<serde_json::Value>(&json_data)
+        {
+            lock_jsons.push(lock_json);
+        }
+    }
+    lock_jsons
+}
+
+async fn run_external_action(
+    action_path: &Path,
+    env_vars: &std::collections::HashMap<String, String>,
+    payload_json: &serde_json::Value,
+) -> Result<()> {
+    let cmd = if action_path.extension().is_some_and(|e| e == "py") {
+        "python"
+    } else if action_path.extension().is_some_and(|e| e == "sh") {
+        "sh"
+    } else {
+        action_path.to_str().unwrap()
+    };
+
+    let mut command = tokio::process::Command::new(cmd);
+    command.envs(env_vars);
+    if cmd == "python" || cmd == "sh" {
+        command.arg(action_path);
+    }
+
+    let mut child = command
+        .stdin(Stdio::piped())
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
+        .spawn()
+        .context(format!("Failed to spawn action at {}", action_path.display()))?;
+
+    if let Some(mut stdin) = child.stdin.take() {
+        let payload = serde_json::to_string(payload_json)?;
+        tokio::spawn(async move {
+            use tokio::io::AsyncWriteExt;
+            let _ = stdin.write_all(payload.as_bytes()).await;
+        });
+    }
+
+    tokio::select! {
+        res = child.wait() => {
+            let status = res.context("Failed to wait on action")?;
+            if !status.success() {
+                log::error!("Action failed with status: {status}");
+            }
+        }
+        _ = tokio::signal::ctrl_c() => {
+            let _ = child.wait().await;
+        }
+    }
+    Ok(())
+}
+
 pub async fn execute(
     name: String,
     target: TargetFlags,
@@ -140,21 +201,12 @@ pub async fn execute(
         .unwrap_or_else(|_| expand_path(&config.app.storage.library));
 
     let target_ids = resolve_target_ids(&library_root, &target).await?;
-
-    let mut lock_jsons = Vec::new();
-    for target_id in &target_ids {
-        let lock_file_path = library_root.join(target_id).join("album.lock.json");
-        if let Ok(json_data) = std::fs::read_to_string(&lock_file_path)
-            && let Ok(lock_json) = serde_json::from_str::<serde_json::Value>(&json_data)
-        {
-            lock_jsons.push(lock_json);
-        }
-    }
+    let lock_jsons = load_lock_jsons(&library_root, &target_ids);
 
     let action_cfg_opt = config.actions.get(&name_key).cloned();
-
     let config_json = serde_json::to_value(&config.app)?;
     let action_config = action_cfg_opt.as_ref().map(|c| c.config.clone()).unwrap_or_default();
+
     let combined_json = serde_json::json!({
         "albums": lock_jsons,
         "config": {
@@ -170,9 +222,7 @@ pub async fn execute(
         return Ok(());
     }
 
-    let run_str = action_cfg_opt.as_ref().and_then(|a| a.run.clone());
-
-    if let Some(r_str) = run_str {
+    if let Some(r_str) = action_cfg_opt.as_ref().and_then(|a| a.run.clone()) {
         let expanded_action_path = expand_path(&r_str);
         let action_path = if expanded_action_path.is_absolute() {
             expanded_action_path
@@ -182,56 +232,23 @@ pub async fn execute(
 
         if action_path.exists() {
             let env_vars = load_env_vars_from_path(config.app.storage.environment.as_deref());
-
-            let cmd = if action_path.extension().is_some_and(|e| e == "py") {
-                "python"
-            } else if action_path.extension().is_some_and(|e| e == "sh") {
-                "sh"
-            } else {
-                action_path.to_str().unwrap()
-            };
-
-            let mut command = tokio::process::Command::new(cmd);
-            command.envs(&env_vars);
-            if cmd == "python" || cmd == "sh" {
-                command.arg(&action_path);
-            }
-
-            let mut child = command
-                .stdin(Stdio::piped())
-                .stdout(Stdio::inherit())
-                .stderr(Stdio::inherit())
-                .spawn()
-                .context(format!("Failed to spawn action at {}", action_path.display()))?;
-
-            if let Some(mut stdin) = child.stdin.take() {
-                let payload = serde_json::to_string(&combined_json)?;
-                tokio::spawn(async move {
-                    use tokio::io::AsyncWriteExt;
-                    let _ = stdin.write_all(payload.as_bytes()).await;
-                });
-            }
-
-            tokio::select! {
-                res = child.wait() => {
-                    let status = res.context("Failed to wait on action")?;
-                    if !status.success() {
-                        log::error!("Action failed with status: {status}");
-                    }
-                }
-                _ = tokio::signal::ctrl_c() => {
-                    let _ = child.wait().await;
-                }
-            }
+            run_external_action(&action_path, &env_vars, &combined_json).await?;
             return Ok(());
         }
     }
 
     let mut executed_builtin = false;
-    for target_id in &target_ids {
-        let album_path = library_root.join(target_id);
-        if builtin::execute_builtin(&name_key, &album_path, &action_config)? {
+    if name_key == "open_config_in_terminal" || target_ids.is_empty() {
+        let dummy_path = Path::new("");
+        if builtin::execute_builtin(&name_key, dummy_path, &action_config)? {
             executed_builtin = true;
+        }
+    } else {
+        for target_id in &target_ids {
+            let album_path = library_root.join(target_id);
+            if builtin::execute_builtin(&name_key, &album_path, &action_config)? {
+                executed_builtin = true;
+            }
         }
     }
 
