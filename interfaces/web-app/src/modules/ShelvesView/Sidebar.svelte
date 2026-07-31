@@ -40,7 +40,7 @@
       </button>
 
       <div class="button-wrapper flex-grow">
-        <button class="v-btn-icon v-sidebar-button sidebar-btn" onclick={toggleShelfMenu} class:active={isShelfMenuOpen} title="Shelf">
+        <button class="v-btn-icon v-sidebar-button v-btn-menu" onclick={toggleShelfMenu} class:active={isShelfMenuOpen} title="Shelf">
           <span class="v-truncate btn-label iconless">{shelfLabel}</span>
           <span class="icon end-icon">{isShelfMenuOpen ? "arrow_drop_up" : "arrow_drop_down"}</span>
         </button>
@@ -66,7 +66,7 @@
     <div class="v-scroll-fade-top"></div>
     {#each collection.shelvesList as shelf}
       <button 
-        class="sidebar-item" 
+        class="v-sidebar-item" 
         class:active={activeShelf === shelf.key} 
         onclick={() => selectShelf(shelf.key)}
       >
@@ -115,33 +115,6 @@
     min-width: 0;
   }
 
-  .sidebar-btn {
-    width: 100%;
-    padding: 0 8px;
-    justify-content: space-between;
-    color: var(--text-muted);
-    font-size: 16px;
-    font-family: var(--font-stack);
-    font-weight: 500;
-  }
-
-  .end-icon {
-    font-size: 20px;
-    margin-left: 4px;
-    flex-shrink: 0;
-  }
-
-  .btn-label {
-    flex: 1;
-    padding-left: 4px;
-    text-align: left;
-    font-family: var(--font-stack);
-  }
-
-  .btn-label.iconless {
-    padding-left: 2px;
-  }
-
   .sidebar-scroll {
     position: relative;
     flex: 1;
@@ -159,40 +132,5 @@
   .scroll-spacer {
     height: 12px;
     flex-shrink: 0;
-  }
-
-  .sidebar-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    width: 100%;
-    background-color: transparent;
-    border: none;
-    padding: 6px 10px;
-    margin-bottom: 4px;
-    cursor: pointer;
-    color: var(--text-muted);
-    font-size: 14px;
-    font-family: var(--font-stack);
-    text-align: left;
-    border-radius: 8px;
-    box-sizing: border-box;
-    user-select: none;
-  }
-
-  .sidebar-item:hover {
-    background-color: var(--bg-item-hover);
-    color: var(--text-main);
-  }
-
-  .sidebar-item.active {
-    background-color: var(--bg-item-active);
-    color: var(--text-main);
-  }
-
-  .label {
-    flex: 1;
-    margin-right: 8px;
-    font-family: var(--font-stack);
   }
 </style>

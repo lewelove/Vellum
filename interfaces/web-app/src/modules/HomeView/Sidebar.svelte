@@ -101,7 +101,7 @@
 <svelte:window onkeydown={handleKeydown} />
 
 {#snippet Item({ index, label, count, active, onclick }: { index: number, label: string, count: number, active: boolean, onclick: () => void })}
-  <button id="sidebar-item-{index}" class="sidebar-item" class:active {onclick}>
+  <button id="sidebar-item-{index}" class="v-sidebar-item" class:active {onclick}>
     <span class="v-truncate label" title={label}>{label}</span>
     {#if showCount}
       <span class="count">{count}</span>
@@ -118,7 +118,7 @@
       </button>
 
       <div class="button-wrapper flex-grow">
-        <button class="v-btn-icon v-sidebar-button sidebar-btn" onclick={toggleLibraryMenu} class:active={isLibraryMenuOpen} title="Library">
+        <button class="v-btn-icon v-sidebar-button v-btn-menu" onclick={toggleLibraryMenu} class:active={isLibraryMenuOpen} title="Library">
           <span class="v-truncate btn-label iconless">{libraryLabel}</span>
           <span class="icon end-icon">{isLibraryMenuOpen ? "arrow_drop_up" : "arrow_drop_down"}</span>
         </button>
@@ -142,7 +142,7 @@
     {#if showFilterDropdown}
       <div class="control-row">
         <div class="button-wrapper flex-grow">
-          <button class="v-btn-icon v-sidebar-button sidebar-btn" onclick={toggleLibraryFilterMenu} class:active={isLibraryFilterMenuOpen} title="Filter">
+          <button class="v-btn-icon v-sidebar-button v-btn-menu" onclick={toggleLibraryFilterMenu} class:active={isLibraryFilterMenuOpen} title="Filter">
             <span class="icon start-icon">texture</span>
             <span class="v-truncate btn-label">{filterLabel}</span>
             <span class="icon end-icon">{isLibraryFilterMenuOpen ? "arrow_drop_up" : "arrow_drop_down"}</span>
@@ -170,7 +170,7 @@
 
     <div class="control-row">
       <div class="button-wrapper flex-grow">
-        <button class="v-btn-icon v-sidebar-button sidebar-btn" onclick={toggleGroupMenu} class:active={isGroupMenuOpen} title="Group By">
+        <button class="v-btn-icon v-sidebar-button v-btn-menu" onclick={toggleGroupMenu} class:active={isGroupMenuOpen} title="Group By">
           <span class="icon start-icon">stack_group</span>
           <span class="v-truncate btn-label">{groupLabel}</span>
           <span class="icon end-icon">{isGroupMenuOpen ? "arrow_drop_up" : "arrow_drop_down"}</span>
@@ -194,7 +194,7 @@
 
     <div class="control-row">
       <div class="button-wrapper flex-grow">
-        <button class="v-btn-icon v-sidebar-button sidebar-btn" onclick={toggleSortMenu} class:active={isSortMenuOpen} title="Sort By">
+        <button class="v-btn-icon v-sidebar-button v-btn-menu" onclick={toggleSortMenu} class:active={isSortMenuOpen} title="Sort By">
           <span class="icon start-icon">swap_vert</span>
           <span class="v-truncate btn-label">{sortLabel}</span>
           <span class="icon end-icon">{isSortMenuOpen ? "arrow_drop_up" : "arrow_drop_down"}</span>
@@ -280,40 +280,8 @@
     min-width: 0;
   }
 
-  .sidebar-btn {
-    width: 100%;
-    padding: 0 8px;
-    justify-content: space-between;
-    color: var(--text-muted);
-    font-size: 16px;
-    font-family: var(--font-stack);
-    font-weight: 500;
-  }
-
   .order-arrow.mirrored {
     transform: scaleY(-1);
-  }
-
-  .start-icon {
-    font-size: 20px;
-    margin-right: 6px;
-    flex-shrink: 0;
-  }
-
-  .end-icon {
-    font-size: 20px;
-    margin-left: 4px;
-    flex-shrink: 0;
-  }
-
-  .btn-label {
-    flex: 1;
-    text-align: left;
-    font-family: var(--font-stack);
-  }
-
-  .btn-label.iconless {
-    padding-left: 2px;
   }
 
   .sidebar-body {
@@ -341,46 +309,5 @@
   .scroll-spacer {
     height: 12px;
     flex-shrink: 0;
-  }
-
-  .sidebar-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    width: 100%;
-    background-color: transparent;
-    border: none;
-    padding: 6px 10px;
-    margin-bottom: 4px;
-    cursor: pointer;
-    color: var(--text-muted);
-    font-size: 14px;
-    font-family: var(--font-stack);
-    text-align: left;
-    border-radius: 8px;
-    box-sizing: border-box;
-  }
-
-  .sidebar-item:hover {
-    background-color: var(--bg-item-hover);
-    color: var(--text-main);
-  }
-
-  .sidebar-item.active {
-    background-color: var(--bg-item-active);
-    color: var(--text-main);
-  }
-
-  .label {
-    flex: 1;
-    margin-right: 8px;
-    font-family: var(--font-stack);
-  }
-
-  .count {
-    margin-left: 8px;
-    font-size: 12px;
-    color: var(--text-subtle);
-    font-family: var(--font-mono);
   }
 </style>
