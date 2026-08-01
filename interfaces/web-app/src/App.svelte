@@ -159,17 +159,11 @@
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
-    transition: opacity 0.05s ease-out, visibility 0.05s ease-out;
   }
 
   .view-layer.visible {
     opacity: 1;
     visibility: visible;
-    transition: opacity 0.05s ease-out, visibility 0s ease-out;
-  }
-
-  .view-layer.instant {
-    transition: none !important;
   }
 
   .view-layer.active {
@@ -185,4 +179,9 @@
     z-index: 2;
     background-color: var(--bg-panel);
   }
+
+  .view-layer.queue, .view-layer.queue.visible {
+    transition: opacity 50ms ease, visibility 50ms ease;
+  }
+
 </style>

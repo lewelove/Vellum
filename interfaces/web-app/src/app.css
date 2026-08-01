@@ -53,8 +53,8 @@
     0px 0px 8px 0px oklch(0 0 0 / 0.7);
 
   --album-cover-shadow:
-    0px 0px 12px 0px oklch(0 0 0 / 0.2),
-    0px 0px 8px 0px oklch(0 0 0 / 0.1),
+    0px 0px 16px 0px oklch(0 0 0 / 0.2),
+    0px 0px 12px 0px oklch(0 0 0 / 0.1),
     0px 0px 6px -1px oklch(0 0 0 / 0.1);
 
   --modal-shadow:
@@ -102,7 +102,7 @@
   --text-muted: oklch(from var(--color-ok100) l c h / var(--a2));
   --text-subtle: oklch(from var(--color-ok100) l c h / var(--a3));
 
-  --border-muted: oklch(from var(--color-ok100) l c h / 0.08);
+  --border-muted: oklch(from var(--color-ok100) l c h / 0.04);
   --border-subtle: oklch(from var(--color-ok100) l c h / var(--a8));
 
   --bg-surface-hover: oklch(from var(--color-ok100) l c h / 0.05);
@@ -113,12 +113,16 @@
   --bg-item-active: oklch(from var(--color-ok100) l c h / 0.08);
 
   --bg-button-inactive: oklch(from var(--color-ok100) l c h / 0.08);
-  --bg-button-hover: oklch(from var(--color-ok100) l c h / 0.20);
-  --bg-button-active: oklch(from var(--color-ok100) l c h / 0.20);
+  --bg-button-hover: oklch(from var(--color-ok100) l c h / 0.16);
+  --bg-button-active: oklch(from var(--color-ok100) l c h / 0.16);
+}
+
+.queue-view-container:not(.shader-off) {
+  --button-shadow: none;
+  --panel-text-shadow: 0 1px 3px oklch(from var(--color-ok100) l c h / 0.15);
 }
 
 .queue-view-container {
-  transition: --color-ok100 0.22s ease;
   transition: --color-ok100 0.3s ease;
 }
 
@@ -224,6 +228,7 @@ main {
   cursor: pointer;
   border-radius: 8px;
   box-sizing: border-box;
+  transition: none;
 }
 
 .v-menu-item:hover {
@@ -269,6 +274,7 @@ main {
   box-shadow: var(--button-shadow);
   box-sizing: border-box;
   position: relative;
+  transition: box-shadow 0.3s ease;
 }
 
 .v-btn-icon img, .v-btn-icon .icon {
@@ -321,6 +327,7 @@ main {
   font-size: 15px;
   font-family: var(--font-stack);
   font-weight: 500;
+  transition: none;
 }
 
 .v-btn-menu .start-icon {
@@ -363,6 +370,7 @@ main {
   border-radius: 8px;
   box-sizing: border-box;
   user-select: none;
+  transition: none;
 }
 
 .v-sidebar-item:hover {
@@ -422,6 +430,7 @@ main {
   box-sizing: border-box;
   border-radius: 10px;
   padding: 6px 0px;
+  transition: none;
 }
 
 .v-track-row:hover {

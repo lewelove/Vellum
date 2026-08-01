@@ -38,7 +38,7 @@
         onclick={handleFocus}
         title="Focus Album"
       >
-        <span class="icon">album</span>
+        <span class="icon">arrow_back</span>
       </button>
     </div>
   </div>

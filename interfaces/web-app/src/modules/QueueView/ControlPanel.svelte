@@ -160,6 +160,7 @@
     display: flex;
     flex-direction: column;
     text-shadow: var(--panel-text-shadow);
+    transition: text-shadow 0.3s ease;
     min-height: 0;
   }
 
