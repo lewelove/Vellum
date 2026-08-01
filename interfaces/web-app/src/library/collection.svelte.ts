@@ -63,7 +63,8 @@ class CollectionStore {
           total_tracks: a.total_tracks,
           duration_formatted: a.duration_formatted,
           virtual: a.virtual,
-          keys: a.keys
+          keys: a.keys,
+          colors: a.colors
       } : null;
     }).filter(Boolean);
   }

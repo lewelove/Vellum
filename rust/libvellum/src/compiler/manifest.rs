@@ -19,10 +19,16 @@ pub fn load_manifests(
     let expected_tracks = primary_json.get("tracks").and_then(|t| t.as_array()).map_or(0, std::vec::Vec::len);
     result_manifests.insert("metadata".to_string(), primary_json);
 
+    let theme_path = album_root.join("theme.toml");
+    if theme_path.exists() {
+        let aux_json = parse_single_manifest(&theme_path, album_root, "theme", Some(expected_tracks))?;
+        result_manifests.insert("theme".to_string(), aux_json);
+    }
+
     if let Some(names) = manifest_names {
         for m_val in names {
             if let Some(m_name) = m_val.as_str() {
-                if m_name == "metadata.toml" { continue; }
+                if m_name == "metadata.toml" || m_name == "theme.toml" { continue; }
                 let m_path = album_root.join(m_name);
                 if !m_path.exists() { continue; }
                 

@@ -16,8 +16,12 @@
   let coverHash = $derived(activeAlbum?.cover_hash || "");
   let fullAlbum = $derived(activeId ? collection.fullAlbumCache[activeId] : null);
 
-  let palette = $derived(fullAlbum?.album?.keys?.cover_palette || activeAlbum?.keys?.cover_palette || []);
+  let palette = $derived(fullAlbum?.album?.colors?.background || activeAlbum?.colors?.background || []);
   let hasPalette = $derived(palette && palette.length > 0);
+  let foregroundColor = $derived(fullAlbum?.album?.colors?.foreground || activeAlbum?.colors?.foreground || null);
+
+  let isShaderOn = $derived(view.isShaderActive && hasPalette);
+  let activeForeground = $derived(isShaderOn && foregroundColor ? foregroundColor : null);
 
   let isViewVisible = $derived(nav.activeTab === 'queue');
   let isPlaying = $derived(player.state === "play");
@@ -35,7 +39,8 @@
 
 <div 
   class="queue-view-container" 
-  class:shader-off={!view.isShaderActive || !hasPalette}
+  class:shader-off={!isShaderOn}
+  style={activeForeground ? `--color-ok100: ${activeForeground};` : ""}
 >
   <BackgroundShader colors={palette} coverSize={moduleWidth} visible={isViewVisible} {isPlaying} />
 

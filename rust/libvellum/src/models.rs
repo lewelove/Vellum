@@ -64,6 +64,8 @@ pub struct AlbumLock {
     #[serde(default)]
     pub keys: BTreeMap<String, serde_json::Value>,
     pub info: AlbumInfo,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub colors: Option<serde_json::Value>,
     #[serde(default)]
     pub manifests: BTreeMap<String, ManifestEntry>,
     pub covers: Option<CoversEntry>,

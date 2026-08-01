@@ -11,6 +11,12 @@
   src: url('/fonts/InterVellumTnumRegular.woff2') format('woff2');
 }
 
+@property --color-ok100 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: oklch(1.00 0 0);
+}
+
 :root {
   --color-ok100: oklch(1.00 0 0);
   --color-ok200: oklch(0.31 0 0);
@@ -31,9 +37,7 @@
   --a8: 0.02;
 
   --bg-main: var(--color-ok300);
-
   --bg-queue: var(--color-ok200);
-
   --bg-panel: var(--color-ok300);
   --bg-menu: var(--color-ok300);
   --bg-album-grid: var(--color-ok200);
@@ -41,24 +45,6 @@
   --bg-modal-backdrop: oklch(0 0 0 / 0.6);
   --bg-modal-left: var(--color-ok400);
   --bg-modal-right: var(--color-ok300);
-
-  --text-main: oklch(from var(--color-ok100) l c h / var(--a1));
-  --text-muted: oklch(from var(--color-ok100) l c h / var(--a2));
-  --text-subtle: oklch(from var(--color-ok100) l c h / var(--a3));
-
-  --border-muted: oklch(from var(--color-ok100) l c h / var(--a7));
-  --border-subtle: oklch(from var(--color-ok100) l c h / var(--a8));
-
-  --bg-surface-hover: oklch(from var(--color-ok100) l c h / 0.05);
-  --bg-surface-active: oklch(from var(--color-ok100) l c h / 0.08);
-
-  --bg-item-inactive: oklch(from var(--color-ok100) l c h / 0.00);
-  --bg-item-hover: oklch(from var(--color-ok100) l c h / 0.07);
-  --bg-item-active: oklch(from var(--color-ok100) l c h / 0.07);
-
-  --bg-button-inactive: oklch(from var(--color-ok100) l c h / 0.05);
-  --bg-button-hover: oklch(from var(--color-ok100) l c h / 0.10);
-  --bg-button-active: oklch(from var(--color-ok100) l c h / 0.10);
 
   --glass-bg: transparent;
 
@@ -85,7 +71,7 @@
     0px 0px 2px 0px oklch(0 0 0 / 0.1);
 
   --panel-text-shadow:
-    0 1px 3px oklch(0 0 0 / 0.3);
+    0 1px 3px oklch(0 0 0 / 0.2);
 
   --font-stack:
     'Inter Vellum',
@@ -108,6 +94,36 @@
     'system-ui',
     sans-serif,
     monospace;
+}
+
+:root,
+.queue-view-container {
+  --text-main: oklch(from var(--color-ok100) l c h / var(--a1));
+  --text-muted: oklch(from var(--color-ok100) l c h / var(--a2));
+  --text-subtle: oklch(from var(--color-ok100) l c h / var(--a3));
+
+  --border-muted: oklch(from var(--color-ok100) l c h / var(--a7));
+  --border-subtle: oklch(from var(--color-ok100) l c h / var(--a8));
+
+  --bg-surface-hover: oklch(from var(--color-ok100) l c h / 0.05);
+  --bg-surface-active: oklch(from var(--color-ok100) l c h / 0.08);
+
+  --bg-item-inactive: oklch(from var(--color-ok100) l c h / 0.00);
+  --bg-item-hover: oklch(from var(--color-ok100) l c h / 0.08);
+  --bg-item-active: oklch(from var(--color-ok100) l c h / 0.08);
+
+  --bg-button-inactive: oklch(from var(--color-ok100) l c h / 0.08);
+  --bg-button-hover: oklch(from var(--color-ok100) l c h / 0.20);
+  --bg-button-active: oklch(from var(--color-ok100) l c h / 0.20);
+}
+
+.queue-view-container {
+  transition: --color-ok100 0.22s ease;
+  transition: --color-ok100 0.3s ease;
+}
+
+.nav-bar, .sidebar-panel {
+  transition: background-color 0.5s ease, box-shadow 0.5s ease;
 }
 
 *:focus {
@@ -465,9 +481,4 @@ main {
   text-wrap: balance;
   word-break: keep-all;
   overflow-wrap: break-word;
-}
-
-.nav-bar, .sidebar-panel {
-  transition: background-color 0.22s ease-out, box-shadow 0.22s ease-out;
-  transition: background-color 0.18s ease, box-shadow 0.18s ease;
 }

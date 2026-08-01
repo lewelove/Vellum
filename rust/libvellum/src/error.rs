@@ -43,4 +43,7 @@ pub enum VellumError {
         expected_type: String,
         found_val: String,
     },
+
+    #[error("Invalid Color Format in {path}: Field '{key}' must be a valid hex color string, found '{found}'")]
+    InvalidColorFormat { path: PathBuf, key: String, found: String },
 }

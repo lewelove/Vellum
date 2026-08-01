@@ -92,6 +92,13 @@ pub fn build(
     };
     album_obj.insert("covers".to_string(), covers_entry);
 
+    if let Some(theme) = parsed_manifests.get("theme")
+        && let Some(colors) = theme.get("album").and_then(|a| a.get("colors"))
+    {
+        let colors_validated = utils::validate_and_format_colors(colors, album_root)?;
+        album_obj.insert("colors".to_string(), colors_validated);
+    }
+
     let mut final_json = serde_json::Map::new();
     final_json.insert("album".to_string(), Value::Object(album_obj));
     final_json.insert("tracks".to_string(), Value::Array(final_tracks));

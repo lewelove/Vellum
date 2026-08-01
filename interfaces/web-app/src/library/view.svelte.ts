@@ -243,6 +243,7 @@ export class ViewState {
             albumartist: dictEntry.albumartist,
             date: dictEntry.date,
             keys: dictEntry.keys,
+            colors: dictEntry.colors,
             covers: {
               main: {
                 file: {

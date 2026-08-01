@@ -71,14 +71,18 @@
 
   function parseOklch(str) {
     const m = str.match(/oklch\(([\d.]+)%\s+([\d.]+)\s+([\d.]+)\)/);
-    return m ? { L: parseFloat(m[1]), C: parseFloat(m[2]), H: parseFloat(m[3]) } : { L: 0, C: 0, H: 0 };
+    if (m) return { L: parseFloat(m[1]), C: parseFloat(m[2]), H: parseFloat(m[3]) };
+    const m2 = str.match(/oklch\(([\d.]+)\s+([\d.]+)\s+([\d.]+)\)/);
+    return m2 ? { L: parseFloat(m2[1]), C: parseFloat(m2[2]), H: parseFloat(m2[3]) } : { L: 0, C: 0, H: 0 };
   }
 
   function getChroma(c) {
-    if (Array.isArray(c) && c.length > 1) {
-      return parseOklch(c[1]).C;
+    const val = Array.isArray(c) ? c[0] : (c.hex || c);
+    if (typeof val === 'string' && val.startsWith('oklch(')) {
+      return parseOklch(val).C;
     }
-    return 0;
+    const [L, a, b] = parseColorToOklab(val);
+    return Math.sqrt(a * a + b * b);
   }
 
   function shuffle(array) {
@@ -128,10 +132,19 @@
     } else if (order.startsWith("oklch,")) {
       const comp = order.split(",")[1];
       palette.sort((a, b) => {
-        if (!Array.isArray(a) || !Array.isArray(b) || a.length < 2 || b.length < 2) return 0;
-        const valA = parseOklch(a[1])[comp] || 0;
-        const valB = parseOklch(b[1])[comp] || 0;
-        return valA - valB;
+        const valA = Array.isArray(a) ? a[0] : (a.hex || a);
+        const valB = Array.isArray(b) ? b[0] : (b.hex || b);
+        let cA = 0; let cB = 0;
+        
+        if (typeof valA === 'string' && valA.startsWith('oklch(')) cA = parseOklch(valA)[comp] || 0;
+        else if (comp === 'L') cA = parseColorToOklab(valA)[0];
+        else if (comp === 'C') cA = Math.sqrt(parseColorToOklab(valA)[1]**2 + parseColorToOklab(valA)[2]**2);
+        
+        if (typeof valB === 'string' && valB.startsWith('oklch(')) cB = parseOklch(valB)[comp] || 0;
+        else if (comp === 'L') cB = parseColorToOklab(valB)[0];
+        else if (comp === 'C') cB = Math.sqrt(parseColorToOklab(valB)[1]**2 + parseColorToOklab(valB)[2]**2);
+        
+        return cA - cB;
       });
     }
 

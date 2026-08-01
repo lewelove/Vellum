@@ -327,7 +327,8 @@ impl QueryEngine {
                         "total_discs": info.get("total_discs"),
                         "total_tracks": info.get("total_tracks"),
                         "virtual": info.get("virtual"),
-                        "keys": album.get("keys")
+                        "keys": album.get("keys"),
+                        "colors": album.get("colors")
                     });
                     self.dict.insert(id.to_string(), entry);
                 }
