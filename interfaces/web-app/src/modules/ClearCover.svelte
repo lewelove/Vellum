@@ -4,7 +4,7 @@
   let dpr = $derived(window.devicePixelRatio || 1);
   let targetWidth = $derived(Math.round(width * dpr));
 
-  let algo = 'mitchell';
+  let algo = 'catmullrom';
   let srcUrl = $derived(hash && targetWidth > 0 ? `/api/covers/${algo}/${targetWidth}px/${hash}?v=${hash}` : "");
   let thumbUrl = $derived(hash ? `/api/covers/lanczos/200px/${hash}?v=${hash}` : "");
 

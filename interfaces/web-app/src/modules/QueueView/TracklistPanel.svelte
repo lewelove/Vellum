@@ -160,10 +160,7 @@
     color: var(--text-main);
   }
 
-  .header-meta {
-    color: var(--text-subtle);
-  }
-
+  .header-meta,
   .header-artist,
   .track-artist,
   .disc-label,

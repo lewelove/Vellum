@@ -280,6 +280,10 @@
     min-width: 0;
   }
 
+  .order-arrow {
+    font-size: 22px;
+  }
+
   .order-arrow.mirrored {
     transform: scaleY(-1);
   }

@@ -53,7 +53,7 @@
     align-items: center;
     padding: 8px;
     box-sizing: border-box;
-    box-shadow: var(--panel-shadow);
+    box-shadow: none;
     z-index: 100;
     flex-shrink: 0;
     background-color: transparent;
@@ -61,6 +61,7 @@
 
   :global(.shader-off) .sidebar-panel {
     background-color: var(--bg-panel);
+    box-shadow: var(--panel-shadow);
   }
 
   .sidebar-top-section {
