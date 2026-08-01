@@ -72,7 +72,7 @@ fn main() -> Result<()> {
             .unwrap_or("cover.jpg");
 
         let album_dir = library.join(album_path_str);
-        let out_path = album_dir.join("cover_palette.toml");
+        let out_path = album_dir.join("theme.toml");
 
         if out_path.exists() && !force {
             continue;
@@ -97,21 +97,27 @@ fn main() -> Result<()> {
                 })
                 .collect();
 
-            let toml_content = format!(
-                "[album]\n\ncover_palette = [\n{}\n]\n",
-                hex_colors
-                    .iter()
-                    .map(|c| format!("  \"{c}\","))
-                    .collect::<Vec<_>>()
-                    .join("\n")
-            );
+            let formatted_bg = if hex_colors.is_empty() {
+                String::new()
+            } else {
+                format!(
+                    "\n{}\n",
+                    hex_colors
+                        .iter()
+                        .map(|c| format!("  \"{c}\","))
+                        .collect::<Vec<_>>()
+                        .join("\n")
+                )
+            };
+
+            let toml_content = format!("[album.colors]\n\nbackground = [{formatted_bg}]\n");
 
             if std::fs::write(&out_path, toml_content).is_ok() {
                 let abs_path = out_path.canonicalize().unwrap_or(out_path);
-                println!("Created cover_palette.toml at: {}", abs_path.display());
+                println!("Created theme.toml at: {}", abs_path.display());
 
                 if let Some(prog) = &script_config.open_with {
-                    let cmd_str = format!("{} \"{}\"", prog, abs_path.display());
+                    let cmd_str = format!("{prog} \"{}\"", abs_path.display());
                     let _ = std::process::Command::new("sh")
                         .arg("-c")
                         .arg(&cmd_str)

@@ -114,7 +114,7 @@
               ln -sf "python/search_cover/result/bin/search_cover" "$ROOT/actions/search_cover"
               ln -sf "python/embed/result/bin/embed" "$ROOT/actions/embed"
               ln -sf "python/rename/result/bin/rename" "$ROOT/actions/rename"
-              ln -sf "rust/target/release/cover_palette" "$ROOT/actions/cover_palette"
+              ln -sf "rust/target/release/get_theme" "$ROOT/actions/get_theme"
               ln -sf "rust/target/release/collect" "$ROOT/actions/collect"
             }
 

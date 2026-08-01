@@ -365,21 +365,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
 
 [[package]]
-name = "cover_palette"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "dirs 5.0.1",
- "image",
- "kmeans_colors",
- "palette",
- "rand 0.10.2",
- "serde",
- "serde_json",
- "toml 0.8.23",
-]
-
-[[package]]
 name = "cpufeatures"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -680,6 +665,21 @@ dependencies = [
  "memchr",
  "pin-project-lite",
  "slab",
+]
+
+[[package]]
+name = "get_theme"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "dirs 5.0.1",
+ "image",
+ "kmeans_colors",
+ "palette",
+ "rand 0.10.2",
+ "serde",
+ "serde_json",
+ "toml 0.8.23",
 ]
 
 [[package]]
