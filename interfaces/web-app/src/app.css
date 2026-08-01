@@ -53,8 +53,8 @@
     0px 0px 8px 0px oklch(0 0 0 / 0.7);
 
   --album-cover-shadow:
-    0px 0px 16px 0px oklch(0 0 0 / 0.2),
-    0px 0px 12px 0px oklch(0 0 0 / 0.1),
+    0px 0px 12px 0px oklch(0 0 0 / 0.2),
+    0px 0px 8px 0px oklch(0 0 0 / 0.1),
     0px 0px 6px -1px oklch(0 0 0 / 0.1);
 
   --modal-shadow:
@@ -71,7 +71,7 @@
     0px 0px 2px 0px oklch(0 0 0 / 0.1);
 
   --panel-text-shadow:
-    0 1px 3px oklch(0 0 0 / 0.2);
+    0 1px 3px oklch(0 0 0 / 0.15);
 
   --font-stack:
     'Inter Vellum',
@@ -102,7 +102,7 @@
   --text-muted: oklch(from var(--color-ok100) l c h / var(--a2));
   --text-subtle: oklch(from var(--color-ok100) l c h / var(--a3));
 
-  --border-muted: oklch(from var(--color-ok100) l c h / var(--a7));
+  --border-muted: oklch(from var(--color-ok100) l c h / 0.08);
   --border-subtle: oklch(from var(--color-ok100) l c h / var(--a8));
 
   --bg-surface-hover: oklch(from var(--color-ok100) l c h / 0.05);
