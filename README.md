@@ -1,32 +1,35 @@
 # Vellum
 
-Vellum is an MPD client and album centric library manager built from first Unix Philosophy principles for archivist-minded collectors.
+Vellum is an MPD client and an album-centric library manager built from the first Unix Philosophy principles for archivist-minded collectors.
 
 ## Philosophy
 
-- **The Album as the Atomic Unit**. Vellum focuses purely on collection and management of albums. The point is to bring feeling of physical collecting to the digital one. Album is the base unit of Vellum because album is the base unit of any music collection in real life.
+- **The Album as The Fundamental Collection Unit**. Vellum focuses solely on collection and management of music albums. The point, I guess, is to bring back the feeling of physical collecting to the digital world. An album is the fundamental unit of Vellum because an album is the fundamental unit of any music collection in real life.
 
-- **Immutable Audio / Mutable Metadata**. A ripped audio files should be a bit-perfect preservation of the original media. Audio files are inherently static; your metadata is inherently dynamic. This is why Vellum treats the audio file strictly as a read-only source and separates everything mutable into separate ancillary files.
+- **Immutable Audio / Mutable Metadata**. Audio files making up the album should be a bit-perfect preservation of the original media. Audio files are inherently static; Your metadata is inherently dynamic. This is the reason why Vellum treats audio strictly as a read-only source and separates everything mutable into separate ancillary files.
 
 ## Cool Features
 
-### All Metadata in Plaintext
-Entire library metadata: from songs names and album length in milliseconds, to custom album source URLs and ReplayGain values, to literally anything specific you can *write* about an album in your collection is stored and compiled within ancillary plaintext files. Edit them in Neovim, version control them, upload them to remote repository. Every change can be tracked, backed up and reverted, completely independent of the audio file's embedded tags. Once it's in Git you will never lose your library data ever again.
+### Everything in Plaintext
+Entire library metadata — from song names and album lengths in milliseconds — to custom album source URLs and ReplayGain values — to literally **anything specific that can exist in a text form describing an album in your collection** will be stored and compiled within ancillary plain-text files. Edit them in Neovim, RipGrep/Sed them, run scripts against them. Everything can be version controlled, every change can tracked, backed up and reverted, completely independent of the audio's embedded tags, in human readable database-less format. Once your collection's metadata hits Git and is uploaded to a remote repo you will never lose it ever again.
 
 ### Album as a Compiled Data Object
-Think of an album directory as of an entry in the physical archive. It contains data written with human intent (`metadata.toml` and other `.toml` manifests) as well as the source files you're trying to preserve (audio, cover art, lyrics, etc...). In this way, album stops being an opaque fuzzy object interpreted by each different media player on the fly, and becomes a set of data points you can compile into a standard machine-readable JSON object (`album.lock.json`), the album's **index** in said archive. The engine reads your intent expressed in manifests, links the source files and scans the physical properties of the audio (bit depth, duration, etc...) to produce it. The `album.lock.json` is the file server uses to register album in your collection and to retrieve data from for further user-album interaction.
+For the analogy's sake let's imagine an album directory as an entry in the physical archive. This entry contains data written with human intent (`metadata.toml` and other TOML manifests) — as well as the source you're trying to preserve (audio, cover art, lyrics) and its inherit metadata (audio bit depth, duration, etc...). Then you take all of these and run a compiler against them to produce the album **index** in this imagined archive. By thinking about an album in this way, it stops being an opaque fuzzy object interpreted by each different media player on the fly, and becomes a simple set of data points that can compiled into a standardized machine-readable data object (`album.lock.json`), which then is read by Vellum server to register an album in your collection and to provide data for any further user-album interfacing. The compilation step also brings you all of the cool compile time features AOT programming languages have. Type checking, correctness enforcement, linting, key-to-manifest binding and validation, all of these can be expressed in Vellum Lua config.
 
 ### Decoupled Frontend and Backend
-**Vellum is a Rust web server first. User Interface intentionally comes second.** Want to change UI theme? Want to add some cool display feature? No worry. You can directly edit contents of the `web-app/` or completely rewrite your own UI in HTML, CSS and JavaScript, and run it in a browser, wiring it up to a running Vellum server using its web api **today**. Any UI framework supporting web api functionality can control MPD and retrieve album data through Vellum. You can build TUI apps, Godot based game-interfaces, or you can even use Curl to control it if you want to. Project's goal is to provide robust primitives, so you can interface your album collection in any weird+brilliant way.
+**Vellum is the Rust web server first — the User Interface intentionally comes second.** The separation of concerns is essential in Unix Philosophy. Want to change UI theme? Want to add some cool display feature? No need to worry. You can directly edit contents of the `web-app/` or completely rewrite your own UI in a WebDev stack and run it in a browser — wiring it up to a running Vellum server using its Web API **today**. Furthermore, literally any UI framework supporting web api functionality can control MPD and retrieve library and album data through Vellum. You can build TUI apps, Godot based game-interfaces, or you can even use Curl to control it if you really want to. The project's goal is to provide robust primitives, so you can interface your album collection in any weird & brilliant way possible.
 
 ### Vellum Actions
-Since every album is compiled into a plaintext JSON, every album becomes scriptable. **Vellum Action** is a simple standalone executable that reads standard intermediary JSON from stdin (generated and populated with albums and config data at runtime) and performs some kind of logic based on this data. That's all. You can write actions in any language that supports reading JSONs (or even use simple bash scripts with jq) and use them to infinitely expand Vellum functionality in Unix Philosophy style. You can make each action configurable via its own cli arguments and `vellum.lua`, as Vellum provides the entire pipeline. Everything: from *deciding* to add the album to your collection (yes even time of decision should be recorded), to searching for & acquiring it on torrent trackers or soulseek, to cover search and metadata fetch and eventual compilation and playback, to all of the future cool logic you can conjure up from raw album data, can be managed via Vellum Actions. For built-in actions and more context of what they may be useful for look into `actions/` directory.
+Since every album is compiled into a plaintext JSON — every album becomes scriptable. **Vellum Action** is a concept of a standalone executable that reads intermediary JSON from stdin (provided by Vellum and populated with albums and config data at runtime) and performs some kind of logic based on this data. That's it. You can write actions in any language that supports reading JSONs (or even use simple bash scripts with Jq) and use them to infinitely expand Vellum functionality in Unix Philosophy style with any logic you can conjure up from the album data. Each action is configurable via its own CLI arguments and `vellum.lua` config functions. For built-in actions and more context of what they may be useful for look into the `actions/` directory.
 
 ## Contributing
-I am the lone developer of this project. There are many desired, or even essential things not implemented currently. If you have any ideas or requests, or if you want to contribute with patches, please submit everything to issues and PRs respectively. I would be sincerely happy to read through, work on and merge them. I am also open to code critique. I want to keep Vellum maintainable and open to new contributors. If you have constructive criticism of the codebase for me to take action upon, please submit it to the issues as well.
+Since I develop Vellum mostly by myself, there can be many desired, or even essential things not implemented in the current state. If you have any ideas or requests, or if you want to contribute with patches, please submit everything to issues and PRs respectively. I would be sincerely happy to read through, work on and/or merge them. I am also fully open to code critique and any structural improvements. I want to keep Vellum as fast, maintainable and open to new contributors as possible. If you have constructive criticism of the codebase for me to take action upon, please submit it to the issues as well.
 
 ## AI Disclosure & Human Design
-I use LLMs for research and *writing* out the code. I use them for nothing more. Everything besides raw syntax implementation is intentionally human-designed by none other than me. I do not rely on agents for coding, keeping the good old "chat -> file -> diff" workflow, as I will **never** allow the clanker to touch my filesystem. I design the system architecture, specifications, logic, in other words how *everything* must work and feel. I review every file diff and often reject the code until i'm satisfied with the quality. All of the documentation and this README you are reading, are handrolled on my cheap old keyboard from my bedroom. **I am the primary (single, ha-ha) and the most active user of Vellum.** This project was born from passionate love of album collecting, respect for Unix Philosophy, and genuine lack of anything like it. I want Vellum to be free and open source forever, thus the AGPL-3.0 license. I'll try to commit maintaining it as long I will be using Linux, as well as collecting and listening to albums, which gives us, according to average life expectancy, around 50+ years of time. Thank you for reading this README.md and (hopefully) using this software. All feedback is always appreciated.
+This software was partially developed with the assistance of LLMs for research and Rust syntax implementation. Regardless of this fact, all of the business logic, architecture, UX — as well as complete creative vision — were designed and vetted with a great deal of intent and hard work by a human — myself. All of the documentation was handrolled on my keyboard, from my bedroom, in my own words — as I believe this is an honest way to show you that I care about what you'll read here.
+
+## A Note From The Developer
+**I am the primary and the most active user of Vellum.** I am building it for myself, in hopes that **you** will find it useful too. This project was born from the inexorable love for album collecting and archival, respect for Unix Philosophy, and genuine lack of anything close to "album-as-compiled-data-object" in the world of media players. I want Vellum to be free and open source forever, and the AGPL-3.0 license is here for it. I'll try to commit maintaining it as long I will be using Linux, and collecting and listening to albums, which gives us, according to average life expectancy, around 50+ years of time. Thank you for reading this README.md and (hopefully) using this software. All feedback is always appreciated.
 
 ## Getting Started
 
@@ -83,20 +86,22 @@ You create `~/.config/vellum/vellum.lua` file:
 -- Since we are using Lua, a truly god-tier config language, for convenience you can define cloned repository path as local string variable
 local repo_dir = "Path/To/Cloned/Repo/"
 
-vl.config({ storage = { 
-  -- Define a library path containing all your albums
-  library = "Path/To/Your/Library/Root/"
-}})
+vl.config({ 
+  storage = { 
+    -- Define a library path containing all your albums
+    library = "Path/To/Your/Library/Root/"
+  }
+})
 
 -- Optionally you can define all keys besides standard ones you want to load from toml manifests and be present in `album.lock.json`
 
 -- [album.lock.json].album.keys level
-vl.compiler.keys.album({
+vl.compiler.album.key({
   album_key_name = true
 })
 
 -- [album.lock.json].tracks[].keys level
-vl.compiler.keys.tracks({ 
+vl.compiler.tracks.key({ 
   track_key_name = true
 })
 
