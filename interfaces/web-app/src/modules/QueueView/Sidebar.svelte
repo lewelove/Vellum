@@ -21,6 +21,14 @@
 <aside class="sidebar-panel">
   <div class="sidebar-top-section">
     <div class="sidebar-group top">
+      <button 
+        class="v-btn-icon v-sidebar-button round" 
+        disabled={!activeId}
+        onclick={handleFocus}
+        title="Focus Album"
+      >
+        <span class="icon">arrow_back</span>
+      </button>
       {#if hasPalette}
         <button 
           class="v-btn-icon v-sidebar-button" 
@@ -32,14 +40,6 @@
           <span class="icon">colors</span>
         </button>
       {/if}
-      <button 
-        class="v-btn-icon v-sidebar-button round" 
-        disabled={!activeId}
-        onclick={handleFocus}
-        title="Focus Album"
-      >
-        <span class="icon">arrow_back</span>
-      </button>
     </div>
   </div>
 </aside>

@@ -32,14 +32,14 @@
 
 <svelte:window onkeydown={handleKeydown} />
 
-<div class="sidebar-container">
-  <div class="sidebar-controls">
-    <div class="control-row">
+<div class="v-sidebar-container">
+  <div class="v-sidebar-controls">
+    <div class="v-control-row">
       <button class="v-btn-icon v-sidebar-button" onclick={toggleSubView} title={view.homeSubView === 'library' ? "Libraries" : "Shelves"}>
         <span class="icon">{view.homeSubView === 'library' ? "auto_stories" : "newsstand"}</span>
       </button>
 
-      <div class="button-wrapper flex-grow">
+      <div class="v-button-wrapper v-flex-grow">
         <button class="v-btn-icon v-sidebar-button v-btn-menu" onclick={toggleShelfMenu} class:active={isShelfMenuOpen} title="Shelf">
           <span class="v-truncate btn-label iconless">{shelfLabel}</span>
           <span class="icon end-icon">{isShelfMenuOpen ? "arrow_drop_up" : "arrow_drop_down"}</span>
@@ -62,7 +62,7 @@
     </div>
   </div>
 
-  <div class="sidebar-scroll">
+  <div class="v-sidebar-scroll">
     <div class="v-scroll-fade-top"></div>
     {#each collection.shelvesList as shelf}
       <button 
@@ -79,56 +79,6 @@
 </div>
 
 <style>
-  .sidebar-container {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    background-color: var(--bg-panel); 
-    padding: 10px; 
-    box-sizing: border-box;
-    font-family: var(--font-stack);
-  }
-
-  .sidebar-controls {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid var(--border-muted);
-    margin-bottom: 0px;
-    flex-shrink: 0;
-  }
-
-  .control-row {
-    display: flex;
-    gap: 8px;
-    width: 100%;
-  }
-
-  .button-wrapper {
-    position: relative;
-  }
-
-  .flex-grow {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .sidebar-scroll {
-    position: relative;
-    flex: 1;
-    overflow-y: scroll;
-    padding: 0;
-    min-height: 0;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-  }
-
-  .sidebar-scroll::-webkit-scrollbar {
-    display: none;
-  }
-
   .scroll-spacer {
     height: 12px;
     flex-shrink: 0;

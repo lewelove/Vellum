@@ -109,15 +109,15 @@
   </button>
 {/snippet}
 
-<div class="sidebar-container">
+<div class="v-sidebar-container">
 
-  <div class="sidebar-controls">
-    <div class="control-row">
+  <div class="v-sidebar-controls">
+    <div class="v-control-row">
       <button class="v-btn-icon v-sidebar-button" onclick={toggleSubView} title={view.homeSubView === 'library' ? "Libraries" : "Shelves"}>
         <span class="icon">{view.homeSubView === 'library' ? "auto_stories" : "newsstand"}</span>
       </button>
 
-      <div class="button-wrapper flex-grow">
+      <div class="v-button-wrapper v-flex-grow">
         <button class="v-btn-icon v-sidebar-button v-btn-menu" onclick={toggleLibraryMenu} class:active={isLibraryMenuOpen} title="Library">
           <span class="v-truncate btn-label iconless">{libraryLabel}</span>
           <span class="icon end-icon">{isLibraryMenuOpen ? "arrow_drop_up" : "arrow_drop_down"}</span>
@@ -140,8 +140,8 @@
     </div>
 
     {#if showFilterDropdown}
-      <div class="control-row">
-        <div class="button-wrapper flex-grow">
+      <div class="v-control-row">
+        <div class="v-button-wrapper v-flex-grow">
           <button class="v-btn-icon v-sidebar-button v-btn-menu" onclick={toggleLibraryFilterMenu} class:active={isLibraryFilterMenuOpen} title="Filter">
             <span class="icon start-icon">texture</span>
             <span class="v-truncate btn-label">{filterLabel}</span>
@@ -168,8 +168,8 @@
       </div>
     {/if}
 
-    <div class="control-row">
-      <div class="button-wrapper flex-grow">
+    <div class="v-control-row">
+      <div class="v-button-wrapper v-flex-grow">
         <button class="v-btn-icon v-sidebar-button v-btn-menu" onclick={toggleGroupMenu} class:active={isGroupMenuOpen} title="Group By">
           <span class="icon start-icon">stack_group</span>
           <span class="v-truncate btn-label">{groupLabel}</span>
@@ -192,8 +192,8 @@
       </div>
     </div>
 
-    <div class="control-row">
-      <div class="button-wrapper flex-grow">
+    <div class="v-control-row">
+      <div class="v-button-wrapper v-flex-grow">
         <button class="v-btn-icon v-sidebar-button v-btn-menu" onclick={toggleSortMenu} class:active={isSortMenuOpen} title="Sort By">
           <span class="icon start-icon">swap_vert</span>
           <span class="v-truncate btn-label">{sortLabel}</span>
@@ -221,8 +221,8 @@
     </div>
   </div>
 
-  <div class="sidebar-body">
-    <div class="sidebar-scroll" bind:this={scrollContainer}>
+  <div class="v-sidebar-body">
+    <div class="v-sidebar-scroll" bind:this={scrollContainer}>
       <div class="v-scroll-fade-top"></div>
       {#each items as item, i}
         {@render Item({
@@ -244,70 +244,12 @@
 </div>
 
 <style>
-  .sidebar-container {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    background-color: var(--bg-panel); 
-    padding: 10px; 
-    box-sizing: border-box;
-    font-family: var(--font-stack);
-  }
-
-  .sidebar-controls {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid var(--border-muted);
-    margin-bottom: 0px;
-    flex-shrink: 0;
-  }
-
-  .control-row {
-    display: flex;
-    gap: 8px;
-    width: 100%;
-  }
-
-  .button-wrapper {
-    position: relative;
-  }
-
-  .flex-grow {
-    flex: 1;
-    min-width: 0;
-  }
-
   .order-arrow {
     font-size: 22px;
   }
 
   .order-arrow.mirrored {
     transform: scaleY(-1);
-  }
-
-  .sidebar-body {
-    position: relative;
-    flex: 1;
-    min-height: 0;
-    display: flex;
-    flex-direction: row;
-  }
-
-  .sidebar-scroll {
-    position: relative;
-    flex: 1;
-    overflow-y: scroll;
-    padding: 0;
-    min-height: 0;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-  }
-
-  .sidebar-scroll::-webkit-scrollbar {
-    display: none;
   }
 
   .scroll-spacer {

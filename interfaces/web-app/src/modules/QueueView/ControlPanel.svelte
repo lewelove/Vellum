@@ -132,7 +132,7 @@
             <span class="icon filled">skip_previous</span>
           </button>
           <button class="v-btn-icon control-btn" onclick={togglePlay} title="Toggle Play">
-            <span class="icon filled">{isPlaying ? "pause" : "play_arrow"}</span>
+            <span class="icon filled control">{isPlaying ? "pause" : "play_arrow"}</span>
           </button>
           <button class="v-btn-icon control-btn-lesser" onclick={next} title="Next">
             <span class="icon filled">skip_next</span>
@@ -235,7 +235,7 @@
   }
 
   .lyric-line {
-    margin: 6px 0;
+    margin: 6px 14px;
     min-height: 0.3em;
     text-wrap: balance;
   }
@@ -304,6 +304,7 @@
     width: 36px;
     height: 36px;
     border-radius: 18px;
+    font-size: 24px !important;
     flex-shrink: 0;
   }
 

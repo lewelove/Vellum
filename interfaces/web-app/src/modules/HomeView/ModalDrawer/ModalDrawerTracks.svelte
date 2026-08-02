@@ -147,7 +147,7 @@
   .disc-header-right {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
   }
 
   .disc-label, .disc-duration-label {
@@ -156,7 +156,7 @@
     padding: 0 12px;
     font-size: 12px;
     font-weight: 600;
-    color: var(--text-muted);
+    color: var(--text-subtle);
     background-color: transparent;
     border: 1px solid var(--border-muted);
     border-radius: 8px;
@@ -169,7 +169,7 @@
   }
 
   .disc-play-btn {
-    width: 36px;
+    width: 32px;
     height: 24px;
     border-radius: 18px;
   }
