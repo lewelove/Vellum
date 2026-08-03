@@ -1,7 +1,40 @@
 use anyhow::Result;
-use discogs_rs::{Auth, DiscogsClient};
+use discogs_rs::{ArtistCredit, Auth, DiscogsClient, Master, Release};
+use std::path::Path;
 
-fn build_client() -> Result<DiscogsClient> {
+pub enum TargetUrl {
+    DiscogsMaster(u64),
+    DiscogsRelease(u64),
+}
+
+pub fn parse_discogs_url(opts: &str) -> Option<TargetUrl> {
+    let url = opts.trim();
+    if let Some(id_str) = url.split("discogs.com/master/").nth(1) {
+        let id = extract_discogs_id(id_str)?;
+        return Some(TargetUrl::DiscogsMaster(id));
+    }
+    if let Some(id_str) = url.split("discogs.com/release/").nth(1) {
+        let id = extract_discogs_id(id_str)?;
+        return Some(TargetUrl::DiscogsRelease(id));
+    }
+    None
+}
+
+fn extract_discogs_id(s: &str) -> Option<u64> {
+    let clean = s
+        .split('/')
+        .next()
+        .unwrap_or(s)
+        .split('?')
+        .next()
+        .unwrap_or(s)
+        .split('-')
+        .next()
+        .unwrap_or(s);
+    clean.parse::<u64>().ok()
+}
+
+pub fn build_client() -> Result<DiscogsClient> {
     let token = std::env::var("DISCOGS_TOKEN").unwrap_or_default();
     let mut builder = DiscogsClient::with_default_user_agent();
     if !token.is_empty() {
@@ -10,19 +43,19 @@ fn build_client() -> Result<DiscogsClient> {
     Ok(builder.build()?)
 }
 
-pub async fn fetch_discogs_master(id: u64) -> Result<discogs_rs::Master> {
+pub async fn fetch_discogs_master(id: u64) -> Result<Master> {
     let client = build_client()?;
     let res = client.database().get_master(id).await?;
     Ok(res.data)
 }
 
-pub async fn fetch_discogs_release(id: u64) -> Result<discogs_rs::Release> {
+pub async fn fetch_discogs_release(id: u64) -> Result<Release> {
     let client = build_client()?;
     let res = client.database().get_release(id, None).await?;
     Ok(res.data)
 }
 
-pub async fn download_discogs_cover(url: &str, dest: &std::path::Path) -> Result<()> {
+pub async fn download_discogs_cover(url: &str, dest: &Path) -> Result<()> {
     let token = std::env::var("DISCOGS_TOKEN").unwrap_or_default();
     let client = reqwest::Client::builder()
         .user_agent("Vellum/0.1.0")
@@ -40,7 +73,8 @@ pub async fn download_discogs_cover(url: &str, dest: &std::path::Path) -> Result
     Ok(())
 }
 
-pub fn format_artist_credits(artists: &[discogs_rs::ArtistCredit]) -> String {
+#[must_use]
+pub fn format_artist_credits(artists: &[ArtistCredit]) -> String {
     let mut out = String::new();
     for artist in artists {
         let name = clean_artist_name(&artist.name);

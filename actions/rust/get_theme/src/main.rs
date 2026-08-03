@@ -6,13 +6,14 @@ mod kmeansnv;
 mod mean_shift;
 
 use anyhow::{Context, Result};
-use image::imageops::FilterType;
 use image::DynamicImage;
-use palette::{FromColor, Oklab, Oklch, Srgb};
+use image::imageops::FilterType;
+use libactions::color::{calculate_palette_ratios, sort_palette};
+use libactions::paths::expand_path;
+use libactions::payload::read_stdin_json;
+use palette::Srgb;
 use serde::Deserialize;
 use serde_json::Value;
-use std::io::Read;
-use std::path::PathBuf;
 
 #[derive(Deserialize, Default)]
 struct ScriptConfig {
@@ -25,27 +26,13 @@ struct ScriptConfig {
     open_with: Option<String>,
 }
 
-fn expand_path(path_str: &str) -> PathBuf {
-    if path_str.starts_with('~')
-        && let Some(home) = dirs::home_dir()
-    {
-        if path_str == "~" {
-            return home;
-        }
-        if let Some(stripped) = path_str.strip_prefix("~/") {
-            return home.join(stripped);
-        }
-    }
-    PathBuf::from(path_str)
-}
-
 fn main() -> Result<()> {
-    let mut stdin_data = String::new();
-    std::io::stdin().read_to_string(&mut stdin_data)?;
+    let payload: Value = read_stdin_json()?;
 
-    let payload: Value = serde_json::from_str(&stdin_data)?;
-
-    let albums = payload.get("albums").and_then(Value::as_array).context("Missing albums array")?;
+    let albums = payload
+        .get("albums")
+        .and_then(Value::as_array)
+        .context("Missing albums array")?;
 
     let library_str = payload
         .pointer("/config/vellum/storage/library")
@@ -171,128 +158,4 @@ fn process_image_to_palette(
     sort_palette(&mut palette, sort_type);
 
     Some(palette)
-}
-
-fn calculate_palette_ratios(
-    img_to_process: &DynamicImage,
-    candidate_colors: Vec<Srgb>,
-    threshold_val: f32,
-) -> Vec<(Srgb, f32)> {
-    let oklab_centers: Vec<Oklab> = candidate_colors.iter().map(|&c| Oklab::from_color(c)).collect();
-    let mut counts = vec![0usize; oklab_centers.len()];
-
-    for p in img_to_process.to_rgb8().pixels() {
-        let pixel_oklab = Oklab::from_color(Srgb::new(
-            f32::from(p[0]) / 255.0,
-            f32::from(p[1]) / 255.0,
-            f32::from(p[2]) / 255.0,
-        ));
-        let mut best_idx = 0;
-        let mut min_dist_sq = f32::MAX;
-        for (i, center) in oklab_centers.iter().enumerate() {
-            let dist_sq = (pixel_oklab.b - center.b).mul_add(pixel_oklab.b - center.b, (pixel_oklab.a - center.a).mul_add(pixel_oklab.a - center.a, (pixel_oklab.l - center.l).powi(2)));
-            if dist_sq < min_dist_sq {
-                min_dist_sq = dist_sq;
-                best_idx = i;
-            }
-        }
-        counts[best_idx] += 1;
-    }
-
-    let total_pixels = counts.iter().sum::<usize>() as f32;
-    let mut palette: Vec<(Srgb, f32)> = candidate_colors.into_iter().zip(counts).filter_map(|(color, count)| {
-        let ratio = if total_pixels > 0.0 { count as f32 / total_pixels } else { 0.0 };
-        if ratio > 0.0 { Some((color, ratio)) } else { None }
-    }).collect();
-
-    palette.retain(|&(_, ratio)| ratio >= threshold_val);
-
-    let final_total: f32 = palette.iter().map(|(_, r)| r).sum();
-    if final_total > 0.0 {
-        for item in &mut palette {
-            item.1 /= final_total;
-        }
-    }
-    palette
-}
-
-fn sort_palette(palette: &mut Vec<(Srgb, f32)>, sort_type: &str) {
-    let _ = sort_type;
-    match sort_type {
-        "L" => palette.sort_by(|a, b| {
-            let l_a = Oklch::from_color(a.0).l;
-            let l_b = Oklch::from_color(b.0).l;
-            l_b.partial_cmp(&l_a).unwrap_or(std::cmp::Ordering::Equal)
-        }),
-        "C" => palette.sort_by(|a, b| {
-            let c_a = Oklch::from_color(a.0).chroma;
-            let c_b = Oklch::from_color(b.0).chroma;
-            c_b.partial_cmp(&c_a).unwrap_or(std::cmp::Ordering::Equal)
-        }),
-        "H" => palette.sort_by(|a, b| {
-            let h_a = Oklch::from_color(a.0).hue.into_raw_degrees();
-            let h_b = Oklch::from_color(b.0).hue.into_raw_degrees();
-            h_a.partial_cmp(&h_b).unwrap_or(std::cmp::Ordering::Equal)
-        }),
-        "LC" => palette.sort_by(|a, b| {
-            let oklch_a = Oklch::from_color(a.0);
-            let oklch_b = Oklch::from_color(b.0);
-            let val_a = oklch_a.l * oklch_a.chroma;
-            let val_b = oklch_b.l * oklch_b.chroma;
-            val_b.partial_cmp(&val_a).unwrap_or(std::cmp::Ordering::Equal)
-        }),
-        "gradient" => sort_palette_gradient(palette),
-        _ => palette.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal)),
-    }
-}
-
-fn sort_palette_gradient(palette: &mut Vec<(Srgb, f32)>) {
-    if palette.is_empty() { return; }
-    let mut pool: Vec<(Oklab, Srgb, f32)> = palette.iter()
-        .map(|&(srgb, ratio)| (Oklab::from_color(srgb), srgb, ratio))
-        .collect();
-
-    let mut sorted = Vec::with_capacity(pool.len());
-    
-    let start_idx = pool.iter().enumerate()
-        .max_by(|(_, (ok_a, _, _)), (_, (ok_b, _, _))| {
-            ok_a.l.partial_cmp(&ok_b.l).unwrap_or(std::cmp::Ordering::Equal)
-        })
-        .map_or(0, |(i, _)| i);
-
-    let first = pool.remove(start_idx);
-    let mut current_ok = first.0;
-    sorted.push((first.1, first.2));
-
-    let end_node_idx = if pool.is_empty() {
-        None
-    } else {
-        pool.iter().enumerate()
-            .min_by(|(_, (ok_a, _, _)), (_, (ok_b, _, _))| {
-                ok_a.l.partial_cmp(&ok_b.l).unwrap_or(std::cmp::Ordering::Equal)
-            })
-            .map(|(i, _)| i)
-    };
-
-    let end_node = end_node_idx.map(|idx| pool.remove(idx));
-
-    while !pool.is_empty() {
-        let next_idx = pool.iter().enumerate()
-            .min_by(|(_, (ok_a, _, _)), (_, (ok_b, _, _))| {
-                let dist_a = (ok_a.b - current_ok.b).mul_add(ok_a.b - current_ok.b, (ok_a.a - current_ok.a).mul_add(ok_a.a - current_ok.a, (ok_a.l - current_ok.l).powi(2)));
-                let dist_b = (ok_b.b - current_ok.b).mul_add(ok_b.b - current_ok.b, (ok_b.a - current_ok.a).mul_add(ok_b.a - current_ok.a, (ok_b.l - current_ok.l).powi(2)));
-                dist_a.partial_cmp(&dist_b).unwrap_or(std::cmp::Ordering::Equal)
-            })
-            .map_or(0, |(i, _)| i);
-        
-        let next = pool.remove(next_idx);
-        current_ok = next.0;
-        sorted.push((next.1, next.2));
-    }
-
-    if let Some(node) = end_node {
-        sorted.push((node.1, node.2));
-    }
-
-    *palette = sorted;
 }

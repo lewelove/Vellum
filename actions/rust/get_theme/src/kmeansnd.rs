@@ -1,10 +1,7 @@
 use image::DynamicImage;
 use kmeans_colors::get_kmeans_hamerly;
+use libactions::color::get_oklab_dist;
 use palette::{FromColor, Lab, Oklab, Oklch, Srgb};
-
-fn get_oklab_dist(c1: &Oklab, c2: &Oklab) -> f32 {
-    (c1.b - c2.b).mul_add(c1.b - c2.b, (c1.a - c2.a).mul_add(c1.a - c2.a, (c1.l - c2.l).powi(2))).sqrt()
-}
 
 pub fn extract(img: &DynamicImage, args: &str) -> Vec<Srgb> {
     let k = args.split(',')

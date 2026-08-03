@@ -23,11 +23,6 @@ pub struct FormattingConfig {
     pub info: String,
 }
 
-pub enum TargetUrl {
-    DiscogsMaster(u64),
-    DiscogsRelease(u64),
-}
-
 pub struct Track {
     pub discnumber: u32,
     pub tracknumber: u32,

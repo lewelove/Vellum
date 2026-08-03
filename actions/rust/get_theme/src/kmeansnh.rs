@@ -1,11 +1,7 @@
 use image::DynamicImage;
 use kmeans_colors::get_kmeans_hamerly;
+use libactions::color::get_hue_dist;
 use palette::{FromColor, Lab, Oklch, Srgb};
-
-fn get_hue_dist(h1: f32, h2: f32) -> f32 {
-    let diff = (h1 - h2).abs() % 360.0;
-    if diff > 180.0 { 360.0 - diff } else { diff }
-}
 
 pub fn extract(img: &DynamicImage, args: &str) -> Vec<Srgb> {
     let k = args.split(',')

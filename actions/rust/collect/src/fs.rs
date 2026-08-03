@@ -1,6 +1,7 @@
-use crate::api;
 use crate::models::{AlbumData, FormattingConfig};
 use anyhow::Result;
+use libactions::discogs;
+use libactions::fs::{escape_toml_string, sanitize_filename, toml_array};
 use std::fs;
 use std::path::Path;
 
@@ -45,7 +46,7 @@ pub async fn create_album_directory(
     if let Some(url) = &data.discogs_cover_url {
         let ext = extract_extension(url);
         let cover_root = album_path.join(format!("cover.{ext}"));
-        if let Err(e) = api::download_discogs_cover(url, &cover_root).await {
+        if let Err(e) = discogs::download_discogs_cover(url, &cover_root).await {
             eprintln!("Failed to download cover: {e:?}");
         }
     } else {
@@ -53,10 +54,6 @@ pub async fn create_album_directory(
     }
 
     Ok(())
-}
-
-fn sanitize_filename(name: &str) -> String {
-    name.replace(&['/', '<', '>', ':', '"', '\\', '|', '?', '*'][..], "_")
 }
 
 fn extract_extension(url: &str) -> String {
@@ -67,18 +64,6 @@ fn extract_extension(url: &str) -> String {
     } else {
         "jpg".to_string()
     }
-}
-
-fn escape_toml_string(s: &str) -> String {
-    s.replace('\\', "\\\\").replace('"', "\\\"")
-}
-
-fn toml_array(arr: &[String]) -> String {
-    let escaped: Vec<String> = arr
-        .iter()
-        .map(|s| format!("\"{}\"", escape_toml_string(s)))
-        .collect();
-    format!("[{}]", escaped.join(", "))
 }
 
 fn write_metadata_toml(data: &AlbumData, path: &Path) -> Result<()> {
