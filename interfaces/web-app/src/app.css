@@ -195,6 +195,7 @@ main {
 }
 
 .v-menu-item {
+  position: relative;
   display: block;
   width: 100%;
   text-align: left;
@@ -211,14 +212,28 @@ main {
   transition: none;
 }
 
+.v-menu-item::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background-color: var(--color-ok100);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.v-menu-item:hover::before,
+.v-menu-item.selected::before {
+  opacity: 0.08;
+}
+
 .v-menu-item:hover {
-  background-color: var(--bg-item-hover);
   color: var(--text-main);
 }
 
 .v-menu-item.selected {
   color: var(--text-main);
-  background-color: var(--bg-item-active);
 }
 
 .icon {
@@ -257,7 +272,8 @@ main {
 }
 
 .v-btn-icon {
-  background-color: var(--bg-button-inactive);
+  position: relative;
+  background-color: transparent;
   border: none;
   display: flex;
   align-items: center;
@@ -265,12 +281,29 @@ main {
   cursor: pointer;
   box-shadow: var(--button-shadow);
   box-sizing: border-box;
-  position: relative;
   transition: box-shadow 0.3s ease;
+}
+
+.v-btn-icon::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background-color: var(--color-ok100);
+  opacity: 0.08;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.v-btn-icon:hover::before,
+.v-btn-icon.active::before {
+  opacity: 0.16;
 }
 
 .v-btn-icon img,
 .v-btn-icon .icon {
+  position: relative;
+  z-index: 1;
   opacity: var(--a2);
   pointer-events: none;
 }
@@ -298,12 +331,10 @@ main {
 }
 
 .v-btn-icon:hover {
-  background-color: var(--bg-button-hover);
   opacity: var(--a1);
 }
 
 .v-btn-icon.active {
-  background-color: var(--bg-button-active);
   opacity: var(--a1);
 }
 
@@ -413,6 +444,7 @@ main {
 }
 
 .v-sidebar-item {
+  position: relative;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -432,23 +464,41 @@ main {
   transition: none;
 }
 
+.v-sidebar-item::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background-color: var(--color-ok100);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.v-sidebar-item:hover::before,
+.v-sidebar-item.active::before {
+  opacity: 0.08;
+}
+
 .v-sidebar-item:hover {
-  background-color: var(--bg-item-hover);
   color: var(--text-main);
 }
 
 .v-sidebar-item.active {
-  background-color: var(--bg-item-active);
   color: var(--text-main);
 }
 
 .v-sidebar-item .label {
+  position: relative;
+  z-index: 1;
   flex: 1;
   margin-right: 8px;
   font-family: var(--font-stack);
 }
 
 .v-sidebar-item .count {
+  position: relative;
+  z-index: 1;
   margin-left: 8px;
   font-size: 12px;
   color: var(--text-subtle);
@@ -478,7 +528,8 @@ main {
 }
 
 .v-track-row {
-  background-color: var(--bg-item-inactive);
+  position: relative;
+  background-color: transparent;
   display: flex;
   align-items: flex-start;
   color: var(--text-main);
@@ -492,12 +543,20 @@ main {
   transition: none;
 }
 
-.v-track-row:hover {
-  background-color: var(--bg-item-hover);
+.v-track-row::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background-color: var(--color-ok100);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 0;
 }
 
-.v-track-row.active {
-  background-color: var(--bg-item-active);
+.v-track-row:hover::before,
+.v-track-row.active::before {
+  opacity: 0.08;
 }
 
 .v-track-body {
