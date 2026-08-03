@@ -33,9 +33,18 @@ pub fn build(
     let config_json = serde_json::to_value(&config.app).unwrap_or_else(|_| json!({}));
     let id_str = libvellum::resolvers::rel_path(album_root, &library_root);
 
+    let project_root_str = config.path.parent().unwrap_or_else(|| Path::new(".")).to_string_lossy();
+    let album_root_str = album_root.to_string_lossy();
+    let library_root_str = library_root.to_string_lossy();
+
     let ctx = json!({
         "config": config_json,
         "id": id_str,
+        "paths": {
+            "album_root": album_root_str,
+            "project_root": project_root_str,
+            "library_root": library_root_str
+        },
         "total_discs": total_discs,
         "total_tracks": total_tracks,
         "duration_milliseconds": duration_sum_ms,
@@ -73,7 +82,6 @@ pub fn build(
         track_keys_array,
         &ctx_tracks,
         album_root,
-        total_discs,
     )?;
 
     let mut album_obj = serde_json::Map::new();
@@ -104,9 +112,9 @@ pub fn build(
     final_json.insert("tracks".to_string(), Value::Array(final_tracks));
     final_json.insert("ctx".to_string(), json!({
         "paths": {
-            "album_root": album_root.to_string_lossy(),
-            "project_root": config.path.parent().unwrap_or_else(|| Path::new(".")).to_string_lossy(),
-            "library_root": library_root.to_string_lossy()
+            "album_root": album_root_str,
+            "project_root": project_root_str,
+            "library_root": library_root_str
         }
     }));
 

@@ -232,37 +232,6 @@ pub async fn get_album_cover(
     StatusCode::NOT_FOUND.into_response()
 }
 
-pub async fn get_lyrics(
-    Path((id, path)): Path<(String, String)>,
-    State(state): State<Arc<AppState>>,
-) -> Response {
-    let full_path = {
-        let config_guard = state.config.read().await;
-        config_guard.library_root.join(&id).join(&path)
-    };
-
-    if full_path.exists()
-        && full_path.is_file()
-        && let Ok(mut file) = File::open(&full_path).await
-    {
-        let mut buf = String::new();
-        if file.read_to_string(&mut buf).await.is_ok() {
-            return ([
-                    (
-                        header::CONTENT_TYPE,
-                        HeaderValue::from_static("text/plain; charset=utf-8"),
-                    ),
-                    (header::CACHE_CONTROL, HeaderValue::from_static("no-cache")),
-                ],
-                buf,
-            )
-                .into_response();
-        }
-    }
-
-    StatusCode::NOT_FOUND.into_response()
-}
-
 async fn serve_image(path: PathBuf, is_immutable: bool) -> Response {
     if let Ok(mut file) = File::open(&path).await {
         let mut buf = Vec::new();

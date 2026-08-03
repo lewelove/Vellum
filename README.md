@@ -125,12 +125,12 @@ vl.config({
 -- you want to load from TOML manifests and be present in `album.lock.json`
 
 -- [album.lock.json].album.keys level
-vl.compiler.album.key({
+vl.compile.album.key({
   album_key_name = true
 })
 
 -- [album.lock.json].tracks[].keys level
-vl.compiler.tracks.key({ 
+vl.compile.tracks.key({ 
   track_key_name = true
 })
 

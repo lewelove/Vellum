@@ -72,8 +72,11 @@ pub struct AlbumLock {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct LyricsEntry {
-    pub file: FileInfo,
+pub struct LyricsData {
+    #[serde(default)]
+    pub r#type: String,
+    #[serde(default)]
+    pub text: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -105,7 +108,7 @@ pub struct TrackLock {
     pub info: TrackInfo,
     pub file: FileInfo,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub lyrics: Option<LyricsEntry>,
+    pub lyrics: Option<LyricsData>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

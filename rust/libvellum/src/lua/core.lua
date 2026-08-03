@@ -5,6 +5,7 @@ _G.REGISTRY = {
         album = {},
         tracks = {}
     },
+    lyrics = nil,
     interfaces = {},
     actions = {},
     dependencies = {},

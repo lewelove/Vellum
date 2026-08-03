@@ -61,7 +61,6 @@ pub fn build_final_tracks(
     track_keys_array: Option<&Vec<Value>>,
     ctx_tracks: &[Value],
     album_root: &Path,
-    total_discs: u32,
 ) -> Result<Vec<Value>, VellumError> {
     let mut final_tracks = Vec::new();
 
@@ -78,6 +77,7 @@ pub fn build_final_tracks(
         })?.to_string();
 
         let mut t_keys = track_keys_array.and_then(|arr| arr.get(i)).cloned().unwrap_or_else(|| json!({}));
+        let lyrics_val = t_keys.as_object_mut().and_then(|m| m.remove("lyrics"));
         sort_json_keys(&mut t_keys);
 
         let ctx_track = &ctx_tracks[i];
@@ -101,14 +101,8 @@ pub fn build_final_tracks(
         t_obj.insert("info".to_string(), t_info);
         t_obj.insert("file".to_string(), ctx_track.get("file").cloned().unwrap_or_else(|| json!({})));
 
-        let lyrics_path_str = t_val.get("lyrics_path").and_then(Value::as_str).map(ToString::to_string)
-            .or_else(|| libvellum::resolvers::resolve_lyrics_path(album_root, tracknumber, discnumber, total_discs));
-        
-        if let Some(lp) = lyrics_path_str {
-            let abs_lp = album_root.join(&lp);
-            if let Ok(file_info) = libvellum::utils::get_file_info(&abs_lp, &lp, false) {
-                t_obj.insert("lyrics".to_string(), json!({ "file": file_info }));
-            }
+        if let Some(l_val) = lyrics_val {
+            t_obj.insert("lyrics".to_string(), l_val);
         }
 
         final_tracks.push(Value::Object(t_obj));

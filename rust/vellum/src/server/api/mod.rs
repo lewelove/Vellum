@@ -23,7 +23,6 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/api/covers/{algo}/{size}/{hash}", get(assets::get_resized_cover))
         .route("/api/album/{*id}", get(assets::get_album_metadata))
         .route("/api/assets/cover/{*id}", get(assets::get_album_cover))
-        .route("/api/assets/lyrics/{id}/{*path}", get(assets::get_lyrics))
         .route("/api/play/{*id}", post(playback::play_album))
         .route("/api/play-disc/{*id}", post(playback::play_disc))
         .route("/api/queue/{*id}", post(playback::queue_album))

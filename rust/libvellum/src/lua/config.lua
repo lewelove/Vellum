@@ -47,8 +47,8 @@ _G.vl.actions = function(t)
     end
 end
 
-_G.vl.compiler = _G.vl.compiler or {}
-_G.vl.compiler.covers = function(name, t)
+_G.vl.compile = _G.vl.compile or {}
+_G.vl.compile.covers = function(name, t)
     REGISTRY.covers[name] = t
 end
 

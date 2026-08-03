@@ -12,7 +12,6 @@ let currentTrackFull = $derived(
 );
 
 let lyricsText = $state("");
-let isLoading = $state(false);
 let isInstrumental = $derived(currentTrackFull?.keys?.instrumental === true);
 
 let title = $derived(currentTrackFull?.title || player.title || "Unknown Title");
@@ -60,45 +59,23 @@ async function prev() {
   } catch (e) {}
 }
 
-async function fetchLyrics(trackFull: any) {
-  if (!trackFull) {
+function updateLyrics(trackFull: any) {
+  if (!trackFull || trackFull.keys?.instrumental === true) {
     lyricsText = "";
     return;
   }
 
-  if (trackFull.keys?.instrumental === true) {
-    lyricsText = "";
-    isLoading = false;
-    return;
-  }
-
-  if (trackFull.lyrics && trackFull.lyrics.file) {
-    isLoading = true;
-    try {
-      const encodedId = encodeURIComponent(activeId as string);
-      const pathPart = trackFull.lyrics.file.path;
-      const url = `/api/assets/lyrics/${encodedId}/${pathPart}`;
-
-      const res = await fetch(url);
-      if (res.ok) {
-        lyricsText = await res.text();
-        isLoading = false;
-        return;
-      }
-    } catch (e) {}
-  }
-
-  if (trackFull.keys && trackFull.keys.lyrics) {
+  if (trackFull.lyrics && trackFull.lyrics.text) {
+    lyricsText = trackFull.lyrics.text;
+  } else if (trackFull.keys && trackFull.keys.lyrics) {
     lyricsText = trackFull.keys.lyrics;
   } else {
     lyricsText = "";
   }
-
-  isLoading = false;
 }
 
 $effect(() => {
-  fetchLyrics(currentTrackFull);
+  updateLyrics(currentTrackFull);
 });
 </script>
 
