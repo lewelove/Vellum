@@ -40,6 +40,7 @@ function handleKeydown(e: KeyboardEvent) {
   <div class="v-sidebar-controls">
     <div class="v-control-row">
       <button
+        type="button"
         class="v-btn-icon v-sidebar-button"
         onclick={toggleSubView}
         title={view.homeSubView === "library" ? "Libraries" : "Shelves"}
@@ -49,6 +50,7 @@ function handleKeydown(e: KeyboardEvent) {
 
       <div class="v-button-wrapper v-flex-grow">
         <button
+          type="button"
           class="v-btn-icon v-sidebar-button v-btn-menu"
           onclick={toggleShelfMenu}
           class:active={isShelfMenuOpen}
@@ -60,8 +62,9 @@ function handleKeydown(e: KeyboardEvent) {
 
         {#if isShelfMenuOpen}
           <div class="v-menu">
-            {#each collection.shelvesList as shelf}
+            {#each collection.shelvesList as shelf (shelf.key)}
               <button
+                type="button"
                 class="v-menu-item"
                 class:selected={activeShelf === shelf.key}
                 onclick={() => selectShelf(shelf.key)}
@@ -77,8 +80,9 @@ function handleKeydown(e: KeyboardEvent) {
 
   <div class="v-sidebar-scroll">
     <div class="v-scroll-fade-top"></div>
-    {#each collection.shelvesList as shelf}
+    {#each collection.shelvesList as shelf (shelf.key)}
       <button
+        type="button"
         class="v-sidebar-item"
         class:active={activeShelf === shelf.key}
         onclick={() => selectShelf(shelf.key)}

@@ -1,5 +1,6 @@
 <script lang="ts">
 import { fade } from "svelte/transition";
+import { SvelteMap } from "svelte/reactivity";
 
 let { items = [], container = null }: { items?: any[]; container?: HTMLElement | null } = $props();
 
@@ -22,7 +23,7 @@ function getBucketChar(label: string) {
 }
 
 let charJumpMap = $derived.by(() => {
-  const map = new Map();
+  const map = new SvelteMap<string, number>();
   items.forEach((item, i) => {
     const char = getBucketChar(item.label);
     if (!map.has(char)) {
@@ -33,8 +34,9 @@ let charJumpMap = $derived.by(() => {
   let nextAvailableIdx = items.length > 0 ? items.length - 1 : 0;
   for (let i = ALL_CHARS.length - 1; i >= 0; i--) {
     const char = ALL_CHARS[i];
-    if (map.has(char)) {
-      nextAvailableIdx = map.get(char);
+    const val = map.get(char);
+    if (val !== undefined) {
+      nextAvailableIdx = val;
     } else {
       map.set(char, nextAvailableIdx);
     }
@@ -109,7 +111,7 @@ function onPointerUp(e: PointerEvent) {
   tabindex="0"
 >
   <div class="chars-wrapper" bind:this={charsWrapper}>
-    {#each ALL_CHARS as char}
+    {#each ALL_CHARS as char (char)}
       <div class="index-char" class:active={isScrubbing && char === scrubChar}>
         {char}
       </div>

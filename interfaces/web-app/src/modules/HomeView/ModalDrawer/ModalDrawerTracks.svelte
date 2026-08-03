@@ -70,7 +70,7 @@ function handlePlayDisc(discNumber: number) {
 </script>
 
 <div class="tracks-list">
-  {#each tracks as track, i}
+  {#each tracks as track, i (track.id || `${track.discnumber}-${track.tracknumber}-${i}`)}
     {#if multiDisc && (i === 0 || track.discnumber !== tracks[i - 1].discnumber)}
       {#if i > 0}
         <div class="disc-separator"></div>
@@ -81,6 +81,7 @@ function handlePlayDisc(discNumber: number) {
         <div class="disc-header-right">
           <span class="v-mono disc-duration-label">{getDiscDuration(track.discnumber)}</span>
           <button
+            type="button"
             class="v-btn-icon disc-play-btn"
             onclick={() => handlePlayDisc(track.discnumber)}
             title="Play Disc {track.discnumber}"

@@ -1,3 +1,4 @@
+import { SvelteMap } from "svelte/reactivity";
 import { sync } from "./sync.svelte.ts";
 import { updatePlayerState } from "../modules/player.svelte.ts";
 import { config as globalConfig, updateConfig } from "../config.svelte.ts";
@@ -7,7 +8,7 @@ class CollectionStore {
   trackPathMap: Record<string, any> = $state({});
   sidebarShelves: Record<string, string[]> = $state({});
   libraryViewIds: string[] = $state([]);
-  sidebarGroups: Map<string, any[]> = $state(new Map());
+  sidebarGroups: SvelteMap<string, any[]> = $state(new SvelteMap());
   fullAlbumCache: Record<string, any> = $state({});
   manifest: Record<string, any> = $state({
     filters: {},
@@ -32,7 +33,7 @@ class CollectionStore {
     } else if (json.type === "VIEW_DATA") {
       this.libraryViewIds = json.ids || [];
     } else if (json.type === "GROUP_RESULT") {
-      const newMap = new Map(this.sidebarGroups);
+      const newMap = new SvelteMap(this.sidebarGroups);
       newMap.set(json.key, json.result);
       this.sidebarGroups = newMap;
     } else if (json.type === "ALBUM_REMOVED") {

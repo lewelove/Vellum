@@ -1,5 +1,6 @@
 <script lang="ts">
 import { onMount, onDestroy } from "svelte";
+import { SvelteSet, SvelteMap } from "svelte/reactivity";
 import { GridController } from "./GridController.svelte.ts";
 import { config } from "../../../config.svelte.ts";
 import { colorsState } from "../../../colors.svelte.ts";
@@ -26,11 +27,11 @@ let dpr = 1;
 let canvasEl: HTMLCanvasElement | undefined;
 let ctx: CanvasRenderingContext2D | null = null;
 
-const activeKeys = new Set<string>();
+const activeKeys = new SvelteSet<string>();
 const SCROLL_SPEED = 0.2;
 
 let hoveredAlbum: any = null;
-let textCache = new Map<string, HTMLCanvasElement>();
+let textCache = new SvelteMap<string, HTMLCanvasElement>();
 let emptyCoverCanvas: any = null;
 let isTabVisible = true;
 

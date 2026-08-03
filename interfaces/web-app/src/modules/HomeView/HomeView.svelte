@@ -42,7 +42,7 @@ function startResizing() {
 
     <aside class="sidebar-shell right" class:dormant={isModalVisible}>
       <div class="sidebar-panel">
-        <button class="sidebar-resizer" onmousedown={startResizing} aria-label="Resize sidebar"
+        <button type="button" class="sidebar-resizer" onmousedown={startResizing} aria-label="Resize sidebar"
         ></button>
         <div class="sidebar-inner">
           {#if view.homeSubView === "shelves"}

@@ -13,6 +13,7 @@ async function handleOpenConfig() {
 
 {#snippet NavButton({ icon, tab }: { icon: string; tab: string })}
   <button
+    type="button"
     class="v-btn-icon v-sidebar-button"
     class:active={nav.activeTab === tab}
     onclick={() => setTab(tab)}
@@ -36,6 +37,7 @@ async function handleOpenConfig() {
 
   <div class="nav-group bottom">
     <button
+      type="button"
       class="v-btn-icon v-sidebar-button round"
       onclick={handleOpenConfig}
       title="Open Config"

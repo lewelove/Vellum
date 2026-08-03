@@ -33,9 +33,6 @@ function formatTime(totalSeconds: number) {
 
 $effect(() => {
   tickingElapsed = player.elapsed || 0;
-});
-
-$effect(() => {
   if (player.state !== "play") return;
   const startUpdated = player.lastUpdated;
   const startElapsed = player.elapsed;
@@ -125,7 +122,7 @@ $effect(() => {
             <div class="instrumental-msg">INSTRUMENTAL</div>
           {:else if lyricsText}
             <div class="lyrics-content">
-              {#each lyricsText.split(/\r?\n/) as line}
+              {#each lyricsText.split(/\r?\n/) as line, i (i)}
                 <p class="lyric-line">{line}</p>
               {/each}
             </div>
@@ -143,13 +140,13 @@ $effect(() => {
         </div>
 
         <div class="controls-container">
-          <button class="v-btn-icon control-btn-lesser" onclick={prev} title="Previous">
+          <button type="button" class="v-btn-icon control-btn-lesser" onclick={prev} title="Previous">
             <span class="icon filled">skip_previous</span>
           </button>
-          <button class="v-btn-icon control-btn" onclick={togglePlay} title="Toggle Play">
+          <button type="button" class="v-btn-icon control-btn" onclick={togglePlay} title="Toggle Play">
             <span class="icon filled control">{isPlaying ? "pause" : "play_arrow"}</span>
           </button>
-          <button class="v-btn-icon control-btn-lesser" onclick={next} title="Next">
+          <button type="button" class="v-btn-icon control-btn-lesser" onclick={next} title="Next">
             <span class="icon filled">skip_next</span>
           </button>
         </div>

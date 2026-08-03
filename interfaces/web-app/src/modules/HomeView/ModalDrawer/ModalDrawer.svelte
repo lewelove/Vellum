@@ -119,10 +119,11 @@ function handleBackdropClick(e: MouseEvent) {
       <div class="column-right">
         <div class="button-bar">
           <div class="bar-group">
-            <button class="v-btn-icon icon-btn" onclick={handleUpdate} title="Update Album">
+            <button type="button" class="v-btn-icon icon-btn" onclick={handleUpdate} title="Update Album">
               <span class="icon">refresh</span>
             </button>
             <button
+              type="button"
               class="v-btn-icon icon-btn"
               onclick={() => executeAction("open_folder", album.id)}
               title="Open Local Folder"
@@ -130,6 +131,7 @@ function handleBackdropClick(e: MouseEvent) {
               <span class="icon">folder</span>
             </button>
             <button
+              type="button"
               class="v-btn-icon icon-btn"
               onclick={() => executeAction("open_manifest", album.id)}
               title="Open Manifest"
@@ -137,6 +139,7 @@ function handleBackdropClick(e: MouseEvent) {
               <span class="icon">edit_document</span>
             </button>
             <button
+              type="button"
               class="v-btn-icon icon-btn"
               onclick={() => executeAction("open_lock", album.id)}
               title="Open Data Object"
@@ -144,6 +147,7 @@ function handleBackdropClick(e: MouseEvent) {
               <span class="icon">code</span>
             </button>
             <button
+              type="button"
               class="v-btn-icon icon-btn"
               onclick={() => executeAction("open_terminal", album.id)}
               title="Open Terminal"
@@ -153,7 +157,7 @@ function handleBackdropClick(e: MouseEvent) {
           </div>
 
           <div class="bar-group right">
-            <button class="v-btn-icon icon-btn" onclick={handlePlay} title="Play Album">
+            <button type="button" class="v-btn-icon icon-btn" onclick={handlePlay} title="Play Album">
               <span class="icon filled">play_arrow</span>
             </button>
           </div>

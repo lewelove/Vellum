@@ -117,7 +117,7 @@ function toggleDirection() {
   active: boolean;
   onclick: () => void;
 })}
-  <button id="sidebar-item-{index}" class="v-sidebar-item" class:active {onclick}>
+  <button type="button" id="sidebar-item-{index}" class="v-sidebar-item" class:active {onclick}>
     <span class="v-truncate label" title={label}>{label}</span>
     {#if showCount}
       <span class="count">{count}</span>
@@ -129,6 +129,7 @@ function toggleDirection() {
   <div class="v-sidebar-controls">
     <div class="v-control-row">
       <button
+        type="button"
         class="v-btn-icon v-sidebar-button"
         onclick={toggleSubView}
         title={view.homeSubView === "library" ? "Libraries" : "Shelves"}
@@ -138,6 +139,7 @@ function toggleDirection() {
 
       <div class="v-button-wrapper v-flex-grow">
         <button
+          type="button"
           class="v-btn-icon v-sidebar-button v-btn-menu"
           onclick={toggleLibraryMenu}
           class:active={isLibraryMenuOpen}
@@ -151,8 +153,9 @@ function toggleDirection() {
 
         {#if isLibraryMenuOpen}
           <div class="v-menu">
-            {#each collection.librariesList as lib}
+            {#each collection.librariesList as lib (lib.key)}
               <button
+                type="button"
                 class="v-menu-item"
                 class:selected={view.activeLibrary === lib.key}
                 onclick={() => selectLibrary(lib.key)}
@@ -169,6 +172,7 @@ function toggleDirection() {
       <div class="v-control-row">
         <div class="v-button-wrapper v-flex-grow">
           <button
+            type="button"
             class="v-btn-icon v-sidebar-button v-btn-menu"
             onclick={toggleLibraryFilterMenu}
             class:active={isLibraryFilterMenuOpen}
@@ -183,8 +187,9 @@ function toggleDirection() {
 
           {#if isLibraryFilterMenuOpen}
             <div class="v-menu">
-              {#each allowedFilters as fKey}
+              {#each allowedFilters as fKey (fKey)}
                 <button
+                  type="button"
                   class="v-menu-item"
                   class:selected={view.activeLibraryFilter === fKey}
                   onclick={() => {
@@ -204,6 +209,7 @@ function toggleDirection() {
     <div class="v-control-row">
       <div class="v-button-wrapper v-flex-grow">
         <button
+          type="button"
           class="v-btn-icon v-sidebar-button v-btn-menu"
           onclick={toggleGroupMenu}
           class:active={isGroupMenuOpen}
@@ -216,8 +222,9 @@ function toggleDirection() {
 
         {#if isGroupMenuOpen}
           <div class="v-menu">
-            {#each collection.getVisibleFacets(view.activeLibrary) as { key, label }}
+            {#each collection.getVisibleFacets(view.activeLibrary) as { key, label } (key)}
               <button
+                type="button"
                 class="v-menu-item"
                 class:selected={view.activeSidebarGrouper === key}
                 onclick={() => selectGrouper(key)}
@@ -233,6 +240,7 @@ function toggleDirection() {
     <div class="v-control-row">
       <div class="v-button-wrapper v-flex-grow">
         <button
+          type="button"
           class="v-btn-icon v-sidebar-button v-btn-menu"
           onclick={toggleSortMenu}
           class:active={isSortMenuOpen}
@@ -245,8 +253,9 @@ function toggleDirection() {
 
         {#if isSortMenuOpen}
           <div class="v-menu">
-            {#each collection.getVisibleOrders(view.activeLibrary) as { key, label }}
+            {#each collection.getVisibleOrders(view.activeLibrary) as { key, label } (key)}
               <button
+                type="button"
                 class="v-menu-item"
                 class:selected={view.userSortPreference === key}
                 onclick={() => selectOrder(key)}
@@ -259,6 +268,7 @@ function toggleDirection() {
       </div>
 
       <button
+        type="button"
         class="v-btn-icon v-sidebar-button"
         onclick={toggleDirection}
         title={isReverse ? "Reverse Order" : "Default Order"}
@@ -271,7 +281,7 @@ function toggleDirection() {
   <div class="v-sidebar-body">
     <div class="v-sidebar-scroll" bind:this={scrollContainer}>
       <div class="v-scroll-fade-top"></div>
-      {#each items as item, i}
+      {#each items as item, i (item.value || item.label || i)}
         {@render Item({
           index: i,
           label: item.label,

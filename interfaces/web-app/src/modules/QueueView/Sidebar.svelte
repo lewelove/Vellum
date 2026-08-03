@@ -22,6 +22,7 @@ async function handleFocus() {
   <div class="sidebar-top-section">
     <div class="sidebar-group top">
       <button
+        type="button"
         class="v-btn-icon v-sidebar-button round"
         disabled={!activeId}
         onclick={handleFocus}
@@ -31,6 +32,7 @@ async function handleFocus() {
       </button>
       {#if hasPalette}
         <button
+          type="button"
           class="v-btn-icon v-sidebar-button"
           class:active={view.isShaderEnabled}
           disabled={isStopped}

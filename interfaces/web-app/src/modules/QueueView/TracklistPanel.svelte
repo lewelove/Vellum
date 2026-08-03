@@ -83,7 +83,7 @@ let groupedQueue = $derived.by(() => {
   <div class="panel-inner">
     <div class="tracks-list-container">
       <div class="tracks-list">
-        {#each groupedQueue as group}
+        {#each groupedQueue as group, groupIdx (group.albumId || groupIdx)}
           {#if group.albumMeta}
             <div class="album-group-header">
               <div class="header-content">
