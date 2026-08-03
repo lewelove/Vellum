@@ -4,9 +4,11 @@ Vellum is an MPD client and an album-centric library manager built from the firs
 
 ## Philosophy
 
-- **The Album as The Fundamental Collection Unit**. Vellum focuses solely on collection and management of music albums. The point, I guess, is to bring back the feeling of physical collecting to the digital world. An album is the fundamental unit of Vellum because an album is the fundamental unit of any music collection in real life.
+- **The Album as The Fundamental Collection Unit.** Vellum focuses solely on collection and management of music albums. The point, I guess, is to bring back the feeling of physical collecting to the digital world. An album is the fundamental unit of Vellum because an album is the fundamental unit of any music collection in real life.
 
-- **Immutable Audio / Mutable Metadata**. Audio files making up the album should be a bit-perfect preservation of the original media. Audio files are inherently static; Your metadata is inherently dynamic. This is the reason why Vellum treats audio strictly as a read-only source and separates everything mutable into separate ancillary files.
+- **Immutable Audio / Mutable Metadata.** Audio files making up the album should be a bit-perfect preservation of the original media. Audio files are inherently static; Your metadata is inherently dynamic. This is the reason why Vellum treats audio strictly as a read-only source and separates everything mutable into separate ancillary files.
+
+- **Power to The User.** The whole point of Unix Philosophy in Vellum is that you are not bounded by the collection interface choices. Plain-text is *the* universal interface. To build upon it is to bring raw power and future-proof compatibility for the decades to **your** collection.
 
 ## Cool Features
 
@@ -20,7 +22,7 @@ For the analogy's sake let's imagine an album directory as an entry in the physi
 **Vellum is the Rust web server first — the User Interface intentionally comes second.** The separation of concerns is essential in Unix Philosophy. Want to change UI theme? Want to add some cool display feature? No need to worry. You can directly edit contents of the `web-app/` or completely rewrite your own UI in a WebDev stack and run it in a browser — wiring it up to a running Vellum server using its Web API **today**. Furthermore, literally any UI framework supporting Web API functionality can control MPD and retrieve library and album data through Vellum. You can build TUI apps, Godot based game-interfaces, or you can even use Curl to control it if you really want to. The project's goal is to provide robust primitives, so you can interface your album collection in any weird & brilliant way possible.
 
 ### Vellum Actions
-Since every album is compiled into a plaintext JSON — every album becomes scriptable. **Vellum Action** is a concept of a standalone executable that reads intermediary JSON from stdin (provided by Vellum and populated with albums and config data at runtime) and performs some kind of logic based on this data. That's it. You can write actions in any language that supports reading JSONs (or even use simple POSIX scripts with Jq) and use them to infinitely expand Vellum functionality in Unix Philosophy style. Each action is configurable via its own CLI arguments and `vellum.lua` config functions. For built-in actions and more context of what they may be useful for look into the `actions/` directory.
+Since every album is compiled into a plaintext JSON — every album becomes scriptable. **Vellum Action** is a concept of a standalone executable that reads intermediary JSON from stdin (provided by Vellum and populated with albums and config data at runtime) and performs some kind of logic based on this data. That's it. You can write actions in any language that supports reading JSONs (or even in simple shell scripts with Jq) and use them to infinitely expand Vellum functionality in Unix Philosophy style. Each action is configurable via its own CLI arguments and `vellum.lua` config. Every action is callable by its own `/api/actions/{action_name}/` endpoint, so they can be wired up to and executed from any future interface. For built-in actions and more context of what they may be useful for look into the `actions/` directory.
 
 ## Interface Showcase
 
