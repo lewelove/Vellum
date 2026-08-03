@@ -1,7 +1,8 @@
 use anyhow::Result;
 use libvellum::lua::{get_or_init_lua_vm, reset_lua_vm, LogicManifest};
+use roaring::RoaringBitmap;
 use serde_json::{Value, json};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::path::Path;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -70,9 +71,9 @@ pub fn value_to_sort_key(val: &Value) -> SortKey {
 
 pub struct QueryEngine {
     pub manifest: LogicManifest,
-    libraries_cache: HashMap<String, HashSet<u32>>,
-    filters_cache: HashMap<String, HashSet<u32>>,
-    facets_cache: HashMap<String, HashMap<String, HashSet<u32>>>,
+    libraries_cache: HashMap<String, RoaringBitmap>,
+    filters_cache: HashMap<String, RoaringBitmap>,
+    facets_cache: HashMap<String, HashMap<String, RoaringBitmap>>,
     orders_cache: HashMap<String, Vec<u32>>,
     shelves_cache: HashMap<String, Vec<u32>>,
     uid_to_id: HashMap<u32, String>,
@@ -392,21 +393,22 @@ impl QueryEngine {
         filter_val: Option<&str>,
         reverse: bool,
     ) -> Vec<String> {
-        let empty_set = HashSet::new();
-        let library_mask = self.libraries_cache.get(library).unwrap_or(&empty_set);
+        let empty_bitmap = RoaringBitmap::new();
+        let library_mask = self.libraries_cache.get(library).unwrap_or(&empty_bitmap);
         let mut final_mask = library_mask.clone();
 
         if let Some(lf) = library_filter
             && let Some(f_mask) = self.filters_cache.get(lf)
         {
-            final_mask.retain(|uid| f_mask.contains(uid));
+            final_mask &= f_mask;
         }
 
         if let (Some(fk), Some(fv)) = (filter_key, filter_val) {
             if fk == "search" {
                 let needle = fv.to_lowercase();
-                final_mask.retain(|uid| {
-                    if let Some(id) = self.uid_to_id.get(uid)
+                let mut searched = RoaringBitmap::new();
+                for uid in &final_mask {
+                    if let Some(id) = self.uid_to_id.get(&uid)
                         && let Some(album) = self.dict.get(id)
                     {
                         let title = album
@@ -419,14 +421,15 @@ impl QueryEngine {
                             .and_then(Value::as_str)
                             .unwrap_or("")
                             .to_lowercase();
-                        title.contains(&needle) || artist.contains(&needle)
-                    } else {
-                        false
+                        if title.contains(&needle) || artist.contains(&needle) {
+                            searched.insert(uid);
+                        }
                     }
-                });
+                }
+                final_mask = searched;
             } else if let Some(facet_vals) = self.facets_cache.get(fk) {
                 if let Some(facet_mask) = facet_vals.get(fv) {
-                    final_mask.retain(|uid| facet_mask.contains(uid));
+                    final_mask &= facet_mask;
                 } else {
                     final_mask.clear();
                 }
@@ -438,7 +441,7 @@ impl QueryEngine {
 
         let mut res: Vec<String> = sorted_uids
             .iter()
-            .filter(|uid| final_mask.contains(*uid))
+            .filter(|uid| final_mask.contains(**uid))
             .filter_map(|uid| self.uid_to_id.get(uid).cloned())
             .collect();
 
@@ -462,20 +465,20 @@ impl QueryEngine {
         library_filter: Option<&str>,
         grouper: &str,
     ) -> Vec<Value> {
-        let empty_set = HashSet::new();
-        let library_mask = self.libraries_cache.get(library).unwrap_or(&empty_set);
+        let empty_bitmap = RoaringBitmap::new();
+        let library_mask = self.libraries_cache.get(library).unwrap_or(&empty_bitmap);
         let mut final_mask = library_mask.clone();
 
         if let Some(lf) = library_filter
             && let Some(f_mask) = self.filters_cache.get(lf)
         {
-            final_mask.retain(|uid| f_mask.contains(uid));
+            final_mask &= f_mask;
         }
 
         let mut results = Vec::new();
         if let Some(facet_map) = self.facets_cache.get(grouper) {
             for (val, mask) in facet_map {
-                let count = mask.intersection(&final_mask).count();
+                let count = mask.intersection_len(&final_mask) as usize;
                 if count > 0 {
                     results.push(json!({
                         "value": val,
@@ -517,13 +520,13 @@ impl QueryEngine {
         if let Some(uids) = self.libraries_cache.get(q) {
             return uids
                 .iter()
-                .filter_map(|uid| self.uid_to_id.get(uid).cloned())
+                .filter_map(|uid| self.uid_to_id.get(&uid).cloned())
                 .collect();
         }
         if let Some(uids) = self.filters_cache.get(q) {
             return uids
                 .iter()
-                .filter_map(|uid| self.uid_to_id.get(uid).cloned())
+                .filter_map(|uid| self.uid_to_id.get(&uid).cloned())
                 .collect();
         }
         if let Some(uids) = self.shelves_cache.get(q) {

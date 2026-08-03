@@ -1589,6 +1589,7 @@ dependencies = [
  "lofty",
  "log",
  "mlua",
+ "roaring",
  "serde",
  "serde_json",
  "sha2",
@@ -2444,6 +2445,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "roaring"
+version = "0.11.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1dedc5658c6ecb3bdb5ef5f3295bb9253f42dcf3fd1402c03f6b1f7659c3c4a9"
+dependencies = [
+ "bytemuck",
+ "byteorder",
+]
+
+[[package]]
 name = "rustc-hash"
 version = "2.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3271,6 +3282,7 @@ dependencies = [
  "rayon",
  "regex",
  "reqwest",
+ "roaring",
  "serde",
  "serde_json",
  "sha2",
