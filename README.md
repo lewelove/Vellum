@@ -1,6 +1,6 @@
 # Vellum
 
-Vellum is an MPD client and an album-centric library manager built from the first Unix Philosophy principles for archivist-minded collectors.
+Vellum is an MPD client and album-centric library manager built from the first Unix Philosophy principles for archivist-minded collectors.
 
 > **Vellum** is prepared animal skin or membrane, typically used as writing material. — [Wikipedia](https://en.wikipedia.org/wiki/Vellum)
 
@@ -180,4 +180,4 @@ The `vellum` CLI tool is the central driver for managing your library's state.
 This software was partially developed with the assistance of LLMs for research and Rust syntax implementation. Regardless of this fact, all of the business logic, architecture, UX — as well as complete creative vision — were designed and vetted with a great deal of intent and hard work by a human — myself. All of the documentation was handrolled on my keyboard, from my bedroom, in my own words — as I believe this is an honest way to show you that I care about what you'll read here.
 
 ## A Note From The Developer
-**I am the primary and the most active user of Vellum.** I am building it for myself, in hopes that **you** will find it useful too. This project was born from the inexorable love for album collecting and archival, respect for Unix Philosophy, and genuine lack of anything close to "album-as-compiled-data-object" in the world of media players. I want Vellum to be free and open source forever, and the AGPL-3.0 license is here for it. I'll try to commit maintaining it as long as I will be using Linux, and collecting and listening to albums, which gives us, according to average life expectancy, around 50+ years of time. Thank you for reading this README.md and (hopefully) using this software. All feedback is always appreciated.
+**I am the primary and the most active user of Vellum.** I am building it for myself, in hopes that **you** will find it useful too. This project was born from the inexorable love for album collecting and archival, respect for Unix Philosophy, and genuine lack of anything close to "album-as-a-compiled-data-object" in the world of media players. I want Vellum to be free and open source forever, and the AGPL-3.0 license is here for it. I'll try to commit maintaining it as long as I will be using Linux and collecting and listening to albums, which gives us, according to average life expectancy, around 50+ years of time. Thank you for reading this README.md and (hopefully) using this software. All feedback is always appreciated.
