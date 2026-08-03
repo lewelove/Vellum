@@ -27,7 +27,7 @@ function startResizing() {
 }
 </script>
 
-<div class="home-view-container" style="--sidebar-width: {view.sidebarWidth}px;">
+<div class="home-view-container" style:--sidebar-width="{view.sidebarWidth}px">
   <NavigationBar />
 
   <div class="workspace">

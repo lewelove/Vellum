@@ -8,7 +8,13 @@ export default {
     "lightness-notation": null,
     "hue-degree-notation": null,
     "alpha-value-notation": null,
-    "color-function-alias-fix": null,
-    "declaration-property-value-no-unknown": null
+    "declaration-property-value-no-unknown": null,
+    "no-invalid-position-declaration": null,
+    "selector-pseudo-class-no-unknown": [
+      true,
+      {
+        ignorePseudoClasses: ["global"]
+      }
+    ]
   }
 };

@@ -134,7 +134,7 @@ $effect(() => {
         <div class="progress-container">
           <span class="time-display v-mono">{formatTime(tickingElapsed)}</span>
           <div class="progress-track">
-            <div class="progress-fill" style="width: {progress}%"></div>
+            <div class="progress-fill" style:width="{progress}%"></div>
           </div>
           <span class="time-display v-mono">{formatTime(duration)}</span>
         </div>

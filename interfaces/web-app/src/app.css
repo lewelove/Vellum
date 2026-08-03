@@ -21,7 +21,7 @@
   --color-ok100: oklch(1 0 0);
   --color-ok200: oklch(0.31 0 0);
   --color-ok300: oklch(0.24 0 0);
-  --color-ok400: oklch(0.22 0 0);
+  --color-ok400: oklch(0.20 0 0);
   --color-ok500: oklch(0.14 0 0);
 
   --color-foreground: var(--color-ok100);
@@ -95,13 +95,13 @@
   --bg-button-active: oklch(from var(--color-ok100) l c h / 0.16);
 }
 
+.queue-view-container {
+  transition: --color-ok100 0.3s ease;
+}
+
 .queue-view-container:not(.shader-off) {
   --button-shadow: none;
   --panel-text-shadow: 0 1px 3px oklch(from var(--color-ok100) l c h / 0.15);
-}
-
-.queue-view-container {
-  transition: --color-ok100 0.3s ease;
 }
 
 .nav-bar,
@@ -129,9 +129,6 @@ body,
   width: 100%;
   user-select: none;
   touch-action: manipulation;
-  user-select: none;
-  user-select: none;
-  user-select: none;
 }
 
 ::selection {
@@ -278,23 +275,6 @@ main {
   pointer-events: none;
 }
 
-.v-btn-icon:hover {
-  background-color: var(--bg-button-hover);
-  opacity: var(--a1);
-}
-
-.v-btn-icon.active {
-  background-color: var(--bg-button-active);
-  opacity: var(--a1);
-}
-
-.v-btn-icon:hover img,
-.v-btn-icon.active img,
-.v-btn-icon:hover .icon,
-.v-btn-icon.active .icon {
-  opacity: var(--a1);
-}
-
 .v-sidebar-button {
   width: 32px;
   height: 32px;
@@ -315,6 +295,23 @@ main {
 
 .v-sidebar-button .icon {
   font-size: 18px;
+}
+
+.v-btn-icon:hover {
+  background-color: var(--bg-button-hover);
+  opacity: var(--a1);
+}
+
+.v-btn-icon.active {
+  background-color: var(--bg-button-active);
+  opacity: var(--a1);
+}
+
+.v-btn-icon:hover img,
+.v-btn-icon.active img,
+.v-btn-icon:hover .icon,
+.v-btn-icon.active .icon {
+  opacity: var(--a1);
 }
 
 .v-btn-menu {

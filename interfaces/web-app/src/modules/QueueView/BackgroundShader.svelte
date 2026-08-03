@@ -379,7 +379,7 @@ onDestroy(() => {
     height: 100%;
     z-index: 0;
     pointer-events: none;
-    opacity: {view.isShaderActive && colors.length > 0 ? 1 : 0};
     transition: opacity 0.3s ease;
   "
+  style:opacity={view.isShaderActive && colors.length > 0 ? 1 : 0}
 ></canvas>

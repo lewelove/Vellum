@@ -24,7 +24,7 @@ $effect(() => {
 });
 </script>
 
-<div class="clear-cover-wrapper" style="width: {width}px; height: {height}px;">
+<div class="clear-cover-wrapper" style:width="{width}px" style:height="{height}px">
   {#if hash}
     {#key hash}
       <img src={thumbUrl} class="cover-image placeholder" alt="" draggable="false" />

@@ -89,10 +89,6 @@ $effect(() => {
   display: flex;
   min-width: 0;
   height: 100%;
-}
-
-.left-wing,
-.right-wing {
   flex-direction: row;
 }
 

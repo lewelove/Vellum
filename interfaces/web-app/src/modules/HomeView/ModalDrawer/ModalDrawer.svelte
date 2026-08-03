@@ -83,7 +83,7 @@ function handleBackdropClick(e: MouseEvent) {
   <div class="modal-chassis v-panel">
     <div class="modal-content">
       <div class="column-left">
-        <div class="cover-container" style="height: {leftColumnWidth - 64}px;">
+        <div class="cover-container" style:height="{leftColumnWidth - 64}px">
           <ClearCover
             hash={coverHash}
             width={leftColumnWidth - 64}
