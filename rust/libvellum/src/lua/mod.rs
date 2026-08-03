@@ -175,9 +175,60 @@ pub struct EvaluatedLuaData {
     pub manifest: LogicManifest,
 }
 
+fn register_native_functions(lua: &Lua) -> Result<()> {
+    let globals = lua.globals();
+    let vl: mlua::Table = globals.get("vl").unwrap_or_else(|_| lua.create_table().unwrap());
+
+    let json_table = lua.create_table().map_err(|e| anyhow::anyhow!("{e}"))?;
+    json_table.set(
+        "decode",
+        lua.create_function(|lua, s: String| {
+            let val: serde_json::Value = serde_json::from_str(&s)
+                .map_err(mlua::Error::external)?;
+            lua.to_value(&val)
+        }).map_err(|e| anyhow::anyhow!("{e}"))?,
+    ).map_err(|e| anyhow::anyhow!("{e}"))?;
+
+    json_table.set(
+        "encode",
+        lua.create_function(|lua, val: mlua::Value| {
+            let json_val: serde_json::Value = lua.from_value(val)?;
+            serde_json::to_string(&json_val).map_err(mlua::Error::external)
+        }).map_err(|e| anyhow::anyhow!("{e}"))?,
+    ).map_err(|e| anyhow::anyhow!("{e}"))?;
+
+    vl.set("json", json_table).map_err(|e| anyhow::anyhow!("{e}"))?;
+
+    let toml_table = lua.create_table().map_err(|e| anyhow::anyhow!("{e}"))?;
+    toml_table.set(
+        "decode",
+        lua.create_function(|lua, s: String| {
+            let toml_val: toml::Value = toml::from_str(&s)
+                .map_err(mlua::Error::external)?;
+            let json_val = crate::types::toml_to_json(toml_val);
+            lua.to_value(&json_val)
+        }).map_err(|e| anyhow::anyhow!("{e}"))?,
+    ).map_err(|e| anyhow::anyhow!("{e}"))?;
+
+    toml_table.set(
+        "encode",
+        lua.create_function(|lua, val: mlua::Value| {
+            let json_val: serde_json::Value = lua.from_value(val)?;
+            let toml_val = crate::types::json_to_toml(json_val);
+            toml::to_string_pretty(&toml_val).map_err(mlua::Error::external)
+        }).map_err(|e| anyhow::anyhow!("{e}"))?,
+    ).map_err(|e| anyhow::anyhow!("{e}"))?;
+
+    vl.set("toml", toml_table).map_err(|e| anyhow::anyhow!("{e}"))?;
+
+    globals.set("vl", vl).map_err(|e| anyhow::anyhow!("{e}"))?;
+    Ok(())
+}
+
 impl LuaEngine {
     pub fn new() -> Result<Self> {
         let lua = Lua::new();
+        register_native_functions(&lua)?;
         lua.load(LUA_CORE)
             .exec()
             .map_err(|e| anyhow::anyhow!("{e}"))

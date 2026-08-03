@@ -51,3 +51,29 @@ pub fn toml_to_json(val: toml::Value) -> Value {
         }
     }
 }
+
+#[must_use]
+pub fn json_to_toml(val: Value) -> toml::Value {
+    match val {
+        Value::Null => toml::Value::String(String::new()),
+        Value::Bool(b) => toml::Value::Boolean(b),
+        Value::Number(n) => n.as_i64().map_or_else(
+            || {
+                n.as_f64().map_or_else(
+                    || toml::Value::String(n.to_string()),
+                    toml::Value::Float,
+                )
+            },
+            toml::Value::Integer,
+        ),
+        Value::String(s) => toml::Value::String(s),
+        Value::Array(arr) => toml::Value::Array(arr.into_iter().map(json_to_toml).collect()),
+        Value::Object(map) => {
+            let mut table = toml::Table::new();
+            for (k, v) in map {
+                table.insert(k, json_to_toml(v));
+            }
+            toml::Value::Table(table)
+        }
+    }
+}
