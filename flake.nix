@@ -92,12 +92,14 @@
             build_vellum() {
               cd "$ROOT/rust"
               cargo clippy --workspace -- -D warnings
+              cargo test --workspace
               cargo build -p vellum --release "''${ARGS[@]}"
             }
 
             build_libvellum() {
               cd "$ROOT/rust"
               cargo clippy --workspace -- -D warnings
+              cargo test --workspace
               cargo build -p libvellum --release "''${ARGS[@]}"
             }
 
@@ -110,6 +112,7 @@
               
               cd "$ROOT/actions/rust"
               cargo clippy --workspace -- -D warnings
+              cargo test --workspace
               cargo build --workspace --release "''${ARGS[@]}"
               
               ln -sf "python/get_lyrics/result/bin/get_lyrics" "$ROOT/actions/get_lyrics"

@@ -1,4 +1,6 @@
 pub mod config;
+#[cfg(test)]
+mod tests;
 
 use anyhow::{Context, Result};
 use config::{ActionConfig, AppConfig, CoversConfig, InterfaceConfig};
@@ -10,7 +12,8 @@ use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 const LUA_CORE: &str = include_str!("core.lua");
-const LUA_UTILS: &str = include_str!("utils.lua");
+const LUA_UTILS_FN: &str = include_str!("utils/fn.lua");
+const LUA_UTILS_FS: &str = include_str!("utils/fs.lua");
 const LUA_CONFIG: &str = include_str!("config.lua");
 const LUA_COMPILER: &str = include_str!("compiler.lua");
 const LUA_ACTIONS: &str = include_str!("actions.lua");
@@ -233,10 +236,14 @@ impl LuaEngine {
             .exec()
             .map_err(|e| anyhow::anyhow!("{e}"))
             .context("Failed to load core.lua")?;
-        lua.load(LUA_UTILS)
+        lua.load(LUA_UTILS_FN)
             .exec()
             .map_err(|e| anyhow::anyhow!("{e}"))
-            .context("Failed to load utils.lua")?;
+            .context("Failed to load utils/fn.lua")?;
+        lua.load(LUA_UTILS_FS)
+            .exec()
+            .map_err(|e| anyhow::anyhow!("{e}"))
+            .context("Failed to load utils/fs.lua")?;
         lua.load(LUA_CONFIG)
             .exec()
             .map_err(|e| anyhow::anyhow!("{e}"))
