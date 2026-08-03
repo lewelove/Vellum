@@ -4,7 +4,7 @@
 
   let { coverHash = "", width = $bindable(0) }: { coverHash?: string, width?: number } = $props();
 
-  let persistentHash = $state(coverHash);
+  let persistentHash = $state("");
 
   $effect(() => {
     if (player.currentFile) {

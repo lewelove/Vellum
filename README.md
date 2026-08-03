@@ -92,7 +92,7 @@ For default interface to run from cloned developer repo you must `cd` into its d
 ```bash
 cd interfaces/web-app
 bun install
-chmod +x run.sh
+chmod +x run_dev.sh run_prod.sh
 ```
 
 And build the Rust binary, as well as all of the Vellum Actions:
@@ -134,6 +134,7 @@ vl.compiler.tracks.key({
 vl.interfaces({ default = {
   -- Quite handy!
   directory = repo_dir .. "interfaces/web-app/"
+  run = repo_dir .. "interfaces/web-app/run_prod.sh"
 }})
 ```
 

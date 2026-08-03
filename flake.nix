@@ -72,7 +72,7 @@
 
         build-cli = pkgs.writeShellApplication {
           name = "build";
-          runtimeInputs = [ pkgs.cargo pkgs.rustc pkgs.git pkgs.clippy pkgs.nix ];
+          runtimeInputs = [ pkgs.cargo pkgs.rustc pkgs.git pkgs.clippy pkgs.nix pkgs.bun ];
           text = ''
             ROOT=$(git rev-parse --show-toplevel)
             TARGET=""
@@ -83,6 +83,8 @@
                 libvellum)  TARGET="libvellum" ;;
                 vellum)     TARGET="vellum" ;;
                 actions)    TARGET="actions" ;;
+                interface)  TARGET="interface" ;;
+                web-app)    TARGET="interface" ;;
                 *)          ARGS+=("$arg") ;;
               esac
             done
@@ -118,15 +120,23 @@
               ln -sf "rust/target/release/collect" "$ROOT/actions/collect"
             }
 
+            build_interface() {
+              cd "$ROOT/interfaces/web-app"
+              bun run build
+            }
+
             if [ "$TARGET" = "vellum" ]; then
               build_vellum
             elif [ "$TARGET" = "libvellum" ]; then
               build_libvellum
             elif [ "$TARGET" = "actions" ]; then
               build_actions
+            elif [ "$TARGET" = "interface" ]; then
+              build_interface
             else
               build_vellum
               build_actions
+              build_interface
             fi
           '';
         };

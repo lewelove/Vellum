@@ -17,7 +17,7 @@ export default defineConfig({
   plugins: [svelte()],
   resolve: {
     alias: {
-      '$modules': path.resolve(__dirname, './src/modules'),
+      '$modules': path.resolve(import.meta.dirname, './src/modules'),
     }
   },
   server: {
