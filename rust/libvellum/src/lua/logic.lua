@@ -68,6 +68,8 @@ function __VELLUM_EVALUATE_ALBUM_LOGIC(raw_album)
             local ok, match_res = pcall(v.match, album)
             if ok and match_res then
                 res.filters[k] = true
+            elseif not ok then
+                print(string.format("Error evaluating filter '%s': %s", k, tostring(match_res)))
             end
         end
     end
@@ -77,6 +79,8 @@ function __VELLUM_EVALUATE_ALBUM_LOGIC(raw_album)
             local ok, sel_res = pcall(v.select, album)
             if ok and sel_res ~= nil then
                 res.groupers[k] = sel_res
+            elseif not ok then
+                print(string.format("Error evaluating grouper '%s': %s", k, tostring(sel_res)))
             end
         end
     end
@@ -86,6 +90,8 @@ function __VELLUM_EVALUATE_ALBUM_LOGIC(raw_album)
             local ok, sort_res = pcall(v.sort, album)
             if ok and sort_res ~= nil then
                 res.orders[k] = sort_res
+            elseif not ok then
+                print(string.format("Error evaluating order '%s': %s", k, tostring(sort_res)))
             end
         end
     end
@@ -95,6 +101,8 @@ function __VELLUM_EVALUATE_ALBUM_LOGIC(raw_album)
             local ok, match_res = pcall(v.match, album)
             if ok and match_res then
                 res.libraries[k] = true
+            elseif not ok then
+                print(string.format("Error evaluating library '%s': %s", k, tostring(match_res)))
             end
         end
     end
@@ -104,12 +112,16 @@ function __VELLUM_EVALUATE_ALBUM_LOGIC(raw_album)
             local ok, match_res = pcall(v.match, album)
             if ok and match_res then
                 res.shelves[k] = true
+            elseif not ok then
+                print(string.format("Error evaluating shelf match '%s': %s", k, tostring(match_res)))
             end
         end
         if type(v.sort) == "function" then
             local ok, sort_res = pcall(v.sort, album)
             if ok and sort_res ~= nil then
                 res.shelf_sorts[k] = sort_res
+            elseif not ok then
+                print(string.format("Error evaluating shelf sort '%s': %s", k, tostring(sort_res)))
             end
         end
     end
