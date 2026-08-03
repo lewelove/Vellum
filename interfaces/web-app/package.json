@@ -10,12 +10,16 @@
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "lint:logic": "eslint .",
     "lint:css": "stylelint '**/*.{css,svelte}'",
-    "lint": "bun run check && bun run lint:logic && bun run lint:css"
+    "lint": "bun run check && bun run lint:logic && bun run lint:css",
+    "format": "prettier --write \"src/**/*.{svelte,ts,js,css}\"",
+    "format:check": "prettier --check \"src/**/*.{svelte,ts,js,css}\""
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^7.2.0",
     "eslint": "^10.8.0",
     "eslint-plugin-svelte": "^3.22.0",
+    "prettier": "^3.9.6",
+    "prettier-plugin-svelte": "^4.1.1",
     "stylelint": "^17.14.1",
     "stylelint-config-html": "^2.0.0",
     "stylelint-config-standard": "^40.0.0",

@@ -15,7 +15,26 @@ export default [
       'svelte/valid-compile': 'error',
       'svelte/no-at-html-tags': 'warn',
       'svelte/infinite-reactive-loop': 'error',
-      'svelte/no-dupe-use-directives': 'error'
+      'svelte/no-dupe-use-directives': 'error',
+
+      // Auto-sorts component attributes, props, and directives
+      'svelte/sort-attributes': [
+        'error',
+        {
+          order: [
+            'this',
+            'bind:this',
+            'slot',
+            'definition', // e.g. class, id
+            'PROPERTIES', // component props
+            'BINDINGS',   // bind:*
+            'FUNCTIONS',  // handlers
+            'ACTIONS',    // use:*
+            'TRANSITIONS',// transition:*, animate:*
+            'EVENTS'      // on:*
+          ]
+        }
+      ]
     }
   }
 ];
