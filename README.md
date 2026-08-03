@@ -22,6 +22,36 @@ For the analogy's sake let's imagine an album directory as an entry in the physi
 ### Vellum Actions
 Since every album is compiled into a plaintext JSON — every album becomes scriptable. **Vellum Action** is a concept of a standalone executable that reads intermediary JSON from stdin (provided by Vellum and populated with albums and config data at runtime) and performs some kind of logic based on this data. That's it. You can write actions in any language that supports reading JSONs (or even use simple bash scripts with Jq) and use them to infinitely expand Vellum functionality in Unix Philosophy style with any logic you can conjure up from the album data. Each action is configurable via its own CLI arguments and `vellum.lua` config functions. For built-in actions and more context of what they may be useful for look into the `actions/` directory.
 
+## Interface Showcase
+
+### Main Album Grid
+
+Filter, group and sort albums by any key imaginable. The grid uses slot based row snapping and 60fps physical smooth scrolling.
+
+<img width="1920" height="1080" alt="Image" src="https://github.com/user-attachments/assets/472b6151-ad39-4458-a408-a2a45c14f177" />
+
+<img width="1920" height="1080" alt="Image" src="https://github.com/user-attachments/assets/c3ebe389-1c40-431a-8509-05118ae92b66" />
+
+### Album Modal Drawer
+
+Album previews, supporting multidisc issues.
+
+<img width="1920" height="1080" alt="Image" src="https://github.com/user-attachments/assets/0e8471d7-b695-43fb-81e7-fdf58f317359" />
+
+<img width="1920" height="1080" alt="Image" src="https://github.com/user-attachments/assets/603ea8af-99e2-4ef1-88ee-3fbae9591f90" />
+
+### Queue View
+
+Provide any WebGL shader as the background with custom palettes.
+
+<img width="1920" height="1080" alt="Image" src="https://github.com/user-attachments/assets/b911f2a9-bf33-446b-a1f1-c5131cd8972f" />
+
+<img width="1920" height="1080" alt="Image" src="https://github.com/user-attachments/assets/57db8e38-9189-4494-99f6-c2f1cf68aa56" />
+
+<img width="1920" height="1080" alt="Image" src="https://github.com/user-attachments/assets/685b24ea-61a1-4a08-b2de-ea0fb0e8961f" />
+
+<img width="1920" height="1080" alt="Image" src="https://github.com/user-attachments/assets/574e7814-7744-4cc8-898f-df8c617a6650" />
+
 ## Contributing
 Since I develop Vellum mostly by myself, there can be many desired, or even essential things not implemented in the current state. If you have any ideas or requests, or if you want to contribute with patches, please submit everything to issues and PRs respectively. I would be sincerely happy to read through, work on and/or merge them. I am also fully open to code critique and any structural improvements. I want to keep Vellum as fast, maintainable and open to new contributors as possible. If you have constructive criticism of the codebase for me to take action upon, please submit it to the issues as well.
 
