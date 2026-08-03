@@ -26,6 +26,8 @@ Since every album is compiled into a plaintext JSON — every album becomes scri
 
 ## Interface Showcase
 
+Vellum has the default Web-App interface written in fast and fine-grained reactive Svelte framework. You can run it as a standalone headless process and access it via any browser.
+
 ### Home Album Grid
 
 Filter, group and sort albums by any key imaginable. The grid uses slot based row snapping and 60fps physical smooth scrolling.
@@ -44,7 +46,7 @@ Album preview, supporting multi-disc issues.
 
 ### Queue
 
-Provide any GLSL shader as the background with custom palettes for each album separately via config and `theme.toml`.
+Provide any GLSL shader as the background with custom palettes for each album separately via config and `theme.toml` album manifest.
 
 <img width="1920" height="1080" alt="Image" src="https://github.com/user-attachments/assets/b911f2a9-bf33-446b-a1f1-c5131cd8972f" />
 
