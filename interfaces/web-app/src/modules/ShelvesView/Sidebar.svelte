@@ -1,33 +1,37 @@
 <script lang="ts">
-  import { view } from "../../library/view.svelte.ts";
-  import { collection } from "../../library/collection.svelte.ts";
+import { view } from "../../library/view.svelte.ts";
+import { collection } from "../../library/collection.svelte.ts";
 
-  let isShelfMenuOpen = $state(false);
+let isShelfMenuOpen = $state(false);
 
-  let activeShelf = $derived(view.activeShelf || (collection.manifest.shelves_order && collection.manifest.shelves_order[0]) || Object.keys(collection.availableShelves)[0]);
-  let shelfLabel = $derived(collection.availableShelves[activeShelf]?.label || "Unknown");
+let activeShelf = $derived(
+  view.activeShelf ||
+    (collection.manifest.shelves_order && collection.manifest.shelves_order[0]) ||
+    Object.keys(collection.availableShelves)[0]
+);
+let shelfLabel = $derived(collection.availableShelves[activeShelf]?.label || "Unknown");
 
-  function selectShelf(key: string) {
-    view.setShelf(key);
+function selectShelf(key: string) {
+  view.setShelf(key);
+  isShelfMenuOpen = false;
+}
+
+function toggleSubView() {
+  view.homeSubView = view.homeSubView === "library" ? "shelves" : "library";
+  view.focusedAlbum = null;
+  view.refreshView(true);
+  view.persistState();
+}
+
+function toggleShelfMenu() {
+  isShelfMenuOpen = !isShelfMenuOpen;
+}
+
+function handleKeydown(e: KeyboardEvent) {
+  if (e.key === "Escape") {
     isShelfMenuOpen = false;
   }
-
-  function toggleSubView() {
-    view.homeSubView = view.homeSubView === "library" ? "shelves" : "library";
-    view.focusedAlbum = null;
-    view.refreshView(true);
-    view.persistState();
-  }
-
-  function toggleShelfMenu() {
-    isShelfMenuOpen = !isShelfMenuOpen;
-  }
-
-  function handleKeydown(e: KeyboardEvent) {
-    if (e.key === "Escape") {
-      isShelfMenuOpen = false;
-    }
-  }
+}
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
@@ -35,12 +39,21 @@
 <div class="v-sidebar-container">
   <div class="v-sidebar-controls">
     <div class="v-control-row">
-      <button class="v-btn-icon v-sidebar-button" onclick={toggleSubView} title={view.homeSubView === 'library' ? "Libraries" : "Shelves"}>
-        <span class="icon">{view.homeSubView === 'library' ? "auto_stories" : "newsstand"}</span>
+      <button
+        class="v-btn-icon v-sidebar-button"
+        onclick={toggleSubView}
+        title={view.homeSubView === "library" ? "Libraries" : "Shelves"}
+      >
+        <span class="icon">{view.homeSubView === "library" ? "auto_stories" : "newsstand"}</span>
       </button>
 
       <div class="v-button-wrapper v-flex-grow">
-        <button class="v-btn-icon v-sidebar-button v-btn-menu" onclick={toggleShelfMenu} class:active={isShelfMenuOpen} title="Shelf">
+        <button
+          class="v-btn-icon v-sidebar-button v-btn-menu"
+          onclick={toggleShelfMenu}
+          class:active={isShelfMenuOpen}
+          title="Shelf"
+        >
           <span class="v-truncate btn-label iconless">{shelfLabel}</span>
           <span class="icon end-icon">{isShelfMenuOpen ? "arrow_drop_up" : "arrow_drop_down"}</span>
         </button>
@@ -48,8 +61,8 @@
         {#if isShelfMenuOpen}
           <div class="v-menu">
             {#each collection.shelvesList as shelf}
-              <button 
-                class="v-menu-item" 
+              <button
+                class="v-menu-item"
                 class:selected={activeShelf === shelf.key}
                 onclick={() => selectShelf(shelf.key)}
               >
@@ -65,9 +78,9 @@
   <div class="v-sidebar-scroll">
     <div class="v-scroll-fade-top"></div>
     {#each collection.shelvesList as shelf}
-      <button 
-        class="v-sidebar-item" 
-        class:active={activeShelf === shelf.key} 
+      <button
+        class="v-sidebar-item"
+        class:active={activeShelf === shelf.key}
         onclick={() => selectShelf(shelf.key)}
       >
         <span class="v-truncate label" title={shelf.label}>{shelf.label}</span>
@@ -79,8 +92,8 @@
 </div>
 
 <style>
-  .scroll-spacer {
-    height: 12px;
-    flex-shrink: 0;
-  }
+.scroll-spacer {
+  height: 12px;
+  flex-shrink: 0;
+}
 </style>

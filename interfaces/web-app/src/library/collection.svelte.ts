@@ -9,11 +9,17 @@ class CollectionStore {
   libraryViewIds: string[] = $state([]);
   sidebarGroups: Map<string, any[]> = $state(new Map());
   fullAlbumCache: Record<string, any> = $state({});
-  manifest: Record<string, any> = $state({ filters: {}, libraries: {}, groupers: {}, orders: {}, shelves: {} });
+  manifest: Record<string, any> = $state({
+    filters: {},
+    libraries: {},
+    groupers: {},
+    orders: {},
+    shelves: {}
+  });
   config: Record<string, any> = $state({});
 
   constructor() {
-    sync.addEventListener('message', (e: Event) => this.handleMessage((e as CustomEvent).detail));
+    sync.addEventListener("message", (e: Event) => this.handleMessage((e as CustomEvent).detail));
   }
 
   handleMessage(json: any) {
@@ -52,21 +58,25 @@ class CollectionStore {
   }
 
   mapIdsToAlbums(ids: string[]): any[] {
-    return ids.map(id => {
-      let a = this.dict[id];
-      return a ? {
-          id: a.id,
-          title: a.album,
-          artist: a.albumartist,
-          cover_hash: a.cover_hash,
-          total_discs: a.total_discs,
-          total_tracks: a.total_tracks,
-          duration_formatted: a.duration_formatted,
-          virtual: a.virtual,
-          keys: a.keys,
-          colors: a.colors
-      } : null;
-    }).filter(Boolean);
+    return ids
+      .map((id) => {
+        let a = this.dict[id];
+        return a
+          ? {
+              id: a.id,
+              title: a.album,
+              artist: a.albumartist,
+              cover_hash: a.cover_hash,
+              total_discs: a.total_discs,
+              total_tracks: a.total_tracks,
+              duration_formatted: a.duration_formatted,
+              virtual: a.virtual,
+              keys: a.keys,
+              colors: a.colors
+            }
+          : null;
+      })
+      .filter(Boolean);
   }
 
   getThumbnailUrl(album: any): string {
@@ -80,24 +90,34 @@ class CollectionStore {
     if (!id) return null;
     if (this.fullAlbumCache[id]) return this.fullAlbumCache[id];
     try {
-        const res = await fetch(`/api/album/${encodeURIComponent(id)}`);
-        if (res.ok) {
-            const data = await res.json();
-            data.id = id;
-            this.fullAlbumCache[id] = data;
-            return data;
-        }
+      const res = await fetch(`/api/album/${encodeURIComponent(id)}`);
+      if (res.ok) {
+        const data = await res.json();
+        data.id = id;
+        this.fullAlbumCache[id] = data;
+        return data;
+      }
     } catch (err) {
-        console.error(err);
+      console.error(err);
     }
     return null;
   }
 
-  get availableFilters(): Record<string, any> { return this.manifest.filters || {}; }
-  get availableLibraries(): Record<string, any> { return this.manifest.libraries || {}; }
-  get availableFacets(): Record<string, any> { return this.manifest.groupers || {}; }
-  get availableOrders(): Record<string, any> { return this.manifest.orders || {}; }
-  get availableShelves(): Record<string, any> { return this.manifest.shelves || {}; }
+  get availableFilters(): Record<string, any> {
+    return this.manifest.filters || {};
+  }
+  get availableLibraries(): Record<string, any> {
+    return this.manifest.libraries || {};
+  }
+  get availableFacets(): Record<string, any> {
+    return this.manifest.groupers || {};
+  }
+  get availableOrders(): Record<string, any> {
+    return this.manifest.orders || {};
+  }
+  get availableShelves(): Record<string, any> {
+    return this.manifest.shelves || {};
+  }
 
   get librariesList(): any[] {
     const order = this.manifest.libraries_order || Object.keys(this.availableLibraries);

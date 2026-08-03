@@ -1,24 +1,24 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Noto+Music&family=Noto+Sans+Arabic:wght@400;700&family=Noto+Sans+JP:wght@400;700&family=Noto+Sans+KR:wght@400;700&family=Noto+Sans+SC:wght@400;700&family=Noto+Sans+TC:wght@400;700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-25..200');
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Noto+Music&family=Noto+Sans+Arabic:wght@400;700&family=Noto+Sans+JP:wght@400;700&family=Noto+Sans+KR:wght@400;700&family=Noto+Sans+SC:wght@400;700&family=Noto+Sans+TC:wght@400;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-25..200");
 
 @font-face {
-  font-family: 'Inter Vellum';
-  src: url('/fonts/InterVellumRegular.woff2') format('woff2');
+  font-family: "Inter Vellum";
+  src: url("/fonts/InterVellumRegular.woff2") format("woff2");
 }
 
 @font-face {
-  font-family: 'Inter Vellum Tnum';
-  src: url('/fonts/InterVellumTnumRegular.woff2') format('woff2');
+  font-family: "Inter Vellum Tnum";
+  src: url("/fonts/InterVellumTnumRegular.woff2") format("woff2");
 }
 
 @property --color-ok100 {
-  syntax: '<color>';
+  syntax: "<color>";
   inherits: true;
-  initial-value: oklch(1.00 0 0);
+  initial-value: oklch(1 0 0);
 }
 
 :root {
-  --color-ok100: oklch(1.00 0 0);
+  --color-ok100: oklch(1 0 0);
   --color-ok200: oklch(0.31 0 0);
   --color-ok300: oklch(0.24 0 0);
   --color-ok400: oklch(0.22 0 0);
@@ -27,7 +27,7 @@
   --color-foreground: var(--color-ok100);
   --color-background: var(--color-ok300);
 
-  --a1: 1.0;
+  --a1: 1;
   --a2: 0.66;
   --a3: 0.5;
   --a4: 0.2;
@@ -49,51 +49,29 @@
   --glass-bg: transparent;
 
   --album-cover-shadow-thumbnail:
-    0px 0px 10px 0px oklch(0 0 0 / 0.4),
-    0px 0px 8px 0px oklch(0 0 0 / 0.7);
+    0px 0px 10px 0px oklch(0 0 0 / 0.4), 0px 0px 8px 0px oklch(0 0 0 / 0.7);
 
   --album-cover-shadow:
-    0px 0px 16px 0px oklch(0 0 0 / 0.2),
-    0px 0px 12px 0px oklch(0 0 0 / 0.1),
+    0px 0px 16px 0px oklch(0 0 0 / 0.2), 0px 0px 12px 0px oklch(0 0 0 / 0.1),
     0px 0px 6px -1px oklch(0 0 0 / 0.1);
 
-  --modal-shadow:
-    0px 0px 8px 0px oklch(0 0 0 / 0.15),
-    0px 0px 6px 0px oklch(0 0 0 / 0.15);
+  --modal-shadow: 0px 0px 8px 0px oklch(0 0 0 / 0.15), 0px 0px 6px 0px oklch(0 0 0 / 0.15);
 
   --panel-shadow:
-    0 0 12px 0px oklch(0 0 0 / 0.2),
-    0 0 8px -1px oklch(0 0 0 / 0.2),
+    0 0 12px 0px oklch(0 0 0 / 0.2), 0 0 8px -1px oklch(0 0 0 / 0.2),
     0 0 4px -1px oklch(0 0 0 / 0.2);
 
-  --button-shadow:
-    0px 0px 4px 0px oklch(0 0 0 / 0.1),
-    0px 0px 2px 0px oklch(0 0 0 / 0.1);
+  --button-shadow: 0px 0px 4px 0px oklch(0 0 0 / 0.1), 0px 0px 2px 0px oklch(0 0 0 / 0.1);
 
-  --panel-text-shadow:
-    0 1px 3px oklch(0 0 0 / 0.15);
+  --panel-text-shadow: 0 1px 3px oklch(0 0 0 / 0.15);
 
   --font-stack:
-    'Inter Vellum',
-    'Noto Sans',
-    'Noto Sans JP',
-    'Noto Sans SC',
-    'Noto Sans TC',
-    'Noto Sans KR',
-    'system-ui',
-    sans-serif;
+    "Inter Vellum", "Noto Sans", "Noto Sans JP", "Noto Sans SC", "Noto Sans TC", "Noto Sans KR",
+    "system-ui", sans-serif;
 
   --font-mono:
-    'Inter Vellum Tnum',
-    'Inter Vellum',
-    'Noto Sans',
-    'Noto Sans JP',
-    'Noto Sans SC',
-    'Noto Sans TC',
-    'Noto Sans KR',
-    'system-ui',
-    sans-serif,
-    monospace;
+    "Inter Vellum Tnum", "Inter Vellum", "Noto Sans", "Noto Sans JP", "Noto Sans SC",
+    "Noto Sans TC", "Noto Sans KR", "system-ui", sans-serif, monospace;
 }
 
 :root,
@@ -108,7 +86,7 @@
   --bg-surface-hover: oklch(from var(--color-ok100) l c h / 0.05);
   --bg-surface-active: oklch(from var(--color-ok100) l c h / 0.08);
 
-  --bg-item-inactive: oklch(from var(--color-ok100) l c h / 0.00);
+  --bg-item-inactive: oklch(from var(--color-ok100) l c h / 0);
   --bg-item-hover: oklch(from var(--color-ok100) l c h / 0.08);
   --bg-item-active: oklch(from var(--color-ok100) l c h / 0.08);
 
@@ -126,15 +104,20 @@
   transition: --color-ok100 0.3s ease;
 }
 
-.nav-bar, .sidebar-panel {
-  transition: background-color 0.5s ease, box-shadow 0.5s ease;
+.nav-bar,
+.sidebar-panel {
+  transition:
+    background-color 0.5s ease,
+    box-shadow 0.5s ease;
 }
 
 *:focus {
   outline: none !important;
 }
 
-html, body, #app {
+html,
+body,
+#app {
   margin: 0;
   padding: 0;
   background-color: var(--bg-main);
@@ -242,7 +225,7 @@ main {
 }
 
 .icon {
-  font-family: 'Material Symbols Outlined', sans-serif;
+  font-family: "Material Symbols Outlined", sans-serif;
   font-weight: normal;
   font-style: normal;
   font-size: 18px;
@@ -254,14 +237,22 @@ main {
   word-wrap: normal;
   direction: ltr;
   -webkit-font-smoothing: antialiased;
-  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  font-variation-settings:
+    "FILL" 0,
+    "wght" 400,
+    "GRAD" 0,
+    "opsz" 24;
   user-select: none;
   color: var(--text-main);
 }
 
 .icon.filled,
 .icon-filled {
-  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  font-variation-settings:
+    "FILL" 1,
+    "wght" 400,
+    "GRAD" 0,
+    "opsz" 24;
 }
 
 .icon.filled.control {
@@ -281,7 +272,8 @@ main {
   transition: box-shadow 0.3s ease;
 }
 
-.v-btn-icon img, .v-btn-icon .icon {
+.v-btn-icon img,
+.v-btn-icon .icon {
   opacity: var(--a2);
   pointer-events: none;
 }
@@ -296,8 +288,10 @@ main {
   opacity: var(--a1);
 }
 
-.v-btn-icon:hover img, .v-btn-icon.active img,
-.v-btn-icon:hover .icon, .v-btn-icon.active .icon {
+.v-btn-icon:hover img,
+.v-btn-icon.active img,
+.v-btn-icon:hover .icon,
+.v-btn-icon.active .icon {
   opacity: var(--a1);
 }
 

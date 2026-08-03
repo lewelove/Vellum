@@ -1,7 +1,7 @@
 import { view } from "./library/view.svelte.ts";
 
 export const nav = $state<{ activeTab: string }>({
-  activeTab: 'home'
+  activeTab: "home"
 });
 
 export function setTab(tab: string) {

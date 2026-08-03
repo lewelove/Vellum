@@ -8,13 +8,13 @@ export class ViewState {
   isLoading: boolean = $state(true);
   isConnected: boolean = $state(false);
   homeSubView: "library" | "shelves" = $state("library");
-  
+
   focusedAlbum: any = $state(null);
-  
+
   activeLibrary: string = $state("library");
   activeLibraryFilter: string | null = $state(null);
-  activeFilter: { key: string | null, val: string | null } = $state({ key: null, val: null });
-  activeSort: { key: string, order: string } = $state({ key: "default", order: "default" });
+  activeFilter: { key: string | null; val: string | null } = $state({ key: null, val: null });
+  activeSort: { key: string; order: string } = $state({ key: "default", order: "default" });
   userSortPreference: string = $state("default");
   userSortOrder: string = $state("default");
   activeSidebarGrouper: string = $state("genre");
@@ -29,8 +29,10 @@ export class ViewState {
   _pendingViewReset: boolean = false;
 
   constructor() {
-    sync.addEventListener('open', () => { this.isConnected = true; });
-    sync.addEventListener('message', (e: Event) => this.handleMessage((e as CustomEvent).detail));
+    sync.addEventListener("open", () => {
+      this.isConnected = true;
+    });
+    sync.addEventListener("message", (e: Event) => this.handleMessage((e as CustomEvent).detail));
   }
 
   handleMessage(json: any) {
@@ -39,19 +41,34 @@ export class ViewState {
         applyPersistedState(json.ui_state, this);
         const libDef = collection.availableLibraries[this.activeLibrary];
         if (libDef) {
-            if (libDef.allowed_filters && !libDef.allowed_filters.includes(this.activeLibraryFilter)) {
-                this.activeLibraryFilter = libDef.allowed_filters.length > 0 ? libDef.allowed_filters[0] : null;
-            } else if (!libDef.allowed_filters || libDef.allowed_filters.length === 0) {
-                this.activeLibraryFilter = null;
-            }
+          if (
+            libDef.allowed_filters &&
+            !libDef.allowed_filters.includes(this.activeLibraryFilter)
+          ) {
+            this.activeLibraryFilter =
+              libDef.allowed_filters.length > 0 ? libDef.allowed_filters[0] : null;
+          } else if (!libDef.allowed_filters || libDef.allowed_filters.length === 0) {
+            this.activeLibraryFilter = null;
+          }
 
-            if (libDef.allowed_groupers && !libDef.allowed_groupers.includes(this.activeSidebarGrouper)) {
-                this.activeSidebarGrouper = libDef.allowed_groupers[0] || (collection.manifest.groupers_order && collection.manifest.groupers_order[0]) || Object.keys(collection.availableFacets)[0] || "genre";
-            }
-            if (libDef.allowed_orders && !libDef.allowed_orders.includes(this.userSortPreference)) {
-                this.userSortPreference = libDef.allowed_orders[0] || (collection.manifest.orders_order && collection.manifest.orders_order[0]) || Object.keys(collection.availableOrders)[0] || "default";
-                this.activeSort = { key: this.userSortPreference, order: this.userSortOrder };
-            }
+          if (
+            libDef.allowed_groupers &&
+            !libDef.allowed_groupers.includes(this.activeSidebarGrouper)
+          ) {
+            this.activeSidebarGrouper =
+              libDef.allowed_groupers[0] ||
+              (collection.manifest.groupers_order && collection.manifest.groupers_order[0]) ||
+              Object.keys(collection.availableFacets)[0] ||
+              "genre";
+          }
+          if (libDef.allowed_orders && !libDef.allowed_orders.includes(this.userSortPreference)) {
+            this.userSortPreference =
+              libDef.allowed_orders[0] ||
+              (collection.manifest.orders_order && collection.manifest.orders_order[0]) ||
+              Object.keys(collection.availableOrders)[0] ||
+              "default";
+            this.activeSort = { key: this.userSortPreference, order: this.userSortOrder };
+          }
         }
       }
       this.refreshView(true);
@@ -67,27 +84,39 @@ export class ViewState {
     } else if (json.type === "ALBUM_REMOVED" || json.type === "ALBUM_UPDATED") {
       if (this.focusedAlbum && this.focusedAlbum.id === json.id) {
         if (json.type === "ALBUM_REMOVED") this.focusedAlbum = null;
-        else collection.ensureFullAlbum(json.id).then(data => { if (data) this.focusedAlbum = data; });
+        else
+          collection.ensureFullAlbum(json.id).then((data) => {
+            if (data) this.focusedAlbum = data;
+          });
       }
       this.refreshView(false);
       this.refreshSidebar();
     }
   }
 
-  get isShaderActive() { return this.isShaderEnabled && player.state !== "stop"; }
-
-  get shelfViewIds() {
-    const shelfKey = this.activeShelf || (collection.manifest.shelves_order && collection.manifest.shelves_order[0]) || Object.keys(collection.availableShelves)[0];
-    return shelfKey ? (collection.sidebarShelves[shelfKey] || []) : [];
+  get isShaderActive() {
+    return this.isShaderEnabled && player.state !== "stop";
   }
 
-  get libraryAlbums() { return collection.mapIdsToAlbums(collection.libraryViewIds); }
-  get shelfAlbums() { return collection.mapIdsToAlbums(this.shelfViewIds); }
+  get shelfViewIds() {
+    const shelfKey =
+      this.activeShelf ||
+      (collection.manifest.shelves_order && collection.manifest.shelves_order[0]) ||
+      Object.keys(collection.availableShelves)[0];
+    return shelfKey ? collection.sidebarShelves[shelfKey] || [] : [];
+  }
+
+  get libraryAlbums() {
+    return collection.mapIdsToAlbums(collection.libraryViewIds);
+  }
+  get shelfAlbums() {
+    return collection.mapIdsToAlbums(this.shelfViewIds);
+  }
 
   getSidebarGroup(key: string): any[] {
     if (!collection.sidebarGroups.has(key) && sync.isOpen) {
-        this.refreshSidebar();
-        return [];
+      this.refreshSidebar();
+      return [];
     }
     return collection.sidebarGroups.get(key) || [];
   }
@@ -118,13 +147,22 @@ export class ViewState {
       state.activeLibraryFilter = allowedFilters.length > 0 ? allowedFilters[0] : null;
     }
     if (!state.activeSidebarGrouper || !allowedGroupers.includes(state.activeSidebarGrouper)) {
-      state.activeSidebarGrouper = allowedGroupers[0] || (collection.manifest.groupers_order && collection.manifest.groupers_order[0]) || Object.keys(collection.availableFacets)[0] || "genre";
+      state.activeSidebarGrouper =
+        allowedGroupers[0] ||
+        (collection.manifest.groupers_order && collection.manifest.groupers_order[0]) ||
+        Object.keys(collection.availableFacets)[0] ||
+        "genre";
     }
     if (!state.userSortPreference || !allowedOrders.includes(state.userSortPreference)) {
-      state.userSortPreference = allowedOrders[0] || (collection.manifest.orders_order && collection.manifest.orders_order[0]) || Object.keys(collection.availableOrders)[0] || "default";
+      state.userSortPreference =
+        allowedOrders[0] ||
+        (collection.manifest.orders_order && collection.manifest.orders_order[0]) ||
+        Object.keys(collection.availableOrders)[0] ||
+        "default";
     }
     if (!state.userSortOrder) state.userSortOrder = "default";
-    if (!state.activeSort) state.activeSort = { key: state.userSortPreference, order: state.userSortOrder };
+    if (!state.activeSort)
+      state.activeSort = { key: state.userSortPreference, order: state.userSortOrder };
     if (!state.activeFilter) state.activeFilter = { key: null, val: null };
 
     this.activeLibraryFilter = state.activeLibraryFilter;
@@ -138,30 +176,30 @@ export class ViewState {
   refreshView(resetScroll: boolean = true) {
     if (!sync.isOpen) return;
     this._pendingViewReset = resetScroll;
-    
+
     if (nav.activeTab === "home" && this.homeSubView === "shelves") {
-        if (resetScroll) this.shelfVersion++;
-        this.isLoading = false;
-        this._pendingViewReset = false;
+      if (resetScroll) this.shelfVersion++;
+      this.isLoading = false;
+      this._pendingViewReset = false;
     } else {
-        sync.send({
-            type: "VIEW_REQUEST",
-            library: this.activeLibrary,
-            library_filter: this.activeLibraryFilter,
-            sort: this.activeSort.key,
-            reverse: this.activeSort.order === "reverse",
-            filter: this.activeFilter
-        });
+      sync.send({
+        type: "VIEW_REQUEST",
+        library: this.activeLibrary,
+        library_filter: this.activeLibraryFilter,
+        sort: this.activeSort.key,
+        reverse: this.activeSort.order === "reverse",
+        filter: this.activeFilter
+      });
     }
   }
 
   refreshSidebar() {
     if (!sync.isOpen) return;
     sync.send({
-        type: "GROUP_REQUEST",
-        library: this.activeLibrary,
-        library_filter: this.activeLibraryFilter,
-        key: this.activeSidebarGrouper
+      type: "GROUP_REQUEST",
+      library: this.activeLibrary,
+      library_filter: this.activeLibraryFilter,
+      key: this.activeSidebarGrouper
     });
   }
 
@@ -215,7 +253,7 @@ export class ViewState {
   }
 
   toggleSortOrder() {
-    this.userSortOrder = (this.userSortOrder === "default") ? "reverse" : "default";
+    this.userSortOrder = this.userSortOrder === "default" ? "reverse" : "default";
     this.activeSort = { key: this.userSortPreference, order: this.userSortOrder };
     this.refreshView(true);
     this.persistState();
@@ -226,7 +264,7 @@ export class ViewState {
       this.isFocusInstant = instant;
       return;
     }
-    
+
     this.isFocusInstant = instant;
 
     const cached = collection.fullAlbumCache[album.id];
@@ -263,7 +301,7 @@ export class ViewState {
       } else {
         this.focusedAlbum = { id: album.id, album: {}, tracks: [] };
       }
-      
+
       const full = await collection.ensureFullAlbum(album.id);
       if (this.focusedAlbum?.id === album.id) {
         this.focusedAlbum = full;

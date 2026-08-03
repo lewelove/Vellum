@@ -10,9 +10,14 @@ class Prewarmer {
   private flushTimer: number | null = null;
 
   constructor() {
-    sync.addEventListener('message', (e: Event) => {
+    sync.addEventListener("message", (e: Event) => {
       const json = (e as CustomEvent).detail;
-      if (json.type === "INIT_DICT" || json.type === "ALBUM_UPDATED" || json.type === "CONFIG_UPDATE" || json.type === "INTERFACE_CONFIG_UPDATE") {
+      if (
+        json.type === "INIT_DICT" ||
+        json.type === "ALBUM_UPDATED" ||
+        json.type === "CONFIG_UPDATE" ||
+        json.type === "INTERFACE_CONFIG_UPDATE"
+      ) {
         this.orchestrate();
       }
     });
@@ -39,16 +44,17 @@ class Prewarmer {
   }
 
   async loadNow(url: string) {
-    if (!url || this.pinnedTextures.has(url) || this.inFlight.has(url) || this.failedUrls.has(url)) return;
-    
+    if (!url || this.pinnedTextures.has(url) || this.inFlight.has(url) || this.failedUrls.has(url))
+      return;
+
     this.inFlight.add(url);
     try {
       const res = await fetch(url);
       if (!res.ok) throw new Error("Failed to load");
       const blob = await res.blob();
       const bitmap = await createImageBitmap(blob, {
-        premultiplyAlpha: 'none',
-        colorSpaceConversion: 'default'
+        premultiplyAlpha: "none",
+        colorSpaceConversion: "default"
       });
       this.pinnedTextures.set(url, bitmap);
       this.scheduleFlush();
@@ -66,16 +72,22 @@ class Prewarmer {
       while (queue.length > 0) {
         const album = queue.shift();
         const url = collection.getThumbnailUrl(album);
-        if (!url || this.pinnedTextures.has(url) || this.inFlight.has(url) || this.failedUrls.has(url)) continue;
-        
+        if (
+          !url ||
+          this.pinnedTextures.has(url) ||
+          this.inFlight.has(url) ||
+          this.failedUrls.has(url)
+        )
+          continue;
+
         this.inFlight.add(url);
         try {
           const res = await fetch(url);
           if (!res.ok) throw new Error("Failed to load");
           const blob = await res.blob();
           const bitmap = await createImageBitmap(blob, {
-            premultiplyAlpha: 'none',
-            colorSpaceConversion: 'default'
+            premultiplyAlpha: "none",
+            colorSpaceConversion: "default"
           });
           this.pinnedTextures.set(url, bitmap);
           this.scheduleFlush();

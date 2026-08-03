@@ -1,362 +1,373 @@
 <script>
-  import { onMount, onDestroy } from "svelte";
-  import { config } from "../../config.svelte.ts";
-  import { colorsState } from "../../colors.svelte.ts";
-  import { view } from "../../library/view.svelte.ts";
-  
-  import vertexShaderSource from "./Shaders/Quad.vert?raw";
-  import internalFragmentShader from "./Shaders/Simplex.frag?raw";
+import { onMount, onDestroy } from "svelte";
+import { config } from "../../config.svelte.ts";
+import { colorsState } from "../../colors.svelte.ts";
+import { view } from "../../library/view.svelte.ts";
 
-  let { colors = [], coverSize = 0, visible = false, isPlaying = false } = $props();
+import vertexShaderSource from "./Shaders/Quad.vert?raw";
+import internalFragmentShader from "./Shaders/Simplex.frag?raw";
 
-  const PALETTE_SIZE_LIMIT = 12;
+let { colors = [], coverSize = 0, visible = false, isPlaying = false } = $props();
 
-  let canvasEl;
-  let gl;
-  let program;
-  let animationFrame;
-  let locations = {};
-  
-  let totalTime = 0;
-  let lastFrameTime = 0;
-  let isTabVisible = $state(true);
-  let randomOffset = Math.random() * 1000.0;
+const PALETTE_SIZE_LIMIT = 12;
 
-  const floatColorsOklab = new Float32Array(24 * 3);
-  const floatRatios = new Float32Array(24);
-  let activeColorCount = 0;
+let canvasEl;
+let gl;
+let program;
+let animationFrame;
+let locations = {};
 
-  let shaderSource = $state(internalFragmentShader);
+let totalTime = 0;
+let lastFrameTime = 0;
+let isTabVisible = $state(true);
+let randomOffset = Math.random() * 1000.0;
 
-  function parseColorToOklab(colorStr) {
-    if (!colorStr) return [0.26, 0, 0];
-    if (colorStr.startsWith('oklch(')) {
-      const m = colorStr.match(/oklch\(([\d.]+)%\s+([\d.]+)\s+([\d.]+)\)/) || colorStr.match(/oklch\(([\d.]+)\s+([\d.]+)\s+([\d.]+)\)/);
-      if (m) {
-        let L = parseFloat(m[1]);
-        if (colorStr.includes('%')) L /= 100;
-        const C = parseFloat(m[2]);
-        const H = parseFloat(m[3]) * (Math.PI / 180);
-        return [L, C * Math.cos(H), C * Math.sin(H)];
-      }
-      return [0.26, 0, 0];
+const floatColorsOklab = new Float32Array(24 * 3);
+const floatRatios = new Float32Array(24);
+let activeColorCount = 0;
+
+let shaderSource = $state(internalFragmentShader);
+
+function parseColorToOklab(colorStr) {
+  if (!colorStr) return [0.26, 0, 0];
+  if (colorStr.startsWith("oklch(")) {
+    const m =
+      colorStr.match(/oklch\(([\d.]+)%\s+([\d.]+)\s+([\d.]+)\)/) ||
+      colorStr.match(/oklch\(([\d.]+)\s+([\d.]+)\s+([\d.]+)\)/);
+    if (m) {
+      let L = parseFloat(m[1]);
+      if (colorStr.includes("%")) L /= 100;
+      const C = parseFloat(m[2]);
+      const H = parseFloat(m[3]) * (Math.PI / 180);
+      return [L, C * Math.cos(H), C * Math.sin(H)];
     }
-    let hex = colorStr;
-    if (hex.startsWith('#')) hex = hex.slice(1);
-    if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
-    
-    const r = parseInt(hex.slice(0, 2), 16) / 255.0;
-    const g = parseInt(hex.slice(2, 4), 16) / 255.0;
-    const b = parseInt(hex.slice(4, 6), 16) / 255.0;
-    
-    const lin = c => c >= 0.04045 ? Math.pow((c + 0.055) / 1.055, 2.4) : c / 12.92;
-    const lr = lin(r);
-    const lg = lin(g);
-    const lb = lin(b);
-    
-    const l = 0.4122214708 * lr + 0.5363325363 * lg + 0.0514459929 * lb;
-    const m = 0.2119034982 * lr + 0.6806995451 * lg + 0.1073969566 * lb;
-    const s = 0.0883024619 * lr + 0.2817188376 * lg + 0.6299787005 * lb;
-    
-    const l_ = Math.cbrt(l);
-    const m_ = Math.cbrt(m);
-    const s_ = Math.cbrt(s);
-    
-    const L = 0.2104542553 * l_ + 0.7936177850 * m_ - 0.0040720468 * s_;
-    const A = 1.9779984951 * l_ - 2.4285922050 * m_ + 0.4505937099 * s_;
-    const B = 0.0259040371 * l_ + 0.7827717662 * m_ - 0.8086757660 * s_;
-    
-    return [L, A, B];
+    return [0.26, 0, 0];
   }
+  let hex = colorStr;
+  if (hex.startsWith("#")) hex = hex.slice(1);
+  if (hex.length === 3)
+    hex = hex
+      .split("")
+      .map((c) => c + c)
+      .join("");
 
-  function parseOklch(str) {
-    const m = str.match(/oklch\(([\d.]+)%\s+([\d.]+)\s+([\d.]+)\)/);
-    if (m) return { L: parseFloat(m[1]), C: parseFloat(m[2]), H: parseFloat(m[3]) };
-    const m2 = str.match(/oklch\(([\d.]+)\s+([\d.]+)\s+([\d.]+)\)/);
-    return m2 ? { L: parseFloat(m2[1]), C: parseFloat(m2[2]), H: parseFloat(m2[3]) } : { L: 0, C: 0, H: 0 };
+  const r = parseInt(hex.slice(0, 2), 16) / 255.0;
+  const g = parseInt(hex.slice(2, 4), 16) / 255.0;
+  const b = parseInt(hex.slice(4, 6), 16) / 255.0;
+
+  const lin = (c) => (c >= 0.04045 ? Math.pow((c + 0.055) / 1.055, 2.4) : c / 12.92);
+  const lr = lin(r);
+  const lg = lin(g);
+  const lb = lin(b);
+
+  const l = 0.4122214708 * lr + 0.5363325363 * lg + 0.0514459929 * lb;
+  const m = 0.2119034982 * lr + 0.6806995451 * lg + 0.1073969566 * lb;
+  const s = 0.0883024619 * lr + 0.2817188376 * lg + 0.6299787005 * lb;
+
+  const l_ = Math.cbrt(l);
+  const m_ = Math.cbrt(m);
+  const s_ = Math.cbrt(s);
+
+  const L = 0.2104542553 * l_ + 0.793617785 * m_ - 0.0040720468 * s_;
+  const A = 1.9779984951 * l_ - 2.428592205 * m_ + 0.4505937099 * s_;
+  const B = 0.0259040371 * l_ + 0.7827717662 * m_ - 0.808675766 * s_;
+
+  return [L, A, B];
+}
+
+function parseOklch(str) {
+  const m = str.match(/oklch\(([\d.]+)%\s+([\d.]+)\s+([\d.]+)\)/);
+  if (m) return { L: parseFloat(m[1]), C: parseFloat(m[2]), H: parseFloat(m[3]) };
+  const m2 = str.match(/oklch\(([\d.]+)\s+([\d.]+)\s+([\d.]+)\)/);
+  return m2
+    ? { L: parseFloat(m2[1]), C: parseFloat(m2[2]), H: parseFloat(m2[3]) }
+    : { L: 0, C: 0, H: 0 };
+}
+
+function getChroma(c) {
+  const val = Array.isArray(c) ? c[0] : c.hex || c;
+  if (typeof val === "string" && val.startsWith("oklch(")) {
+    return parseOklch(val).C;
   }
+  const [L, a, b] = parseColorToOklab(val);
+  return Math.sqrt(a * a + b * b);
+}
 
-  function getChroma(c) {
-    const val = Array.isArray(c) ? c[0] : (c.hex || c);
-    if (typeof val === 'string' && val.startsWith('oklch(')) {
-      return parseOklch(val).C;
-    }
-    const [L, a, b] = parseColorToOklab(val);
-    return Math.sqrt(a * a + b * b);
+function shuffle(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
   }
+  return array;
+}
 
-  function shuffle(array) {
-    for (let i = array.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [array[i], array[j]] = [array[j], array[i]];
-    }
-    return array;
-  }
-
-  async function loadExternalShader() {
-    try {
-        const res = await fetch(`/api/interfaces/default/assets/shader?v=${view.assetVersion}`);
-        if (res.ok) {
-            shaderSource = await res.text();
-        } else {
-            shaderSource = internalFragmentShader;
-        }
-    } catch (e) {
-        shaderSource = internalFragmentShader;
-    }
-  }
-
-  $effect(() => {
-    const _ = view.assetVersion;
-    loadExternalShader();
-  });
-
-  $effect(() => {
-    let palette = (colors && colors.length > 0) ? [...colors] : [colorsState.palette.ok300];
-    const order = config.shader?.order || "original";
-    
-    if (order !== "original") {
-      palette.sort((a, b) => getChroma(b) - getChroma(a));
-    }
-    
-    palette = palette.slice(0, PALETTE_SIZE_LIMIT);
-
-    if (order === "random") {
-      shuffle(palette);
-    } else if (order === "ratio") {
-      palette.sort((a, b) => {
-        const rA = Array.isArray(a) ? parseFloat(a[a.length - 1]) : 0;
-        const rB = Array.isArray(b) ? parseFloat(b[b.length - 1]) : 0;
-        return rB - rA; 
-      });
-    } else if (order.startsWith("oklch,")) {
-      const comp = order.split(",")[1];
-      palette.sort((a, b) => {
-        const valA = Array.isArray(a) ? a[0] : (a.hex || a);
-        const valB = Array.isArray(b) ? b[0] : (b.hex || b);
-        let cA = 0; let cB = 0;
-        
-        if (typeof valA === 'string' && valA.startsWith('oklch(')) cA = parseOklch(valA)[comp] || 0;
-        else if (comp === 'L') cA = parseColorToOklab(valA)[0];
-        else if (comp === 'C') cA = Math.sqrt(parseColorToOklab(valA)[1]**2 + parseColorToOklab(valA)[2]**2);
-        
-        if (typeof valB === 'string' && valB.startsWith('oklch(')) cB = parseOklch(valB)[comp] || 0;
-        else if (comp === 'L') cB = parseColorToOklab(valB)[0];
-        else if (comp === 'C') cB = Math.sqrt(parseColorToOklab(valB)[1]**2 + parseColorToOklab(valB)[2]**2);
-        
-        return cA - cB;
-      });
-    }
-
-    activeColorCount = palette.length;
-    
-    let hasRatios = false;
-    for (let i = 0; i < activeColorCount; i++) {
-      if (Array.isArray(palette[i]) && palette[i].length > 1) {
-        hasRatios = true;
-        break;
-      }
-    }
-
-    let rawRatios = new Array(activeColorCount).fill(0);
-    let totalRaw = 0;
-    
-    for (let i = 0; i < activeColorCount; i++) {
-      const c = palette[i];
-      if (hasRatios) {
-        rawRatios[i] = Array.isArray(c) ? parseFloat(c[c.length - 1]) : 0.0;
-      } else {
-        rawRatios[i] = 1.0 / (i + 1.0);
-      }
-      totalRaw += rawRatios[i];
-    }
-
-    if (totalRaw > 0) {
-      for (let i = 0; i < activeColorCount; i++) {
-        rawRatios[i] /= totalRaw;
-      }
+async function loadExternalShader() {
+  try {
+    const res = await fetch(`/api/interfaces/default/assets/shader?v=${view.assetVersion}`);
+    if (res.ok) {
+      shaderSource = await res.text();
     } else {
-      for (let i = 0; i < activeColorCount; i++) {
-        rawRatios[i] = 1.0 / activeColorCount;
-      }
+      shaderSource = internalFragmentShader;
     }
+  } catch (e) {
+    shaderSource = internalFragmentShader;
+  }
+}
 
-    const equalize = config.shader?.equalize ?? 0;
-    const avgRatio = 1.0 / activeColorCount;
+$effect(() => {
+  const _ = view.assetVersion;
+  loadExternalShader();
+});
 
-    for (let i = 0; i < activeColorCount; i++) {
-      rawRatios[i] = (rawRatios[i] * (1.0 - equalize)) + (avgRatio * equalize);
-    }
+$effect(() => {
+  let palette = colors && colors.length > 0 ? [...colors] : [colorsState.palette.ok300];
+  const order = config.shader?.order || "original";
 
-    for (let i = 0; i < 24; i++) {
-      if (i < activeColorCount) {
-        const c = palette[i];
-        const colorVal = Array.isArray(c) ? c[0] : (c.hex || c);
-        const [L, a, b] = parseColorToOklab(colorVal);
-        
-        floatColorsOklab[i * 3 + 0] = L;
-        floatColorsOklab[i * 3 + 1] = a;
-        floatColorsOklab[i * 3 + 2] = b;
-        floatRatios[i] = rawRatios[i];
-      } else {
-        floatColorsOklab[i * 3 + 0] = 0.0;
-        floatColorsOklab[i * 3 + 1] = 0.0;
-        floatColorsOklab[i * 3 + 2] = 0.0;
-        floatRatios[i] = 0.0;
-      }
-    }
-  });
-
-  function createShader(gl, type, source) {
-    const shader = gl.createShader(type);
-    gl.shaderSource(shader, source);
-    gl.compileShader(shader);
-    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-      gl.deleteShader(shader);
-      return null;
-    }
-    return shader;
+  if (order !== "original") {
+    palette.sort((a, b) => getChroma(b) - getChroma(a));
   }
 
-  function initGL() {
-    if (!canvasEl) return;
-    gl = canvasEl.getContext("webgl2", { 
-      alpha: false, 
-      antialias: true,
-      premultipliedAlpha: false,
-      preserveDrawingBuffer: true
+  palette = palette.slice(0, PALETTE_SIZE_LIMIT);
+
+  if (order === "random") {
+    shuffle(palette);
+  } else if (order === "ratio") {
+    palette.sort((a, b) => {
+      const rA = Array.isArray(a) ? parseFloat(a[a.length - 1]) : 0;
+      const rB = Array.isArray(b) ? parseFloat(b[b.length - 1]) : 0;
+      return rB - rA;
     });
-    
-    if (!gl) return;
+  } else if (order.startsWith("oklch,")) {
+    const comp = order.split(",")[1];
+    palette.sort((a, b) => {
+      const valA = Array.isArray(a) ? a[0] : a.hex || a;
+      const valB = Array.isArray(b) ? b[0] : b.hex || b;
+      let cA = 0;
+      let cB = 0;
 
-    const vs = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
-    const fs = createShader(gl, gl.FRAGMENT_SHADER, shaderSource);
+      if (typeof valA === "string" && valA.startsWith("oklch(")) cA = parseOklch(valA)[comp] || 0;
+      else if (comp === "L") cA = parseColorToOklab(valA)[0];
+      else if (comp === "C")
+        cA = Math.sqrt(parseColorToOklab(valA)[1] ** 2 + parseColorToOklab(valA)[2] ** 2);
 
-    if (!vs || !fs) return;
+      if (typeof valB === "string" && valB.startsWith("oklch(")) cB = parseOklch(valB)[comp] || 0;
+      else if (comp === "L") cB = parseColorToOklab(valB)[0];
+      else if (comp === "C")
+        cB = Math.sqrt(parseColorToOklab(valB)[1] ** 2 + parseColorToOklab(valB)[2] ** 2);
 
-    if (program) gl.deleteProgram(program);
-    program = gl.createProgram();
-    gl.attachShader(program, vs);
-    gl.attachShader(program, fs);
-    gl.linkProgram(program);
-
-    locations = {
-      iTime: gl.getUniformLocation(program, "iTime"),
-      iRandom: gl.getUniformLocation(program, "iRandom"),
-      iResolution: gl.getUniformLocation(program, "iResolution"),
-      iCoverSize: gl.getUniformLocation(program, "iCoverSize"),
-      iColorsOklab: gl.getUniformLocation(program, "iColorsOklab"),
-      iRatios: gl.getUniformLocation(program, "iRatios"),
-      iCount: gl.getUniformLocation(program, "iCount"),
-      iSpeed: gl.getUniformLocation(program, "iSpeed"),
-      iZoom: gl.getUniformLocation(program, "iZoom"),
-      iBlur: gl.getUniformLocation(program, "iBlur"),
-      iGrain: gl.getUniformLocation(program, "iGrain"),
-      iEqualize: gl.getUniformLocation(program, "iEqualize"),
-    };
-
-    const vertices = new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]);
-    const buffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-    gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
-
-    const positionLoc = gl.getAttribLocation(program, "position");
-    gl.enableVertexAttribArray(positionLoc);
-    gl.vertexAttribPointer(positionLoc, 2, gl.FLOAT, false, 0, 0);
-
-    lastFrameTime = performance.now();
-    startLoop();
+      return cA - cB;
+    });
   }
 
-  $effect(() => {
-    if (shaderSource) initGL();
+  activeColorCount = palette.length;
+
+  let hasRatios = false;
+  for (let i = 0; i < activeColorCount; i++) {
+    if (Array.isArray(palette[i]) && palette[i].length > 1) {
+      hasRatios = true;
+      break;
+    }
+  }
+
+  let rawRatios = new Array(activeColorCount).fill(0);
+  let totalRaw = 0;
+
+  for (let i = 0; i < activeColorCount; i++) {
+    const c = palette[i];
+    if (hasRatios) {
+      rawRatios[i] = Array.isArray(c) ? parseFloat(c[c.length - 1]) : 0.0;
+    } else {
+      rawRatios[i] = 1.0 / (i + 1.0);
+    }
+    totalRaw += rawRatios[i];
+  }
+
+  if (totalRaw > 0) {
+    for (let i = 0; i < activeColorCount; i++) {
+      rawRatios[i] /= totalRaw;
+    }
+  } else {
+    for (let i = 0; i < activeColorCount; i++) {
+      rawRatios[i] = 1.0 / activeColorCount;
+    }
+  }
+
+  const equalize = config.shader?.equalize ?? 0;
+  const avgRatio = 1.0 / activeColorCount;
+
+  for (let i = 0; i < activeColorCount; i++) {
+    rawRatios[i] = rawRatios[i] * (1.0 - equalize) + avgRatio * equalize;
+  }
+
+  for (let i = 0; i < 24; i++) {
+    if (i < activeColorCount) {
+      const c = palette[i];
+      const colorVal = Array.isArray(c) ? c[0] : c.hex || c;
+      const [L, a, b] = parseColorToOklab(colorVal);
+
+      floatColorsOklab[i * 3 + 0] = L;
+      floatColorsOklab[i * 3 + 1] = a;
+      floatColorsOklab[i * 3 + 2] = b;
+      floatRatios[i] = rawRatios[i];
+    } else {
+      floatColorsOklab[i * 3 + 0] = 0.0;
+      floatColorsOklab[i * 3 + 1] = 0.0;
+      floatColorsOklab[i * 3 + 2] = 0.0;
+      floatRatios[i] = 0.0;
+    }
+  }
+});
+
+function createShader(gl, type, source) {
+  const shader = gl.createShader(type);
+  gl.shaderSource(shader, source);
+  gl.compileShader(shader);
+  if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+    gl.deleteShader(shader);
+    return null;
+  }
+  return shader;
+}
+
+function initGL() {
+  if (!canvasEl) return;
+  gl = canvasEl.getContext("webgl2", {
+    alpha: false,
+    antialias: true,
+    premultipliedAlpha: false,
+    preserveDrawingBuffer: true
   });
 
-  function startLoop() {
-    if (animationFrame) cancelAnimationFrame(animationFrame);
-    lastFrameTime = performance.now();
-    render();
-  }
+  if (!gl) return;
 
-  function render() {
-    if (!gl || !program) return;
+  const vs = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
+  const fs = createShader(gl, gl.FRAGMENT_SHADER, shaderSource);
 
-    if (!visible || !isTabVisible || !view.isShaderActive) {
-      animationFrame = requestAnimationFrame(render);
-      return;
-    }
+  if (!vs || !fs) return;
 
-    const now = performance.now();
-    if (isPlaying) {
-      let delta = (now - lastFrameTime) / 1000;
-      if (delta > 0.1) delta = 0.016;
-      totalTime += delta;
-    }
-    lastFrameTime = now;
+  if (program) gl.deleteProgram(program);
+  program = gl.createProgram();
+  gl.attachShader(program, vs);
+  gl.attachShader(program, fs);
+  gl.linkProgram(program);
 
-    gl.viewport(0, 0, canvasEl.width, canvasEl.height);
-    gl.useProgram(program);
+  locations = {
+    iTime: gl.getUniformLocation(program, "iTime"),
+    iRandom: gl.getUniformLocation(program, "iRandom"),
+    iResolution: gl.getUniformLocation(program, "iResolution"),
+    iCoverSize: gl.getUniformLocation(program, "iCoverSize"),
+    iColorsOklab: gl.getUniformLocation(program, "iColorsOklab"),
+    iRatios: gl.getUniformLocation(program, "iRatios"),
+    iCount: gl.getUniformLocation(program, "iCount"),
+    iSpeed: gl.getUniformLocation(program, "iSpeed"),
+    iZoom: gl.getUniformLocation(program, "iZoom"),
+    iBlur: gl.getUniformLocation(program, "iBlur"),
+    iGrain: gl.getUniformLocation(program, "iGrain"),
+    iEqualize: gl.getUniformLocation(program, "iEqualize")
+  };
 
-    gl.uniform1f(locations.iTime, totalTime);
-    gl.uniform1f(locations.iRandom, randomOffset);
-    gl.uniform2f(locations.iResolution, canvasEl.width, canvasEl.height);
-    
-    const dpr = window.devicePixelRatio || 1;
-    gl.uniform1f(locations.iCoverSize, coverSize * dpr);
+  const vertices = new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]);
+  const buffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+  gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
 
-    gl.uniform3fv(locations.iColorsOklab, floatColorsOklab);
-    gl.uniform1fv(locations.iRatios, floatRatios);
-    gl.uniform1i(locations.iCount, activeColorCount);
+  const positionLoc = gl.getAttribLocation(program, "position");
+  gl.enableVertexAttribArray(positionLoc);
+  gl.vertexAttribPointer(positionLoc, 2, gl.FLOAT, false, 0, 0);
 
-    const s = config.shader || {};
-    gl.uniform1f(locations.iSpeed, s.speed ?? 0.007);
-    gl.uniform1f(locations.iZoom, s.zoom ?? 0.4);
-    gl.uniform1f(locations.iBlur, s.blur ?? 0.8);
+  lastFrameTime = performance.now();
+  startLoop();
+}
 
-    gl.uniform1f(locations.iGrain, s.grain ?? 0.01);
-    gl.uniform1f(locations.iEqualize, s.equalize ?? 1.0);
+$effect(() => {
+  if (shaderSource) initGL();
+});
 
-    gl.drawArrays(gl.TRIANGLES, 0, 6);
+function startLoop() {
+  if (animationFrame) cancelAnimationFrame(animationFrame);
+  lastFrameTime = performance.now();
+  render();
+}
 
+function render() {
+  if (!gl || !program) return;
+
+  if (!visible || !isTabVisible || !view.isShaderActive) {
     animationFrame = requestAnimationFrame(render);
+    return;
   }
 
-  function handleResize() {
-    if (canvasEl) {
-      const dpr = window.devicePixelRatio || 1;
-      canvasEl.width = window.innerWidth * dpr;
-      canvasEl.height = window.innerHeight * dpr;
-    }
+  const now = performance.now();
+  if (isPlaying) {
+    let delta = (now - lastFrameTime) / 1000;
+    if (delta > 0.1) delta = 0.016;
+    totalTime += delta;
   }
+  lastFrameTime = now;
 
-  function handleVisibilityChange() {
-    isTabVisible = !document.hidden;
+  gl.viewport(0, 0, canvasEl.width, canvasEl.height);
+  gl.useProgram(program);
+
+  gl.uniform1f(locations.iTime, totalTime);
+  gl.uniform1f(locations.iRandom, randomOffset);
+  gl.uniform2f(locations.iResolution, canvasEl.width, canvasEl.height);
+
+  const dpr = window.devicePixelRatio || 1;
+  gl.uniform1f(locations.iCoverSize, coverSize * dpr);
+
+  gl.uniform3fv(locations.iColorsOklab, floatColorsOklab);
+  gl.uniform1fv(locations.iRatios, floatRatios);
+  gl.uniform1i(locations.iCount, activeColorCount);
+
+  const s = config.shader || {};
+  gl.uniform1f(locations.iSpeed, s.speed ?? 0.007);
+  gl.uniform1f(locations.iZoom, s.zoom ?? 0.4);
+  gl.uniform1f(locations.iBlur, s.blur ?? 0.8);
+
+  gl.uniform1f(locations.iGrain, s.grain ?? 0.01);
+  gl.uniform1f(locations.iEqualize, s.equalize ?? 1.0);
+
+  gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+  animationFrame = requestAnimationFrame(render);
+}
+
+function handleResize() {
+  if (canvasEl) {
+    const dpr = window.devicePixelRatio || 1;
+    canvasEl.width = window.innerWidth * dpr;
+    canvasEl.height = window.innerHeight * dpr;
   }
+}
 
-  $effect(() => {
-    if (colors || coverSize || config.shader) {
-      handleResize();
-    }
-  });
+function handleVisibilityChange() {
+  isTabVisible = !document.hidden;
+}
 
-  $effect(() => {
-    if (visible && isTabVisible) {
-      lastFrameTime = performance.now();
-    }
-  });
-
-  onMount(() => {
+$effect(() => {
+  if (colors || coverSize || config.shader) {
     handleResize();
-    initGL();
-    window.addEventListener("resize", handleResize);
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-  });
+  }
+});
 
-  onDestroy(() => {
-    if (animationFrame) cancelAnimationFrame(animationFrame);
-    window.removeEventListener("resize", handleResize);
-    document.removeEventListener("visibilitychange", handleVisibilityChange);
-  });
+$effect(() => {
+  if (visible && isTabVisible) {
+    lastFrameTime = performance.now();
+  }
+});
+
+onMount(() => {
+  handleResize();
+  initGL();
+  window.addEventListener("resize", handleResize);
+  document.addEventListener("visibilitychange", handleVisibilityChange);
+});
+
+onDestroy(() => {
+  if (animationFrame) cancelAnimationFrame(animationFrame);
+  window.removeEventListener("resize", handleResize);
+  document.removeEventListener("visibilitychange", handleVisibilityChange);
+});
 </script>
 
 <canvas

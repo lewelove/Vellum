@@ -10,20 +10,20 @@ export function initApp() {
   sync.connect();
 
   fetch("/api/interfaces/default/config")
-    .then(res => res.json())
-    .then(data => {
-        collection.config = { ...collection.config, ...data };
-        updateConfig(data);
-        applyColors(data);
+    .then((res) => res.json())
+    .then((data) => {
+      collection.config = { ...collection.config, ...data };
+      updateConfig(data);
+      applyColors(data);
     })
     .catch(() => {
-        fetch("/api/interfaces/web-app/config")
-            .then(res => res.json())
-            .then(data => {
-                collection.config = { ...collection.config, ...data };
-                updateConfig(data);
-                applyColors(data);
-            })
-            .catch(e => console.error(e));
+      fetch("/api/interfaces/web-app/config")
+        .then((res) => res.json())
+        .then((data) => {
+          collection.config = { ...collection.config, ...data };
+          updateConfig(data);
+          applyColors(data);
+        })
+        .catch((e) => console.error(e));
     });
 }

@@ -5,21 +5,21 @@ export class GridController {
   layout = new LayoutManager();
   scroll = new ScrollEngine();
   viewportHeight: number = $state(0);
-  
+
   albums: any[] = $state([]);
 
   allRows = $derived(this.layout.chunk(this.albums));
-  
+
   visibleRows = $derived(Math.ceil(this.viewportHeight / this.layout.rowHeight));
 
-  maxSlots = $derived(Math.max(0, (this.allRows.length + 1 - this.visibleRows)));
+  maxSlots = $derived(Math.max(0, this.allRows.length + 1 - this.visibleRows));
 
   virtualRows = $derived.by(() => {
     if (this.allRows.length === 0) return [];
 
     const { start, end } = this.layout.getVisibleIndices(
-      this.scroll.currentY, 
-      this.viewportHeight, 
+      this.scroll.currentY,
+      this.viewportHeight,
       this.allRows.length
     );
 
@@ -28,7 +28,7 @@ export class GridController {
       indicesToRender.push(i);
     }
 
-    return indicesToRender.map(i => ({
+    return indicesToRender.map((i) => ({
       index: i,
       y: this.layout.getRowY(i),
       data: this.allRows[i]

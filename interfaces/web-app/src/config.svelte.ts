@@ -7,7 +7,7 @@ export const config = $state({
     zoom: 0.3,
     blur: 0.8,
     grain: 0.1,
-    equalize: 1.0,
+    equalize: 1.0
   },
   palette: {
     ok100: "oklch(1.00 0 0)",
@@ -24,7 +24,7 @@ export const config = $state({
         enable: true,
         title: { size: 14 },
         albumartist: { size: 12 },
-        spacing: { top: 11, middle: 2 },
+        spacing: { top: 11, middle: 2 }
       }
     }
   }
@@ -54,13 +54,22 @@ export function updateConfig(newData: any) {
 
       if (newData.album_grid.album_card.text) {
         if (newData.album_grid.album_card.text.title) {
-          Object.assign(config.album_grid.album_card.text.title, newData.album_grid.album_card.text.title);
+          Object.assign(
+            config.album_grid.album_card.text.title,
+            newData.album_grid.album_card.text.title
+          );
         }
         if (newData.album_grid.album_card.text.albumartist) {
-          Object.assign(config.album_grid.album_card.text.albumartist, newData.album_grid.album_card.text.albumartist);
+          Object.assign(
+            config.album_grid.album_card.text.albumartist,
+            newData.album_grid.album_card.text.albumartist
+          );
         }
         if (newData.album_grid.album_card.text.spacing) {
-          Object.assign(config.album_grid.album_card.text.spacing, newData.album_grid.album_card.text.spacing);
+          Object.assign(
+            config.album_grid.album_card.text.spacing,
+            newData.album_grid.album_card.text.spacing
+          );
         }
         if (newData.album_grid.album_card.text.enable !== undefined) {
           config.album_grid.album_card.text.enable = newData.album_grid.album_card.text.enable;

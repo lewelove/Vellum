@@ -1,44 +1,48 @@
 <script lang="ts">
-  import { player } from "../player.svelte.ts";
-  import { collection } from "../../library/collection.svelte.ts";
-  import { view } from "../../library/view.svelte.ts";
-  import { nav } from "../../navigation.svelte.ts";
-  
-  import TracklistPanel from "./TracklistPanel.svelte";
-  import ControlPanel from "./ControlPanel.svelte";
-  import BackgroundShader from "./BackgroundShader.svelte";
-  import NavigationBar from "../NavigationBar.svelte";
-  import CoverPanel from "./CoverPanel.svelte";
-  import Sidebar from "./Sidebar.svelte";
+import { player } from "../player.svelte.ts";
+import { collection } from "../../library/collection.svelte.ts";
+import { view } from "../../library/view.svelte.ts";
+import { nav } from "../../navigation.svelte.ts";
 
-  let activeId = $derived(player.currentAlbumId);
-  let activeAlbum = $derived(activeId ? collection.dict[activeId] : null);
-  let coverHash = $derived(activeAlbum?.cover_hash || "");
-  let fullAlbum = $derived(activeId ? collection.fullAlbumCache[activeId] : null);
+import TracklistPanel from "./TracklistPanel.svelte";
+import ControlPanel from "./ControlPanel.svelte";
+import BackgroundShader from "./BackgroundShader.svelte";
+import NavigationBar from "../NavigationBar.svelte";
+import CoverPanel from "./CoverPanel.svelte";
+import Sidebar from "./Sidebar.svelte";
 
-  let palette = $derived(fullAlbum?.album?.colors?.background || activeAlbum?.colors?.background || []);
-  let hasPalette = $derived(palette && palette.length > 0);
-  let foregroundColor = $derived(fullAlbum?.album?.colors?.foreground || activeAlbum?.colors?.foreground || null);
+let activeId = $derived(player.currentAlbumId);
+let activeAlbum = $derived(activeId ? collection.dict[activeId] : null);
+let coverHash = $derived(activeAlbum?.cover_hash || "");
+let fullAlbum = $derived(activeId ? collection.fullAlbumCache[activeId] : null);
 
-  let isShaderOn = $derived(view.isShaderActive && hasPalette);
-  let activeForeground = $derived(isShaderOn && foregroundColor ? foregroundColor : null);
+let palette = $derived(
+  fullAlbum?.album?.colors?.background || activeAlbum?.colors?.background || []
+);
+let hasPalette = $derived(palette && palette.length > 0);
+let foregroundColor = $derived(
+  fullAlbum?.album?.colors?.foreground || activeAlbum?.colors?.foreground || null
+);
 
-  let isViewVisible = $derived(nav.activeTab === 'queue');
-  let isPlaying = $derived(player.state === "play");
+let isShaderOn = $derived(view.isShaderActive && hasPalette);
+let activeForeground = $derived(isShaderOn && foregroundColor ? foregroundColor : null);
 
-  let moduleWidth = $state(0);
+let isViewVisible = $derived(nav.activeTab === "queue");
+let isPlaying = $derived(player.state === "play");
 
-  $effect(() => {
-    const uniqueIds = [...new Set(player.queue.map(item => item.album_id).filter(Boolean))];
-    if (activeId && !uniqueIds.includes(activeId)) {
-      uniqueIds.push(activeId);
-    }
-    uniqueIds.forEach(id => collection.ensureFullAlbum(id));
-  });
+let moduleWidth = $state(0);
+
+$effect(() => {
+  const uniqueIds = [...new Set(player.queue.map((item) => item.album_id).filter(Boolean))];
+  if (activeId && !uniqueIds.includes(activeId)) {
+    uniqueIds.push(activeId);
+  }
+  uniqueIds.forEach((id) => collection.ensureFullAlbum(id));
+});
 </script>
 
-<div 
-  class="queue-view-container" 
+<div
+  class="queue-view-container"
   class:shader-off={!isShaderOn}
   style={activeForeground ? `--color-ok100: ${activeForeground};` : ""}
 >
@@ -62,41 +66,43 @@
 </div>
 
 <style>
-  .queue-view-container {
-    width: 100%;
-    height: 100%;
-    background-color: var(--bg-queue);
-    position: relative;
-    overflow: hidden;
-  }
+.queue-view-container {
+  width: 100%;
+  height: 100%;
+  background-color: var(--bg-queue);
+  position: relative;
+  overflow: hidden;
+}
 
-  .queue-layout {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    flex-direction: row;
-    z-index: 1;
-    position: relative;
-  }
+.queue-layout {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: row;
+  z-index: 1;
+  position: relative;
+}
 
-  .left-wing, .right-wing {
-    flex: 1 1 0%;
-    display: flex;
-    min-width: 0;
-    height: 100%;
-  }
+.left-wing,
+.right-wing {
+  flex: 1 1 0%;
+  display: flex;
+  min-width: 0;
+  height: 100%;
+}
 
-  .left-wing, .right-wing {
-    flex-direction: row;
-  }
+.left-wing,
+.right-wing {
+  flex-direction: row;
+}
 
-  .center-wing {
-    flex: 0 0 auto;
-    height: 100%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    box-sizing: border-box;
-    min-width: 0;
-  }
+.center-wing {
+  flex: 0 0 auto;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  box-sizing: border-box;
+  min-width: 0;
+}
 </style>
