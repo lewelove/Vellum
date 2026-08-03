@@ -21,8 +21,8 @@ pub fn calculate_chroma(img: &DynamicImage) -> f64 {
         let yb = (0.5f64.mul_add(r + g, -b)).abs();
         sum_rg += rg;
         sum_yb += yb;
-        sum_sq_rg += rg * rg;
-        sum_sq_yb += yb * yb;
+        sum_sq_rg = rg.mul_add(rg, sum_sq_rg);
+        sum_sq_yb = yb.mul_add(yb, sum_sq_yb);
     }
 
     let m_rg = sum_rg / total;
