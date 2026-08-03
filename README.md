@@ -100,7 +100,6 @@ chmod +x run_dev.sh run_prod.sh
 Build the Rust binary, Web App, as well as all of the Vellum Actions:
 
 ```bash
-# ONE command! Hail Nix!
 build
 ```
 
@@ -111,7 +110,8 @@ The `vellum` executable will be located at `./rust/target/release/vellum`. Alias
 You create `~/.config/vellum/vellum.lua` file:
 
 ```lua
--- Since we are using Lua, a truly god-tier config language, for convenience you can define cloned repository path as local string variable
+-- Since we are using Lua, a truly god-tier config language, for convenience
+-- you can define cloned repository path as local string variable
 local repo_dir = "Path/To/Cloned/Repo/"
 
 vl.config({ 
@@ -121,7 +121,8 @@ vl.config({
   }
 })
 
--- Optionally you can define all keys besides standard ones you want to load from toml manifests and be present in `album.lock.json`
+-- Optionally you can define all keys besides standard ones
+-- you want to load from toml manifests and be present in `album.lock.json`
 
 -- [album.lock.json].album.keys level
 vl.compiler.album.key({
@@ -133,7 +134,9 @@ vl.compiler.tracks.key({
   track_key_name = true
 })
 
--- For `vellum interface` command to run you point default interface to `interfaces/web-app` directory from the previous step
+-- For `vellum interface` command to run you point default interface
+-- to the `interfaces/web-app` directory from the previous step,
+-- as well as run-production-build script
 vl.interfaces({ default = {
   -- Quite handy!
   directory = repo_dir .. "interfaces/web-app/"
