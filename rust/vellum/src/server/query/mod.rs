@@ -64,8 +64,20 @@ pub fn value_to_sort_key(val: &Value) -> SortKey {
         ),
         Value::String(s) => SortKey::String(s.clone()),
         Value::Array(arr) => SortKey::Tuple(arr.iter().map(value_to_sort_key).collect()),
+        Value::Object(map) => {
+            let mut entries: Vec<_> = map.iter().collect();
+            entries.sort_by(|(k1, _), (k2, _)| {
+                let n1 = k1.parse::<usize>().ok();
+                let n2 = k2.parse::<usize>().ok();
+                match (n1, n2) {
+                    (Some(a), Some(b)) => a.cmp(&b),
+                    _ => k1.cmp(k2),
+                }
+            });
+            SortKey::Tuple(entries.into_iter().map(|(_, v)| value_to_sort_key(v)).collect())
+        }
         Value::Bool(b) => SortKey::Number(i64::from(*b)),
-        _ => SortKey::String(String::new()),
+        Value::Null => SortKey::String(String::new()),
     }
 }
 
@@ -369,7 +381,7 @@ impl QueryEngine {
                 order_pairs.push((uid, sort_key));
             }
 
-            order_pairs.sort_by(|a, b| a.1.cmp(&b.1));
+            order_pairs.sort_by(|a, b| (&a.1, a.0).cmp(&(&b.1, b.0)));
             let is_reverse = self
                 .manifest
                 .orders
