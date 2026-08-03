@@ -143,7 +143,7 @@ function onPointerUp(e: PointerEvent) {
   cursor: pointer;
   z-index: 50;
   margin-left: 12px;
-  margin-right: 0px;
+  margin-right: 0;
   flex-shrink: 0;
 }
 

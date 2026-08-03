@@ -254,15 +254,15 @@ function handleBackdropClick(e: MouseEvent) {
   font-size: 25px;
   font-weight: 400;
   color: var(--text-main);
-  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .album-artist {
-  margin: 5px 0 0 0;
+  margin: 5px 0 0;
   font-size: 20px;
   font-weight: 400;
   color: var(--text-muted);
-  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .meta-stack {
@@ -282,7 +282,7 @@ function handleBackdropClick(e: MouseEvent) {
 }
 
 .meta-date {
-  margin: 12px 0 0 0;
+  margin: 12px 0 0;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -321,6 +321,6 @@ function handleBackdropClick(e: MouseEvent) {
 }
 
 .tracks-scroll-area::-webkit-scrollbar {
-  width: 0px;
+  width: 0;
 }
 </style>

@@ -202,11 +202,11 @@ let groupedQueue = $derived.by(() => {
 }
 
 .tracks-list::-webkit-scrollbar {
-  width: 0px;
+  width: 0;
 }
 
 .album-group-header {
-  padding: 0px 0px 16px 0px;
+  padding: 0 0 16px;
   display: flex;
   align-items: center;
   box-sizing: border-box;
@@ -245,19 +245,19 @@ let groupedQueue = $derived.by(() => {
 .disc-separator {
   height: 1px;
   background-color: var(--border-muted);
-  margin: 10px 0 12px 0;
+  margin: 10px 0 12px;
 }
 
 .disc-header-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 0px;
-  margin: 12px 0px 8px 0;
+  padding: 0;
+  margin: 12px 0 8px;
 }
 
 .disc-header-row.first-disc {
-  margin-top: 0px;
+  margin-top: 0;
 }
 
 .disc-header-right {
@@ -286,7 +286,7 @@ let groupedQueue = $derived.by(() => {
 }
 
 .track-row {
-  margin: 0 0px;
+  margin: 0;
   padding-left: 14px;
   transition: none !important;
 }

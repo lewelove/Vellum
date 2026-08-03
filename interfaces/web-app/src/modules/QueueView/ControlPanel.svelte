@@ -188,7 +188,7 @@ $effect(() => {
 
 .panel-header {
   flex: 0 0 auto;
-  padding: 0px 0px 16px 0px;
+  padding: 0 0 16px;
   display: flex;
   align-items: center;
   box-sizing: border-box;
@@ -233,7 +233,7 @@ $effect(() => {
 }
 
 .lyrics-scroll::-webkit-scrollbar {
-  width: 0px;
+  width: 0;
 }
 
 .lyrics-content {

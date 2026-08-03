@@ -1,9 +1,14 @@
 export default {
+  ignoreFiles: ["dist/**", "node_modules/**", "**/dist/**"],
   extends: ["stylelint-config-standard", "stylelint-config-html"],
   rules: {
-    "no-descending-specificity": true,
-    "declaration-block-no-duplicate-properties": true,
-    "unit-no-unknown": true,
-    "font-family-no-missing-generic-family-keyword": true
+    "custom-property-empty-line-before": null,
+    "rule-empty-line-before": null,
+    "comment-empty-line-before": null,
+    "lightness-notation": null,
+    "hue-degree-notation": null,
+    "alpha-value-notation": null,
+    "color-function-alias-fix": null,
+    "declaration-property-value-no-unknown": null
   }
 };

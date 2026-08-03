@@ -129,9 +129,9 @@ body,
   width: 100%;
   user-select: none;
   touch-action: manipulation;
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
+  user-select: none;
+  user-select: none;
+  user-select: none;
 }
 
 ::selection {
@@ -173,7 +173,7 @@ main {
 }
 
 .v-glass {
-  backdrop-filter: blur(0px);
+  backdrop-filter: blur(0);
   background-color: transparent;
   box-shadow: var(--panel-shadow);
 }
@@ -234,7 +234,7 @@ main {
   text-transform: none;
   display: inline-block;
   white-space: nowrap;
-  word-wrap: normal;
+  overflow-wrap: normal;
   direction: ltr;
   -webkit-font-smoothing: antialiased;
   font-variation-settings:
@@ -373,7 +373,7 @@ main {
   gap: 8px;
   padding-bottom: 8px;
   border-bottom: 1px solid var(--border-muted);
-  margin-bottom: 0px;
+  margin-bottom: 0;
   flex-shrink: 0;
 }
 
@@ -491,7 +491,7 @@ main {
   contain: layout;
   box-sizing: border-box;
   border-radius: 10px;
-  padding: 6px 0px;
+  padding: 6px 0;
   transition: none;
 }
 

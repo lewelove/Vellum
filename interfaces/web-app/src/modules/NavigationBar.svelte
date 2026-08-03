@@ -61,7 +61,7 @@ async function handleOpenConfig() {
   flex-shrink: 0;
 }
 
-.nav-bar:not(:global(.v-glass)):not(.transparent) {
+.nav-bar:not(:global(.v-glass), .transparent) {
   background-color: var(--bg-panel);
 }
 
