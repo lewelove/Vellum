@@ -38,8 +38,7 @@ function __VELLUM_GET_LOGIC_MANIFEST()
     for k, v in pairs(REGISTRY.shelves or {}) do
         manifest.shelves[k] = {
             label = v.label or k,
-            reverse = v.reverse or false,
-            file = v.file
+            reverse = v.reverse or false
         }
     end
     return manifest

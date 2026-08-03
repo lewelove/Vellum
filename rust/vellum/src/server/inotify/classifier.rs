@@ -5,21 +5,18 @@ use std::sync::Arc;
 
 pub struct ChangeFlags {
     pub config: bool,
-    pub shelf: bool,
     pub interfaces_asset: HashSet<String>,
 }
 
 pub async fn classify_events(paths: &[PathBuf], state: &Arc<AppState>) -> ChangeFlags {
     let mut flags = ChangeFlags {
         config: false,
-        shelf: false,
         interfaces_asset: HashSet::new(),
     };
 
     let guard = state.config.read().await;
     let config_dir = guard.config_dir.clone();
 
-    let shelves: Vec<PathBuf> = guard.resolved_shelf_files.clone();
     let deps: Vec<PathBuf> = guard.resolved_dependencies.clone();
 
     let mut interface_assets: Vec<(String, PathBuf, bool)> = Vec::new();
@@ -39,10 +36,6 @@ pub async fn classify_events(paths: &[PathBuf], state: &Arc<AppState>) -> Change
 
         if deps.contains(&p_canon) {
             flags.config = true;
-        }
-
-        if shelves.contains(&p_canon) {
-            flags.shelf = true;
         }
 
         for (name, asset_path, is_dir) in &interface_assets {

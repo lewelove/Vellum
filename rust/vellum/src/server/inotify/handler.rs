@@ -4,15 +4,6 @@ use serde_json::json;
 use std::sync::Arc;
 
 pub async fn process_events(flags: ChangeFlags, state: &Arc<AppState>) {
-    if flags.shelf && !flags.config {
-        log::info!("Filesystem change: reloading shelf files...");
-        {
-            let mut logic = state.logic.write().await;
-            logic.build_cache();
-        }
-        let _ = state.tx.send(json!({ "type": "LOGIC_UPDATE" }).to_string());
-    }
-
     for intf_name in flags.interfaces_asset {
         log::info!("Interface '{intf_name}' asset changed.");
         let _ = state.tx.send(

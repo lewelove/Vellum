@@ -69,18 +69,7 @@ impl LogicEngine {
 
     fn populate_shelves_cache(&mut self) {
         for (shelf_key, shelf) in &self.manifest.shelves {
-            if let Some(file_path) = &shelf.file {
-                let expanded = libvellum::utils::expand_path(file_path);
-                if let Ok(content) = std::fs::read_to_string(&expanded) {
-                    let lines: Vec<u32> = content
-                        .lines()
-                        .map(|l| l.trim().to_string())
-                        .filter(|l| !l.is_empty() && !l.starts_with('#'))
-                        .filter_map(|l| self.id_to_uid.get(&l).copied())
-                        .collect();
-                    self.shelves_cache.insert(shelf_key.clone(), lines);
-                }
-            } else if let Some(shelf_uids) = self.shelves_cache.get_mut(shelf_key) {
+            if let Some(shelf_uids) = self.shelves_cache.get_mut(shelf_key) {
                 let default_key = json!("");
                 let mut pairs: Vec<(u32, SortKey)> = shelf_uids
                     .iter()

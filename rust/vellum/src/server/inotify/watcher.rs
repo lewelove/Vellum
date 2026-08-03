@@ -80,12 +80,6 @@ async fn sync_watches(
             needed_non_recursive.insert(parent.to_path_buf());
         }
     }
-
-    for shelf in &guard.resolved_shelf_files {
-        if let Some(parent) = shelf.parent() {
-            needed_non_recursive.insert(parent.to_path_buf());
-        }
-    }
     drop(guard);
 
     for dir in needed_recursive {

@@ -65,7 +65,6 @@ pub struct ShelfDef {
     pub label: String,
     #[serde(default)]
     pub reverse: bool,
-    pub file: Option<String>,
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug, Default)]

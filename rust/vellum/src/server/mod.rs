@@ -77,19 +77,10 @@ pub async fn run(port: u16) -> Result<()> {
 
     let mut logic_engine = logic::LogicEngine::new()?;
 
-    let mut resolved_shelf_files = Vec::new();
-    for shelf in logic_engine.manifest.shelves.values() {
-        if let Some(file) = &shelf.file {
-            let expanded = expand_path(file);
-            resolved_shelf_files.push(expanded.canonicalize().unwrap_or(expanded));
-        }
-    }
-
     let server_config = ServerConfig {
         library_root: library_root.clone(),
         cache_root,
         state_root: state_root.clone(),
-        resolved_shelf_files,
         resolved_dependencies,
         covers,
         interfaces,
