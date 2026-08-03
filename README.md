@@ -2,6 +2,8 @@
 
 Vellum is an MPD client and an album-centric library manager built from the first Unix Philosophy principles for archivist-minded collectors.
 
+> **Vellum** is prepared animal skin or membrane, typically used as writing material. — [Wikipedia](https://en.wikipedia.org/wiki/Vellum)
+
 ## Philosophy
 
 - **The Album as The Fundamental Collection Unit.** Vellum focuses solely on collection and management of music albums. The point, I guess, is to bring back the feeling of physical collecting to the digital world. An album is the fundamental unit of Vellum because an album is the fundamental unit of any music collection in real life.
@@ -44,7 +46,7 @@ Album preview, supporting multi-disc issues.
 
 <img width="1920" height="1080" alt="Image" src="https://github.com/user-attachments/assets/603ea8af-99e2-4ef1-88ee-3fbae9591f90" />
 
-### Queue
+### Playing Now & The Queue
 
 Provide any GLSL shader as the background with custom palettes for each album separately via config and `theme.toml` album manifest.
 
@@ -95,9 +97,10 @@ bun install
 chmod +x run_dev.sh run_prod.sh
 ```
 
-And build the Rust binary, as well as all of the Vellum Actions:
+Build the Rust binary, Web App, as well as all of the Vellum Actions:
 
 ```bash
+# ONE command! Hail Nix!
 build
 ```
 
