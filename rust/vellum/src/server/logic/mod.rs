@@ -81,7 +81,7 @@ pub fn value_to_sort_key(val: &Value) -> SortKey {
     }
 }
 
-pub struct QueryEngine {
+pub struct LogicEngine {
     pub manifest: LogicManifest,
     libraries_cache: HashMap<String, RoaringBitmap>,
     filters_cache: HashMap<String, RoaringBitmap>,
@@ -98,7 +98,7 @@ pub struct QueryEngine {
     lock_cache: HashMap<String, String>,
 }
 
-impl QueryEngine {
+impl LogicEngine {
     pub fn new() -> Result<Self> {
         let config_path = libvellum::lua::resolve_config_path().unwrap_or_default();
         let manifest = get_or_init_lua_vm(&config_path, |engine| {
@@ -523,7 +523,7 @@ impl QueryEngine {
         self.lock_cache.get(id).cloned()
     }
 
-    pub fn query_ids(&self, query_str: &str) -> Vec<String> {
+    pub fn find_ids(&self, query_str: &str) -> Vec<String> {
         let q = query_str.trim();
         if q.is_empty() {
             return self.uid_to_id.values().cloned().collect();

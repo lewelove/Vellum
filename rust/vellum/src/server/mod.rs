@@ -1,8 +1,8 @@
 mod api;
 mod inotify;
 mod library;
+mod logic;
 mod mpd;
-mod query;
 mod state;
 
 use anyhow::{Context, Result};
@@ -75,10 +75,10 @@ pub async fn run(port: u16) -> Result<()> {
     let actions = config.actions.clone();
     let resolved_dependencies = config.dependencies.clone();
 
-    let mut query_engine = query::QueryEngine::new()?;
+    let mut logic_engine = logic::LogicEngine::new()?;
 
     let mut resolved_shelf_files = Vec::new();
-    for shelf in query_engine.manifest.shelves.values() {
+    for shelf in logic_engine.manifest.shelves.values() {
         if let Some(file) = &shelf.file {
             let expanded = expand_path(file);
             resolved_shelf_files.push(expanded.canonicalize().unwrap_or(expanded));
@@ -101,19 +101,19 @@ pub async fn run(port: u16) -> Result<()> {
     let ui_state_val = load_state(&state_root);
 
     let lib_scanner = library::scanner::Library::new(library_root.clone());
-    lib_scanner.scan(&mut query_engine);
+    lib_scanner.scan(&mut logic_engine);
 
-    let query_arc = Arc::new(RwLock::new(query_engine));
+    let logic_arc = Arc::new(RwLock::new(logic_engine));
     let (tx, _) = broadcast::channel(100);
 
     let mpd_engine = mpd::start_actor(
         tx.clone(),
-        Arc::clone(&query_arc),
+        Arc::clone(&logic_arc),
         Arc::new(server_config.clone()),
     );
 
     let app_state = Arc::new(AppState {
-        query: Arc::clone(&query_arc),
+        logic: Arc::clone(&logic_arc),
         ui_state: RwLock::new(ui_state_val),
         tx,
         config: RwLock::new(server_config),

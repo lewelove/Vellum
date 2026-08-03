@@ -136,14 +136,14 @@ pub async fn trigger_full_reset(State(state): State<Arc<AppState>>) -> Response 
     let album_count = {
         let library_root = state.config.read().await.library_root.clone();
         let scanner = crate::server::library::scanner::Library::new(library_root);
-        let mut query = state.query.write().await;
-        scanner.scan(&mut query);
-        query.dict.len()
+        let mut logic = state.logic.write().await;
+        scanner.scan(&mut logic);
+        logic.dict.len()
     };
 
     let elapsed = start_time.elapsed().as_millis();
     log::info!("Updated {album_count} albums.");
-    log::info!("Rebuilt Query Engine in {elapsed}ms.");
+    log::info!("Rebuilt Logic Engine in {elapsed}ms.");
 
     let _ = state.tx.send(json!({"type": "LOGIC_UPDATE"}).to_string());
     Json(json!({"status": "ok"})).into_response()
@@ -162,34 +162,34 @@ pub async fn trigger_batch_reload(
     let mut removed_ids = Vec::new();
 
     {
-        let mut query = state.query.write().await;
+        let mut logic = state.logic.write().await;
         let scanner = crate::server::library::scanner::Library::new(library_root);
         for path in &paths {
-            let res = scanner.update_album(path, &mut query);
+            let res = scanner.update_album(path, &mut logic);
             match res {
                 crate::server::library::scanner::UpdateResult::Updated(id) => processed_ids.push(id),
                 crate::server::library::scanner::UpdateResult::Removed(id) => removed_ids.push(id),
             }
         }
         if !processed_ids.is_empty() || !removed_ids.is_empty() {
-            query.build_cache();
+            logic.build_cache();
         }
     }
 
     if !processed_ids.is_empty() || !removed_ids.is_empty() {
         let elapsed = start_time.elapsed().as_millis();
         log::info!("Updated {} albums, Removed {} albums in {}ms.", processed_ids.len(), removed_ids.len(), compile_time);
-        log::info!("Rebuilt Query Engine in {elapsed}ms.");
+        log::info!("Rebuilt Logic Engine in {elapsed}ms.");
 
         if processed_ids.len() == 1 && removed_ids.is_empty() {
             let (dict_entry, shelves) = {
-                let query = state.query.read().await;
-                let entry = query.dict.get(&processed_ids[0]).cloned();
+                let logic = state.logic.read().await;
+                let entry = logic.dict.get(&processed_ids[0]).cloned();
                 let mut s = std::collections::HashMap::new();
-                for key in query.manifest.shelves.keys() {
-                    s.insert(key.clone(), query.request_shelf_view(key));
+                for key in logic.manifest.shelves.keys() {
+                    s.insert(key.clone(), logic.request_shelf_view(key));
                 }
-                drop(query);
+                drop(logic);
                 (entry, s)
             };
             let _ = state.tx.send(json!({
@@ -200,12 +200,12 @@ pub async fn trigger_batch_reload(
             }).to_string());
         } else if removed_ids.len() == 1 && processed_ids.is_empty() {
             let shelves = {
-                let query = state.query.read().await;
+                let logic = state.logic.read().await;
                 let mut s = std::collections::HashMap::new();
-                for key in query.manifest.shelves.keys() {
-                    s.insert(key.clone(), query.request_shelf_view(key));
+                for key in logic.manifest.shelves.keys() {
+                    s.insert(key.clone(), logic.request_shelf_view(key));
                 }
-                drop(query);
+                drop(logic);
                 s
             };
             let _ = state.tx.send(json!({
@@ -230,30 +230,30 @@ pub async fn trigger_reload(
         let library_root = state.config.read().await.library_root.clone();
 
         let (update_res, dict_entry, shelves) = {
-            let mut query = state.query.write().await;
+            let mut logic = state.logic.write().await;
             let scanner = crate::server::library::scanner::Library::new(library_root);
-            let res = scanner.update_album(path, &mut query);
+            let res = scanner.update_album(path, &mut logic);
 
             let entry = match &res {
                 crate::server::library::scanner::UpdateResult::Updated(id) => {
-                    query.build_cache();
-                    query.dict.get(id).cloned()
+                    logic.build_cache();
+                    logic.dict.get(id).cloned()
                 },
                 crate::server::library::scanner::UpdateResult::Removed(_) => None,
             };
 
             let mut s = std::collections::HashMap::new();
-            for key in query.manifest.shelves.keys() {
-                s.insert(key.clone(), query.request_shelf_view(key));
+            for key in logic.manifest.shelves.keys() {
+                s.insert(key.clone(), logic.request_shelf_view(key));
             }
-            drop(query);
+            drop(logic);
 
             (res, entry, s)
         };
 
         let elapsed = start_time.elapsed().as_millis();
         log::info!("Processed 1 album.");
-        log::info!("Rebuilt Query Engine in {elapsed}ms.");
+        log::info!("Rebuilt Logic Engine in {elapsed}ms.");
 
         match update_res {
             crate::server::library::scanner::UpdateResult::Updated(id) => {
@@ -303,6 +303,6 @@ pub async fn run_query(
     Json(payload): Json<serde_json::Value>,
 ) -> Response {
     let q_str = payload.get("query").and_then(|v| v.as_str()).unwrap_or("").trim();
-    let ids = state.query.read().await.query_ids(q_str);
+    let ids = state.logic.read().await.find_ids(q_str);
     Json(ids).into_response()
 }

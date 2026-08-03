@@ -65,8 +65,8 @@ async fn ensure_master_cover(
     }
 
     let source_info = {
-        let query = state.query.read().await;
-        query.dict.values().find(|v| {
+        let logic = state.logic.read().await;
+        logic.dict.values().find(|v| {
             v.get("cover_hash").and_then(|h| h.as_str()) == Some(hash)
         }).map(|v| {
             (
@@ -201,8 +201,8 @@ pub async fn get_album_metadata(
     State(state): State<Arc<AppState>>,
 ) -> Response {
     let json_str = {
-        let query = state.query.read().await;
-        query.get_album_json(&id)
+        let logic = state.logic.read().await;
+        logic.get_album_json(&id)
     };
     if let Some(data) = json_str {
         return ([(header::CONTENT_TYPE, "application/json")],
@@ -217,10 +217,10 @@ pub async fn get_album_cover(
     State(state): State<Arc<AppState>>,
 ) -> Response {
     let path_opt = {
-        let query = state.query.read().await;
+        let logic = state.logic.read().await;
         let config_guard = state.config.read().await;
         
-        query.dict.get(&id).map(|meta| {
+        logic.dict.get(&id).map(|meta| {
             let cp = meta.get("cover_path").and_then(|v| v.as_str()).unwrap_or("default_cover.png");
             config_guard.library_root.join(&id).join(cp)
         })

@@ -21,8 +21,8 @@ async fn resolve_target_ids(
     let library_arg = params.get("library").is_some_and(|v| v == "true");
 
     if let Some(q) = query_arg {
-        let query_guard = state.query.read().await;
-        target_ids = query_guard.query_ids(&q);
+        let logic_guard = state.logic.read().await;
+        target_ids = logic_guard.find_ids(&q);
     } else if let Some(id) = id_arg {
         if !id.is_empty() {
             target_ids.push(id);

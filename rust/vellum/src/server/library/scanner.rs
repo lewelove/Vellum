@@ -16,7 +16,7 @@ impl Library {
         Self { root }
     }
 
-    pub fn scan(&self, query_engine: &mut crate::server::query::QueryEngine) {
+    pub fn scan(&self, logic_engine: &mut crate::server::logic::LogicEngine) {
         log::info!("Scanning Library at {}", self.root.display());
 
         let entries: Vec<PathBuf> = WalkDir::new(&self.root)
@@ -27,7 +27,7 @@ impl Library {
             .map(|e| e.path().to_path_buf())
             .collect();
 
-        query_engine.clear();
+        logic_engine.clear();
 
         for lock_path in entries {
             if let Ok(content) = std::fs::read_to_string(&lock_path)
@@ -40,18 +40,18 @@ impl Library {
                 } else {
                     expected_id
                 };
-                let _ = query_engine.ingest(&alb_id, &content);
+                let _ = logic_engine.ingest(&alb_id, &content);
             }
         }
 
-        query_engine.build_cache();
-        log::info!("Library Query Engine Initialized.");
+        logic_engine.build_cache();
+        log::info!("Library Logic Engine Initialized.");
     }
 
     pub fn update_album(
         &self,
         folder_path_str: &str,
-        query_engine: &mut crate::server::query::QueryEngine,
+        logic_engine: &mut crate::server::logic::LogicEngine,
     ) -> UpdateResult {
         let folder_path = Path::new(folder_path_str);
 
@@ -64,13 +64,13 @@ impl Library {
             && let Ok(lock_data) = serde_json::from_str::<LockFile>(&content)
         {
             let parsed_alb_id = lock_data.album.id;
-            query_engine.remove_album(&parsed_alb_id);
-            query_engine.remove_album(&alb_id);
-            let _ = query_engine.ingest(&alb_id, &content);
+            logic_engine.remove_album(&parsed_alb_id);
+            logic_engine.remove_album(&alb_id);
+            let _ = logic_engine.ingest(&alb_id, &content);
             return UpdateResult::Updated(alb_id);
         }
 
-        query_engine.remove_album(&alb_id);
+        logic_engine.remove_album(&alb_id);
         UpdateResult::Removed(alb_id)
     }
 }

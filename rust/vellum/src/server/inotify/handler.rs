@@ -7,8 +7,8 @@ pub async fn process_events(flags: ChangeFlags, state: &Arc<AppState>) {
     if flags.shelf && !flags.config {
         log::info!("Filesystem change: reloading shelf files...");
         {
-            let mut query = state.query.write().await;
-            query.build_cache();
+            let mut logic = state.logic.write().await;
+            logic.build_cache();
         }
         let _ = state.tx.send(json!({ "type": "LOGIC_UPDATE" }).to_string());
     }
@@ -49,8 +49,8 @@ async fn handle_config_change(state: &Arc<AppState>) {
             }
 
             {
-                let mut query = state.query.write().await;
-                if let Err(e) = query.reload_manifest(&config_path) {
+                let mut logic = state.logic.write().await;
+                if let Err(e) = logic.reload_manifest(&config_path) {
                     log::error!("Failed to reload logic manifest: {e}");
                 }
             }

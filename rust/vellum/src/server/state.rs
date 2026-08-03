@@ -1,5 +1,5 @@
+use crate::server::logic::LogicEngine;
 use crate::server::mpd::MpdEngine;
-use crate::server::query::QueryEngine;
 use indexmap::IndexMap;
 use libvellum::lua::config::{ActionConfig, CoversConfig, InterfaceConfig};
 use std::path::PathBuf;
@@ -7,7 +7,7 @@ use std::sync::Arc;
 use tokio::sync::{broadcast, RwLock};
 
 pub struct AppState {
-    pub query: Arc<RwLock<QueryEngine>>,
+    pub logic: Arc<RwLock<LogicEngine>>,
     pub ui_state: RwLock<serde_json::Value>,
     pub tx: broadcast::Sender<String>,
     pub config: RwLock<AppConfig>,

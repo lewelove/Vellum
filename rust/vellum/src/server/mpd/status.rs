@@ -1,4 +1,4 @@
-use crate::server::query::QueryEngine;
+use crate::server::logic::LogicEngine;
 use anyhow::{Context, Result};
 use mpd_client::Client;
 use mpd_client::commands;
@@ -9,7 +9,7 @@ use tokio::sync::{RwLock, broadcast};
 pub async fn broadcast_status(
     client: &Client,
     tx: &broadcast::Sender<String>,
-    query: &Arc<RwLock<QueryEngine>>,
+    logic: &Arc<RwLock<LogicEngine>>,
 ) -> Result<()> {
     let (status, current_song, queue) = client
         .command_list((commands::Status, commands::CurrentSong, commands::Queue))
@@ -26,13 +26,13 @@ pub async fn broadcast_status(
     };
 
     let (queue_json, album_id) = {
-        let q = query.read().await;
-        let album_id = q.path_lookup.get(&file_path).cloned();
+        let l = logic.read().await;
+        let album_id = l.path_lookup.get(&file_path).cloned();
         let track_metas: Vec<Option<serde_json::Value>> = queue
             .iter()
-            .map(|s| q.track_lookup.get(&s.song.url).cloned())
+            .map(|s| l.track_lookup.get(&s.song.url).cloned())
             .collect();
-        drop(q);
+        drop(l);
 
         let q_json: serde_json::Value = queue
             .iter()

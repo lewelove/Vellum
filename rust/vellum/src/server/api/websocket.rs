@@ -16,12 +16,12 @@ async fn handle_socket(mut socket: WebSocket, state: Arc<AppState>) {
 
     let init_payload = {
         let (dict, track_map, manifest, shelves) = {
-            let q = state.query.read().await;
+            let l = state.logic.read().await;
             let mut s = std::collections::HashMap::new();
-            for key in q.manifest.shelves.keys() {
-                s.insert(key.clone(), q.request_shelf_view(key));
+            for key in l.manifest.shelves.keys() {
+                s.insert(key.clone(), l.request_shelf_view(key));
             }
-            (q.dict.clone(), q.track_lookup.clone(), q.manifest.clone(), s)
+            (l.dict.clone(), l.track_lookup.clone(), l.manifest.clone(), s)
         };
         let ui_data = state.ui_state.read().await.clone();
         let covers = {
@@ -69,14 +69,14 @@ async fn handle_socket(mut socket: WebSocket, state: Arc<AppState>) {
                                 let filter_key = req.get("filter").and_then(|v| v.get("key")).and_then(|v| v.as_str());
                                 let filter_val = req.get("filter").and_then(|v| v.get("val")).and_then(|v| v.as_str());
                                 
-                                let ids = state.query.read().await.request_view(library, library_filter, sort, filter_key, filter_val, reverse);
+                                let ids = state.logic.read().await.request_view(library, library_filter, sort, filter_key, filter_val, reverse);
                                 let _ = socket.send(ax_ws::Message::Text(json!({ "type": "VIEW_DATA", "ids": ids }).to_string().into())).await;
                             } else if req_type == "GROUP_REQUEST" {
                                 let library = req.get("library").and_then(|v| v.as_str()).unwrap_or("library");
                                 let library_filter = req.get("library_filter").and_then(|v| v.as_str());
                                 let key = req.get("key").and_then(|v| v.as_str()).unwrap_or("");
                                 
-                                let result = state.query.read().await.request_group(library, library_filter, key);
+                                let result = state.logic.read().await.request_group(library, library_filter, key);
                                 let _ = socket.send(ax_ws::Message::Text(json!({ "type": "GROUP_RESULT", "key": key, "result": result }).to_string().into())).await;
                             }
                         }
