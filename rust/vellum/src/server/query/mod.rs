@@ -1,193 +1,74 @@
-#![allow(clippy::significant_drop_tightening)]
-
 use anyhow::Result;
-use indexmap::IndexMap;
-use rusqlite::Connection;
-use serde::{Deserialize, Serialize};
+use libvellum::lua::{get_or_init_lua_vm, reset_lua_vm, LogicManifest};
 use serde_json::{Value, json};
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
-use std::sync::Mutex;
 
-pub use libvellum::sql::expand_shorthand;
+#[derive(Clone, Debug, PartialEq)]
+pub enum SortKey {
+    Number(i64),
+    Float(f64),
+    String(String),
+    Tuple(Vec<Self>),
+}
 
-fn deserialize_vec_or_string_opt<'de, D>(deserializer: D) -> Result<Option<Vec<String>>, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    #[derive(Deserialize)]
-    #[serde(untagged)]
-    enum VecOrString {
-        Vec(Vec<String>),
-        String(String),
+impl Eq for SortKey {}
+
+impl PartialOrd for SortKey {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
     }
-
-    let opt = Option::<VecOrString>::deserialize(deserializer)?;
-    Ok(opt.map(|v| match v {
-        VecOrString::Vec(vec) => vec,
-        VecOrString::String(s) => vec![s.trim().to_string()],
-    }))
 }
 
-#[derive(Deserialize, Serialize, Clone, Debug, Default)]
-pub struct SqlDef {
-    pub select: Option<String>,
-    #[serde(rename = "where")]
-    pub where_: Option<String>,
-    pub order_by: Option<String>,
-}
-
-#[derive(Deserialize, Serialize, Clone, Debug)]
-pub struct FilterDef {
-    pub label: String,
-    #[serde(default)]
-    pub sql: SqlDef,
-}
-
-#[derive(Deserialize, Serialize, Clone, Debug)]
-pub struct LogicManifest {
-    #[serde(default)]
-    pub filters: IndexMap<String, FilterDef>,
-    pub groupers: IndexMap<String, GrouperDef>,
-    pub orders: IndexMap<String, OrderDef>,
-    pub libraries: IndexMap<String, LibraryDef>,
-    #[serde(default)]
-    pub shelves: IndexMap<String, ShelfDef>,
-    #[serde(skip_deserializing, default)]
-    pub filters_order: Vec<String>,
-    #[serde(skip_deserializing, default)]
-    pub groupers_order: Vec<String>,
-    #[serde(skip_deserializing, default)]
-    pub orders_order: Vec<String>,
-    #[serde(skip_deserializing, default)]
-    pub libraries_order: Vec<String>,
-    #[serde(skip_deserializing, default)]
-    pub shelves_order: Vec<String>,
-}
-
-impl LogicManifest {
-    pub fn normalize(&mut self) {
-        self.filters_order = self.filters.keys().cloned().collect();
-        self.groupers_order = self.groupers.keys().cloned().collect();
-        self.orders_order = self.orders.keys().cloned().collect();
-        self.libraries_order = self.libraries.keys().cloned().collect();
-        self.shelves_order = self.shelves.keys().cloned().collect();
-
-        for (_, g) in &mut self.groupers {
-            let idx = g.index.unwrap_or(false);
-            g.index = Some(idx);
-            if g.count.is_none() {
-                g.count = Some(!idx);
+impl Ord for SortKey {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        match (self, other) {
+            (Self::Number(a), Self::Number(b)) => a.cmp(b),
+            (Self::Float(a), Self::Float(b)) => {
+                a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal)
             }
-        }
-
-        let global_groupers: HashSet<String> = self.groupers.iter()
-            .filter(|(_, g)| !g.strict)
-            .map(|(id, _)| id.clone())
-            .collect();
-
-        let global_orders: HashSet<String> = self.orders.iter()
-            .filter(|(_, s)| !s.strict)
-            .map(|(id, _)| id.clone())
-            .collect();
-
-        for (_, library) in &mut self.libraries {
-            let mut allowed_filter_ids = Vec::new();
-            if let Some(filters) = &library.filters {
-                for f in filters {
-                    if self.filters.contains_key(f) {
-                        allowed_filter_ids.push(f.clone());
+            (Self::Number(a), Self::Float(b)) => {
+                let a_f = a.to_string().parse::<f64>().unwrap_or(0.0);
+                a_f.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal)
+            }
+            (Self::Float(a), Self::Number(b)) => {
+                let b_f = b.to_string().parse::<f64>().unwrap_or(0.0);
+                a.partial_cmp(&b_f).unwrap_or(std::cmp::Ordering::Equal)
+            }
+            (Self::String(a), Self::String(b)) => alphanumeric_sort::compare_str(a, b),
+            (Self::Tuple(a), Self::Tuple(b)) => {
+                for (x, y) in a.iter().zip(b.iter()) {
+                    let res = x.cmp(y);
+                    if res != std::cmp::Ordering::Equal {
+                        return res;
                     }
                 }
+                a.len().cmp(&b.len())
             }
-            library.allowed_filters = allowed_filter_ids;
-
-            let mut allowed_grouper_ids = HashSet::new();
-            for g in &library.groupers {
-                allowed_grouper_ids.insert(g.clone());
+            (Self::Number(_) | Self::Float(_), _) | (Self::String(_), Self::Tuple(_)) => {
+                std::cmp::Ordering::Less
             }
-            if !library.strict {
-                for g in &global_groupers {
-                    allowed_grouper_ids.insert(g.clone());
-                }
+            (_, Self::Number(_) | Self::Float(_)) | (Self::Tuple(_), Self::String(_)) => {
+                std::cmp::Ordering::Greater
             }
-
-            let mut allowed_order_ids = HashSet::new();
-            for s in &library.orders {
-                allowed_order_ids.insert(s.clone());
-            }
-            if !library.strict {
-                for s in &global_orders {
-                    allowed_order_ids.insert(s.clone());
-                }
-            }
-
-            library.allowed_groupers = self.groupers.keys()
-                .filter(|k| allowed_grouper_ids.contains(*k))
-                .cloned()
-                .collect();
-
-            library.allowed_orders = self.orders.keys()
-                .filter(|k| allowed_order_ids.contains(*k))
-                .cloned()
-                .collect();
         }
     }
 }
 
-#[derive(Deserialize, Serialize, Clone, Debug)]
-pub struct GrouperDef {
-    pub label: String,
-    #[serde(default)]
-    pub sql: SqlDef,
-    #[serde(default)]
-    pub strict: bool,
-    #[serde(default)]
-    pub index: Option<bool>,
-    #[serde(default)]
-    pub count: Option<bool>,
-}
-
-#[derive(Deserialize, Serialize, Clone, Debug)]
-pub struct OrderDef {
-    pub label: String,
-    #[serde(default)]
-    pub sql: SqlDef,
-    #[serde(default)]
-    pub strict: bool,
-}
-
-#[derive(Deserialize, Serialize, Clone, Debug)]
-pub struct LibraryDef {
-    pub label: String,
-    #[serde(default)]
-    pub sql: Option<SqlDef>,
-    #[serde(default, deserialize_with = "deserialize_vec_or_string_opt")]
-    pub filters: Option<Vec<String>>,
-    #[serde(default)]
-    pub strict: bool,
-    #[serde(default)]
-    pub groupers: Vec<String>,
-    #[serde(default)]
-    pub orders: Vec<String>,
-    #[serde(skip_deserializing)]
-    pub allowed_filters: Vec<String>,
-    #[serde(skip_deserializing)]
-    pub allowed_groupers: Vec<String>,
-    #[serde(skip_deserializing)]
-    pub allowed_orders: Vec<String>,
-}
-
-#[derive(Deserialize, Serialize, Clone, Debug)]
-pub struct ShelfDef {
-    pub label: String,
-    #[serde(default)]
-    pub sql: Option<SqlDef>,
-    pub file: Option<String>,
+pub fn value_to_sort_key(val: &Value) -> SortKey {
+    match val {
+        Value::Number(n) => n.as_i64().map_or_else(
+            || n.as_f64().map_or(SortKey::Number(0), SortKey::Float),
+            SortKey::Number,
+        ),
+        Value::String(s) => SortKey::String(s.clone()),
+        Value::Array(arr) => SortKey::Tuple(arr.iter().map(value_to_sort_key).collect()),
+        Value::Bool(b) => SortKey::Number(i64::from(*b)),
+        _ => SortKey::String(String::new()),
+    }
 }
 
 pub struct QueryEngine {
-    conn: Mutex<Connection>,
     pub manifest: LogicManifest,
     libraries_cache: HashMap<String, HashSet<u32>>,
     filters_cache: HashMap<String, HashSet<u32>>,
@@ -195,35 +76,24 @@ pub struct QueryEngine {
     orders_cache: HashMap<String, Vec<u32>>,
     shelves_cache: HashMap<String, Vec<u32>>,
     uid_to_id: HashMap<u32, String>,
+    id_to_uid: HashMap<String, u32>,
+    next_uid: u32,
     pub dict: HashMap<String, Value>,
     pub track_lookup: HashMap<String, Value>,
     pub path_lookup: HashMap<String, String>,
+    evaluated_logic: HashMap<u32, Value>,
+    lock_cache: HashMap<String, String>,
 }
-
-const DEFAULT_LOGIC: &str = include_str!("logic.toml");
 
 impl QueryEngine {
     pub fn new() -> Result<Self> {
-        let logic_path = crate::expand_path("~/.config/vellum/logic.toml");
-        if !logic_path.exists() {
-            std::fs::write(&logic_path, DEFAULT_LOGIC)?;
-        }
-
-        let logic_content = std::fs::read_to_string(&logic_path)?;
-        let mut manifest: LogicManifest = toml::from_str(&logic_content)?;
-        manifest.normalize();
-
-        let conn = Connection::open_in_memory()?;
-        conn.execute(
-            "CREATE TABLE albums (
-                uid INTEGER PRIMARY KEY AUTOINCREMENT,
-                id TEXT UNIQUE,
-                metadata BLOB
-            )",[],
-        )?;
+        let config_path = libvellum::lua::resolve_config_path().unwrap_or_default();
+        let manifest = get_or_init_lua_vm(&config_path, |engine| {
+            let eval = engine.evaluate_config(&config_path)?;
+            Ok(eval.manifest)
+        })?;
 
         Ok(Self {
-            conn: Mutex::new(conn),
             manifest,
             libraries_cache: HashMap::new(),
             filters_cache: HashMap::new(),
@@ -231,230 +101,266 @@ impl QueryEngine {
             orders_cache: HashMap::new(),
             shelves_cache: HashMap::new(),
             uid_to_id: HashMap::new(),
+            id_to_uid: HashMap::new(),
+            next_uid: 1,
             dict: HashMap::new(),
             track_lookup: HashMap::new(),
             path_lookup: HashMap::new(),
+            evaluated_logic: HashMap::new(),
+            lock_cache: HashMap::new(),
         })
     }
 
-    pub fn reload_manifest(&mut self, path: &Path) -> Result<()> {
-        let logic_content = std::fs::read_to_string(path)?;
-        let mut manifest: LogicManifest = toml::from_str(&logic_content)?;
-        manifest.normalize();
+    pub fn reload_manifest(&mut self, config_path: &Path) -> Result<()> {
+        reset_lua_vm();
+        let manifest = get_or_init_lua_vm(config_path, |engine| {
+            let eval = engine.evaluate_config(config_path)?;
+            let mut new_evaluated = HashMap::new();
+            for (&uid, id) in &self.uid_to_id {
+                if let Some(json_str) = self.lock_cache.get(id)
+                    && let Ok(parsed) = serde_json::from_str::<Value>(json_str)
+                    && let Ok(res) = engine.evaluate_album_logic(&parsed)
+                {
+                    new_evaluated.insert(uid, res);
+                }
+            }
+            self.evaluated_logic = new_evaluated;
+            Ok(eval.manifest)
+        })?;
         self.manifest = manifest;
-        self.build_cache()?;
+        self.build_cache();
         Ok(())
     }
 
-    pub fn clear(&mut self) -> Result<()> {
-        self.conn.lock().unwrap().execute("DELETE FROM albums",[])?;
+    pub fn clear(&mut self) {
         self.libraries_cache.clear();
         self.filters_cache.clear();
         self.facets_cache.clear();
         self.orders_cache.clear();
         self.shelves_cache.clear();
         self.uid_to_id.clear();
+        self.id_to_uid.clear();
+        self.next_uid = 1;
         self.dict.clear();
         self.track_lookup.clear();
         self.path_lookup.clear();
-        Ok(())
+        self.evaluated_logic.clear();
+        self.lock_cache.clear();
     }
 
-    pub fn remove_album(&mut self, id: &str) -> Result<()> {
-        self.conn.lock().unwrap().execute("DELETE FROM albums WHERE id = ?1", [&id])?;
+    pub fn remove_album(&mut self, id: &str) {
+        if let Some(uid) = self.id_to_uid.remove(id) {
+            self.uid_to_id.remove(&uid);
+            self.evaluated_logic.remove(&uid);
+        }
         self.dict.remove(id);
-        self.uid_to_id.retain(|_, v| v != id);
+        self.lock_cache.remove(id);
         self.path_lookup.retain(|_, v| v != id);
-        self.track_lookup.retain(|_, v| v.get("albumId").and_then(|a| a.as_str()) != Some(id));
-        Ok(())
+        self.track_lookup
+            .retain(|_, v| v.get("albumId").and_then(|a| a.as_str()) != Some(id));
     }
 
     pub fn ingest(&mut self, id: &str, metadata_json: &str) -> Result<()> {
-        let conn = self.conn.lock().unwrap();
-        conn.execute(
-            "INSERT INTO albums (id, metadata) VALUES (?1, jsonb(?2))",[id, metadata_json],
-        )?;
-        let uid = u32::try_from(conn.last_insert_rowid()).unwrap_or(0);
-        drop(conn);
+        let uid = self.next_uid;
+        self.next_uid += 1;
+
         self.uid_to_id.insert(uid, id.to_string());
+        self.id_to_uid.insert(id.to_string(), uid);
+        self.lock_cache.insert(id.to_string(), metadata_json.to_string());
 
-        if let Ok(parsed) = serde_json::from_str::<Value>(metadata_json)
-            && let Some(album) = parsed.get("album")
-                && let Some(info) = album.get("info") {
-                    if let Some(tracks) = parsed.get("tracks").and_then(Value::as_array) {
-                        for track in tracks {
-                            if let Some(tinfo) = track.get("info") {
-                                let rel = track.get("file").and_then(|f| f.get("path")).and_then(Value::as_str).unwrap_or("");
-                                if !rel.is_empty() {
-                                    let tp_path = Path::new(id).join(rel);
-                                    let tp = tp_path.to_string_lossy().to_string();
+        let parsed: Value = serde_json::from_str(metadata_json)?;
+        if let Some(album) = parsed.get("album")
+            && let Some(info) = album.get("info")
+        {
+            if let Some(tracks) = parsed.get("tracks").and_then(Value::as_array) {
+                for track in tracks {
+                    if let Some(tinfo) = track.get("info") {
+                        let rel = track
+                            .get("file")
+                            .and_then(|f| f.get("path"))
+                            .and_then(Value::as_str)
+                            .unwrap_or("");
+                        if !rel.is_empty() {
+                            let tp_path = Path::new(id).join(rel);
+                            let tp = tp_path.to_string_lossy().to_string();
 
-                                    let track_no = track.get("tracknumber").cloned().unwrap_or_else(|| json!(0));
-                                    let disc_no = track.get("discnumber").cloned().unwrap_or_else(|| json!(1));
-                                    let title = track.get("title").cloned().unwrap_or_else(|| json!("Unknown"));
-                                    let artist = track.get("artist").cloned().unwrap_or_else(|| json!("Unknown"));
-                                    let duration = tinfo.get("duration_formatted").cloned().unwrap_or_else(|| json!("0:00"));
-                                    let duration_ms = tinfo.get("duration_milliseconds").and_then(Value::as_u64).unwrap_or(0);
+                            let track_no =
+                                track.get("tracknumber").cloned().unwrap_or_else(|| json!(0));
+                            let disc_no =
+                                track.get("discnumber").cloned().unwrap_or_else(|| json!(1));
+                            let title =
+                                track.get("title").cloned().unwrap_or_else(|| json!("Unknown"));
+                            let artist = track
+                                .get("artist")
+                                .cloned()
+                                .unwrap_or_else(|| json!("Unknown"));
+                            let duration = tinfo
+                                .get("duration_formatted")
+                                .cloned()
+                                .unwrap_or_else(|| json!("0:00"));
+                            let duration_ms = tinfo
+                                .get("duration_milliseconds")
+                                .and_then(Value::as_u64)
+                                .unwrap_or(0);
 
-                                    let track_light = json!({
-                                        "path": tp,
-                                        "trackNo": track_no,
-                                        "discNo": disc_no,
-                                        "title": title,
-                                        "artist": artist,
-                                        "duration": duration,
-                                        "durationMs": duration_ms,
-                                        "albumId": id
-                                    });
-                                    self.track_lookup.insert(tp.clone(), track_light);
+                            let track_light = json!({
+                                "path": tp,
+                                "trackNo": track_no,
+                                "discNo": disc_no,
+                                "title": title,
+                                "artist": artist,
+                                "duration": duration,
+                                "durationMs": duration_ms,
+                                "albumId": id
+                            });
+                            self.track_lookup.insert(tp.clone(), track_light);
 
-                                    let full_rel_path = Path::new(id).join(rel);
-                                    let normalized = full_rel_path.to_string_lossy().trim_start_matches('/').to_string();
-                                    self.path_lookup.insert(normalized, id.to_string());
-                                }
-                            }
+                            let full_rel_path = Path::new(id).join(rel);
+                            let normalized = full_rel_path
+                                .to_string_lossy()
+                                .trim_start_matches('/')
+                                .to_string();
+                            self.path_lookup.insert(normalized, id.to_string());
                         }
                     }
-
-                    let entry = json!({
-                        "id": id,
-                        "album": album.get("album"),
-                        "albumartist": album.get("albumartist"),
-                        "date": album.get("date"),
-                        "cover_path": album.get("covers").and_then(|c| c.get("main")).and_then(|m| m.get("file")).and_then(|f| f.get("path")),
-                        "cover_hash": album.get("covers").and_then(|c| c.get("main")).and_then(|m| m.get("file")).and_then(|f| f.get("address")),
-                        "duration_formatted": info.get("duration_formatted"),
-                        "total_discs": info.get("total_discs"),
-                        "total_tracks": info.get("total_tracks"),
-                        "virtual": info.get("virtual"),
-                        "keys": album.get("keys"),
-                        "colors": album.get("colors")
-                    });
-                    self.dict.insert(id.to_string(), entry);
                 }
+            }
 
+            let entry = json!({
+                "id": id,
+                "album": album.get("album"),
+                "albumartist": album.get("albumartist"),
+                "date": album.get("date"),
+                "cover_path": album.get("covers").and_then(|c| c.get("main")).and_then(|m| m.get("file")).and_then(|f| f.get("path")),
+                "cover_hash": album.get("covers").and_then(|c| c.get("main")).and_then(|m| m.get("file")).and_then(|f| f.get("address")),
+                "duration_formatted": info.get("duration_formatted"),
+                "total_discs": info.get("total_discs"),
+                "total_tracks": info.get("total_tracks"),
+                "virtual": info.get("virtual"),
+                "keys": album.get("keys"),
+                "colors": album.get("colors")
+            });
+            self.dict.insert(id.to_string(), entry);
+        }
+
+        let config_path = libvellum::lua::resolve_config_path().unwrap_or_default();
+        let eval_res = get_or_init_lua_vm(&config_path, |engine| {
+            engine.evaluate_album_logic(&parsed)
+        })?;
+
+        self.evaluated_logic.insert(uid, eval_res);
         Ok(())
     }
 
-    pub fn query_ids(&self, sql: &str) -> Result<Vec<String>> {
-        let conn = self.conn.lock().unwrap();
-        let mut stmt = conn.prepare(sql)?;
-        let ids: Vec<String> = stmt
-            .query_map([], |row| row.get(0))?
-            .filter_map(Result::ok)
-            .collect();
-        Ok(ids)
-    }
-
-    pub fn build_cache(&mut self) -> Result<()> {
+    pub fn build_cache(&mut self) {
+        self.libraries_cache.clear();
         self.filters_cache.clear();
-        let conn = self.conn.lock().unwrap();
+        self.facets_cache.clear();
+        self.orders_cache.clear();
+        self.shelves_cache.clear();
 
-        for (key, filter) in &self.manifest.filters {
-            let where_str = filter.sql.where_.as_deref().unwrap_or("1=1");
-            let expanded = expand_shorthand(where_str);
-            let sql = format!("SELECT uid FROM albums WHERE {expanded}");
-            if let Ok(mut stmt) = conn.prepare(&sql) {
-                let uids: HashSet<u32> = stmt.query_map([], |row| row.get(0))?.filter_map(Result::ok).collect();
-                self.filters_cache.insert(key.clone(), uids);
+        for (&uid, eval_res) in &self.evaluated_logic {
+            if let Some(libs) = eval_res.get("libraries").and_then(Value::as_object) {
+                for (lib_id, is_match) in libs {
+                    if is_match.as_bool().unwrap_or(false) {
+                        self.libraries_cache
+                            .entry(lib_id.clone())
+                            .or_default()
+                            .insert(uid);
+                    }
+                }
+            }
+
+            if let Some(filters) = eval_res.get("filters").and_then(Value::as_object) {
+                for (filter_id, is_match) in filters {
+                    if is_match.as_bool().unwrap_or(false) {
+                        self.filters_cache
+                            .entry(filter_id.clone())
+                            .or_default()
+                            .insert(uid);
+                    }
+                }
+            }
+
+            if let Some(groupers) = eval_res.get("groupers").and_then(Value::as_object) {
+                for (grouper_id, val) in groupers {
+                    let facet_map = self.facets_cache.entry(grouper_id.clone()).or_default();
+                    if let Some(arr) = val.as_array() {
+                        for item in arr {
+                            let s = item.as_str().map_or_else(|| item.to_string(), ToString::to_string);
+                            facet_map.entry(s).or_default().insert(uid);
+                        }
+                    } else if let Some(s) = val.as_str() {
+                        facet_map.entry(s.to_string()).or_default().insert(uid);
+                    } else {
+                        facet_map.entry(val.to_string()).or_default().insert(uid);
+                    }
+                }
+            }
+
+            if let Some(shelves) = eval_res.get("shelves").and_then(Value::as_object) {
+                for (shelf_id, is_match) in shelves {
+                    if is_match.as_bool().unwrap_or(false) {
+                        self.shelves_cache
+                            .entry(shelf_id.clone())
+                            .or_default()
+                            .push(uid);
+                    }
+                }
             }
         }
 
-        self.libraries_cache.clear();
-        for (key, library) in &self.manifest.libraries {
-            let where_str = library.sql.as_ref().and_then(|s| s.where_.as_deref()).unwrap_or("1=1");
-            let expanded_filter = expand_shorthand(where_str);
-            let sql = format!("SELECT uid FROM albums WHERE {expanded_filter}");
-            let mut stmt = conn.prepare(&sql)?;
-            let uids: HashSet<u32> = stmt.query_map([], |row| row.get(0))?.filter_map(Result::ok).collect();
-            self.libraries_cache.insert(key.clone(), uids);
-        }
-
-        self.orders_cache.clear();
-        for (key, order) in &self.manifest.orders {
-            let order_str = order.sql.order_by.as_deref().unwrap_or("uid ASC");
-            let expanded_order = expand_shorthand(order_str);
-            let sql = format!("SELECT uid FROM albums ORDER BY {expanded_order}");
-            let mut stmt = conn.prepare(&sql)?;
-            let uids: Vec<u32> = stmt.query_map([], |row| row.get(0))?.filter_map(Result::ok).collect();
-            self.orders_cache.insert(key.clone(), uids);
-        }
-
-        self.shelves_cache.clear();
-        for (key, shelf) in &self.manifest.shelves {
+        for (shelf_key, shelf) in &self.manifest.shelves {
             if let Some(file_path) = &shelf.file {
-                let expanded = crate::expand_path(file_path);
+                let expanded = libvellum::utils::expand_path(file_path);
                 if let Ok(content) = std::fs::read_to_string(&expanded) {
-                    let lines: Vec<String> = content.lines()
+                    let lines: Vec<u32> = content
+                        .lines()
                         .map(|l| l.trim().to_string())
                         .filter(|l| !l.is_empty() && !l.starts_with('#'))
+                        .filter_map(|l| self.id_to_uid.get(&l).copied())
                         .collect();
-
-                    if let Ok(json_arr) = serde_json::to_string(&lines) {
-                        let sql = "SELECT a.uid FROM json_each(?1) j JOIN albums a ON a.id = j.value ORDER BY j.key";
-                        if let Ok(mut stmt) = conn.prepare(sql) {
-                            let uids: Vec<u32> = stmt.query_map([json_arr], |row| row.get(0))
-                                .map(|rows| rows.filter_map(Result::ok).collect())
-                                .unwrap_or_default();
-                            self.shelves_cache.insert(key.clone(), uids);
-                        }
-                    }
-                } else {
-                    self.shelves_cache.insert(key.clone(), vec![]);
-                }
-            } else if let Some(sql_def) = &shelf.sql {
-                let expanded_filter = expand_shorthand(sql_def.where_.as_deref().unwrap_or("1=1"));
-                let order_clause = sql_def.order_by.as_deref().map(|o| format!(" ORDER BY {}", expand_shorthand(o))).unwrap_or_default();
-                let sql = format!("SELECT uid FROM albums WHERE {expanded_filter}{order_clause}");
-                if let Ok(mut stmt) = conn.prepare(&sql) {
-                    let uids: Vec<u32> = stmt.query_map([], |row| row.get(0))
-                        .map(|rows| rows.filter_map(Result::ok).collect())
-                        .unwrap_or_default();
-                    self.shelves_cache.insert(key.clone(), uids);
+                    self.shelves_cache.insert(shelf_key.clone(), lines);
                 }
             }
         }
 
-        self.facets_cache.clear();
-        for (key, grouper) in &self.manifest.groupers {
-            let select_str = grouper.sql.select.as_deref().unwrap_or("''");
-            let expanded_select = expand_shorthand(select_str);
-            let sql = format!("SELECT uid, {expanded_select} FROM albums");
-            let mut stmt = conn.prepare(&sql)?;
-            let mut rows = stmt.query([])?;
-
-            let mut map: HashMap<String, HashSet<u32>> = HashMap::new();
-
-            while let Some(row) = rows.next()? {
-                let uid: u32 = row.get(0)?;
-                let raw_val: rusqlite::types::Value = row.get(1)?;
-
-                let val_str = match raw_val {
-                    rusqlite::types::Value::Text(s) => s,
-                    rusqlite::types::Value::Integer(i) => i.to_string(),
-                    rusqlite::types::Value::Real(f) => f.to_string(),
-                    _ => continue,
-                };
-
-                if let Ok(Value::Array(arr)) = serde_json::from_str(&val_str) {
-                    for v in arr {
-                        if let Some(s) = v.as_str() {
-                            map.entry(s.trim().to_string()).or_default().insert(uid);
-                        }
-                    }
-                } else if let Ok(Value::String(s)) = serde_json::from_str(&val_str) {
-                    map.entry(s.trim().to_string()).or_default().insert(uid);
-                } else {
-                    map.entry(val_str.trim().to_string()).or_default().insert(uid);
-                }
+        for order_id in self.manifest.orders.keys() {
+            let mut order_pairs: Vec<(u32, SortKey)> = Vec::new();
+            for (&uid, eval_res) in &self.evaluated_logic {
+                let default_key = json!("");
+                let raw_key = eval_res
+                    .get("orders")
+                    .and_then(|o| o.get(order_id))
+                    .unwrap_or(&default_key);
+                let sort_key = value_to_sort_key(raw_key);
+                order_pairs.push((uid, sort_key));
             }
-            self.facets_cache.insert(key.clone(), map);
-        }
 
-        Ok(())
+            order_pairs.sort_by(|a, b| a.1.cmp(&b.1));
+            let is_reverse = self
+                .manifest
+                .orders
+                .get(order_id)
+                .is_some_and(|o| o.reverse);
+            if is_reverse {
+                order_pairs.reverse();
+            }
+
+            let sorted_uids: Vec<u32> = order_pairs.into_iter().map(|(uid, _)| uid).collect();
+            self.orders_cache.insert(order_id.clone(), sorted_uids);
+        }
     }
 
-    pub fn request_view(&self, library: &str, library_filter: Option<&str>, sort: &str, filter_key: Option<&str>, filter_val: Option<&str>, reverse: bool) -> Vec<String> {
+    pub fn request_view(
+        &self,
+        library: &str,
+        library_filter: Option<&str>,
+        sort: &str,
+        filter_key: Option<&str>,
+        filter_val: Option<&str>,
+        reverse: bool,
+    ) -> Vec<String> {
         let empty_set = HashSet::new();
         let library_mask = self.libraries_cache.get(library).unwrap_or(&empty_set);
         let mut final_mask = library_mask.clone();
@@ -467,15 +373,26 @@ impl QueryEngine {
 
         if let (Some(fk), Some(fv)) = (filter_key, filter_val) {
             if fk == "search" {
-                let sql = "SELECT uid FROM albums WHERE {$.album.album} LIKE ?1 OR {$.album.albumartist} LIKE ?1";
-                let conn = self.conn.lock().unwrap();
-                if let Ok(mut stmt) = conn.prepare(&expand_shorthand(sql)) {
-                    let pattern = format!("%{fv}%");
-                    if let Ok(match_uids_iter) = stmt.query_map([pattern], |row| row.get::<_, u32>(0)) {
-                        let match_uids: HashSet<u32> = match_uids_iter.filter_map(Result::ok).collect();
-                        final_mask.retain(|uid| match_uids.contains(uid));
+                let needle = fv.to_lowercase();
+                final_mask.retain(|uid| {
+                    if let Some(id) = self.uid_to_id.get(uid)
+                        && let Some(album) = self.dict.get(id)
+                    {
+                        let title = album
+                            .get("album")
+                            .and_then(Value::as_str)
+                            .unwrap_or("")
+                            .to_lowercase();
+                        let artist = album
+                            .get("albumartist")
+                            .and_then(Value::as_str)
+                            .unwrap_or("")
+                            .to_lowercase();
+                        title.contains(&needle) || artist.contains(&needle)
+                    } else {
+                        false
                     }
-                }
+                });
             } else if let Some(facet_vals) = self.facets_cache.get(fk) {
                 if let Some(facet_mask) = facet_vals.get(fv) {
                     final_mask.retain(|uid| facet_mask.contains(uid));
@@ -488,7 +405,8 @@ impl QueryEngine {
         let empty_vec = Vec::new();
         let sorted_uids = self.orders_cache.get(sort).unwrap_or(&empty_vec);
 
-        let mut res: Vec<String> = sorted_uids.iter()
+        let mut res: Vec<String> = sorted_uids
+            .iter()
             .filter(|uid| final_mask.contains(*uid))
             .filter_map(|uid| self.uid_to_id.get(uid).cloned())
             .collect();
@@ -502,10 +420,17 @@ impl QueryEngine {
     pub fn request_shelf_view(&self, shelf_key: &str) -> Vec<String> {
         let empty_vec = Vec::new();
         let uids = self.shelves_cache.get(shelf_key).unwrap_or(&empty_vec);
-        uids.iter().filter_map(|uid| self.uid_to_id.get(uid).cloned()).collect()
+        uids.iter()
+            .filter_map(|uid| self.uid_to_id.get(uid).cloned())
+            .collect()
     }
 
-    pub fn request_group(&self, library: &str, library_filter: Option<&str>, grouper: &str) -> Vec<Value> {
+    pub fn request_group(
+        &self,
+        library: &str,
+        library_filter: Option<&str>,
+        grouper: &str,
+    ) -> Vec<Value> {
         let empty_set = HashSet::new();
         let library_mask = self.libraries_cache.get(library).unwrap_or(&empty_set);
         let mut final_mask = library_mask.clone();
@@ -531,21 +456,76 @@ impl QueryEngine {
         }
 
         results.sort_by(|a, b| {
-            let label_a = a.get("label").and_then(Value::as_str).unwrap_or("").to_lowercase();
-            let label_b = b.get("label").and_then(Value::as_str).unwrap_or("").to_lowercase();
+            let label_a = a
+                .get("label")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_lowercase();
+            let label_b = b
+                .get("label")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_lowercase();
             alphanumeric_sort::compare_str(&label_a, &label_b)
         });
 
         results
     }
 
+    #[must_use]
     pub fn get_album_json(&self, id: &str) -> Option<String> {
-        let conn = self.conn.lock().unwrap();
-        let mut stmt = conn.prepare("SELECT json(metadata) FROM albums WHERE id = ?1").ok()?;
-        let mut rows = stmt.query([id]).ok()?;
-        if let Some(row) = rows.next().ok()? {
-            return row.get(0).ok();
+        self.lock_cache.get(id).cloned()
+    }
+
+    pub fn query_ids(&self, query_str: &str) -> Vec<String> {
+        let q = query_str.trim();
+        if q.is_empty() {
+            return self.uid_to_id.values().cloned().collect();
         }
-        None
+
+        if let Some(uids) = self.libraries_cache.get(q) {
+            return uids
+                .iter()
+                .filter_map(|uid| self.uid_to_id.get(uid).cloned())
+                .collect();
+        }
+        if let Some(uids) = self.filters_cache.get(q) {
+            return uids
+                .iter()
+                .filter_map(|uid| self.uid_to_id.get(uid).cloned())
+                .collect();
+        }
+        if let Some(uids) = self.shelves_cache.get(q) {
+            return uids
+                .iter()
+                .filter_map(|uid| self.uid_to_id.get(uid).cloned())
+                .collect();
+        }
+
+        let needle = q.to_lowercase();
+        self.uid_to_id
+            .values()
+            .filter_map(|id| {
+                if let Some(album) = self.dict.get(id) {
+                    let title = album
+                        .get("album")
+                        .and_then(Value::as_str)
+                        .unwrap_or("")
+                        .to_lowercase();
+                    let artist = album
+                        .get("albumartist")
+                        .and_then(Value::as_str)
+                        .unwrap_or("")
+                        .to_lowercase();
+                    if id.to_lowercase().contains(&needle)
+                        || title.contains(&needle)
+                        || artist.contains(&needle)
+                    {
+                        return Some(id.clone());
+                    }
+                }
+                None
+            })
+            .collect()
     }
 }

@@ -7,6 +7,5 @@ pub mod models;
 pub mod resolvers;
 pub mod scanner;
 pub mod sentinel;
-pub mod sql;
 pub mod types;
 pub mod utils;

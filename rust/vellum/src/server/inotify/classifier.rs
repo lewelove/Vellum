@@ -1,31 +1,24 @@
 use crate::server::state::AppState;
+use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::collections::HashSet;
 
 pub struct ChangeFlags {
     pub config: bool,
-    pub logic: bool,
     pub shelf: bool,
     pub interfaces_asset: HashSet<String>,
 }
 
-pub async fn classify_events(
-    paths: &[PathBuf],
-    state: &Arc<AppState>,
-) -> ChangeFlags {
+pub async fn classify_events(paths: &[PathBuf], state: &Arc<AppState>) -> ChangeFlags {
     let mut flags = ChangeFlags {
         config: false,
-        logic: false,
         shelf: false,
         interfaces_asset: HashSet::new(),
     };
 
     let guard = state.config.read().await;
     let config_dir = guard.config_dir.clone();
-    let logic_path = config_dir.join("logic.toml");
-    let canon_logic = logic_path.canonicalize().unwrap_or(logic_path);
-    
+
     let shelves: Vec<PathBuf> = guard.resolved_shelf_files.clone();
     let deps: Vec<PathBuf> = guard.resolved_dependencies.clone();
 
@@ -50,10 +43,6 @@ pub async fn classify_events(
 
         if shelves.contains(&p_canon) {
             flags.shelf = true;
-        }
-
-        if p_canon == canon_logic {
-            flags.logic = true;
         }
 
         for (name, asset_path, is_dir) in &interface_assets {

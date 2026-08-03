@@ -19,7 +19,6 @@ toml = { version = "1.0.1", features = ["preserve_order"] }
 indexmap = { version = "2.13.0", features = ["serde"] }
 lofty = "0.23.2"
 log = "0.4.29"
-regex = "1.12.3"
 image = "0.25.9"
 sha2 = "0.10.9"
 walkdir = "2.4"

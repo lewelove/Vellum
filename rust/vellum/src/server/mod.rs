@@ -1,15 +1,15 @@
 mod api;
+mod inotify;
 mod library;
 mod mpd;
 mod query;
 mod state;
-mod inotify;
 
 use anyhow::{Context, Result};
 use std::net::SocketAddr;
 use std::path::Path;
 use std::sync::Arc;
-use tokio::sync::{RwLock, broadcast};
+use tokio::sync::{broadcast, RwLock};
 use tower_http::cors::{Any, CorsLayer};
 
 use self::state::{AppConfig as ServerConfig, AppState};
@@ -51,8 +51,13 @@ fn default_state() -> serde_json::Value {
 }
 
 pub async fn run(port: u16) -> Result<()> {
-    let config = libvellum::lua::ResolvedConfig::load().context("Failed to load application configuration")?;
-    let config_dir = config.path.parent().unwrap_or_else(|| Path::new(".")).to_path_buf();
+    let config = libvellum::lua::ResolvedConfig::load()
+        .context("Failed to load application configuration")?;
+    let config_dir = config
+        .path
+        .parent()
+        .unwrap_or_else(|| Path::new("."))
+        .to_path_buf();
 
     let lib_root_str = &config.app.storage.library;
 
@@ -69,12 +74,9 @@ pub async fn run(port: u16) -> Result<()> {
     let interfaces = config.interfaces.clone();
     let actions = config.actions.clone();
     let resolved_dependencies = config.dependencies.clone();
-    
-    let logic_path = config_dir.join("logic.toml");
-    let resolved_logic_path = logic_path.canonicalize().ok();
 
     let mut query_engine = query::QueryEngine::new()?;
-    
+
     let mut resolved_shelf_files = Vec::new();
     for shelf in query_engine.manifest.shelves.values() {
         if let Some(file) = &shelf.file {
@@ -87,7 +89,6 @@ pub async fn run(port: u16) -> Result<()> {
         library_root: library_root.clone(),
         cache_root,
         state_root: state_root.clone(),
-        resolved_logic_path,
         resolved_shelf_files,
         resolved_dependencies,
         covers,
@@ -101,7 +102,7 @@ pub async fn run(port: u16) -> Result<()> {
 
     let lib_scanner = library::scanner::Library::new(library_root.clone());
     lib_scanner.scan(&mut query_engine);
-    
+
     let query_arc = Arc::new(RwLock::new(query_engine));
     let (tx, _) = broadcast::channel(100);
 

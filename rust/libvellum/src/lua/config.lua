@@ -1,4 +1,5 @@
 _G.vl = _G.vl or {}
+
 _G.vl.config = function(t)
     if t.interfaces then
         for k, v in pairs(t.interfaces) do
@@ -49,4 +50,24 @@ end
 _G.vl.compiler = _G.vl.compiler or {}
 _G.vl.compiler.covers = function(name, t)
     REGISTRY.covers[name] = t
+end
+
+_G.vl.filter = function(name, t)
+    REGISTRY.filters[name] = t
+end
+
+_G.vl.grouper = function(name, t)
+    REGISTRY.groupers[name] = t
+end
+
+_G.vl.order = function(name, t)
+    REGISTRY.orders[name] = t
+end
+
+_G.vl.library = function(name, t)
+    REGISTRY.libraries[name] = t
+end
+
+_G.vl.shelf = function(name, t)
+    REGISTRY.shelves[name] = t
 end

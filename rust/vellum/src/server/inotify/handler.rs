@@ -4,17 +4,11 @@ use serde_json::json;
 use std::sync::Arc;
 
 pub async fn process_events(flags: ChangeFlags, state: &Arc<AppState>) {
-    if flags.logic {
-        handle_logic_change(state).await;
-    }
-
-    if flags.shelf && !flags.logic {
+    if flags.shelf && !flags.config {
         log::info!("Filesystem change: reloading shelf files...");
         {
             let mut query = state.query.write().await;
-            if let Err(e) = query.build_cache() {
-                log::error!("Failed to rebuild query cache: {e}");
-            }
+            query.build_cache();
         }
         let _ = state.tx.send(json!({ "type": "LOGIC_UPDATE" }).to_string());
     }
@@ -35,49 +29,8 @@ pub async fn process_events(flags: ChangeFlags, state: &Arc<AppState>) {
     }
 }
 
-async fn handle_logic_change(state: &Arc<AppState>) {
-    log::info!("Filesystem change: reloading logic.toml...");
-    let logic_path = {
-        let guard = state.config.read().await;
-        guard.config_dir.join("logic.toml")
-    };
-
-    let resolved = if logic_path.exists() {
-        logic_path.canonicalize().ok()
-    } else {
-        None
-    };
-
-    let mut new_shelves = Vec::new();
-    {
-        let mut guard = state.config.write().await;
-        guard.resolved_logic_path.clone_from(&resolved);
-    }
-
-    if let Some(ref lp) = resolved {
-        let mut query = state.query.write().await;
-        if let Err(e) = query.reload_manifest(lp) {
-            log::error!("Failed to reload logic.toml: {e}");
-        } else {
-            for shelf in query.manifest.shelves.values() {
-                if let Some(file) = &shelf.file {
-                    let expanded = libvellum::utils::expand_path(file);
-                    new_shelves.push(expanded.canonicalize().unwrap_or(expanded));
-                }
-            }
-        }
-    }
-
-    {
-        let mut guard = state.config.write().await;
-        guard.resolved_shelf_files = new_shelves;
-    }
-
-    let _ = state.tx.send(json!({ "type": "LOGIC_UPDATE" }).to_string());
-}
-
 async fn handle_config_change(state: &Arc<AppState>) {
-    log::info!("Filesystem change: reloading config...");
+    log::info!("Filesystem change: reloading config and logic...");
 
     match libvellum::lua::ResolvedConfig::load() {
         Ok(new_config) => {
@@ -85,6 +38,7 @@ async fn handle_config_change(state: &Arc<AppState>) {
             let new_interfaces = new_config.interfaces.clone();
             let new_actions = new_config.actions.clone();
             let dependencies = new_config.dependencies.clone();
+            let config_path = new_config.path.clone();
 
             {
                 let mut config_guard = state.config.write().await;
@@ -92,6 +46,13 @@ async fn handle_config_change(state: &Arc<AppState>) {
                 config_guard.interfaces.clone_from(&new_interfaces);
                 config_guard.actions.clone_from(&new_actions);
                 config_guard.resolved_dependencies.clone_from(&dependencies);
+            }
+
+            {
+                let mut query = state.query.write().await;
+                if let Err(e) = query.reload_manifest(&config_path) {
+                    log::error!("Failed to reload logic manifest: {e}");
+                }
             }
 
             let _ = state.tx.send(
@@ -103,6 +64,8 @@ async fn handle_config_change(state: &Arc<AppState>) {
                 })
                 .to_string(),
             );
+
+            let _ = state.tx.send(json!({ "type": "LOGIC_UPDATE" }).to_string());
 
             for (name, cfg) in &new_interfaces {
                 let _ = state.tx.send(

@@ -4,8 +4,9 @@ use anyhow::{Context, Result};
 use config::{ActionConfig, AppConfig, CoversConfig, InterfaceConfig};
 use indexmap::IndexMap;
 use mlua::{Lua, LuaSerdeExt, Table};
+use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 const LUA_CORE: &str = include_str!("core.lua");
@@ -13,6 +14,153 @@ const LUA_UTILS: &str = include_str!("utils.lua");
 const LUA_CONFIG: &str = include_str!("config.lua");
 const LUA_COMPILER: &str = include_str!("compiler.lua");
 const LUA_ACTIONS: &str = include_str!("actions.lua");
+const LUA_LOGIC: &str = include_str!("logic.lua");
+
+#[derive(Deserialize, Serialize, Clone, Debug, Default)]
+pub struct FilterDef {
+    pub label: String,
+}
+
+#[derive(Deserialize, Serialize, Clone, Debug, Default)]
+pub struct GrouperDef {
+    pub label: String,
+    #[serde(default)]
+    pub strict: bool,
+    #[serde(default)]
+    pub index: Option<bool>,
+    #[serde(default)]
+    pub count: Option<bool>,
+}
+
+#[derive(Deserialize, Serialize, Clone, Debug, Default)]
+pub struct OrderDef {
+    pub label: String,
+    #[serde(default)]
+    pub reverse: bool,
+    #[serde(default)]
+    pub strict: bool,
+}
+
+#[derive(Deserialize, Serialize, Clone, Debug, Default)]
+pub struct LibraryDef {
+    pub label: String,
+    #[serde(default)]
+    pub strict: bool,
+    #[serde(default)]
+    pub filters: Vec<String>,
+    #[serde(default)]
+    pub groupers: Vec<String>,
+    #[serde(default)]
+    pub orders: Vec<String>,
+    #[serde(skip_deserializing, default)]
+    pub allowed_filters: Vec<String>,
+    #[serde(skip_deserializing, default)]
+    pub allowed_groupers: Vec<String>,
+    #[serde(skip_deserializing, default)]
+    pub allowed_orders: Vec<String>,
+}
+
+#[derive(Deserialize, Serialize, Clone, Debug, Default)]
+pub struct ShelfDef {
+    pub label: String,
+    pub order: Option<String>,
+    pub file: Option<String>,
+}
+
+#[derive(Deserialize, Serialize, Clone, Debug, Default)]
+pub struct LogicManifest {
+    pub filters: IndexMap<String, FilterDef>,
+    pub groupers: IndexMap<String, GrouperDef>,
+    pub orders: IndexMap<String, OrderDef>,
+    pub libraries: IndexMap<String, LibraryDef>,
+    pub shelves: IndexMap<String, ShelfDef>,
+    #[serde(default)]
+    pub filters_order: Vec<String>,
+    #[serde(default)]
+    pub groupers_order: Vec<String>,
+    #[serde(default)]
+    pub orders_order: Vec<String>,
+    #[serde(default)]
+    pub libraries_order: Vec<String>,
+    #[serde(default)]
+    pub shelves_order: Vec<String>,
+}
+
+impl LogicManifest {
+    pub fn normalize(&mut self) {
+        self.filters_order = self.filters.keys().cloned().collect();
+        self.groupers_order = self.groupers.keys().cloned().collect();
+        self.orders_order = self.orders.keys().cloned().collect();
+        self.libraries_order = self.libraries.keys().cloned().collect();
+        self.shelves_order = self.shelves.keys().cloned().collect();
+
+        for (_, g) in &mut self.groupers {
+            let idx = g.index.unwrap_or(false);
+            g.index = Some(idx);
+            if g.count.is_none() {
+                g.count = Some(!idx);
+            }
+        }
+
+        let global_groupers: HashSet<String> = self
+            .groupers
+            .iter()
+            .filter(|(_, g)| !g.strict)
+            .map(|(id, _)| id.clone())
+            .collect();
+
+        let global_orders: HashSet<String> = self
+            .orders
+            .iter()
+            .filter(|(_, s)| !s.strict)
+            .map(|(id, _)| id.clone())
+            .collect();
+
+        for (_, library) in &mut self.libraries {
+            let mut allowed_filter_ids = Vec::new();
+            for f in &library.filters {
+                if self.filters.contains_key(f) {
+                    allowed_filter_ids.push(f.clone());
+                }
+            }
+            library.allowed_filters = allowed_filter_ids;
+
+            let mut allowed_grouper_ids = HashSet::new();
+            for g in &library.groupers {
+                allowed_grouper_ids.insert(g.clone());
+            }
+            if !library.strict {
+                for g in &global_groupers {
+                    allowed_grouper_ids.insert(g.clone());
+                }
+            }
+
+            let mut allowed_order_ids = HashSet::new();
+            for s in &library.orders {
+                allowed_order_ids.insert(s.clone());
+            }
+            if !library.strict {
+                for s in &global_orders {
+                    allowed_order_ids.insert(s.clone());
+                }
+            }
+
+            library.allowed_groupers = self
+                .groupers
+                .keys()
+                .filter(|k| allowed_grouper_ids.contains(*k))
+                .cloned()
+                .collect();
+
+            library.allowed_orders = self
+                .orders
+                .keys()
+                .filter(|k| allowed_order_ids.contains(*k))
+                .cloned()
+                .collect();
+        }
+    }
+}
 
 pub struct LuaEngine {
     pub lua: Lua,
@@ -24,6 +172,7 @@ pub struct EvaluatedLuaData {
     pub interfaces: HashMap<String, InterfaceConfig>,
     pub actions: HashMap<String, ActionConfig>,
     pub dependencies: Vec<PathBuf>,
+    pub manifest: LogicManifest,
 }
 
 impl LuaEngine {
@@ -49,6 +198,10 @@ impl LuaEngine {
             .exec()
             .map_err(|e| anyhow::anyhow!("{e}"))
             .context("Failed to load actions.lua")?;
+        lua.load(LUA_LOGIC)
+            .exec()
+            .map_err(|e| anyhow::anyhow!("{e}"))
+            .context("Failed to load logic.lua")?;
         Ok(Self { lua })
     }
 
@@ -58,8 +211,14 @@ impl LuaEngine {
 
         if let Some(parent) = path.parent() {
             let parent_str = parent.to_string_lossy();
-            let code = format!("package.path = package.path .. ';{}/?.lua'", parent_str.replace('\\', "/"));
-            let _: () = self.lua.load(&code).exec()
+            let code = format!(
+                "package.path = package.path .. ';{}/?.lua'",
+                parent_str.replace('\\', "/")
+            );
+            let _: () = self
+                .lua
+                .load(&code)
+                .exec()
                 .map_err(|e| anyhow::anyhow!("{e}"))
                 .context("Failed to append config directory to package.path")?;
         }
@@ -94,7 +253,8 @@ impl LuaEngine {
         let get_interfaces: mlua::Function = globals
             .get("__VELLUM_GET_INTERFACES")
             .map_err(|e| anyhow::anyhow!("{e}"))?;
-        let interfaces_table: Table = get_interfaces.call(()).map_err(|e| anyhow::anyhow!("{e}"))?;
+        let interfaces_table: Table =
+            get_interfaces.call(()).map_err(|e| anyhow::anyhow!("{e}"))?;
         let interfaces: HashMap<String, InterfaceConfig> = self
             .lua
             .from_value(mlua::Value::Table(interfaces_table))
@@ -118,6 +278,16 @@ impl LuaEngine {
             .from_value(mlua::Value::Table(deps_table))
             .map_err(|e| anyhow::anyhow!("{e}"))?;
 
+        let get_manifest: mlua::Function = globals
+            .get("__VELLUM_GET_LOGIC_MANIFEST")
+            .map_err(|e| anyhow::anyhow!("{e}"))?;
+        let manifest_table: Table = get_manifest.call(()).map_err(|e| anyhow::anyhow!("{e}"))?;
+        let mut manifest: LogicManifest = self
+            .lua
+            .from_value(mlua::Value::Table(manifest_table))
+            .map_err(|e| anyhow::anyhow!("{e}"))?;
+        manifest.normalize();
+
         let mut dependencies = Vec::new();
         for d in deps_str {
             let p = PathBuf::from(d);
@@ -130,10 +300,35 @@ impl LuaEngine {
             interfaces,
             actions,
             dependencies,
+            manifest,
         })
     }
 
-    pub fn execute_dispatcher(&self, ctx_val: &serde_json::Value, manifests_val: &serde_json::Value) -> Result<serde_json::Value> {
+    pub fn evaluate_album_logic(
+        &self,
+        album_val: &serde_json::Value,
+    ) -> Result<serde_json::Value> {
+        let globals = self.lua.globals();
+        let eval_fn: mlua::Function = globals
+            .get("__VELLUM_EVALUATE_ALBUM_LOGIC")
+            .map_err(|e| anyhow::anyhow!("{e}"))?;
+        let lua_album = self
+            .lua
+            .to_value(album_val)
+            .map_err(|e| anyhow::anyhow!("{e}"))?;
+        let res: mlua::Table = eval_fn.call(lua_album).map_err(|e| anyhow::anyhow!("{e}"))?;
+        let json_res: serde_json::Value = self
+            .lua
+            .from_value(mlua::Value::Table(res))
+            .map_err(|e| anyhow::anyhow!("{e}"))?;
+        Ok(json_res)
+    }
+
+    pub fn execute_dispatcher(
+        &self,
+        ctx_val: &serde_json::Value,
+        manifests_val: &serde_json::Value,
+    ) -> Result<serde_json::Value> {
         let globals = self.lua.globals();
         let dispatcher: mlua::Function = globals
             .get("__VELLUM_DISPATCHER")
@@ -141,7 +336,7 @@ impl LuaEngine {
 
         let mut cleaned_ctx = ctx_val.clone();
         strip_nulls(&mut cleaned_ctx);
-        
+
         let mut cleaned_manifests = manifests_val.clone();
         strip_nulls(&mut cleaned_manifests);
 
@@ -149,13 +344,15 @@ impl LuaEngine {
             .lua
             .to_value(&cleaned_ctx)
             .map_err(|e| anyhow::anyhow!("{e}"))?;
-            
+
         let lua_manifests = self
             .lua
             .to_value(&cleaned_manifests)
             .map_err(|e| anyhow::anyhow!("{e}"))?;
-            
-        let res: mlua::Table = dispatcher.call((lua_ctx, lua_manifests)).map_err(|e| anyhow::anyhow!("{e}"))?;
+
+        let res: mlua::Table = dispatcher
+            .call((lua_ctx, lua_manifests))
+            .map_err(|e| anyhow::anyhow!("{e}"))?;
 
         let json_res: serde_json::Value = self
             .lua
@@ -225,6 +422,7 @@ pub struct ResolvedConfig {
     pub interfaces: HashMap<String, InterfaceConfig>,
     pub actions: HashMap<String, ActionConfig>,
     pub dependencies: Vec<PathBuf>,
+    pub manifest: LogicManifest,
     pub path: PathBuf,
 }
 
@@ -268,6 +466,7 @@ impl ResolvedConfig {
             interfaces: evaluated.interfaces,
             actions: evaluated.actions,
             dependencies,
+            manifest: evaluated.manifest,
             path,
         })
     }
@@ -275,6 +474,12 @@ impl ResolvedConfig {
 
 thread_local! {
     pub static LUA_VM: RefCell<Option<LuaEngine>> = const { RefCell::new(None) };
+}
+
+pub fn reset_lua_vm() {
+    LUA_VM.with(|cell| {
+        *cell.borrow_mut() = None;
+    });
 }
 
 pub fn get_or_init_lua_vm<F, R>(config_path: &Path, f: F) -> Result<R>

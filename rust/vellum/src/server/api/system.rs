@@ -172,7 +172,7 @@ pub async fn trigger_batch_reload(
             }
         }
         if !processed_ids.is_empty() || !removed_ids.is_empty() {
-            let _ = query.build_cache();
+            query.build_cache();
         }
     }
 
@@ -236,7 +236,7 @@ pub async fn trigger_reload(
 
             let entry = match &res {
                 crate::server::library::scanner::UpdateResult::Updated(id) => {
-                    let _ = query.build_cache();
+                    query.build_cache();
                     query.dict.get(id).cloned()
                 },
                 crate::server::library::scanner::UpdateResult::Removed(_) => None,
@@ -302,31 +302,7 @@ pub async fn run_query(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<serde_json::Value>,
 ) -> Response {
-    let query = state.query.read().await;
     let q_str = payload.get("query").and_then(|v| v.as_str()).unwrap_or("").trim();
-
-    let sql = if q_str.is_empty() {
-        "SELECT id FROM albums".to_string()
-    } else {
-        let upper_q = q_str.to_uppercase();
-        if upper_q.starts_with("SELECT") {
-            q_str.to_string()
-        } else {
-            let prefix = if upper_q.starts_with("WHERE")
-                || upper_q.starts_with("ORDER")
-                || upper_q.starts_with("LIMIT")
-            {
-                "SELECT id FROM albums "
-            } else {
-                "SELECT id FROM albums WHERE "
-            };
-            format!("{prefix}{q_str}")
-        }
-    };
-
-    let expanded = crate::server::query::expand_shorthand(&sql);
-    match query.query_ids(&expanded) {
-        Ok(ids) => Json(ids).into_response(),
-        Err(e) => (StatusCode::BAD_REQUEST, Json(json!({"error": e.to_string()}))).into_response(),
-    }
+    let ids = state.query.read().await.query_ids(q_str);
+    Json(ids).into_response()
 }

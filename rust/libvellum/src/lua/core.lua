@@ -7,7 +7,12 @@ _G.REGISTRY = {
     },
     interfaces = {},
     actions = {},
-    dependencies = {}
+    dependencies = {},
+    filters = {},
+    groupers = {},
+    orders = {},
+    libraries = {},
+    shelves = {}
 }
 
 if not package.searchpath then

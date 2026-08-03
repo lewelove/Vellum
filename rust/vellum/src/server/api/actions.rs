@@ -22,10 +22,7 @@ async fn resolve_target_ids(
 
     if let Some(q) = query_arg {
         let query_guard = state.query.read().await;
-        let expanded = crate::server::query::expand_shorthand(&q);
-        if let Ok(ids) = query_guard.query_ids(&expanded) {
-            target_ids = ids;
-        }
+        target_ids = query_guard.query_ids(&q);
     } else if let Some(id) = id_arg {
         if !id.is_empty() {
             target_ids.push(id);

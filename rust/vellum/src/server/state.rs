@@ -1,10 +1,10 @@
 use crate::server::mpd::MpdEngine;
 use crate::server::query::QueryEngine;
+use indexmap::IndexMap;
+use libvellum::lua::config::{ActionConfig, CoversConfig, InterfaceConfig};
 use std::path::PathBuf;
 use std::sync::Arc;
-use tokio::sync::{RwLock, broadcast};
-use indexmap::IndexMap;
-use libvellum::lua::config::{CoversConfig, InterfaceConfig, ActionConfig};
+use tokio::sync::{broadcast, RwLock};
 
 pub struct AppState {
     pub query: Arc<RwLock<QueryEngine>>,
@@ -19,7 +19,6 @@ pub struct AppConfig {
     pub library_root: PathBuf,
     pub cache_root: PathBuf,
     pub state_root: PathBuf,
-    pub resolved_logic_path: Option<PathBuf>,
     pub resolved_shelf_files: Vec<PathBuf>,
     pub resolved_dependencies: Vec<PathBuf>,
     pub covers: IndexMap<String, CoversConfig>,
