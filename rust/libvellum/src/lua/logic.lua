@@ -38,7 +38,7 @@ function __VELLUM_GET_LOGIC_MANIFEST()
     for k, v in pairs(REGISTRY.shelves or {}) do
         manifest.shelves[k] = {
             label = v.label or k,
-            order = v.order,
+            reverse = v.reverse or false,
             file = v.file
         }
     end
@@ -59,7 +59,8 @@ function __VELLUM_EVALUATE_ALBUM_LOGIC(raw_album)
         groupers = {},
         orders = {},
         libraries = {},
-        shelves = {}
+        shelves = {},
+        shelf_sorts = {}
     }
 
     for k, v in pairs(REGISTRY.filters or {}) do
@@ -81,10 +82,10 @@ function __VELLUM_EVALUATE_ALBUM_LOGIC(raw_album)
     end
 
     for k, v in pairs(REGISTRY.orders or {}) do
-        if type(v.key) == "function" then
-            local ok, key_res = pcall(v.key, album)
-            if ok and key_res ~= nil then
-                res.orders[k] = key_res
+        if type(v.sort) == "function" then
+            local ok, sort_res = pcall(v.sort, album)
+            if ok and sort_res ~= nil then
+                res.orders[k] = sort_res
             end
         end
     end
@@ -103,6 +104,12 @@ function __VELLUM_EVALUATE_ALBUM_LOGIC(raw_album)
             local ok, match_res = pcall(v.match, album)
             if ok and match_res then
                 res.shelves[k] = true
+            end
+        end
+        if type(v.sort) == "function" then
+            local ok, sort_res = pcall(v.sort, album)
+            if ok and sort_res ~= nil then
+                res.shelf_sorts[k] = sort_res
             end
         end
     end

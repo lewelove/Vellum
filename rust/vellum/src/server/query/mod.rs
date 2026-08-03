@@ -259,6 +259,12 @@ impl QueryEngine {
         self.orders_cache.clear();
         self.shelves_cache.clear();
 
+        self.populate_eval_caches();
+        self.populate_shelves_cache();
+        self.populate_orders_cache();
+    }
+
+    fn populate_eval_caches(&mut self) {
         for (&uid, eval_res) in &self.evaluated_logic {
             if let Some(libs) = eval_res.get("libraries").and_then(Value::as_object) {
                 for (lib_id, is_match) in libs {
@@ -309,7 +315,9 @@ impl QueryEngine {
                 }
             }
         }
+    }
 
+    fn populate_shelves_cache(&mut self) {
         for (shelf_key, shelf) in &self.manifest.shelves {
             if let Some(file_path) = &shelf.file {
                 let expanded = libvellum::utils::expand_path(file_path);
@@ -322,9 +330,32 @@ impl QueryEngine {
                         .collect();
                     self.shelves_cache.insert(shelf_key.clone(), lines);
                 }
+            } else if let Some(shelf_uids) = self.shelves_cache.get_mut(shelf_key) {
+                let default_key = json!("");
+                let mut pairs: Vec<(u32, SortKey)> = shelf_uids
+                    .iter()
+                    .map(|&uid| {
+                        let raw_key = self
+                            .evaluated_logic
+                            .get(&uid)
+                            .and_then(|eval| eval.get("shelf_sorts"))
+                            .and_then(|sorts| sorts.get(shelf_key))
+                            .unwrap_or(&default_key);
+                        (uid, value_to_sort_key(raw_key))
+                    })
+                    .collect();
+
+                pairs.sort_by(|a, b| (&a.1, a.0).cmp(&(&b.1, b.0)));
+                if shelf.reverse {
+                    pairs.reverse();
+                }
+
+                *shelf_uids = pairs.into_iter().map(|(uid, _)| uid).collect();
             }
         }
+    }
 
+    fn populate_orders_cache(&mut self) {
         for order_id in self.manifest.orders.keys() {
             let mut order_pairs: Vec<(u32, SortKey)> = Vec::new();
             for (&uid, eval_res) in &self.evaluated_logic {

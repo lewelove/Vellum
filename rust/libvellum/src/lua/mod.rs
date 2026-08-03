@@ -63,7 +63,8 @@ pub struct LibraryDef {
 #[derive(Deserialize, Serialize, Clone, Debug, Default)]
 pub struct ShelfDef {
     pub label: String,
-    pub order: Option<String>,
+    #[serde(default)]
+    pub reverse: bool,
     pub file: Option<String>,
 }
 
