@@ -11,20 +11,20 @@ Vellum is an MPD client and an album-centric library manager built from the firs
 ## Cool Features
 
 ### Everything in Plaintext
-Entire library metadata — from song names and album lengths in milliseconds — to custom album source URLs and ReplayGain values — to literally **anything specific that can exist in a text form describing an album in your collection** will be stored and compiled within ancillary plain-text files. Edit them in Neovim, RipGrep/Sed them, run scripts against them. Everything can be version controlled, every change can tracked, backed up and reverted, completely independent of the audio's embedded tags, in human readable database-less format. Once your collection's metadata hits Git and is uploaded to a remote repo you will never lose it ever again.
+Entire library metadata — from song names and album lengths in milliseconds — to custom album source URLs and ReplayGain values — to literally **anything specific that can exist in a text form describing an album in your collection** will be stored and compiled within ancillary plain-text files. Edit them in Neovim, RipGrep/Sed them, run scripts against them. Everything can be version controlled, every change can be tracked, backed up and reverted, completely independent of the audio's embedded tags — in human readable database-less format. Once your collection's metadata hits Git and is uploaded to a remote repo you will never lose it ever again.
 
 ### Album as a Compiled Data Object
 For the analogy's sake let's imagine an album directory as an entry in the physical archive. This entry contains data written with human intent (`metadata.toml` and other TOML manifests) — as well as the source you're trying to preserve (audio, cover art, lyrics) and its inherit metadata (audio bit depth, duration, etc...). Then you take all of these and run a compiler against them to produce the album **index** in this imagined archive. By thinking about an album in this way, it stops being an opaque fuzzy object interpreted by each different media player on the fly, and becomes a simple set of data points that can compiled into a standardized machine-readable data object (`album.lock.json`), which then is read by Vellum server to register an album in your collection and to provide data for any further user-album interfacing. The compilation step also brings you all of the cool compile time features AOT programming languages have. Type checking, correctness enforcement, linting, key-to-manifest binding and validation, all of these can be expressed in Vellum Lua config.
 
 ### Decoupled Frontend and Backend
-**Vellum is the Rust web server first — the User Interface intentionally comes second.** The separation of concerns is essential in Unix Philosophy. Want to change UI theme? Want to add some cool display feature? No need to worry. You can directly edit contents of the `web-app/` or completely rewrite your own UI in a WebDev stack and run it in a browser — wiring it up to a running Vellum server using its Web API **today**. Furthermore, literally any UI framework supporting web api functionality can control MPD and retrieve library and album data through Vellum. You can build TUI apps, Godot based game-interfaces, or you can even use Curl to control it if you really want to. The project's goal is to provide robust primitives, so you can interface your album collection in any weird & brilliant way possible.
+**Vellum is the Rust web server first — the User Interface intentionally comes second.** The separation of concerns is essential in Unix Philosophy. Want to change UI theme? Want to add some cool display feature? No need to worry. You can directly edit contents of the `web-app/` or completely rewrite your own UI in a WebDev stack and run it in a browser — wiring it up to a running Vellum server using its Web API **today**. Furthermore, literally any UI framework supporting Web API functionality can control MPD and retrieve library and album data through Vellum. You can build TUI apps, Godot based game-interfaces, or you can even use Curl to control it if you really want to. The project's goal is to provide robust primitives, so you can interface your album collection in any weird & brilliant way possible.
 
 ### Vellum Actions
-Since every album is compiled into a plaintext JSON — every album becomes scriptable. **Vellum Action** is a concept of a standalone executable that reads intermediary JSON from stdin (provided by Vellum and populated with albums and config data at runtime) and performs some kind of logic based on this data. That's it. You can write actions in any language that supports reading JSONs (or even use simple bash scripts with Jq) and use them to infinitely expand Vellum functionality in Unix Philosophy style with any logic you can conjure up from the album data. Each action is configurable via its own CLI arguments and `vellum.lua` config functions. For built-in actions and more context of what they may be useful for look into the `actions/` directory.
+Since every album is compiled into a plaintext JSON — every album becomes scriptable. **Vellum Action** is a concept of a standalone executable that reads intermediary JSON from stdin (provided by Vellum and populated with albums and config data at runtime) and performs some kind of logic based on this data. That's it. You can write actions in any language that supports reading JSONs (or even use simple POSIX scripts with Jq) and use them to infinitely expand Vellum functionality in Unix Philosophy style. Each action is configurable via its own CLI arguments and `vellum.lua` config functions. For built-in actions and more context of what they may be useful for look into the `actions/` directory.
 
 ## Interface Showcase
 
-### Main Album Grid
+### Home Album Grid
 
 Filter, group and sort albums by any key imaginable. The grid uses slot based row snapping and 60fps physical smooth scrolling.
 
@@ -32,17 +32,17 @@ Filter, group and sort albums by any key imaginable. The grid uses slot based ro
 
 <img width="1920" height="1080" alt="Image" src="https://github.com/user-attachments/assets/c3ebe389-1c40-431a-8509-05118ae92b66" />
 
-### Album Modal Drawer
+### Modal Album Drawer
 
-Album previews, supporting multidisc issues.
+Album preview, supporting multi-disc issues.
 
 <img width="1920" height="1080" alt="Image" src="https://github.com/user-attachments/assets/0e8471d7-b695-43fb-81e7-fdf58f317359" />
 
 <img width="1920" height="1080" alt="Image" src="https://github.com/user-attachments/assets/603ea8af-99e2-4ef1-88ee-3fbae9591f90" />
 
-### Queue View
+### Queue
 
-Provide any WebGL shader as the background with custom palettes.
+Provide any GLSL shader as the background with custom palettes for each album separately via config and `theme.toml`.
 
 <img width="1920" height="1080" alt="Image" src="https://github.com/user-attachments/assets/b911f2a9-bf33-446b-a1f1-c5131cd8972f" />
 
@@ -51,15 +51,6 @@ Provide any WebGL shader as the background with custom palettes.
 <img width="1920" height="1080" alt="Image" src="https://github.com/user-attachments/assets/685b24ea-61a1-4a08-b2de-ea0fb0e8961f" />
 
 <img width="1920" height="1080" alt="Image" src="https://github.com/user-attachments/assets/574e7814-7744-4cc8-898f-df8c617a6650" />
-
-## Contributing
-Since I develop Vellum mostly by myself, there can be many desired, or even essential things not implemented in the current state. If you have any ideas or requests, or if you want to contribute with patches, please submit everything to issues and PRs respectively. I would be sincerely happy to read through, work on and/or merge them. I am also fully open to code critique and any structural improvements. I want to keep Vellum as fast, maintainable and open to new contributors as possible. If you have constructive criticism of the codebase for me to take action upon, please submit it to the issues as well.
-
-## AI Disclosure & Human Design
-This software was partially developed with the assistance of LLMs for research and Rust syntax implementation. Regardless of this fact, all of the business logic, architecture, UX — as well as complete creative vision — were designed and vetted with a great deal of intent and hard work by a human — myself. All of the documentation was handrolled on my keyboard, from my bedroom, in my own words — as I believe this is an honest way to show you that I care about what you'll read here.
-
-## A Note From The Developer
-**I am the primary and the most active user of Vellum.** I am building it for myself, in hopes that **you** will find it useful too. This project was born from the inexorable love for album collecting and archival, respect for Unix Philosophy, and genuine lack of anything close to "album-as-compiled-data-object" in the world of media players. I want Vellum to be free and open source forever, and the AGPL-3.0 license is here for it. I'll try to commit maintaining it as long I will be using Linux, and collecting and listening to albums, which gives us, according to average life expectancy, around 50+ years of time. Thank you for reading this README.md and (hopefully) using this software. All feedback is always appreciated.
 
 ## Getting Started
 
@@ -173,3 +164,12 @@ The `vellum` CLI tool is the central driver for managing your library's state.
 - `vellum server` — Start the Axum backend server.
 - `vellum interface` — Run interfaces defined in `vl.interfaces`.
 - `vellum x` — Run defined actions via runtime `vl.actions` router.
+
+## AI Disclosure & Human Design
+This software was partially developed with the assistance of LLMs for research and Rust syntax implementation. Regardless of this fact, all of the business logic, architecture, UX — as well as complete creative vision — were designed and vetted with a great deal of intent and hard work by a human — myself. All of the documentation was handrolled on my keyboard, from my bedroom, in my own words — as I believe this is an honest way to show you that I care about what you'll read here.
+
+## A Note From The Developer
+**I am the primary and the most active user of Vellum.** I am building it for myself, in hopes that **you** will find it useful too. This project was born from the inexorable love for album collecting and archival, respect for Unix Philosophy, and genuine lack of anything close to "album-as-compiled-data-object" in the world of media players. I want Vellum to be free and open source forever, and the AGPL-3.0 license is here for it. I'll try to commit maintaining it as long as I will be using Linux, and collecting and listening to albums, which gives us, according to average life expectancy, around 50+ years of time. Thank you for reading this README.md and (hopefully) using this software. All feedback is always appreciated.
+
+## Contributing
+Since I develop Vellum mostly by myself, there can be many desired, or even essential things not implemented in the current state. If you have any ideas or requests, or if you want to contribute with patches, please submit everything to issues and PRs respectively. I would be sincerely happy to read through, work on and/or merge them. I am also fully open to code critique and any structural improvements. I want to keep Vellum as fast, maintainable and open to new contributors as possible. If you have constructive criticism of the codebase for me to take action upon, please submit it to the issues as well.
