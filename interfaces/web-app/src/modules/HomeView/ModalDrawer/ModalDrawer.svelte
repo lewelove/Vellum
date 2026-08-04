@@ -88,7 +88,6 @@ function handleBackdropClick(e: MouseEvent) {
             hash={coverHash}
             width={leftColumnWidth - 64}
             height={leftColumnWidth - 64}
-            animate={false}
           />
         </div>
 
