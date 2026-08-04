@@ -33,7 +33,8 @@ pub async fn run(
     let manifests = config.app.compiler.manifests.clone();
 
     let lib_hash = calculate_hash(&library_root.to_string_lossy());
-    let base_cache_dir = expand_path(&config.app.storage.cache).join("libraries_cache");
+    let cache_root = expand_path(&config.app.storage.cache);
+    let base_cache_dir = cache_root.join("libraries");
     fs::create_dir_all(&base_cache_dir)?;
 
     validate_library_root(&base_cache_dir, &lib_hash).await?;
@@ -42,7 +43,7 @@ pub async fn run(
     let mut cache = load_cache(&cache_file);
 
     let (config_changed, lua_hash_file, lua_hash) =
-        check_lua_config_changed(&config.dependencies, &base_cache_dir, &lib_hash, silent);
+        check_lua_config_changed(&config.dependencies, &cache_root, silent);
     let force = force || config_changed;
 
     let scan_root = target_path.unwrap_or_else(|| library_root.clone());
@@ -129,12 +130,11 @@ async fn notify_if_force_update(force: bool, is_full_library: bool) {
 
 fn check_lua_config_changed(
     dependencies: &[PathBuf],
-    base_cache_dir: &Path,
-    lib_hash: &str,
+    cache_root: &Path,
     silent: bool,
 ) -> (bool, PathBuf, String) {
     let lua_hash = get_lua_config_hash(dependencies);
-    let lua_hash_file = base_cache_dir.join(format!("{lib_hash}_lua.hash"));
+    let lua_hash_file = cache_root.join("config.blake3");
     let previous_lua_hash = fs::read_to_string(&lua_hash_file).unwrap_or_default();
     let config_changed = lua_hash != previous_lua_hash;
 

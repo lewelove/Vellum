@@ -20,8 +20,10 @@ pub fn calculate_hash(data: &str) -> String {
 }
 
 pub fn get_lua_config_hash(dependencies: &[PathBuf]) -> String {
+    let mut sorted_deps = dependencies.to_vec();
+    sorted_deps.sort();
     let mut hasher = blake3::Hasher::new();
-    for dep in dependencies {
+    for dep in &sorted_deps {
         if let Ok(content) = fs::read(dep) {
             hasher.update(&content);
         }
