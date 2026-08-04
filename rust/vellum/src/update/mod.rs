@@ -9,8 +9,11 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::sync::mpsc;
 
+use cache::{
+    calculate_hash, get_lua_config_hash, load_cache, save_cache,
+    validate_library_root,
+};
 use crate::compile;
-use cache::{calculate_hash, get_lua_config_hash, load_cache, save_cache, validate_library_root};
 use libvellum::utils::expand_path;
 use notify::{NotificationTaskArgs, start_notification_task};
 use verify::{find_missing_paths, verify_albums_parallel};
@@ -29,18 +32,15 @@ pub async fn run(
     let is_full_library = target_path.is_none() || target_path.as_deref() == Some(library_root.as_path());
     notify_if_force_update(force, is_full_library).await;
 
-    let exts = config.app.manifest.audio_files.clone().unwrap_or_else(|| vec![".flac".to_string()]);
-    let manifests = config.app.compiler.manifests.clone();
-
     let lib_hash = calculate_hash(&library_root.to_string_lossy());
     let cache_root = expand_path(&config.app.storage.cache);
-    let base_cache_dir = cache_root.join("libraries");
+    let base_cache_dir = cache_root.join("libraries").join(&lib_hash);
     fs::create_dir_all(&base_cache_dir)?;
 
     validate_library_root(&base_cache_dir, &lib_hash).await?;
 
-    let cache_file = base_cache_dir.join(format!("{lib_hash}.json"));
-    let mut cache = load_cache(&cache_file);
+    let cache_file = base_cache_dir.join("library.json");
+    let cache = load_cache(&cache_file);
 
     let (config_changed, lua_hash_file, lua_hash) =
         check_lua_config_changed(&config.dependencies, &cache_root, silent);
@@ -50,23 +50,18 @@ pub async fn run(
     let scan_depth = config.app.compiler.scan_depth.unwrap_or(4);
 
     let all_albums = libvellum::scanner::find_target_albums(&scan_root, scan_depth)?;
-    let missing_paths = find_missing_paths(&all_albums, &scan_root, &cache);
+    let missing_paths = find_missing_paths(&all_albums, &library_root, &cache);
 
     if !silent {
         log::info!("Verifying {} albums...", all_albums.len());
     }
 
-    let results = verify_albums_parallel(all_albums, &cache, force, jobs, &exts, manifests.as_ref(), &library_root)?;
+    let results = verify_albums_parallel(all_albums, &cache, force, jobs, &library_root)?;
     let mut work_queue = Vec::new();
 
-    for (path, mtime, is_dirty) in results {
+    for (path, is_dirty) in results {
         if is_dirty {
             work_queue.push(path);
-        } else {
-            cache.insert(
-                path.to_string_lossy().to_string(),
-                cache::AlbumCacheEntry { mtime_sum: mtime },
-            );
         }
     }
 
@@ -89,8 +84,6 @@ pub async fn run(
     let task_args = NotificationTaskArgs {
         notify_rx,
         cache_for_task: Arc::clone(&cache_arc),
-        exts_for_task: exts,
-        manifests_for_task: manifests,
         lib_root_for_task: Arc::new(library_root),
         missing_paths,
         start_time,

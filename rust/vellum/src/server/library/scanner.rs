@@ -55,10 +55,16 @@ impl Library {
     ) -> UpdateResult {
         let folder_path = Path::new(folder_path_str);
 
-        let rel_path = folder_path.strip_prefix(&self.root).unwrap_or(folder_path);
+        let abs_folder_path = if folder_path.is_absolute() {
+            folder_path.to_path_buf()
+        } else {
+            self.root.join(folder_path)
+        };
+
+        let rel_path = abs_folder_path.strip_prefix(&self.root).unwrap_or(&abs_folder_path);
         let alb_id = rel_path.to_string_lossy().to_string();
 
-        let lock_path = folder_path.join("album.lock.json");
+        let lock_path = abs_folder_path.join("album.lock.json");
         if lock_path.exists()
             && let Ok(content) = std::fs::read_to_string(&lock_path)
             && let Ok(lock_data) = serde_json::from_str::<LockFile>(&content)

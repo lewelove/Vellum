@@ -211,7 +211,14 @@ fn finalize(
         if target == ExportTarget::Stdout {
             println!("{content}");
         } else {
-            std::fs::write(album_root.join("album.lock.json"), content)?;
+            let lock_path = album_root.join("album.lock.json");
+            let should_write = std::fs::read_to_string(&lock_path)
+                .map_or(true, |existing| existing != content);
+
+            if should_write {
+                std::fs::write(lock_path, content)?;
+            }
+
             if let Some(tx_arc) = notify_tx {
                 let root_clone = album_root.to_path_buf();
                 let tx = (*tx_arc).clone();

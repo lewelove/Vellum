@@ -4,9 +4,16 @@ use serde_json::{Value, json};
 use std::path::Path;
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct CoverCacheEntry {
+    pub file_info: Value,
+    pub metrics: Option<CoverMetrics>,
+}
+
 pub fn resolve_cover_data(
     album_root: &Path,
     config: &libvellum::lua::ResolvedConfig,
+    lib_hash: &str,
 ) -> (Value, Option<CoverMetrics>) {
     let main_cover_path = assets::resolve_cover_info(album_root);
     
@@ -30,13 +37,66 @@ pub fn resolve_cover_data(
     }
 
     let loaded_image = assets::pregenerate_covers(config, main_cover_path.as_deref(), &cover_hash_address);
-    let cover_metrics = resolve_cover_metrics(config, &cover_hash_address, loaded_image.as_ref());
+    let cover_metrics = resolve_cover_metrics(config, lib_hash, &cover_hash_address, loaded_image.as_ref());
 
     (cover_file_info, cover_metrics)
 }
 
+pub fn resolve_cover_data_cached(
+    album_root: &Path,
+    config: &libvellum::lua::ResolvedConfig,
+    lib_hash: &str,
+) -> (Value, Option<CoverMetrics>) {
+    let main_cover_path = assets::resolve_cover_info(album_root);
+    let Some(cp) = &main_cover_path else {
+        return (Value::Null, None);
+    };
+
+    let Ok(meta) = std::fs::metadata(cp) else {
+        return (Value::Null, None);
+    };
+
+    let mtime = meta
+        .modified()
+        .unwrap_or(std::time::SystemTime::UNIX_EPOCH)
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    let size = meta.len();
+    let canon_path = cp.canonicalize().unwrap_or_else(|_| cp.clone());
+
+    let cache_key_str = format!("{}:{size}:{mtime}", canon_path.display());
+    let key = blake3::hash(cache_key_str.as_bytes()).to_hex().to_string();
+
+    let cache_root = libvellum::utils::expand_path(&config.app.storage.cache);
+    let cache_dir = cache_root.join("covers").join("metadata");
+    let cache_file = cache_dir.join(format!("{key}.json"));
+
+    if cache_file.exists()
+        && let Ok(content) = std::fs::read_to_string(&cache_file)
+        && let Ok(cached) = serde_json::from_str::<CoverCacheEntry>(&content)
+    {
+        return (cached.file_info, cached.metrics);
+    }
+
+    let (file_info, metrics) = resolve_cover_data(album_root, config, lib_hash);
+
+    if std::fs::create_dir_all(&cache_dir).is_ok() {
+        let entry = CoverCacheEntry {
+            file_info: file_info.clone(),
+            metrics: metrics.clone(),
+        };
+        if let Ok(json_str) = serde_json::to_string(&entry) {
+            let _ = std::fs::write(cache_file, json_str);
+        }
+    }
+
+    (file_info, metrics)
+}
+
 pub fn resolve_cover_metrics(
     config: &libvellum::lua::ResolvedConfig,
+    lib_hash: &str,
     c_hash: &str,
     loaded_image: Option<&image::DynamicImage>,
 ) -> Option<CoverMetrics> {
@@ -44,9 +104,8 @@ pub fn resolve_cover_metrics(
         return None;
     }
     
-    let cache_str = &config.app.storage.cache;
-    let cache_root = libvellum::utils::expand_path(cache_str);
-    let metrics_dir = cache_root.join("cover_data");
+    let cache_root = libvellum::utils::expand_path(&config.app.storage.cache);
+    let metrics_dir = cache_root.join("libraries").join(lib_hash).join("covers_data");
     std::fs::create_dir_all(&metrics_dir).ok();
     
     let metrics_path = metrics_dir.join(format!("{c_hash}.json"));

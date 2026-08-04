@@ -1,6 +1,5 @@
-use crate::update::cache::{AlbumCacheEntry, get_mtime_sum};
+use crate::update::cache::FileStat;
 use anyhow::Result;
-use libvellum::error::VellumError;
 use libvellum::sentinel::{TrustState, verify_trust};
 use rayon::prelude::*;
 use std::collections::{HashMap, HashSet};
@@ -8,17 +7,27 @@ use std::path::{Path, PathBuf};
 
 pub fn find_missing_paths(
     all_albums: &[PathBuf],
-    scan_root: &Path,
-    cache: &HashMap<String, AlbumCacheEntry>,
+    library_root: &Path,
+    cache: &HashMap<String, FileStat>,
 ) -> Vec<PathBuf> {
     let mut missing_paths = Vec::new();
-    let album_set: HashSet<PathBuf> = all_albums.iter().cloned().collect();
-    let scan_root_canon = scan_root.canonicalize().unwrap_or_else(|_| scan_root.to_path_buf());
+    let current_album_ids: HashSet<String> = all_albums
+        .iter()
+        .map(|p| libvellum::resolvers::rel_path(p, library_root))
+        .collect();
 
-    for cached_path_str in cache.keys() {
-        let cached_path = PathBuf::from(cached_path_str);
-        if cached_path.starts_with(&scan_root_canon) && !album_set.contains(&cached_path) {
-            missing_paths.push(cached_path);
+    let mut cached_album_ids = HashSet::new();
+    for rel_path in cache.keys() {
+        if rel_path == "metadata.toml" {
+            cached_album_ids.insert(String::new());
+        } else if let Some(album_id) = rel_path.strip_suffix("/metadata.toml") {
+            cached_album_ids.insert(album_id.to_string());
+        }
+    }
+
+    for cached_id in cached_album_ids {
+        if !current_album_ids.contains(&cached_id) {
+            missing_paths.push(library_root.join(&cached_id));
         }
     }
     missing_paths
@@ -26,13 +35,11 @@ pub fn find_missing_paths(
 
 pub fn verify_albums_parallel(
     albums: Vec<PathBuf>,
-    cache: &HashMap<String, AlbumCacheEntry>,
+    cache: &HashMap<String, FileStat>,
     force: bool,
     jobs: Option<usize>,
-    exts: &[String],
-    manifests: Option<&Vec<String>>,
     library_root: &Path,
-) -> Result<Vec<(PathBuf, u64, bool)>> {
+) -> Result<Vec<(PathBuf, bool)>> {
     let default_parallelism = std::thread::available_parallelism()
         .map_or(1, std::num::NonZero::get);
     let pool = rayon::ThreadPoolBuilder::new()
@@ -43,38 +50,73 @@ pub fn verify_albums_parallel(
         albums
             .into_par_iter()
             .map(|album_root| {
-                let album_path_str = album_root.to_string_lossy().to_string();
-                let metadata_path = album_root.join("metadata.toml");
-                let mtime_sum = get_mtime_sum(&album_root, &metadata_path, exts, manifests);
-
                 if force {
-                    return (album_root, mtime_sum, true);
+                    return (album_root, true);
                 }
 
-                let expected_id = libvellum::resolvers::rel_path(&album_root, library_root);
+                let album_id = libvellum::resolvers::rel_path(&album_root, library_root);
 
-                if let Some(entry) = cache.get(&album_path_str)
-                    && entry.mtime_sum == mtime_sum && mtime_sum != 0
+                if !matches!(verify_trust(&album_root, Some(&album_id)), Ok(TrustState::Valid)) {
+                    return (album_root, true);
+                }
+
+                let prefix = if album_id.is_empty() {
+                    String::new()
+                } else {
+                    format!("{album_id}/")
+                };
+
+                let mut album_files_changed = false;
+                let mut current_file_count = 0;
+
+                for entry in walkdir::WalkDir::new(&album_root)
+                    .max_depth(3)
+                    .follow_links(true)
+                    .into_iter()
+                    .filter_map(Result::ok)
                 {
-                    match verify_trust(&album_root, Some(&expected_id)) {
-                        Ok(TrustState::Valid) => return (album_root, mtime_sum, false),
-                        _ => return (album_root, mtime_sum, true),
+                    let p = entry.path();
+                    if p.is_file() {
+                        current_file_count += 1;
+                        let rel = libvellum::resolvers::rel_path(p, library_root);
+                        let Ok(m) = entry.metadata() else {
+                            album_files_changed = true;
+                            break;
+                        };
+                        let mtime = m
+                            .modified()
+                            .unwrap_or(std::time::SystemTime::UNIX_EPOCH)
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .unwrap_or_default()
+                            .as_secs();
+                        let size = m.len();
+
+                        let cached_stat = cache.get(&rel);
+                        if cached_stat != Some(&FileStat { mtime, size }) {
+                            album_files_changed = true;
+                            break;
+                        }
                     }
                 }
 
-                match verify_trust(&album_root, Some(&expected_id)) {
-                    Ok(TrustState::Valid) => (album_root, mtime_sum, false),
-                    Ok(_) => (album_root, mtime_sum, true),
-                    Err(e) => {
-                        match e {
-                            VellumError::ManifestIoError(_) | VellumError::JsonError(_) => {
-                                log::debug!("Cache Read Error for {}: {}. Forcing rebuild.", album_root.display(), e);
+                if !album_files_changed {
+                    let cached_count = cache
+                        .keys()
+                        .filter(|k| {
+                            if prefix.is_empty() {
+                                !k.contains('/')
+                            } else {
+                                k.starts_with(&prefix)
                             }
-                            _ => {}
-                        }
-                        (album_root, mtime_sum, true)
+                        })
+                        .count();
+
+                    if cached_count != current_file_count {
+                        album_files_changed = true;
                     }
                 }
+
+                (album_root, album_files_changed)
             })
             .collect()
     }))

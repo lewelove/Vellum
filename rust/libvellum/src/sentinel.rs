@@ -52,8 +52,8 @@ pub fn verify_trust(album_root: &Path, expected_id: Option<&str>) -> Result<Trus
 }
 
 fn check_manifest_mtimes(album_root: &Path, album_data: &serde_json::Value) -> TrustState {
-    if let Some(manifests) = album_data.get("manifests").and_then(serde_json::Value::as_array) {
-        for m in manifests {
+    if let Some(manifests) = album_data.get("manifests").and_then(serde_json::Value::as_object) {
+        for m in manifests.values() {
             if let Some(file) = m.get("file") {
                 let rel_path = file.get("path").and_then(serde_json::Value::as_str).unwrap_or("");
                 let lock_mtime = file.get("mtime").and_then(serde_json::Value::as_u64).unwrap_or(0);

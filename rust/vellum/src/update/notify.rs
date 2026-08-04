@@ -1,5 +1,5 @@
 use crate::compile;
-use crate::update::cache::{AlbumCacheEntry, get_mtime_sum};
+use crate::update::cache::FileStat;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -8,9 +8,7 @@ use tokio::sync::mpsc;
 
 pub struct NotificationTaskArgs {
     pub notify_rx: mpsc::Receiver<compile::stream::AlbumUpdateSignal>,
-    pub cache_for_task: Arc<Mutex<HashMap<String, AlbumCacheEntry>>>,
-    pub exts_for_task: Vec<String>,
-    pub manifests_for_task: Option<Vec<String>>,
+    pub cache_for_task: Arc<Mutex<HashMap<String, FileStat>>>,
     pub lib_root_for_task: Arc<PathBuf>,
     pub missing_paths: Vec<PathBuf>,
     pub start_time: std::time::Instant,
@@ -20,8 +18,6 @@ pub struct NotificationTaskArgs {
 pub fn start_notification_task(args: NotificationTaskArgs) -> tokio::task::JoinHandle<()> {
     let mut rx = args.notify_rx;
     let cache_for_task = args.cache_for_task;
-    let exts_for_task = args.exts_for_task;
-    let manifests_for_task = args.manifests_for_task;
     let lib_root_for_task = args.lib_root_for_task;
     let missing_paths = args.missing_paths;
     let start_time = args.start_time;
@@ -41,23 +37,42 @@ pub fn start_notification_task(args: NotificationTaskArgs) -> tokio::task::JoinH
         {
             let mut c = cache_for_task.lock().await;
             for album_root in &updated_paths {
-                let album_path_str = album_root.to_string_lossy().to_string();
-                let metadata_path = album_root.join("metadata.toml");
-                let mtime_sum = get_mtime_sum(album_root, &metadata_path, &exts_for_task, manifests_for_task.as_ref());
-                c.insert(album_path_str.clone(), AlbumCacheEntry { mtime_sum });
-                paths_for_server.push(album_path_str);
+                let album_id = libvellum::resolvers::rel_path(album_root, &lib_root_for_task);
+
+                for entry in walkdir::WalkDir::new(album_root)
+                    .follow_links(true)
+                    .into_iter()
+                    .filter_map(Result::ok)
+                {
+                    let p = entry.path();
+                    if p.is_file() {
+                        let rel = libvellum::resolvers::rel_path(p, &lib_root_for_task);
+                        if let Ok(m) = entry.metadata() {
+                            let mtime = m
+                                .modified()
+                                .unwrap_or(std::time::SystemTime::UNIX_EPOCH)
+                                .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                                .unwrap_or_default()
+                                .as_secs();
+                            let size = m.len();
+                            c.insert(rel, FileStat { mtime, size });
+                        }
+                    }
+                }
+                paths_for_server.push(album_id);
             }
 
             for missing in missing_paths {
-                let p_str = missing.to_string_lossy().to_string();
+                let album_id = libvellum::resolvers::rel_path(&missing, &lib_root_for_task);
+                let prefix = format!("{album_id}/");
 
                 if !silent {
                     let display_path = missing.strip_prefix(&*lib_root_for_task).unwrap_or(&missing);
                     log::info!("Removed: {}", display_path.display());
                 }
 
-                c.remove(&p_str);
-                paths_for_server.push(p_str);
+                c.retain(|k, _| !k.starts_with(&prefix));
+                paths_for_server.push(album_id);
             }
             drop(c);
         }

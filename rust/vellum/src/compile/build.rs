@@ -14,10 +14,11 @@ pub fn build(
 
     let primary_manifest = parsed_manifests.get("metadata").ok_or_else(|| VellumError::MissingPrimaryManifest { path: album_root.to_path_buf() })?;
     let primary_tracks = primary_manifest.get("tracks").and_then(Value::as_array).ok_or_else(|| VellumError::MissingTracksBlock { path: album_root.to_path_buf() })?;
-    
-    let (cover_file_info, cover_metrics) = covers::resolve_cover_data(album_root, config);
 
     let context::PreparedContext { audio_files, library_root } = context::prepare_build_context(config, album_root);
+
+    let lib_hash = crate::update::cache::calculate_hash(&library_root.to_string_lossy());
+    let (cover_file_info, cover_metrics) = covers::resolve_cover_data_cached(album_root, config, &lib_hash);
 
     let is_virtual = album::is_virtual_album(album_root);
 

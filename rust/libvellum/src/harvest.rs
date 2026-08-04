@@ -95,7 +95,7 @@ pub fn harvest_file_cached(path: &Path, cache_root: &Path) -> Result<TrackJson> 
     let cache_key_str = format!("{}:{size}:{mtime}", canon_path.display());
     let key = blake3::hash(cache_key_str.as_bytes()).to_hex().to_string();
 
-    let cache_dir = cache_root.join("harvest").join(&key[..2]);
+    let cache_dir = cache_root.join("harvest");
     let cache_file = cache_dir.join(format!("{key}.json"));
 
     if cache_file.exists()
