@@ -67,6 +67,7 @@ pub struct ManifestConfig {
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct CompilerConfig {
     pub manifests: Option<Vec<String>>,
+    pub jobs: Option<usize>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Default)]

@@ -29,6 +29,8 @@ pub async fn run(
         .canonicalize()
         .context("Invalid library_root")?;
 
+    let effective_jobs = jobs.or(config.app.compiler.jobs);
+
     let is_full_library = target_path.is_none() || target_path.as_deref() == Some(library_root.as_path());
     notify_if_force_update(force, is_full_library).await;
 
@@ -55,7 +57,7 @@ pub async fn run(
         log::info!("Verifying {} albums...", all_albums.len());
     }
 
-    let results = verify_albums_parallel(all_albums, &cache, force, jobs, &library_root)?;
+    let results = verify_albums_parallel(all_albums, &cache, force, effective_jobs, &library_root)?;
     let mut work_queue = Vec::new();
 
     for (path, is_dirty) in results {
@@ -90,7 +92,7 @@ pub async fn run(
     };
     let notification_task = start_notification_task(task_args);
 
-    compile_work_queue(scan_root, work_queue, jobs, notify_tx.clone()).await?;
+    compile_work_queue(scan_root, work_queue, effective_jobs, notify_tx.clone()).await?;
 
     drop(notify_tx);
     let _ = notification_task.await;

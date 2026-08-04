@@ -45,6 +45,8 @@ pub async fn run(mut options: CompileOptions) -> Result<()> {
         options.flags.push("default".to_string());
     }
 
+    let effective_jobs = options.jobs.or(config.app.compiler.jobs);
+
     let albums = if let Some(l) = options.specific_albums {
         l
     } else {
@@ -74,7 +76,7 @@ pub async fn run(mut options: CompileOptions) -> Result<()> {
         albums: albums.clone(),
         config: Arc::new(config),
         target: options.compile_flags.target,
-        jobs: options.jobs,
+        jobs: effective_jobs,
         notify_tx: options.notify_tx,
     };
 

@@ -53,8 +53,10 @@ fn spawn_builders(
     let jobs = ctx.jobs;
 
     tokio::task::spawn_blocking(move || {
+        let default_jobs = std::thread::available_parallelism()
+            .map_or(1, std::num::NonZero::get);
         let pool = rayon::ThreadPoolBuilder::new()
-            .num_threads(jobs.unwrap_or(1))
+            .num_threads(jobs.unwrap_or(default_jobs))
             .build()
             .unwrap();
         pool.install(|| {
