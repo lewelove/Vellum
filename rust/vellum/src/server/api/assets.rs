@@ -40,13 +40,10 @@ fn find_cached_cover(cache_root: &StdPath, algo: &str, width: u32, hash: &str) -
     }
 }
 
-async fn load_image_bmp(path: PathBuf) -> Option<Vec<u8>> {
+async fn load_image_bmp_fast(path: PathBuf) -> Option<Vec<u8>> {
     tokio::task::spawn_blocking(move || {
-        let img = image::open(&path).ok()?.into_rgb8();
-        let mut buf = Vec::new();
-        let mut cursor = std::io::Cursor::new(&mut buf);
-        img.write_to(&mut cursor, image::ImageFormat::Bmp).ok()?;
-        Some(buf)
+        let bytes = std::fs::read(&path).ok()?;
+        libvellum::images::fast_qoi_to_bmp::convert(&bytes)
     })
     .await
     .ok()?
@@ -116,14 +113,13 @@ async fn create_resized_dynamic(
         let img = image::open(&master_path).ok()?.into_rgb8();
         let filter = crate::compile::assets::parse_interpolation(&algo);
         let resized = crate::compile::assets::resize_image(&img, width, filter)?;
-        let mut bmp_buf = Vec::new();
-        let mut cursor = std::io::Cursor::new(&mut bmp_buf);
-        resized.write_to(&mut cursor, image::ImageFormat::Bmp).ok()?;
         if let Some(parent) = dynamic_path.parent() {
             std::fs::create_dir_all(parent).ok();
         }
         resized.save_with_format(&dynamic_path, image::ImageFormat::Qoi).ok();
-        Some(bmp_buf)
+        
+        let bytes = std::fs::read(&dynamic_path).ok()?;
+        libvellum::images::fast_qoi_to_bmp::convert(&bytes)
     }).await;
 
     match result {
@@ -155,7 +151,7 @@ pub async fn get_resized_cover(
     };
 
     if let Some(t_path) = find_cached_cover(&cache_root, &algo, width, &hash)
-        && let Some(buf) = load_image_bmp(t_path).await {
+        && let Some(buf) = load_image_bmp_fast(t_path).await {
             return ([
                 (header::CONTENT_TYPE, HeaderValue::from_static("image/bmp")),
                 (header::CACHE_CONTROL, HeaderValue::from_static("public, max-age=31536000, immutable")),
@@ -179,10 +175,12 @@ pub async fn get_resized_cover(
             let img = image::open(&master_blob_path).ok()?.into_rgb8();
             let filter = crate::compile::assets::parse_interpolation(&algo);
             let resized = crate::compile::assets::resize_image(&img, width, filter)?;
-            let mut bmp_buf = Vec::new();
-            let mut cursor = std::io::Cursor::new(&mut bmp_buf);
-            resized.write_to(&mut cursor, image::ImageFormat::Bmp).ok()?;
-            Some(bmp_buf)
+            
+            let mut temp_qoi_buf = Vec::new();
+            let mut cursor = std::io::Cursor::new(&mut temp_qoi_buf);
+            resized.write_to(&mut cursor, image::ImageFormat::Qoi).ok()?;
+            
+            libvellum::images::fast_qoi_to_bmp::convert(&temp_qoi_buf)
         }).await;
 
         return match result {

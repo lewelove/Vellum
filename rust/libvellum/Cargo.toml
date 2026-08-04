@@ -27,3 +27,4 @@ blake3 = "1.8.5"
 base64 = "0.22.1"
 mlua = { version = "0.12.0", features = ["luajit", "serialize", "vendored"] }
 roaring = "0.11.4"
+qoi = "0.4.1"

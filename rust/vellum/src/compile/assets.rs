@@ -91,7 +91,7 @@ pub fn pregenerate_covers(
     if master_qoi_path.exists() {
         master_img = image::open(&master_qoi_path).ok().map(image::DynamicImage::into_rgb8);
     } else if let Ok(img) = image::open(original_path) {
-        let img_rgb = img.to_rgb8();
+        let img_rgb = img.into_rgb8();
         if let Some(parent) = master_qoi_path.parent() {
             let _ = std::fs::create_dir_all(parent);
         }
