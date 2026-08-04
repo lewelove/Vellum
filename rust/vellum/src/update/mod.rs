@@ -48,10 +48,13 @@ pub async fn run(
         check_lua_config_changed(&config.dependencies, &cache_root, silent);
     let force = force || config_changed;
 
-    let scan_root = target_path.unwrap_or_else(|| library_root.clone());
+    let scan_root = target_path.map_or_else(
+        || library_root.clone(),
+        |p| p.canonicalize().unwrap_or(p),
+    );
 
     let all_albums = libvellum::scanner::find_target_albums(&scan_root)?;
-    let missing_paths = find_missing_paths(&all_albums, &library_root, &cache);
+    let missing_paths = find_missing_paths(&all_albums, &library_root, &scan_root, &cache);
 
     if !silent {
         log::info!("Verifying {} albums...", all_albums.len());

@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 pub fn find_missing_paths(
     all_albums: &[PathBuf],
     library_root: &Path,
+    scan_root: &Path,
     cache: &HashMap<String, FileStat>,
 ) -> Vec<PathBuf> {
     let mut missing_paths = Vec::new();
@@ -25,8 +26,9 @@ pub fn find_missing_paths(
     }
 
     for cached_id in cached_album_ids {
-        if !current_album_ids.contains(&cached_id) {
-            missing_paths.push(library_root.join(&cached_id));
+        let full_cached_path = library_root.join(&cached_id);
+        if full_cached_path.starts_with(scan_root) && !current_album_ids.contains(&cached_id) {
+            missing_paths.push(full_cached_path);
         }
     }
     missing_paths
