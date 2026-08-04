@@ -1,6 +1,6 @@
 use crate::compile::{ExportTarget, build};
-use libvellum::error::VellumError;
 use anyhow::Result;
+use libvellum::error::VellumError;
 use rayon::prelude::*;
 use serde_json::{Value, json};
 use std::path::{Path, PathBuf};
@@ -11,6 +11,7 @@ pub struct AlbumUpdateSignal {
     pub path: PathBuf,
     pub artist: String,
     pub album: String,
+    pub lock_json: String,
 }
 
 pub struct StreamContext {
@@ -216,17 +217,19 @@ fn finalize(
                 .map_or(true, |existing| existing != content);
 
             if should_write {
-                std::fs::write(lock_path, content)?;
+                std::fs::write(lock_path, content.clone())?;
             }
 
             if let Some(tx_arc) = notify_tx {
                 let root_clone = album_root.to_path_buf();
                 let tx = (*tx_arc).clone();
+                let lock_json = content;
                 tokio::spawn(async move {
                     let _ = tx.send(AlbumUpdateSignal {
                         path: root_clone,
                         artist,
                         album,
+                        lock_json,
                     }).await;
                 });
             }

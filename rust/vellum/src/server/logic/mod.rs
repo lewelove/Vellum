@@ -103,7 +103,7 @@ impl LogicEngine {
             .retain(|_, v| v.get("albumId").and_then(|a| a.as_str()) != Some(id));
     }
 
-    pub fn ingest(&mut self, id: &str, metadata_json: &str) -> Result<()> {
+    pub fn ingest_pre_evaluated(&mut self, id: &str, metadata_json: &str, eval_res: Value) -> Result<()> {
         let uid = self.next_uid;
         self.next_uid += 1;
 
@@ -186,13 +186,18 @@ impl LogicEngine {
             self.dict.insert(id.to_string(), entry);
         }
 
+        self.evaluated_logic.insert(uid, eval_res);
+        Ok(())
+    }
+
+    pub fn ingest(&mut self, id: &str, metadata_json: &str) -> Result<()> {
+        let parsed: Value = serde_json::from_str(metadata_json)?;
         let config_path = libvellum::lua::resolve_config_path().unwrap_or_default();
         let eval_res = get_or_init_lua_vm(&config_path, |engine| {
             engine.evaluate_album_logic(&parsed)
         })?;
 
-        self.evaluated_logic.insert(uid, eval_res);
-        Ok(())
+        self.ingest_pre_evaluated(id, metadata_json, eval_res)
     }
 
     #[must_use]

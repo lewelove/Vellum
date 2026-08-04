@@ -1,10 +1,17 @@
 use crate::compile;
 use crate::update::cache::FileStat;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::sync::mpsc;
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct AlbumReloadPayload {
+    pub id: String,
+    pub lock_json: String,
+}
 
 pub struct NotificationTaskArgs {
     pub notify_rx: mpsc::Receiver<compile::stream::AlbumUpdateSignal>,
@@ -24,29 +31,29 @@ pub fn start_notification_task(args: NotificationTaskArgs) -> tokio::task::JoinH
     let silent = args.silent;
 
     tokio::spawn(async move {
-        let mut updated_paths = Vec::new();
+        let mut updated_albums = Vec::new();
         while let Some(signal) = rx.recv().await {
             if !silent {
                 log::info!("Updated: {} - {}", signal.artist, signal.album);
             }
-            updated_paths.push(signal.path);
+            updated_albums.push((signal.path, signal.lock_json));
         }
 
-        let mut paths_for_server = Vec::new();
+        let mut payloads_for_server = Vec::new();
 
         {
             let mut c = cache_for_task.lock().await;
-            for album_root in &updated_paths {
+            for (album_root, lock_json) in &updated_albums {
                 let album_id = libvellum::resolvers::rel_path(album_root, &lib_root_for_task);
 
-                for entry in walkdir::WalkDir::new(album_root)
+                for entry in jwalk::WalkDir::new(album_root)
                     .follow_links(true)
                     .into_iter()
                     .filter_map(Result::ok)
                 {
                     let p = entry.path();
                     if p.is_file() {
-                        let rel = libvellum::resolvers::rel_path(p, &lib_root_for_task);
+                        let rel = libvellum::resolvers::rel_path(&p, &lib_root_for_task);
                         if let Ok(m) = entry.metadata() {
                             let mtime = m
                                 .modified()
@@ -59,7 +66,10 @@ pub fn start_notification_task(args: NotificationTaskArgs) -> tokio::task::JoinH
                         }
                     }
                 }
-                paths_for_server.push(album_id);
+                payloads_for_server.push(AlbumReloadPayload {
+                    id: album_id,
+                    lock_json: lock_json.clone(),
+                });
             }
 
             for missing in missing_paths {
@@ -72,12 +82,15 @@ pub fn start_notification_task(args: NotificationTaskArgs) -> tokio::task::JoinH
                 }
 
                 c.retain(|k, _| !k.starts_with(&prefix));
-                paths_for_server.push(album_id);
+                payloads_for_server.push(AlbumReloadPayload {
+                    id: album_id,
+                    lock_json: String::new(),
+                });
             }
             drop(c);
         }
 
-        if paths_for_server.is_empty() {
+        if payloads_for_server.is_empty() {
             return;
         }
 
@@ -86,7 +99,7 @@ pub fn start_notification_task(args: NotificationTaskArgs) -> tokio::task::JoinH
         let _ = client
             .post("http://127.0.0.1:8000/api/internal/batch_reload")
             .query(&[("time", elapsed.to_string())])
-            .json(&paths_for_server)
+            .json(&payloads_for_server)
             .timeout(std::time::Duration::from_secs(30))
             .send()
             .await;

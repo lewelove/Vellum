@@ -3,6 +3,7 @@ use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
+use rayon::prelude::*;
 use serde_json::json;
 use std::sync::Arc;
 
@@ -152,23 +153,45 @@ pub async fn trigger_full_reset(State(state): State<Arc<AppState>>) -> Response 
 pub async fn trigger_batch_reload(
     State(state): State<Arc<AppState>>,
     Query(params): Query<std::collections::HashMap<String, String>>,
-    Json(paths): Json<Vec<String>>,
+    Json(payloads): Json<Vec<crate::update::notify::AlbumReloadPayload>>,
 ) -> Response {
     let start_time = std::time::Instant::now();
     let compile_time = params.get("time").map_or("0", std::string::String::as_str);
 
-    let library_root = state.config.read().await.library_root.clone();
+    let evaluated_items = tokio::task::spawn_blocking(move || {
+        let config_path = libvellum::lua::resolve_config_path().unwrap_or_default();
+        payloads
+            .into_par_iter()
+            .map(|item| {
+                if item.lock_json.is_empty() {
+                    return (item.id, item.lock_json, None);
+                }
+                let eval_res = libvellum::lua::get_or_init_lua_vm(&config_path, |engine| {
+                    let parsed: serde_json::Value =
+                        serde_json::from_str(&item.lock_json).unwrap_or_default();
+                    engine.evaluate_album_logic(&parsed)
+                })
+                .ok();
+                (item.id, item.lock_json, eval_res)
+            })
+            .collect::<Vec<_>>()
+    })
+    .await
+    .unwrap_or_default();
+
     let mut processed_ids = Vec::new();
     let mut removed_ids = Vec::new();
 
     {
         let mut logic = state.logic.write().await;
-        let scanner = crate::server::library::scanner::Library::new(library_root);
-        for path in &paths {
-            let res = scanner.update_album(path, &mut logic);
-            match res {
-                crate::server::library::scanner::UpdateResult::Updated(id) => processed_ids.push(id),
-                crate::server::library::scanner::UpdateResult::Removed(id) => removed_ids.push(id),
+        for (id, lock_json, eval_res) in evaluated_items {
+            logic.remove_album(&id);
+            if let Some(eval) = eval_res {
+                if logic.ingest_pre_evaluated(&id, &lock_json, eval).is_ok() {
+                    processed_ids.push(id);
+                }
+            } else {
+                removed_ids.push(id);
             }
         }
         if !processed_ids.is_empty() || !removed_ids.is_empty() {
@@ -178,7 +201,12 @@ pub async fn trigger_batch_reload(
 
     if !processed_ids.is_empty() || !removed_ids.is_empty() {
         let elapsed = start_time.elapsed().as_millis();
-        log::info!("Updated {} albums, Removed {} albums in {}ms.", processed_ids.len(), removed_ids.len(), compile_time);
+        log::info!(
+            "Updated {} albums, Removed {} albums in {}ms.",
+            processed_ids.len(),
+            removed_ids.len(),
+            compile_time
+        );
         log::info!("Rebuilt Logic Engine in {elapsed}ms.");
 
         if processed_ids.len() == 1 && removed_ids.is_empty() {
@@ -192,12 +220,15 @@ pub async fn trigger_batch_reload(
                 drop(logic);
                 (entry, s)
             };
-            let _ = state.tx.send(json!({
-                "type": "ALBUM_UPDATED",
-                "id": processed_ids[0],
-                "dictEntry": dict_entry.unwrap_or_else(|| json!({})),
-                "shelves": shelves
-            }).to_string());
+            let _ = state.tx.send(
+                json!({
+                    "type": "ALBUM_UPDATED",
+                    "id": processed_ids[0],
+                    "dictEntry": dict_entry.unwrap_or_else(|| json!({})),
+                    "shelves": shelves
+                })
+                .to_string(),
+            );
         } else if removed_ids.len() == 1 && processed_ids.is_empty() {
             let shelves = {
                 let logic = state.logic.read().await;
@@ -208,11 +239,14 @@ pub async fn trigger_batch_reload(
                 drop(logic);
                 s
             };
-            let _ = state.tx.send(json!({
-                "type": "ALBUM_REMOVED",
-                "id": removed_ids[0],
-                "shelves": shelves
-            }).to_string());
+            let _ = state.tx.send(
+                json!({
+                    "type": "ALBUM_REMOVED",
+                    "id": removed_ids[0],
+                    "shelves": shelves
+                })
+                .to_string(),
+            );
         } else {
             let _ = state.tx.send(json!({"type": "LOGIC_UPDATE"}).to_string());
         }
