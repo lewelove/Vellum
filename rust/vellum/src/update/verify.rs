@@ -65,17 +65,15 @@ pub fn verify_albums_parallel(
                 };
 
                 let mut album_files_changed = false;
-                let mut current_file_count = 0;
+                let mut seen_paths = HashSet::new();
 
                 for entry in walkdir::WalkDir::new(&album_root)
-                    .max_depth(3)
                     .follow_links(true)
                     .into_iter()
                     .filter_map(Result::ok)
                 {
                     let p = entry.path();
                     if p.is_file() {
-                        current_file_count += 1;
                         let rel = libvellum::resolvers::rel_path(p, library_root);
                         let Ok(m) = entry.metadata() else {
                             album_files_changed = true;
@@ -94,23 +92,21 @@ pub fn verify_albums_parallel(
                             album_files_changed = true;
                             break;
                         }
+                        seen_paths.insert(rel);
                     }
                 }
 
                 if !album_files_changed {
-                    let cached_count = cache
-                        .keys()
-                        .filter(|k| {
-                            if prefix.is_empty() {
-                                !k.contains('/')
-                            } else {
-                                k.starts_with(&prefix)
-                            }
-                        })
-                        .count();
-
-                    if cached_count != current_file_count {
-                        album_files_changed = true;
+                    for k in cache.keys() {
+                        let matches_album = if prefix.is_empty() {
+                            !k.contains('/')
+                        } else {
+                            k.starts_with(&prefix)
+                        };
+                        if matches_album && !seen_paths.contains(k) {
+                            album_files_changed = true;
+                            break;
+                        }
                     }
                 }
 

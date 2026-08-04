@@ -1,7 +1,6 @@
 use crate::server::logic::LogicEngine;
 use crate::server::mpd::MpdEngine;
-use indexmap::IndexMap;
-use libvellum::lua::config::{ActionConfig, CoversConfig, InterfaceConfig};
+use libvellum::lua::config::{ActionConfig, CoversRegistry, InterfaceConfig};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::{broadcast, RwLock};
@@ -20,7 +19,7 @@ pub struct AppConfig {
     pub cache_root: PathBuf,
     pub state_root: PathBuf,
     pub resolved_dependencies: Vec<PathBuf>,
-    pub covers: IndexMap<String, CoversConfig>,
+    pub covers: CoversRegistry,
     pub interfaces: std::collections::HashMap<String, InterfaceConfig>,
     pub actions: std::collections::HashMap<String, ActionConfig>,
     pub config_dir: PathBuf,

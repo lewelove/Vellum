@@ -47,10 +47,22 @@ _G.vl.actions = function(t)
     end
 end
 
-_G.vl.compile = _G.vl.compile or {}
-_G.vl.compile.covers = function(name, t)
-    REGISTRY.covers[name] = t
+_G.vl.cache = _G.vl.cache or {}
+
+local cover_fn = function(t)
+    table.insert(REGISTRY.covers.targets, t)
 end
+
+_G.vl.cache.cover = setmetatable({
+    master = function(t)
+        if t.size then REGISTRY.covers.master.size = t.size end
+        if t.filter then REGISTRY.covers.master.filter = t.filter end
+    end
+}, {
+    __call = function(_, t)
+        cover_fn(t)
+    end
+})
 
 _G.vl.filter = function(name, t)
     REGISTRY.filters[name] = t

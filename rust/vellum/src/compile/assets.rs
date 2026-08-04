@@ -75,9 +75,8 @@ pub fn pregenerate_covers(
 
     let cache_root = expand_path(cache_str);
 
-    let master_cfg = config.covers.get("master")?;
-    let master_size = master_cfg.size;
-    let master_algo_str = master_cfg.interpolation.as_deref().unwrap_or("mitchell");
+    let master_size = config.covers.master.size;
+    let master_algo_str = &config.covers.master.filter;
     let master_algo = parse_interpolation(master_algo_str);
 
     let master_qoi_path = cache_root
@@ -87,26 +86,25 @@ pub fn pregenerate_covers(
         .join(format!("{master_size}px"))
         .join(format!("{cover_hash_address}.qoi"));
 
-    if !master_qoi_path.exists() && let Ok(img) = image::open(original_path) {
-        let img_rgb = img.to_rgb8();
-        if let Some(parent) = master_qoi_path.parent() {
-            std::fs::create_dir_all(parent).ok()?;
-        }
-        if let Some(resized) = resize_image(&img_rgb, master_size, master_algo) {
-            resized.save_with_format(&master_qoi_path, image::ImageFormat::Qoi).ok();
-        } else {
-            img_rgb.save_with_format(&master_qoi_path, image::ImageFormat::Qoi).ok();
-        }
-    }
-
     let mut master_img: Option<image::RgbImage> = None;
 
-    for (key, cfg) in &config.covers {
-        if key == "master" {
-            continue;
+    if master_qoi_path.exists() {
+        master_img = image::open(&master_qoi_path).ok().map(image::DynamicImage::into_rgb8);
+    } else if let Ok(img) = image::open(original_path) {
+        let img_rgb = img.to_rgb8();
+        if let Some(parent) = master_qoi_path.parent() {
+            let _ = std::fs::create_dir_all(parent);
         }
+        let m_img = resize_image(&img_rgb, master_size, master_algo).unwrap_or(img_rgb);
+        let _ = m_img.save_with_format(&master_qoi_path, image::ImageFormat::Qoi);
+        master_img = Some(m_img);
+    }
+
+    let m_img = master_img.as_ref()?;
+
+    for cfg in &config.covers.targets {
         let target_size = cfg.size;
-        let algo_str = cfg.interpolation.as_deref().unwrap_or("lanczos");
+        let algo_str = &cfg.filter;
         let algo = parse_interpolation(algo_str);
 
         let static_path = cache_root
@@ -117,22 +115,14 @@ pub fn pregenerate_covers(
             .join(format!("{cover_hash_address}.qoi"));
 
         if !static_path.exists() {
-            if master_img.is_none() {
-                master_img = image::open(&master_qoi_path).ok().map(image::DynamicImage::into_rgb8);
+            if let Some(parent) = static_path.parent() {
+                let _ = std::fs::create_dir_all(parent);
             }
-            if let Some(m_img) = &master_img {
-                if let Some(parent) = static_path.parent() {
-                    std::fs::create_dir_all(parent).ok();
-                }
-                if let Some(resized) = resize_image(m_img, target_size, algo) {
-                    resized.save_with_format(&static_path, image::ImageFormat::Qoi).ok();
-                }
+            if let Some(resized) = resize_image(m_img, target_size, algo) {
+                let _ = resized.save_with_format(&static_path, image::ImageFormat::Qoi);
             }
         }
     }
 
-    master_img.map_or_else(
-        || image::open(&master_qoi_path).ok(),
-        |m| Some(DynamicImage::ImageRgb8(m)),
-    )
+    Some(DynamicImage::ImageRgb8(master_img?))
 }

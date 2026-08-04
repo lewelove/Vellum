@@ -76,6 +76,12 @@ pub fn resolve_cover_data_cached(
         && let Ok(content) = std::fs::read_to_string(&cache_file)
         && let Ok(cached) = serde_json::from_str::<CoverCacheEntry>(&content)
     {
+        let cover_hash_address = cached
+            .file_info
+            .get("address")
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        let _ = assets::pregenerate_covers(config, main_cover_path.as_deref(), cover_hash_address);
         return (cached.file_info, cached.metrics);
     }
 

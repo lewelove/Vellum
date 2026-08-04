@@ -1,6 +1,9 @@
 _G.REGISTRY = {
     config = {},
-    covers = {},
+    covers = {
+        master = { size = 1080, filter = "mitchell" },
+        targets = {}
+    },
     keys = {
         album = {},
         tracks = {}

@@ -143,12 +143,15 @@ pub async fn get_resized_cover(
         .unwrap_or(200)
         .clamp(16, 2048);
 
-    let (cache_root, library_root) = {
+    let (cache_root, library_root, is_registered, master_size, master_algo_str) = {
         let guard = state.config.read().await;
         let cache = guard.cache_root.clone();
         let library = guard.library_root.clone();
+        let registered = guard.covers.targets.iter().any(|c| c.size == width && c.filter == algo);
+        let m_size = guard.covers.master.size;
+        let m_filter = guard.covers.master.filter.clone();
         drop(guard);
-        (cache, library)
+        (cache, library, registered, m_size, m_filter)
     };
 
     if let Some(t_path) = find_cached_cover(&cache_root, &algo, width, &hash)
@@ -160,14 +163,6 @@ pub async fn get_resized_cover(
             ], buf).into_response();
         }
 
-    let (master_size, master_algo_str) = {
-        let guard = state.config.read().await;
-        let size = guard.covers.get("master").map_or(1080, |c| c.size);
-        let algo_str = guard.covers.get("master").and_then(|c| c.interpolation.clone()).unwrap_or_else(|| "mitchell".to_string());
-        drop(guard);
-        (size, algo_str)
-    };
-
     let master_blob_path = cache_root
         .join("covers")
         .join("master")
@@ -177,6 +172,27 @@ pub async fn get_resized_cover(
 
     if let Err(status) = ensure_master_cover(&state, &library_root, master_blob_path.clone(), master_size, &master_algo_str, &hash).await {
         return status.into_response();
+    }
+
+    if !is_registered {
+        let result = tokio::task::spawn_blocking(move || {
+            let img = image::open(&master_blob_path).ok()?.into_rgb8();
+            let filter = crate::compile::assets::parse_interpolation(&algo);
+            let resized = crate::compile::assets::resize_image(&img, width, filter)?;
+            let mut bmp_buf = Vec::new();
+            let mut cursor = std::io::Cursor::new(&mut bmp_buf);
+            resized.write_to(&mut cursor, image::ImageFormat::Bmp).ok()?;
+            Some(bmp_buf)
+        }).await;
+
+        return match result {
+            Ok(Some(buf)) => ([
+                (header::CONTENT_TYPE, HeaderValue::from_static("image/bmp")),
+                (header::CACHE_CONTROL, HeaderValue::from_static("public, max-age=31536000, immutable")),
+                (header::ACCESS_CONTROL_ALLOW_ORIGIN, HeaderValue::from_static("*")),
+            ], buf).into_response(),
+            _ => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+        };
     }
 
     let dynamic_path = cache_root

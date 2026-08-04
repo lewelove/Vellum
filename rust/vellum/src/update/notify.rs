@@ -45,6 +45,19 @@ pub fn start_notification_task(args: NotificationTaskArgs) -> tokio::task::JoinH
             let mut c = cache_for_task.lock().await;
             for (album_root, lock_json) in &updated_albums {
                 let album_id = libvellum::resolvers::rel_path(album_root, &lib_root_for_task);
+                let prefix = if album_id.is_empty() {
+                    String::new()
+                } else {
+                    format!("{album_id}/")
+                };
+
+                c.retain(|k, _| {
+                    if prefix.is_empty() {
+                        k.contains('/')
+                    } else {
+                        !k.starts_with(&prefix)
+                    }
+                });
 
                 for entry in jwalk::WalkDir::new(album_root)
                     .follow_links(true)

@@ -3,7 +3,7 @@ pub mod config;
 mod tests;
 
 use anyhow::{Context, Result};
-use config::{ActionConfig, AppConfig, CoversConfig, InterfaceConfig};
+use config::{ActionConfig, AppConfig, CoversConfig, CoversRegistry, InterfaceConfig};
 use indexmap::IndexMap;
 use mlua::{Lua, LuaSerdeExt, Table};
 use serde::{Deserialize, Serialize};
@@ -171,7 +171,7 @@ pub struct LuaEngine {
 
 pub struct EvaluatedLuaData {
     pub app: AppConfig,
-    pub covers: IndexMap<String, CoversConfig>,
+    pub covers: CoversRegistry,
     pub interfaces: HashMap<String, InterfaceConfig>,
     pub actions: HashMap<String, ActionConfig>,
     pub dependencies: Vec<PathBuf>,
@@ -303,7 +303,7 @@ impl LuaEngine {
             .get("__VELLUM_GET_COVERS")
             .map_err(|e| anyhow::anyhow!("{e}"))?;
         let covers_table: Table = get_covers.call(()).map_err(|e| anyhow::anyhow!("{e}"))?;
-        let covers: IndexMap<String, CoversConfig> = self
+        let covers: CoversRegistry = self
             .lua
             .from_value(mlua::Value::Table(covers_table))
             .map_err(|e| anyhow::anyhow!("{e}"))?;
@@ -348,7 +348,7 @@ impl LuaEngine {
 
         let mut dependencies = Vec::new();
         for d in deps_str {
-            let p = PathBuf::from(d);
+            let p = crate::utils::expand_path(&d);
             dependencies.push(p.canonicalize().unwrap_or(p));
         }
 
@@ -476,7 +476,7 @@ pub fn resolve_config_path() -> Option<PathBuf> {
 #[derive(Clone, Debug)]
 pub struct ResolvedConfig {
     pub app: AppConfig,
-    pub covers: IndexMap<String, CoversConfig>,
+    pub covers: CoversRegistry,
     pub interfaces: HashMap<String, InterfaceConfig>,
     pub actions: HashMap<String, ActionConfig>,
     pub dependencies: Vec<PathBuf>,
@@ -490,29 +490,11 @@ impl ResolvedConfig {
         let engine = LuaEngine::new()?;
         let mut evaluated = engine.evaluate_config(&path)?;
 
-        if evaluated.covers.is_empty() {
-            evaluated.covers.insert(
-                "master".to_string(),
-                CoversConfig {
-                    interpolation: Some("mitchell".to_string()),
-                    size: 1080,
-                },
-            );
-            evaluated.covers.insert(
-                "thumbnail".to_string(),
-                CoversConfig {
-                    interpolation: Some("lanczos".to_string()),
-                    size: 190,
-                },
-            );
-        } else if !evaluated.covers.contains_key("master") {
-            evaluated.covers.insert(
-                "master".to_string(),
-                CoversConfig {
-                    interpolation: Some("mitchell".to_string()),
-                    size: 1080,
-                },
-            );
+        if evaluated.covers.targets.is_empty() {
+            evaluated.covers.targets.push(CoversConfig {
+                filter: "lanczos".to_string(),
+                size: 200,
+            });
         }
 
         let mut dependencies = evaluated.dependencies;

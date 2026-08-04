@@ -70,8 +70,23 @@ pub struct CompilerConfig {
     pub scan_depth: Option<usize>,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Default)]
 pub struct CoversConfig {
-    pub interpolation: Option<String>,
+    pub filter: String,
     pub size: u32,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Default)]
+pub struct CoversRegistry {
+    #[serde(default = "default_master_cover")]
+    pub master: CoversConfig,
+    #[serde(default)]
+    pub targets: Vec<CoversConfig>,
+}
+
+fn default_master_cover() -> CoversConfig {
+    CoversConfig {
+        filter: "mitchell".to_string(),
+        size: 1080,
+    }
 }
