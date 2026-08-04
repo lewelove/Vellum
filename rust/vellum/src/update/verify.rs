@@ -51,69 +51,173 @@ pub fn verify_albums_parallel(
         albums
             .into_par_iter()
             .map(|album_root| {
-                if force {
-                    return (album_root, true);
-                }
-
-                if !album_root.join("album.lock.json").exists() {
-                    return (album_root, true);
-                }
-
-                let album_id = libvellum::resolvers::rel_path(&album_root, library_root);
-                let prefix = if album_id.is_empty() {
-                    String::new()
-                } else {
-                    format!("{album_id}/")
-                };
-
-                let mut album_files_changed = false;
-                let mut seen_paths = HashSet::new();
-
-                for entry in walkdir::WalkDir::new(&album_root)
-                    .follow_links(true)
-                    .into_iter()
-                    .filter_map(Result::ok)
-                {
-                    let p = entry.path();
-                    if p.is_file() {
-                        let rel = libvellum::resolvers::rel_path(p, library_root);
-                        let Ok(m) = entry.metadata() else {
-                            album_files_changed = true;
-                            break;
-                        };
-                        let mtime = m
-                            .modified()
-                            .unwrap_or(std::time::SystemTime::UNIX_EPOCH)
-                            .duration_since(std::time::SystemTime::UNIX_EPOCH)
-                            .unwrap_or_default()
-                            .as_secs();
-                        let size = m.len();
-
-                        let cached_stat = cache.get(&rel);
-                        if cached_stat != Some(&FileStat { mtime, size }) {
-                            album_files_changed = true;
-                            break;
-                        }
-                        seen_paths.insert(rel);
-                    }
-                }
-
-                if !album_files_changed {
-                    for k in cache.keys() {
-                        let matches_album = if prefix.is_empty() {
-                            !k.contains('/')
-                        } else {
-                            k.starts_with(&prefix)
-                        };
-                        if matches_album && !seen_paths.contains(k) {
-                            album_files_changed = true;
-                            break;
-                        }
-                    }
-                }
-
-                (album_root, album_files_changed)
+                let is_dirty = force || is_album_dirty(&album_root, cache, library_root);
+                (album_root, is_dirty)
             })
             .collect()
     }))
+}
+
+fn is_album_dirty(
+    album_root: &Path,
+    cache: &HashMap<String, FileStat>,
+    library_root: &Path,
+) -> bool {
+    let lock_path = album_root.join("album.lock.json");
+    if !lock_path.exists() {
+        return true;
+    }
+
+    let meta_path = album_root.join("metadata.toml");
+    if !meta_path.exists() {
+        return true;
+    }
+
+    let album_id = libvellum::resolvers::rel_path(album_root, library_root);
+    let prefix = if album_id.is_empty() {
+        String::new()
+    } else {
+        format!("{album_id}/")
+    };
+
+    if can_fast_verify_clean(album_root, cache, &prefix, &meta_path, &lock_path) {
+        return false;
+    }
+
+    deep_verify_dirty(album_root, cache, &prefix, library_root)
+}
+
+fn can_fast_verify_clean(
+    album_root: &Path,
+    cache: &HashMap<String, FileStat>,
+    prefix: &str,
+    meta_path: &Path,
+    lock_path: &Path,
+) -> bool {
+    let rel_meta = format!("{prefix}metadata.toml");
+    let rel_lock = format!("{prefix}album.lock.json");
+
+    let (Ok(meta_stat), Ok(lock_stat), Ok(dir_stat)) = (
+        meta_path.metadata(),
+        lock_path.metadata(),
+        album_root.metadata(),
+    ) else {
+        return false;
+    };
+
+    let meta_mtime = meta_stat
+        .modified()
+        .unwrap_or(std::time::SystemTime::UNIX_EPOCH)
+        .duration_since(std::time::SystemTime::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    let meta_size = meta_stat.len();
+
+    let lock_mtime = lock_stat
+        .modified()
+        .unwrap_or(std::time::SystemTime::UNIX_EPOCH)
+        .duration_since(std::time::SystemTime::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    let lock_size = lock_stat.len();
+
+    let dir_mtime = dir_stat
+        .modified()
+        .unwrap_or(std::time::SystemTime::UNIX_EPOCH)
+        .duration_since(std::time::SystemTime::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+
+    let meta_matches = cache.get(&rel_meta)
+        == Some(&FileStat {
+            mtime: meta_mtime,
+            size: meta_size,
+        });
+    let lock_matches = cache.get(&rel_lock)
+        == Some(&FileStat {
+            mtime: lock_mtime,
+            size: lock_size,
+        });
+
+    if !(meta_matches
+        && lock_matches
+        && dir_mtime <= lock_mtime + 1
+        && meta_mtime <= lock_mtime + 1)
+    {
+        return false;
+    }
+
+    if let Ok(read_dir) = std::fs::read_dir(album_root) {
+        for entry in read_dir.flatten() {
+            if let Ok(file_type) = entry.file_type()
+                && file_type.is_dir()
+                && let Ok(sub_meta) = entry.metadata()
+            {
+                let sub_mtime = sub_meta
+                    .modified()
+                    .unwrap_or(std::time::SystemTime::UNIX_EPOCH)
+                    .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_secs();
+                if sub_mtime > lock_mtime + 1 {
+                    return false;
+                }
+            }
+        }
+    }
+
+    true
+}
+
+fn deep_verify_dirty(
+    album_root: &Path,
+    cache: &HashMap<String, FileStat>,
+    prefix: &str,
+    library_root: &Path,
+) -> bool {
+    let mut album_files_changed = false;
+    let mut seen_paths = HashSet::new();
+
+    for entry in walkdir::WalkDir::new(album_root)
+        .follow_links(true)
+        .into_iter()
+        .filter_map(Result::ok)
+    {
+        let p = entry.path();
+        if p.is_file() {
+            let rel = libvellum::resolvers::rel_path(p, library_root);
+            let Ok(m) = entry.metadata() else {
+                return true;
+            };
+            let mtime = m
+                .modified()
+                .unwrap_or(std::time::SystemTime::UNIX_EPOCH)
+                .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs();
+            let size = m.len();
+
+            let cached_stat = cache.get(&rel);
+            if cached_stat != Some(&FileStat { mtime, size }) {
+                album_files_changed = true;
+                break;
+            }
+            seen_paths.insert(rel);
+        }
+    }
+
+    if !album_files_changed {
+        for k in cache.keys() {
+            let matches_album = if prefix.is_empty() {
+                !k.contains('/')
+            } else {
+                k.starts_with(prefix)
+            };
+            if matches_album && !seen_paths.contains(k) {
+                return true;
+            }
+        }
+    }
+
+    album_files_changed
 }

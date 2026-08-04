@@ -9,9 +9,10 @@ use libvellum::lua::{LogicManifest, get_or_init_lua_vm, reset_lua_vm};
 use roaring::RoaringBitmap;
 use serde_json::{Value, json};
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 pub struct LogicEngine {
+    pub config_path: PathBuf,
     pub manifest: LogicManifest,
     pub(crate) libraries_cache: HashMap<String, RoaringBitmap>,
     pub(crate) filters_cache: HashMap<String, RoaringBitmap>,
@@ -37,6 +38,7 @@ impl LogicEngine {
         })?;
 
         Ok(Self {
+            config_path,
             manifest,
             libraries_cache: HashMap::new(),
             filters_cache: HashMap::new(),
@@ -70,6 +72,7 @@ impl LogicEngine {
             self.evaluated_logic = new_evaluated;
             Ok(eval.manifest)
         })?;
+        self.config_path = config_path.to_path_buf();
         self.manifest = manifest;
         self.build_cache();
         Ok(())
@@ -192,8 +195,7 @@ impl LogicEngine {
 
     pub fn ingest(&mut self, id: &str, metadata_json: &str) -> Result<()> {
         let parsed: Value = serde_json::from_str(metadata_json)?;
-        let config_path = libvellum::lua::resolve_config_path().unwrap_or_default();
-        let eval_res = get_or_init_lua_vm(&config_path, |engine| {
+        let eval_res = get_or_init_lua_vm(&self.config_path, |engine| {
             engine.evaluate_album_logic(&parsed)
         })?;
 
