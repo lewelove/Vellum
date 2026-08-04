@@ -1,6 +1,5 @@
 use crate::update::cache::FileStat;
 use anyhow::Result;
-use libvellum::sentinel::{TrustState, verify_trust};
 use rayon::prelude::*;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
@@ -54,12 +53,11 @@ pub fn verify_albums_parallel(
                     return (album_root, true);
                 }
 
-                let album_id = libvellum::resolvers::rel_path(&album_root, library_root);
-
-                if !matches!(verify_trust(&album_root, Some(&album_id)), Ok(TrustState::Valid)) {
+                if !album_root.join("album.lock.json").exists() {
                     return (album_root, true);
                 }
 
+                let album_id = libvellum::resolvers::rel_path(&album_root, library_root);
                 let prefix = if album_id.is_empty() {
                     String::new()
                 } else {
@@ -86,7 +84,7 @@ pub fn verify_albums_parallel(
                         let mtime = m
                             .modified()
                             .unwrap_or(std::time::SystemTime::UNIX_EPOCH)
-                            .duration_since(std::time::UNIX_EPOCH)
+                            .duration_since(std::time::SystemTime::UNIX_EPOCH)
                             .unwrap_or_default()
                             .as_secs();
                         let size = m.len();
