@@ -11,6 +11,7 @@ pub fn build_ctx_tracks(
     primary_tracks: &[Value],
     audio_files: &[std::path::PathBuf],
     album_root: &Path,
+    cache_root: &Path,
 ) -> Result<(Vec<Value>, u64), VellumError> {
     let mut ctx_tracks = Vec::new();
     let mut duration_sum_ms = 0;
@@ -33,7 +34,7 @@ pub fn build_ctx_tracks(
             }));
         } else {
             let file_path = &audio_files[idx];
-            let harvest = harvest::harvest_file(file_path).map_err(|source| VellumError::HarvestError { path: file_path.clone(), source })?;
+            let harvest = harvest::harvest_file_cached(file_path, cache_root).map_err(|source| VellumError::HarvestError { path: file_path.clone(), source })?;
             let rel_path = libvellum::resolvers::rel_path(file_path, album_root);
             let file_info = libvellum::utils::get_file_info(file_path, &rel_path, false).unwrap_or_else(|_| json!({}));
             

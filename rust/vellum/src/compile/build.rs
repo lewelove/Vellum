@@ -28,7 +28,14 @@ pub fn build(
     let total_discs = libvellum::resolvers::calculate_total_discs(primary_tracks);
     let total_tracks = primary_tracks.len() as u32;
 
-    let (ctx_tracks, duration_sum_ms) = tracks::build_ctx_tracks(is_virtual, primary_tracks, &audio_files, album_root)?;
+    let cache_root = libvellum::utils::expand_path(&config.app.storage.cache);
+    let (ctx_tracks, duration_sum_ms) = tracks::build_ctx_tracks(
+        is_virtual,
+        primary_tracks,
+        &audio_files,
+        album_root,
+        &cache_root,
+    )?;
 
     let config_json = serde_json::to_value(&config.app).unwrap_or_else(|_| json!({}));
     let id_str = libvellum::resolvers::rel_path(album_root, &library_root);

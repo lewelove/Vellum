@@ -20,7 +20,6 @@ indexmap = { version = "2.13.0", features = ["serde"] }
 lofty = "0.23.2"
 log = "0.4.29"
 image = "0.25.9"
-sha2 = "0.10.9"
 walkdir = "2.4"
 alphanumeric-sort = "1.5.5"
 chrono = "0.4.43"

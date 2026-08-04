@@ -4,19 +4,19 @@ use lofty::file::AudioFile;
 use lofty::prelude::*;
 use lofty::probe::Probe;
 use lofty::tag::TagType;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct TrackJson {
     pub path: PathBuf,
     pub tags: HashMap<String, String>,
     pub physics: PhysicsData,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct PhysicsData {
     pub file_size: u64,
     pub mtime: u64,
@@ -29,7 +29,7 @@ pub struct PhysicsData {
     pub format: String,
 }
 
-#[must_use] 
+#[must_use]
 pub fn sanitize_key(key: &str) -> String {
     let mut out = String::new();
     let mut last_was_under = false;
@@ -57,12 +57,13 @@ pub fn harvest_file(path: &Path) -> Result<TrackJson> {
         .context("Read failed")?;
 
     if file_type == Some(lofty::file::FileType::Flac)
-        && tagged_file.tag(TagType::Id3v2).is_some() {
-            log::warn!(
-                "ID3v2 tag encountered in FLAC (incompatible with standards): {}",
-                path.display()
-            );
-        }
+        && tagged_file.tag(TagType::Id3v2).is_some()
+    {
+        log::warn!(
+            "ID3v2 tag encountered in FLAC (incompatible with standards): {}",
+            path.display()
+        );
+    }
 
     let physics = extract_physics(&metadata, &tagged_file);
 
@@ -78,6 +79,41 @@ pub fn harvest_file(path: &Path) -> Result<TrackJson> {
         tags,
         physics,
     })
+}
+
+pub fn harvest_file_cached(path: &Path, cache_root: &Path) -> Result<TrackJson> {
+    let metadata = fs::metadata(path)?;
+    let mtime = metadata
+        .modified()
+        .unwrap_or(std::time::SystemTime::UNIX_EPOCH)
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    let size = metadata.len();
+    let canon_path = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
+
+    let cache_key_str = format!("{}:{size}:{mtime}", canon_path.display());
+    let key = blake3::hash(cache_key_str.as_bytes()).to_hex().to_string();
+
+    let cache_dir = cache_root.join("harvest").join(&key[..2]);
+    let cache_file = cache_dir.join(format!("{key}.json"));
+
+    if cache_file.exists()
+        && let Ok(content) = fs::read_to_string(&cache_file)
+        && let Ok(cached_track) = serde_json::from_str::<TrackJson>(&content)
+    {
+        return Ok(cached_track);
+    }
+
+    let harvested = harvest_file(path)?;
+
+    if fs::create_dir_all(&cache_dir).is_ok()
+        && let Ok(json_str) = serde_json::to_string(&harvested)
+    {
+        let _ = fs::write(cache_file, json_str);
+    }
+
+    Ok(harvested)
 }
 
 fn extract_physics(metadata: &std::fs::Metadata, tagged_file: &lofty::file::TaggedFile) -> PhysicsData {
@@ -117,10 +153,11 @@ fn extract_concrete_tags(
                 &mut file_content,
                 ParseOptions::new().read_cover_art(false),
             )
-                && let Some(comments) = flac.vorbis_comments() {
-                    parse_vorbis_comments(comments.items(), tags);
-                    concrete_parsed = true;
-                }
+                && let Some(comments) = flac.vorbis_comments()
+            {
+                parse_vorbis_comments(comments.items(), tags);
+                concrete_parsed = true;
+            }
         }
         Some(lofty::file::FileType::Vorbis) => {
             if let Ok(ogg) = lofty::ogg::VorbisFile::read_from(
@@ -174,7 +211,8 @@ fn extract_fallback_tags(tagged_file: &lofty::file::TaggedFile, tags: &mut HashM
         for item in tag.items() {
             let key_raw = item
                 .key()
-                .map_key(tag_type).map_or_else(|| format!("{:?}", item.key()), ToString::to_string);
+                .map_key(tag_type)
+                .map_or_else(|| format!("{:?}", item.key()), ToString::to_string);
             let key = sanitize_key(&key_raw);
 
             let Some(value) = item.value().text() else {

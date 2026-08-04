@@ -6,7 +6,7 @@ use std::sync::mpsc;
 use std::thread;
 use walkdir::WalkDir;
 
-pub use libvellum::harvest::harvest_file;
+pub use libvellum::harvest::{harvest_file, harvest_file_cached};
 
 pub fn run(roots: Vec<PathBuf>, pretty: bool) {
     let extensions = ["flac", "mp3", "m4a", "ogg", "wav", "opus"];
