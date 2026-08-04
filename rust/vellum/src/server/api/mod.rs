@@ -1,13 +1,13 @@
+pub mod actions;
 pub mod assets;
 pub mod playback;
 pub mod system;
 pub mod websocket;
-pub mod actions;
 
 use crate::server::state::AppState;
 use axum::{
     Router,
-    routing::{get, post, any},
+    routing::{any, get, post},
 };
 use std::sync::Arc;
 
@@ -20,6 +20,7 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/api/internal/reload", post(system::trigger_reload))
         .route("/api/internal/batch_reload", post(system::trigger_batch_reload))
         .route("/api/internal/query", post(system::run_query))
+        .route("/api/internal/tracked_albums", get(system::get_tracked_albums))
         .route("/api/covers/{algo}/{size}/{hash}", get(assets::get_resized_cover))
         .route("/api/album/{*id}", get(assets::get_album_metadata))
         .route("/api/assets/cover/{*id}", get(assets::get_album_cover))

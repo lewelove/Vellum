@@ -111,6 +111,8 @@ pub async fn run(port: u16) -> Result<()> {
         tx,
         config: RwLock::new(server_config),
         mpd_engine,
+        tracked_albums: Arc::new(std::sync::Mutex::new(std::collections::HashSet::new())),
+        full_rescan_needed: Arc::new(std::sync::atomic::AtomicBool::new(false)),
     });
 
     inotify::start(Arc::clone(&app_state));

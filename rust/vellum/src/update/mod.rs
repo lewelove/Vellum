@@ -10,8 +10,7 @@ use tokio::sync::Mutex;
 use tokio::sync::mpsc;
 
 use cache::{
-    calculate_hash, get_lua_config_hash, load_cache, save_cache,
-    validate_library_root,
+    calculate_hash, get_lua_config_hash, load_cache, save_cache, validate_library_root,
 };
 use crate::compile;
 use libvellum::utils::expand_path;
@@ -31,7 +30,8 @@ pub async fn run(
 
     let effective_jobs = jobs.or(config.app.compiler.jobs);
 
-    let is_full_library = target_path.is_none() || target_path.as_deref() == Some(library_root.as_path());
+    let is_full_library =
+        target_path.is_none() || target_path.as_deref() == Some(library_root.as_path());
     notify_if_force_update(force, is_full_library).await;
 
     let lib_hash = calculate_hash(&library_root.to_string_lossy());
@@ -53,21 +53,29 @@ pub async fn run(
         |p| p.canonicalize().unwrap_or(p),
     );
 
-    let all_albums = libvellum::scanner::find_target_albums(&scan_root)?;
-    let missing_paths = find_missing_paths(&all_albums, &library_root, &scan_root, &cache);
+    let (work_queue, missing_paths) = if !force
+        && is_full_library
+        && let Some((wq, mp)) = try_get_server_tracked_albums(&library_root).await
+    {
+        (wq, mp)
+    } else {
+        let all_albums = libvellum::scanner::find_target_albums(&scan_root)?;
+        let mp = find_missing_paths(&all_albums, &library_root, &scan_root, &cache);
 
-    if !silent {
-        log::info!("Verifying {} albums...", all_albums.len());
-    }
-
-    let results = verify_albums_parallel(all_albums, &cache, force, effective_jobs, &library_root)?;
-    let mut work_queue = Vec::new();
-
-    for (path, is_dirty) in results {
-        if is_dirty {
-            work_queue.push(path);
+        if !silent {
+            log::info!("Verifying {} albums...", all_albums.len());
         }
-    }
+
+        let results =
+            verify_albums_parallel(all_albums, &cache, force, effective_jobs, &library_root)?;
+        let mut wq = Vec::new();
+        for (path, is_dirty) in results {
+            if is_dirty {
+                wq.push(path);
+            }
+        }
+        (wq, mp)
+    };
 
     if work_queue.is_empty() && missing_paths.is_empty() {
         if !silent {
@@ -112,6 +120,47 @@ pub async fn run(
     save_cache(&final_cache, &cache_file)?;
 
     Ok(())
+}
+
+async fn try_get_server_tracked_albums(
+    library_root: &Path,
+) -> Option<(Vec<PathBuf>, Vec<PathBuf>)> {
+    let resp = reqwest::Client::new()
+        .get("http://127.0.0.1:8000/api/internal/tracked_albums")
+        .timeout(std::time::Duration::from_millis(500))
+        .send()
+        .await
+        .ok()?;
+
+    if !resp.status().is_success() {
+        return None;
+    }
+
+    let data: serde_json::Value = resp.json().await.ok()?;
+    if data
+        .get("full_rescan")
+        .and_then(serde_json::Value::as_bool)
+        != Some(false)
+    {
+        return None;
+    }
+
+    let tracked_arr = data.get("tracked_albums")?.as_array()?;
+    let mut work_queue = Vec::new();
+    let mut missing_paths = Vec::new();
+
+    for item in tracked_arr {
+        if let Some(id) = item.as_str() {
+            let p = library_root.join(id);
+            if p.exists() {
+                work_queue.push(p);
+            } else {
+                missing_paths.push(p);
+            }
+        }
+    }
+
+    Some((work_queue, missing_paths))
 }
 
 async fn notify_if_force_update(force: bool, is_full_library: bool) {

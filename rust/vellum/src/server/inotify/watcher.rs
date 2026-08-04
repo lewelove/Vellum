@@ -1,10 +1,10 @@
+use crate::server::inotify::classifier;
+use crate::server::inotify::handler;
 use crate::server::state::AppState;
 use notify::{Event, RecommendedWatcher, RecursiveMode, Watcher};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
-use crate::server::inotify::classifier;
-use crate::server::inotify::handler;
 
 pub fn setup_watcher(tx: tokio::sync::mpsc::Sender<Vec<PathBuf>>) -> RecommendedWatcher {
     RecommendedWatcher::new(
@@ -16,7 +16,8 @@ pub fn setup_watcher(tx: tokio::sync::mpsc::Sender<Vec<PathBuf>>) -> Recommended
             }
         },
         notify::Config::default(),
-    ).expect("Failed to create inotify watcher")
+    )
+    .expect("Failed to create inotify watcher")
 }
 
 pub async fn run_loop(
@@ -58,6 +59,7 @@ async fn sync_watches(
     let mut needed_non_recursive = std::collections::HashSet::new();
 
     needed_recursive.insert(config_dir.to_path_buf());
+    needed_recursive.insert(guard.library_root.clone());
 
     for cfg in guard.interfaces.values() {
         for asset_str in cfg.assets.values() {

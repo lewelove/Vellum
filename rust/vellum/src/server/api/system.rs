@@ -7,6 +7,21 @@ use rayon::prelude::*;
 use serde_json::json;
 use std::sync::Arc;
 
+pub async fn get_tracked_albums(State(state): State<Arc<AppState>>) -> Response {
+    let full_rescan = state
+        .full_rescan_needed
+        .swap(false, std::sync::atomic::Ordering::Relaxed);
+    let tracked: Vec<String> = state
+        .tracked_albums
+        .lock()
+        .map_or_else(|_| Vec::new(), |mut guard| guard.drain().collect());
+    Json(json!({
+        "full_rescan": full_rescan,
+        "tracked_albums": tracked
+    }))
+    .into_response()
+}
+
 pub async fn get_interface_config(
     Path(name): Path<String>,
     State(state): State<Arc<AppState>>,
@@ -65,7 +80,7 @@ pub async fn serve_interface_asset(
         };
         let full_path = resolved_canon.join(sub);
         let Ok(full_canon) = full_path.canonicalize() else {
-            return StatusCode::NOT_FOUND.into_response();
+            return StatusCode::FORBIDDEN.into_response();
         };
         if !full_canon.starts_with(&resolved_canon) || !full_canon.is_file() {
             return StatusCode::FORBIDDEN.into_response();
@@ -158,26 +173,7 @@ pub async fn trigger_batch_reload(
     let start_time = std::time::Instant::now();
     let compile_time = params.get("time").map_or("0", std::string::String::as_str);
 
-    let evaluated_items = tokio::task::spawn_blocking(move || {
-        let config_path = libvellum::lua::resolve_config_path().unwrap_or_default();
-        payloads
-            .into_par_iter()
-            .map(|item| {
-                if item.lock_json.is_empty() {
-                    return (item.id, item.lock_json, None);
-                }
-                let eval_res = libvellum::lua::get_or_init_lua_vm(&config_path, |engine| {
-                    let parsed: serde_json::Value =
-                        serde_json::from_str(&item.lock_json).unwrap_or_default();
-                    engine.evaluate_album_logic(&parsed)
-                })
-                .ok();
-                (item.id, item.lock_json, eval_res)
-            })
-            .collect::<Vec<_>>()
-    })
-    .await
-    .unwrap_or_default();
+    let evaluated_items = evaluate_reload_payloads(payloads).await;
 
     let mut processed_ids = Vec::new();
     let mut removed_ids = Vec::new();
@@ -200,6 +196,15 @@ pub async fn trigger_batch_reload(
     }
 
     if !processed_ids.is_empty() || !removed_ids.is_empty() {
+        if let Ok(mut tracked) = state.tracked_albums.lock() {
+            for id in &processed_ids {
+                tracked.remove(id);
+            }
+            for id in &removed_ids {
+                tracked.remove(id);
+            }
+        }
+
         let elapsed = start_time.elapsed().as_millis();
         log::info!(
             "Updated {} albums, Removed {} albums in {}ms.",
@@ -209,50 +214,83 @@ pub async fn trigger_batch_reload(
         );
         log::info!("Rebuilt Logic Engine in {elapsed}ms.");
 
-        if processed_ids.len() == 1 && removed_ids.is_empty() {
-            let (dict_entry, shelves) = {
-                let logic = state.logic.read().await;
-                let entry = logic.dict.get(&processed_ids[0]).cloned();
-                let mut s = std::collections::HashMap::new();
-                for key in logic.manifest.shelves.keys() {
-                    s.insert(key.clone(), logic.request_shelf_view(key));
-                }
-                drop(logic);
-                (entry, s)
-            };
-            let _ = state.tx.send(
-                json!({
-                    "type": "ALBUM_UPDATED",
-                    "id": processed_ids[0],
-                    "dictEntry": dict_entry.unwrap_or_else(|| json!({})),
-                    "shelves": shelves
-                })
-                .to_string(),
-            );
-        } else if removed_ids.len() == 1 && processed_ids.is_empty() {
-            let shelves = {
-                let logic = state.logic.read().await;
-                let mut s = std::collections::HashMap::new();
-                for key in logic.manifest.shelves.keys() {
-                    s.insert(key.clone(), logic.request_shelf_view(key));
-                }
-                drop(logic);
-                s
-            };
-            let _ = state.tx.send(
-                json!({
-                    "type": "ALBUM_REMOVED",
-                    "id": removed_ids[0],
-                    "shelves": shelves
-                })
-                .to_string(),
-            );
-        } else {
-            let _ = state.tx.send(json!({"type": "LOGIC_UPDATE"}).to_string());
-        }
+        notify_reload_changes(&state, &processed_ids, &removed_ids).await;
     }
 
     Json(processed_ids).into_response()
+}
+
+async fn evaluate_reload_payloads(
+    payloads: Vec<crate::update::notify::AlbumReloadPayload>,
+) -> Vec<(String, String, Option<serde_json::Value>)> {
+    tokio::task::spawn_blocking(move || {
+        let config_path = libvellum::lua::resolve_config_path().unwrap_or_default();
+        payloads
+            .into_par_iter()
+            .map(|item| {
+                if item.lock_json.is_empty() {
+                    return (item.id, item.lock_json, None);
+                }
+                let eval_res = libvellum::lua::get_or_init_lua_vm(&config_path, |engine| {
+                    let parsed: serde_json::Value =
+                        serde_json::from_str(&item.lock_json).unwrap_or_default();
+                    engine.evaluate_album_logic(&parsed)
+                })
+                .ok();
+                (item.id, item.lock_json, eval_res)
+            })
+            .collect::<Vec<_>>()
+    })
+    .await
+    .unwrap_or_default()
+}
+
+async fn notify_reload_changes(
+    state: &Arc<AppState>,
+    processed_ids: &[String],
+    removed_ids: &[String],
+) {
+    if processed_ids.len() == 1 && removed_ids.is_empty() {
+        let (dict_entry, shelves) = {
+            let logic = state.logic.read().await;
+            let entry = logic.dict.get(&processed_ids[0]).cloned();
+            let mut s = std::collections::HashMap::new();
+            for key in logic.manifest.shelves.keys() {
+                s.insert(key.clone(), logic.request_shelf_view(key));
+            }
+            drop(logic);
+            (entry, s)
+        };
+        let _ = state.tx.send(
+            json!({
+                "type": "ALBUM_UPDATED",
+                "id": processed_ids[0],
+                "dictEntry": dict_entry.unwrap_or_else(|| json!({})),
+                "shelves": shelves
+            })
+            .to_string(),
+        );
+    } else if removed_ids.len() == 1 && processed_ids.is_empty() {
+        let shelves = {
+            let logic = state.logic.read().await;
+            let mut s = std::collections::HashMap::new();
+            for key in logic.manifest.shelves.keys() {
+                s.insert(key.clone(), logic.request_shelf_view(key));
+            }
+            drop(logic);
+            s
+        };
+        let _ = state.tx.send(
+            json!({
+                "type": "ALBUM_REMOVED",
+                "id": removed_ids[0],
+                "shelves": shelves
+            })
+            .to_string(),
+        );
+    } else {
+        let _ = state.tx.send(json!({"type": "LOGIC_UPDATE"}).to_string());
+    }
 }
 
 pub async fn trigger_reload(

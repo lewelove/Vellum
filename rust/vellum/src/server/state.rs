@@ -1,8 +1,9 @@
 use crate::server::logic::LogicEngine;
 use crate::server::mpd::MpdEngine;
 use libvellum::lua::config::{ActionConfig, CoversRegistry, InterfaceConfig};
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, atomic::AtomicBool};
 use tokio::sync::{broadcast, RwLock};
 
 pub struct AppState {
@@ -11,6 +12,8 @@ pub struct AppState {
     pub tx: broadcast::Sender<String>,
     pub config: RwLock<AppConfig>,
     pub mpd_engine: MpdEngine,
+    pub tracked_albums: Arc<Mutex<HashSet<String>>>,
+    pub full_rescan_needed: Arc<AtomicBool>,
 }
 
 #[derive(Clone)]
@@ -20,8 +23,8 @@ pub struct AppConfig {
     pub state_root: PathBuf,
     pub resolved_dependencies: Vec<PathBuf>,
     pub covers: CoversRegistry,
-    pub interfaces: std::collections::HashMap<String, InterfaceConfig>,
-    pub actions: std::collections::HashMap<String, ActionConfig>,
+    pub interfaces: HashMap<String, InterfaceConfig>,
+    pub actions: HashMap<String, ActionConfig>,
     pub config_dir: PathBuf,
     pub app: libvellum::lua::config::AppConfig,
 }
