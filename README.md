@@ -28,7 +28,7 @@ Since every album is compiled into a plain-text JSON — every album becomes scr
 
 ## Interface Showcase
 
-Vellum has the default Web-App interface written in fast and fine-grained reactive Svelte framework. You can run it as a standalone headless process and access it via any browser.
+Vellum comes with the default Web App interface written in fast and reactive Svelte framework. You can run it as standalone headless process with Bun and access it via any browser.
 
 ### Home Album Grid
 
