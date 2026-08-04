@@ -48,6 +48,24 @@ class CollectionStore {
         delete this.dict[json.id];
       }
       delete this.fullAlbumCache[json.id];
+    } else if (json.type === "ALBUMS_UPDATED") {
+      if (json.shelves) this.sidebarShelves = json.shelves;
+      if (json.updated) {
+        for (const [id, dictEntry] of Object.entries(json.updated)) {
+          if (dictEntry && Object.keys(dictEntry as object).length > 0) {
+            this.dict[id] = dictEntry;
+          } else {
+            delete this.dict[id];
+          }
+          delete this.fullAlbumCache[id];
+        }
+      }
+      if (json.removed) {
+        for (const id of json.removed) {
+          delete this.dict[id];
+          delete this.fullAlbumCache[id];
+        }
+      }
     } else if (json.type === "CONFIG_UPDATE" || json.type === "INTERFACE_CONFIG_UPDATE") {
       if (json.config) {
         this.config = { ...this.config, ...json.config };

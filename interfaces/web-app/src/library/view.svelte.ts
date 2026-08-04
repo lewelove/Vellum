@@ -80,14 +80,34 @@ export class ViewState {
     } else if (json.type === "INTERFACE_ASSET_UPDATE" || json.type === "INTERFACE_CONFIG_UPDATE") {
       this.assetVersion = Date.now();
     } else if (json.type === "LOGIC_UPDATE") {
-      window.location.reload();
-    } else if (json.type === "ALBUM_REMOVED" || json.type === "ALBUM_UPDATED") {
-      if (this.focusedAlbum && this.focusedAlbum.id === json.id) {
-        if (json.type === "ALBUM_REMOVED") this.focusedAlbum = null;
-        else
-          collection.ensureFullAlbum(json.id).then((data) => {
-            if (data) this.focusedAlbum = data;
-          });
+      this.refreshView(false);
+      this.refreshSidebar();
+    } else if (
+      json.type === "ALBUM_REMOVED" ||
+      json.type === "ALBUM_UPDATED" ||
+      json.type === "ALBUMS_UPDATED"
+    ) {
+      if (this.focusedAlbum) {
+        const focusedId = this.focusedAlbum.id;
+        const isRemoved =
+          (json.type === "ALBUM_REMOVED" && json.id === focusedId) ||
+          (json.removed && json.removed.includes(focusedId));
+
+        if (isRemoved) {
+          this.focusedAlbum = null;
+        } else {
+          const isUpdated =
+            (json.type === "ALBUM_UPDATED" && json.id === focusedId) ||
+            (json.updated && json.updated[focusedId]);
+          if (isUpdated) {
+            delete collection.fullAlbumCache[focusedId];
+            collection.ensureFullAlbum(focusedId).then((data) => {
+              if (data && this.focusedAlbum?.id === focusedId) {
+                this.focusedAlbum = data;
+              }
+            });
+          }
+        }
       }
       this.refreshView(false);
       this.refreshSidebar();

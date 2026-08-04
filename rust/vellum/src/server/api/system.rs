@@ -250,47 +250,31 @@ async fn notify_reload_changes(
     processed_ids: &[String],
     removed_ids: &[String],
 ) {
-    if processed_ids.len() == 1 && removed_ids.is_empty() {
-        let (dict_entry, shelves) = {
-            let logic = state.logic.read().await;
-            let entry = logic.dict.get(&processed_ids[0]).cloned();
-            let mut s = std::collections::HashMap::new();
-            for key in logic.manifest.shelves.keys() {
-                s.insert(key.clone(), logic.request_shelf_view(key));
+    let (updated_entries, shelves) = {
+        let logic = state.logic.read().await;
+        let mut entries = serde_json::Map::new();
+        for id in processed_ids {
+            if let Some(entry) = logic.dict.get(id) {
+                entries.insert(id.clone(), entry.clone());
             }
-            drop(logic);
-            (entry, s)
-        };
-        let _ = state.tx.send(
-            json!({
-                "type": "ALBUM_UPDATED",
-                "id": processed_ids[0],
-                "dictEntry": dict_entry.unwrap_or_else(|| json!({})),
-                "shelves": shelves
-            })
-            .to_string(),
-        );
-    } else if removed_ids.len() == 1 && processed_ids.is_empty() {
-        let shelves = {
-            let logic = state.logic.read().await;
-            let mut s = std::collections::HashMap::new();
-            for key in logic.manifest.shelves.keys() {
-                s.insert(key.clone(), logic.request_shelf_view(key));
-            }
-            drop(logic);
-            s
-        };
-        let _ = state.tx.send(
-            json!({
-                "type": "ALBUM_REMOVED",
-                "id": removed_ids[0],
-                "shelves": shelves
-            })
-            .to_string(),
-        );
-    } else {
-        let _ = state.tx.send(json!({"type": "LOGIC_UPDATE"}).to_string());
-    }
+        }
+        let mut s = std::collections::HashMap::new();
+        for key in logic.manifest.shelves.keys() {
+            s.insert(key.clone(), logic.request_shelf_view(key));
+        }
+        drop(logic);
+        (entries, s)
+    };
+
+    let _ = state.tx.send(
+        json!({
+            "type": "ALBUMS_UPDATED",
+            "updated": updated_entries,
+            "removed": removed_ids,
+            "shelves": shelves
+        })
+        .to_string(),
+    );
 }
 
 pub async fn trigger_reload(
