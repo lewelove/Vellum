@@ -59,14 +59,14 @@ pub fn start_notification_task(args: NotificationTaskArgs) -> tokio::task::JoinH
                     }
                 });
 
-                for entry in jwalk::WalkDir::new(album_root)
+                for entry in walkdir::WalkDir::new(album_root)
                     .follow_links(true)
                     .into_iter()
                     .filter_map(Result::ok)
                 {
                     let p = entry.path();
                     if p.is_file() {
-                        let rel = libvellum::resolvers::rel_path(&p, &lib_root_for_task);
+                        let rel = libvellum::resolvers::rel_path(p, &lib_root_for_task);
                         if let Ok(m) = entry.metadata() {
                             let mtime = m
                                 .modified()

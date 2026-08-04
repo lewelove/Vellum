@@ -48,8 +48,7 @@ pub async fn run(mut options: CompileOptions) -> Result<()> {
     let albums = if let Some(l) = options.specific_albums {
         l
     } else {
-        let scan_depth = config.app.compiler.scan_depth.unwrap_or(4);
-        libvellum::scanner::find_target_albums(&options.target_path, scan_depth)?
+        libvellum::scanner::find_target_albums(&options.target_path)?
     };
 
     if albums.is_empty() {

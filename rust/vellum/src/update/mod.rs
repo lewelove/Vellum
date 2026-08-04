@@ -47,9 +47,8 @@ pub async fn run(
     let force = force || config_changed;
 
     let scan_root = target_path.unwrap_or_else(|| library_root.clone());
-    let scan_depth = config.app.compiler.scan_depth.unwrap_or(4);
 
-    let all_albums = libvellum::scanner::find_target_albums(&scan_root, scan_depth)?;
+    let all_albums = libvellum::scanner::find_target_albums(&scan_root)?;
     let missing_paths = find_missing_paths(&all_albums, &library_root, &cache);
 
     if !silent {

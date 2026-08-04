@@ -155,11 +155,7 @@ fn harvest_audio_files(
 ) -> Vec<(PathBuf, serde_json::Map<String, serde_json::Value>)> {
     let mut audio_files = Vec::new();
     for dir in dirs_to_harvest {
-        let max_depth = match options.mode {
-            ManifestMode::Album => 1,
-            ManifestMode::Library => usize::MAX,
-        };
-        for entry in walkdir::WalkDir::new(&dir).max_depth(max_depth).follow_links(true).into_iter().filter_map(Result::ok) {
+        for entry in walkdir::WalkDir::new(&dir).follow_links(true).into_iter().filter_map(Result::ok) {
             let path = entry.path();
             if path.is_file()
                 && let Some(ext) = path.extension().and_then(|e| e.to_str()) {

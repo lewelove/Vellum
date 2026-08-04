@@ -2,15 +2,12 @@ use crate::error::VellumError;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
-pub fn find_target_albums(path: &Path, max_depth: usize) -> Result<Vec<PathBuf>, VellumError> {
+pub fn find_target_albums(path: &Path) -> Result<Vec<PathBuf>, VellumError> {
     let mut results = std::collections::HashSet::new();
     if path.join("metadata.toml").exists() {
         results.insert(path.to_path_buf());
     } else {
-        for entry in WalkDir::new(path)
-            .max_depth(max_depth)
-            .follow_links(true)
-        {
+        for entry in WalkDir::new(path).follow_links(true) {
             match entry {
                 Ok(e) => {
                     if e.file_name() == "metadata.toml"
@@ -32,7 +29,6 @@ pub fn find_target_albums(path: &Path, max_depth: usize) -> Result<Vec<PathBuf>,
 
 pub fn scan_audio_files(root: &Path, extensions: &[&str]) -> Vec<PathBuf> {
     let mut files: Vec<PathBuf> = WalkDir::new(root)
-        .max_depth(3)
         .follow_links(true)
         .into_iter()
         .filter_map(Result::ok)
