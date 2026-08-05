@@ -102,7 +102,8 @@ pub fn build_final_tracks(
         t_obj.insert("info".to_string(), t_info);
         t_obj.insert("file".to_string(), ctx_track.get("file").cloned().unwrap_or_else(|| json!({})));
 
-        if let Some(l_val) = lyrics_val {
+        if let Some(mut l_val) = lyrics_val {
+            sort_json_keys(&mut l_val);
             t_obj.insert("lyrics".to_string(), l_val);
         }
 
