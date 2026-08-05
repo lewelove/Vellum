@@ -11,22 +11,36 @@ let scrollContainer: HTMLDivElement | null = $state(null);
 
 let activeLibraryDef = $derived(collection.availableLibraries[view.activeLibrary] || {});
 let allowedFilters = $derived(activeLibraryDef.allowed_filters || []);
-let showFilterDropdown = $derived(allowedFilters.length > 1);
+let showFilterDropdown = $derived(allowedFilters.length > 0);
+
+let visibleFacets = $derived(collection.getVisibleFacets(view.activeLibrary));
+let showGroupDropdown = $derived(visibleFacets.length > 0);
+
+let visibleOrders = $derived(collection.getVisibleOrders(view.activeLibrary));
+let showSortDropdown = $derived(visibleOrders.length > 0);
 
 let libraryLabel = $derived(collection.availableLibraries[view.activeLibrary]?.label || "Unknown");
 let filterLabel = $derived(
   collection.availableFilters[view.activeLibraryFilter || ""]?.label || "Unknown"
 );
 let groupLabel = $derived(
-  collection.availableFacets[view.activeSidebarGrouper]?.label || "Unknown"
+  view.activeSidebarGrouper
+    ? collection.availableFacets[view.activeSidebarGrouper]?.label || "Unknown"
+    : ""
 );
-let sortLabel = $derived(collection.availableOrders[view.userSortPreference]?.label || "Unknown");
+let sortLabel = $derived(
+  view.userSortPreference
+    ? collection.availableOrders[view.userSortPreference]?.label || "Unknown"
+    : ""
+);
 
 let items = $derived(view.getSidebarGroup(view.activeSidebarGrouper));
 
 let isReverse = $derived(view.userSortOrder === "reverse");
 
-let activeGrouperDef = $derived(collection.availableFacets[view.activeSidebarGrouper] || {});
+let activeGrouperDef = $derived(
+  view.activeSidebarGrouper ? collection.availableFacets[view.activeSidebarGrouper] || {} : {}
+);
 let showIndex = $derived(activeGrouperDef.index === true);
 let showCount = $derived(activeGrouperDef.count === true);
 
@@ -206,76 +220,80 @@ function toggleDirection() {
       </div>
     {/if}
 
-    <div class="v-control-row">
-      <div class="v-button-wrapper v-flex-grow">
+    {#if showGroupDropdown}
+      <div class="v-control-row">
+        <div class="v-button-wrapper v-flex-grow">
+          <button
+            type="button"
+            class="v-btn-icon v-sidebar-button v-btn-menu"
+            onclick={toggleGroupMenu}
+            class:active={isGroupMenuOpen}
+            title="Group By"
+          >
+            <span class="icon start-icon">stack_group</span>
+            <span class="v-truncate btn-label">{groupLabel}</span>
+            <span class="icon end-icon">{isGroupMenuOpen ? "arrow_drop_up" : "arrow_drop_down"}</span>
+          </button>
+
+          {#if isGroupMenuOpen}
+            <div class="v-menu">
+              {#each visibleFacets as { key, label } (key)}
+                <button
+                  type="button"
+                  class="v-menu-item"
+                  class:selected={view.activeSidebarGrouper === key}
+                  onclick={() => selectGrouper(key)}
+                >
+                  {label}
+                </button>
+              {/each}
+            </div>
+          {/if}
+        </div>
+      </div>
+    {/if}
+
+    {#if showSortDropdown}
+      <div class="v-control-row">
+        <div class="v-button-wrapper v-flex-grow">
+          <button
+            type="button"
+            class="v-btn-icon v-sidebar-button v-btn-menu"
+            onclick={toggleSortMenu}
+            class:active={isSortMenuOpen}
+            title="Sort By"
+          >
+            <span class="icon start-icon">swap_vert</span>
+            <span class="v-truncate btn-label">{sortLabel}</span>
+            <span class="icon end-icon">{isSortMenuOpen ? "arrow_drop_up" : "arrow_drop_down"}</span>
+          </button>
+
+          {#if isSortMenuOpen}
+            <div class="v-menu">
+              {#each visibleOrders as { key, label } (key)}
+                <button
+                  type="button"
+                  class="v-menu-item"
+                  class:selected={view.userSortPreference === key}
+                  onclick={() => selectOrder(key)}
+                >
+                  {label}
+                </button>
+              {/each}
+            </div>
+          {/if}
+        </div>
+
         <button
           type="button"
-          class="v-btn-icon v-sidebar-button v-btn-menu"
-          onclick={toggleGroupMenu}
-          class:active={isGroupMenuOpen}
-          title="Group By"
+          class="v-btn-icon v-sidebar-button"
+          onclick={toggleDirection}
+          title={isReverse ? "Reverse Order" : "Default Order"}
         >
-          <span class="icon start-icon">stack_group</span>
-          <span class="v-truncate btn-label">{groupLabel}</span>
-          <span class="icon end-icon">{isGroupMenuOpen ? "arrow_drop_up" : "arrow_drop_down"}</span>
+          <span class="icon order-arrow" class:mirrored={isReverse}>arrow_shape_up_stack</span>
         </button>
-
-        {#if isGroupMenuOpen}
-          <div class="v-menu">
-            {#each collection.getVisibleFacets(view.activeLibrary) as { key, label } (key)}
-              <button
-                type="button"
-                class="v-menu-item"
-                class:selected={view.activeSidebarGrouper === key}
-                onclick={() => selectGrouper(key)}
-              >
-                {label}
-              </button>
-            {/each}
-          </div>
-        {/if}
       </div>
-    </div>
-
-    <div class="v-control-row">
-      <div class="v-button-wrapper v-flex-grow">
-        <button
-          type="button"
-          class="v-btn-icon v-sidebar-button v-btn-menu"
-          onclick={toggleSortMenu}
-          class:active={isSortMenuOpen}
-          title="Sort By"
-        >
-          <span class="icon start-icon">swap_vert</span>
-          <span class="v-truncate btn-label">{sortLabel}</span>
-          <span class="icon end-icon">{isSortMenuOpen ? "arrow_drop_up" : "arrow_drop_down"}</span>
-        </button>
-
-        {#if isSortMenuOpen}
-          <div class="v-menu">
-            {#each collection.getVisibleOrders(view.activeLibrary) as { key, label } (key)}
-              <button
-                type="button"
-                class="v-menu-item"
-                class:selected={view.userSortPreference === key}
-                onclick={() => selectOrder(key)}
-              >
-                {label}
-              </button>
-            {/each}
-          </div>
-        {/if}
-      </div>
-
-      <button
-        type="button"
-        class="v-btn-icon v-sidebar-button"
-        onclick={toggleDirection}
-        title={isReverse ? "Reverse Order" : "Default Order"}
-      >
-        <span class="icon order-arrow" class:mirrored={isReverse}>arrow_shape_up_stack</span>
-      </button>
-    </div>
+    {/if}
   </div>
 
   <div class="v-sidebar-body">
@@ -287,9 +305,14 @@ function toggleDirection() {
           label: item.label,
           count: item.count,
           active:
+            Boolean(view.activeSidebarGrouper) &&
             view.activeFilter.key === view.activeSidebarGrouper &&
             view.activeFilter.val === item.value,
-          onclick: () => view.applyFilter(view.activeSidebarGrouper, item.value)
+          onclick: () => {
+            if (view.activeSidebarGrouper) {
+              view.applyFilter(view.activeSidebarGrouper, item.value);
+            }
+          }
         })}
       {/each}
       <div class="scroll-spacer"></div>

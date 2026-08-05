@@ -14,10 +14,10 @@ export class ViewState {
   activeLibrary: string = $state("library");
   activeLibraryFilter: string | null = $state(null);
   activeFilter: { key: string | null; val: string | null } = $state({ key: null, val: null });
-  activeSort: { key: string; order: string } = $state({ key: "default", order: "default" });
-  userSortPreference: string = $state("default");
+  activeSort: { key: string | null; order: string } = $state({ key: null, order: "default" });
+  userSortPreference: string | null = $state(null);
   userSortOrder: string = $state("default");
-  activeSidebarGrouper: string = $state("genre");
+  activeSidebarGrouper: string | null = $state(null);
   activeShelf: string | null = $state(null);
   librariesState: Record<string, any> = $state({});
   libraryVersion: number = $state(0);
@@ -56,18 +56,25 @@ export class ViewState {
             !libDef.allowed_groupers.includes(this.activeSidebarGrouper)
           ) {
             this.activeSidebarGrouper =
-              libDef.allowed_groupers[0] ||
-              (collection.manifest.groupers_order && collection.manifest.groupers_order[0]) ||
-              Object.keys(collection.availableFacets)[0] ||
-              "genre";
+              libDef.allowed_groupers.length > 0 ? libDef.allowed_groupers[0] : null;
+          } else if (!libDef.allowed_groupers || libDef.allowed_groupers.length === 0) {
+            this.activeSidebarGrouper = null;
           }
+
+          if (
+            this.activeFilter.key &&
+            (!libDef.allowed_groupers || !libDef.allowed_groupers.includes(this.activeFilter.key))
+          ) {
+            this.activeFilter = { key: null, val: null };
+          }
+
           if (libDef.allowed_orders && !libDef.allowed_orders.includes(this.userSortPreference)) {
             this.userSortPreference =
-              libDef.allowed_orders[0] ||
-              (collection.manifest.orders_order && collection.manifest.orders_order[0]) ||
-              Object.keys(collection.availableOrders)[0] ||
-              "default";
+              libDef.allowed_orders.length > 0 ? libDef.allowed_orders[0] : null;
             this.activeSort = { key: this.userSortPreference, order: this.userSortOrder };
+          } else if (!libDef.allowed_orders || libDef.allowed_orders.length === 0) {
+            this.userSortPreference = null;
+            this.activeSort = { key: null, order: this.userSortOrder };
           }
         }
       }
@@ -100,18 +107,25 @@ export class ViewState {
           !libDef.allowed_groupers.includes(this.activeSidebarGrouper)
         ) {
           this.activeSidebarGrouper =
-            libDef.allowed_groupers[0] ||
-            (collection.manifest.groupers_order && collection.manifest.groupers_order[0]) ||
-            Object.keys(collection.availableFacets)[0] ||
-            "genre";
+            libDef.allowed_groupers.length > 0 ? libDef.allowed_groupers[0] : null;
+        } else if (!libDef.allowed_groupers || libDef.allowed_groupers.length === 0) {
+          this.activeSidebarGrouper = null;
         }
+
+        if (
+          this.activeFilter.key &&
+          (!libDef.allowed_groupers || !libDef.allowed_groupers.includes(this.activeFilter.key))
+        ) {
+          this.activeFilter = { key: null, val: null };
+        }
+
         if (libDef.allowed_orders && !libDef.allowed_orders.includes(this.userSortPreference)) {
           this.userSortPreference =
-            libDef.allowed_orders[0] ||
-            (collection.manifest.orders_order && collection.manifest.orders_order[0]) ||
-            Object.keys(collection.availableOrders)[0] ||
-            "default";
+            libDef.allowed_orders.length > 0 ? libDef.allowed_orders[0] : null;
           this.activeSort = { key: this.userSortPreference, order: this.userSortOrder };
+        } else if (!libDef.allowed_orders || libDef.allowed_orders.length === 0) {
+          this.userSortPreference = null;
+          this.activeSort = { key: null, order: this.userSortOrder };
         }
       }
       this.refreshView(false);
@@ -167,7 +181,8 @@ export class ViewState {
     return collection.mapIdsToAlbums(this.shelfViewIds);
   }
 
-  getSidebarGroup(key: string): any[] {
+  getSidebarGroup(key: string | null): any[] {
+    if (!key) return [];
     if (!collection.sidebarGroups.has(key) && sync.isOpen) {
       this.refreshSidebar();
       return [];
@@ -201,28 +216,27 @@ export class ViewState {
       state.activeLibraryFilter = allowedFilters.length > 0 ? allowedFilters[0] : null;
     }
     if (!state.activeSidebarGrouper || !allowedGroupers.includes(state.activeSidebarGrouper)) {
-      state.activeSidebarGrouper =
-        allowedGroupers[0] ||
-        (collection.manifest.groupers_order && collection.manifest.groupers_order[0]) ||
-        Object.keys(collection.availableFacets)[0] ||
-        "genre";
+      state.activeSidebarGrouper = allowedGroupers.length > 0 ? allowedGroupers[0] : null;
     }
     if (!state.userSortPreference || !allowedOrders.includes(state.userSortPreference)) {
-      state.userSortPreference =
-        allowedOrders[0] ||
-        (collection.manifest.orders_order && collection.manifest.orders_order[0]) ||
-        Object.keys(collection.availableOrders)[0] ||
-        "default";
+      state.userSortPreference = allowedOrders.length > 0 ? allowedOrders[0] : null;
+    }
+    if (
+      state.activeFilter &&
+      state.activeFilter.key &&
+      !allowedGroupers.includes(state.activeFilter.key)
+    ) {
+      state.activeFilter = { key: null, val: null };
     }
     if (!state.userSortOrder) state.userSortOrder = "default";
-    if (!state.activeSort)
+    if (!state.activeSort || state.activeSort.key !== state.userSortPreference) {
       state.activeSort = { key: state.userSortPreference, order: state.userSortOrder };
+    }
     if (!state.activeFilter) state.activeFilter = { key: null, val: null };
 
     this.activeLibraryFilter = state.activeLibraryFilter;
     this.activeSidebarGrouper = state.activeSidebarGrouper;
     this.userSortPreference = state.userSortPreference;
-    this.userSortOrder = state.userSortOrder;
     this.activeSort = { ...state.activeSort };
     this.activeFilter = { ...state.activeFilter };
   }
@@ -248,7 +262,7 @@ export class ViewState {
   }
 
   refreshSidebar() {
-    if (!sync.isOpen) return;
+    if (!sync.isOpen || !this.activeSidebarGrouper) return;
     sync.send({
       type: "GROUP_REQUEST",
       library: this.activeLibrary,
@@ -283,6 +297,9 @@ export class ViewState {
 
   setSidebarGrouper(key: string) {
     this.activeSidebarGrouper = key;
+    if (this.activeFilter.key !== key) {
+      this.activeFilter = { key: null, val: null };
+    }
     this.refreshSidebar();
     this.persistState();
   }
