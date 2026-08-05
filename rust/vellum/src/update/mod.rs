@@ -57,7 +57,19 @@ pub async fn run(
         && is_full_library
         && let Some((wq, mp)) = try_get_server_tracked_albums(&library_root).await
     {
-        (wq, mp)
+        if !silent && !wq.is_empty() {
+            log::info!("Verifying {} tracked albums...", wq.len());
+        }
+
+        let results =
+            verify_albums_parallel(wq, &cache, force, effective_jobs, &library_root)?;
+        let mut verified_wq = Vec::new();
+        for (path, is_dirty) in results {
+            if is_dirty {
+                verified_wq.push(path);
+            }
+        }
+        (verified_wq, mp)
     } else {
         let all_albums = libvellum::scanner::find_target_albums(&scan_root)?;
         let mp = find_missing_paths(&all_albums, &library_root, &scan_root, &cache);
