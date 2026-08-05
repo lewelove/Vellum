@@ -33,37 +33,31 @@ async fn resolve_target_ids(
         {
             target_ids.push(rel.to_string_lossy().to_string());
         }
-    } else if library_arg {
-        for entry in walkdir::WalkDir::new(library_root)
-            .follow_links(true)
-            .into_iter()
-            .filter_map(Result::ok)
-        {
-            if entry.file_name() == "album.lock.json"
-                && let Ok(content) = std::fs::read_to_string(entry.path())
-                && let Ok(lock_json) = serde_json::from_str::<serde_json::Value>(&content)
-                && let Some(id) = lock_json.pointer("/album/id").and_then(|v| v.as_str())
+    } else if library_arg || recursive_arg.is_some() {
+        let root = recursive_arg
+            .map_or_else(|| library_root.to_path_buf(), |dir| libvellum::utils::expand_path(&dir));
+        target_ids = tokio::task::spawn_blocking(move || {
+            let mut ids = Vec::new();
+            for entry in walkdir::WalkDir::new(&root)
+                .follow_links(true)
+                .into_iter()
+                .filter_map(Result::ok)
             {
-                target_ids.push(id.to_string());
+                if entry.file_name() == "album.lock.json"
+                    && let Ok(content) = std::fs::read_to_string(entry.path())
+                    && let Ok(lock_json) = serde_json::from_str::<serde_json::Value>(&content)
+                    && let Some(id) = lock_json.pointer("/album/id").and_then(|v| v.as_str())
+                {
+                    ids.push(id.to_string());
+                }
             }
-        }
-    } else if let Some(dir) = recursive_arg {
-        for entry in walkdir::WalkDir::new(libvellum::utils::expand_path(&dir))
-            .follow_links(true)
-            .into_iter()
-            .filter_map(Result::ok)
-        {
-            if entry.file_name() == "album.lock.json"
-                && let Ok(content) = std::fs::read_to_string(entry.path())
-                && let Ok(lock_json) = serde_json::from_str::<serde_json::Value>(&content)
-                && let Some(id) = lock_json.pointer("/album/id").and_then(|v| v.as_str())
-            {
-                target_ids.push(id.to_string());
-            }
-        }
+            ids
+        })
+        .await
+        .unwrap_or_default();
     } else if let Some(dir) = directory_arg {
         let p = libvellum::utils::expand_path(&dir).join("album.lock.json");
-        if let Ok(content) = std::fs::read_to_string(&p)
+        if let Ok(content) = tokio::fs::read_to_string(&p).await
             && let Ok(lock_json) = serde_json::from_str::<serde_json::Value>(&content)
             && let Some(id) = lock_json.pointer("/album/id").and_then(|v| v.as_str())
         {
@@ -74,19 +68,19 @@ async fn resolve_target_ids(
     target_ids
 }
 
-fn run_external_process(
-    action_path: &std::path::Path,
-    target_ids: &[String],
-    library_root: &std::path::Path,
-    params: &HashMap<String, String>,
-    app_config_json: &serde_json::Value,
-    action_config: &serde_json::Value,
-    env_vars: &HashMap<String, String>,
+async fn run_external_process(
+    action_path: std::path::PathBuf,
+    target_ids: Vec<String>,
+    library_root: std::path::PathBuf,
+    params: HashMap<String, String>,
+    app_config_json: serde_json::Value,
+    action_config: serde_json::Value,
+    env_vars: HashMap<String, String>,
 ) -> Response {
     let mut lock_jsons = Vec::new();
-    for target_id in target_ids {
+    for target_id in &target_ids {
         let lock_file_path = library_root.join(target_id).join("album.lock.json");
-        if let Ok(json_data) = std::fs::read_to_string(&lock_file_path)
+        if let Ok(json_data) = tokio::fs::read_to_string(&lock_file_path).await
             && let Ok(lock_json) = serde_json::from_str::<serde_json::Value>(&json_data)
         {
             lock_jsons.push(lock_json);
@@ -94,7 +88,7 @@ fn run_external_process(
     }
 
     let mut options_vec = Vec::new();
-    for (k, v) in params {
+    for (k, v) in &params {
         if k != "playing"
             && k != "id"
             && k != "query"
@@ -131,7 +125,7 @@ fn run_external_process(
     let mut command = tokio::process::Command::new(cmd);
     command.envs(env_vars);
     if cmd == "python" || cmd == "sh" {
-        command.arg(action_path);
+        command.arg(&action_path);
     }
 
     match command.stdin(std::process::Stdio::piped()).spawn() {
@@ -192,16 +186,17 @@ pub async fn execute_action(
             config_dir.join(expanded_action_path)
         };
 
-        if action_path.exists() {
+        if tokio::fs::try_exists(&action_path).await.unwrap_or(false) {
             return run_external_process(
-                &action_path,
-                &target_ids,
-                &library_root,
-                &params,
-                &app_config_json,
-                &action_cfg.config,
-                &env_vars,
-            );
+                action_path,
+                target_ids,
+                library_root,
+                params,
+                app_config_json,
+                action_cfg.config,
+                env_vars,
+            )
+            .await;
         }
     }
 

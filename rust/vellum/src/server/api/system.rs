@@ -61,7 +61,7 @@ pub async fn serve_interface_asset(
 
     let p = libvellum::utils::expand_path(asset_val);
     let resolved = if p.is_absolute() { p } else { config_dir.join(p) };
-    let Ok(resolved_canon) = resolved.canonicalize() else {
+    let Ok(resolved_canon) = tokio::fs::canonicalize(&resolved).await else {
         return StatusCode::NOT_FOUND.into_response();
     };
 
@@ -79,7 +79,7 @@ pub async fn serve_interface_asset(
             return StatusCode::NOT_FOUND.into_response();
         };
         let full_path = resolved_canon.join(sub);
-        let Ok(full_canon) = full_path.canonicalize() else {
+        let Ok(full_canon) = tokio::fs::canonicalize(&full_path).await else {
             return StatusCode::FORBIDDEN.into_response();
         };
         if !full_canon.starts_with(&resolved_canon) || !full_canon.is_file() {
@@ -149,13 +149,17 @@ pub async fn trigger_full_reset(State(state): State<Arc<AppState>>) -> Response 
     log::info!("Rebuilding library database...");
     let start_time = std::time::Instant::now();
 
-    let (album_count, manifest) = {
-        let library_root = state.config.read().await.library_root.clone();
+    let library_root = state.config.read().await.library_root.clone();
+    let logic_arc = Arc::clone(&state.logic);
+
+    let (album_count, manifest) = tokio::task::spawn_blocking(move || {
         let scanner = crate::server::library::scanner::Library::new(library_root);
-        let mut logic = state.logic.write().await;
+        let mut logic = logic_arc.blocking_write();
         scanner.scan(&mut logic);
         (logic.dict.len(), logic.manifest.clone())
-    };
+    })
+    .await
+    .unwrap_or_else(|_| (0, libvellum::lua::LogicManifest::default()));
 
     let elapsed = start_time.elapsed().as_millis();
     log::info!("Updated {album_count} albums.");
@@ -290,17 +294,19 @@ pub async fn trigger_reload(
     let start_time = std::time::Instant::now();
     if let Some(path) = params.get("path") {
         let library_root = state.config.read().await.library_root.clone();
+        let path_clone = path.clone();
+        let logic_arc = Arc::clone(&state.logic);
 
-        let (update_res, dict_entry, shelves) = {
-            let mut logic = state.logic.write().await;
+        let (update_res, dict_entry, shelves) = tokio::task::spawn_blocking(move || {
+            let mut logic = logic_arc.blocking_write();
             let scanner = crate::server::library::scanner::Library::new(library_root);
-            let res = scanner.update_album(path, &mut logic);
+            let res = scanner.update_album(&path_clone, &mut logic);
 
             let entry = match &res {
                 crate::server::library::scanner::UpdateResult::Updated(id) => {
                     logic.build_cache();
                     logic.dict.get(id).cloned()
-                },
+                }
                 crate::server::library::scanner::UpdateResult::Removed(_) => None,
             };
 
@@ -309,9 +315,10 @@ pub async fn trigger_reload(
                 s.insert(key.clone(), logic.request_shelf_view(key));
             }
             drop(logic);
-
             (res, entry, s)
-        };
+        })
+        .await
+        .unwrap_or_else(|_| (crate::server::library::scanner::UpdateResult::Removed(String::new()), None, std::collections::HashMap::new()));
 
         let elapsed = start_time.elapsed().as_millis();
         log::info!("Processed 1 album.");
@@ -348,8 +355,8 @@ pub async fn force_update_album(
         let config_guard = state.config.read().await;
         config_guard.library_root.join(id)
     };
-    if path.exists() {
-        let _ = std::process::Command::new("vellum")
+    if tokio::fs::try_exists(&path).await.unwrap_or(false) {
+        let _ = tokio::process::Command::new("vellum")
             .arg("update")
             .arg("--force")
             .arg("--silent")
