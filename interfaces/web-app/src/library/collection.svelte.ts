@@ -66,6 +66,8 @@ class CollectionStore {
           delete this.fullAlbumCache[id];
         }
       }
+    } else if (json.type === "LOGIC_UPDATE") {
+      if (json.manifest) this.manifest = json.manifest;
     } else if (json.type === "CONFIG_UPDATE" || json.type === "INTERFACE_CONFIG_UPDATE") {
       if (json.config) {
         this.config = { ...this.config, ...json.config };

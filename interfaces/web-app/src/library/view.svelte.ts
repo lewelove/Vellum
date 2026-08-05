@@ -80,6 +80,40 @@ export class ViewState {
     } else if (json.type === "INTERFACE_ASSET_UPDATE" || json.type === "INTERFACE_CONFIG_UPDATE") {
       this.assetVersion = Date.now();
     } else if (json.type === "LOGIC_UPDATE") {
+      if (json.manifest) {
+        collection.manifest = json.manifest;
+      }
+      const libDef = collection.availableLibraries[this.activeLibrary];
+      if (libDef) {
+        if (
+          libDef.allowed_filters &&
+          !libDef.allowed_filters.includes(this.activeLibraryFilter)
+        ) {
+          this.activeLibraryFilter =
+            libDef.allowed_filters.length > 0 ? libDef.allowed_filters[0] : null;
+        } else if (!libDef.allowed_filters || libDef.allowed_filters.length === 0) {
+          this.activeLibraryFilter = null;
+        }
+
+        if (
+          libDef.allowed_groupers &&
+          !libDef.allowed_groupers.includes(this.activeSidebarGrouper)
+        ) {
+          this.activeSidebarGrouper =
+            libDef.allowed_groupers[0] ||
+            (collection.manifest.groupers_order && collection.manifest.groupers_order[0]) ||
+            Object.keys(collection.availableFacets)[0] ||
+            "genre";
+        }
+        if (libDef.allowed_orders && !libDef.allowed_orders.includes(this.userSortPreference)) {
+          this.userSortPreference =
+            libDef.allowed_orders[0] ||
+            (collection.manifest.orders_order && collection.manifest.orders_order[0]) ||
+            Object.keys(collection.availableOrders)[0] ||
+            "default";
+          this.activeSort = { key: this.userSortPreference, order: this.userSortOrder };
+        }
+      }
       this.refreshView(false);
       this.refreshSidebar();
     } else if (

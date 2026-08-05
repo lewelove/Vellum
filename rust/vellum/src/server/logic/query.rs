@@ -55,8 +55,8 @@ impl LogicEngine {
             }
         }
 
-        let empty_vec = Vec::new();
-        let sorted_uids = self.orders_cache.get(sort).unwrap_or(&empty_vec);
+        let fallback_storage = self.uid_to_id.keys().copied().collect::<Vec<_>>();
+        let sorted_uids = self.orders_cache.get(sort).unwrap_or(&fallback_storage);
 
         let mut res: Vec<String> = sorted_uids
             .iter()

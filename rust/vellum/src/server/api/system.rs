@@ -149,19 +149,25 @@ pub async fn trigger_full_reset(State(state): State<Arc<AppState>>) -> Response 
     log::info!("Rebuilding library database...");
     let start_time = std::time::Instant::now();
 
-    let album_count = {
+    let (album_count, manifest) = {
         let library_root = state.config.read().await.library_root.clone();
         let scanner = crate::server::library::scanner::Library::new(library_root);
         let mut logic = state.logic.write().await;
         scanner.scan(&mut logic);
-        logic.dict.len()
+        (logic.dict.len(), logic.manifest.clone())
     };
 
     let elapsed = start_time.elapsed().as_millis();
     log::info!("Updated {album_count} albums.");
     log::info!("Rebuilt Logic Engine in {elapsed}ms.");
 
-    let _ = state.tx.send(json!({"type": "LOGIC_UPDATE"}).to_string());
+    let _ = state.tx.send(
+        json!({
+            "type": "LOGIC_UPDATE",
+            "manifest": manifest
+        })
+        .to_string(),
+    );
     Json(json!({"status": "ok"})).into_response()
 }
 

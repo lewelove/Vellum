@@ -39,12 +39,13 @@ async fn handle_config_change(state: &Arc<AppState>) {
                 config_guard.resolved_dependencies.clone_from(&dependencies);
             }
 
-            {
+            let manifest = {
                 let mut logic = state.logic.write().await;
                 if let Err(e) = logic.reload_manifest(&config_path) {
                     log::error!("Failed to reload logic manifest: {e}");
                 }
-            }
+                logic.manifest.clone()
+            };
 
             let _ = state.tx.send(
                 json!({
@@ -56,7 +57,13 @@ async fn handle_config_change(state: &Arc<AppState>) {
                 .to_string(),
             );
 
-            let _ = state.tx.send(json!({ "type": "LOGIC_UPDATE" }).to_string());
+            let _ = state.tx.send(
+                json!({
+                    "type": "LOGIC_UPDATE",
+                    "manifest": manifest
+                })
+                .to_string(),
+            );
 
             for (name, cfg) in &new_interfaces {
                 let _ = state.tx.send(
