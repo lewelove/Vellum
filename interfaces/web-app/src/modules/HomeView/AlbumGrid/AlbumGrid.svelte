@@ -63,7 +63,8 @@ function fitText(cCtx: CanvasRenderingContext2D, text: string, maxWidth: number)
 
 function getTextCanvas(album: any, coverSize: number, textBlockHeight: number, textConfig: any) {
   if (textBlockHeight <= 0) return null;
-  if (textCache.has(album.id)) return textCache.get(album.id)!;
+  const cacheKey = `${album.id}:${album.title}:${album.artist}`;
+  if (textCache.has(cacheKey)) return textCache.get(cacheKey)!;
 
   const c = document.createElement("canvas");
   c.width = coverSize * dpr;
@@ -98,7 +99,7 @@ function getTextCanvas(album: any, coverSize: number, textBlockHeight: number, t
 
   cCtx.globalAlpha = 1.0;
 
-  textCache.set(album.id, c);
+  textCache.set(cacheKey, c);
   return c;
 }
 
