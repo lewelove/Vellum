@@ -392,20 +392,14 @@ impl LuaEngine {
             .get("__VELLUM_DISPATCHER")
             .map_err(|e| anyhow::anyhow!("{e}"))?;
 
-        let mut cleaned_ctx = ctx_val.clone();
-        strip_nulls(&mut cleaned_ctx);
-
-        let mut cleaned_manifests = manifests_val.clone();
-        strip_nulls(&mut cleaned_manifests);
-
         let lua_ctx = self
             .lua
-            .to_value(&cleaned_ctx)
+            .to_value(ctx_val)
             .map_err(|e| anyhow::anyhow!("{e}"))?;
 
         let lua_manifests = self
             .lua
-            .to_value(&cleaned_manifests)
+            .to_value(manifests_val)
             .map_err(|e| anyhow::anyhow!("{e}"))?;
 
         let res: mlua::Table = dispatcher
@@ -417,23 +411,6 @@ impl LuaEngine {
             .from_value(mlua::Value::Table(res))
             .map_err(|e| anyhow::anyhow!("{e}"))?;
         Ok(json_res)
-    }
-}
-
-fn strip_nulls(value: &mut serde_json::Value) {
-    match value {
-        serde_json::Value::Object(map) => {
-            map.retain(|_, v| !v.is_null());
-            for v in map.values_mut() {
-                strip_nulls(v);
-            }
-        }
-        serde_json::Value::Array(arr) => {
-            for v in arr.iter_mut() {
-                strip_nulls(v);
-            }
-        }
-        _ => {}
     }
 }
 
