@@ -33,6 +33,8 @@ pub struct GrouperDef {
     pub index: Option<bool>,
     #[serde(default)]
     pub count: Option<bool>,
+    #[serde(default)]
+    pub reverse: bool,
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug, Default)]

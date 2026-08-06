@@ -1,5 +1,10 @@
 use super::{LogicEngine, SortKey, value_to_sort_key};
+use roaring::RoaringBitmap;
 use serde_json::{Value, json};
+
+fn value_to_display_string(val: &Value) -> String {
+    val.as_str().map_or_else(|| val.to_string(), ToString::to_string)
+}
 
 impl LogicEngine {
     pub fn build_cache(&mut self) {
@@ -41,15 +46,45 @@ impl LogicEngine {
             if let Some(groupers) = eval_res.get("groupers").and_then(Value::as_object) {
                 for (grouper_id, val) in groupers {
                     let facet_map = self.facets_cache.entry(grouper_id.clone()).or_default();
+
+                    let mut process_item = |obj: &Value| {
+                        let (display_val, sort_val) = obj.as_object().map_or_else(
+                            || {
+                                let s = value_to_display_string(obj);
+                                (s.clone(), Value::String(s))
+                            },
+                            |map| {
+                                let v = map.get("value").map_or_else(
+                                    String::new,
+                                    value_to_display_string,
+                                );
+                                let s = map.get("sort").unwrap_or(&Value::Null);
+                                (v, s.clone())
+                            },
+                        );
+
+                        let sort_key = value_to_sort_key(&sort_val);
+                        facet_map
+                            .entry(display_val)
+                            .and_modify(|(existing_key, bitmap)| {
+                                if sort_key < *existing_key {
+                                    *existing_key = sort_key.clone();
+                                }
+                                bitmap.insert(uid);
+                            })
+                            .or_insert_with(|| {
+                                let mut bm = RoaringBitmap::new();
+                                bm.insert(uid);
+                                (sort_key, bm)
+                            });
+                    };
+
                     if let Some(arr) = val.as_array() {
                         for item in arr {
-                            let s = item.as_str().map_or_else(|| item.to_string(), ToString::to_string);
-                            facet_map.entry(s).or_default().insert(uid);
+                            process_item(item);
                         }
-                    } else if let Some(s) = val.as_str() {
-                        facet_map.entry(s.to_string()).or_default().insert(uid);
                     } else {
-                        facet_map.entry(val.to_string()).or_default().insert(uid);
+                        process_item(val);
                     }
                 }
             }

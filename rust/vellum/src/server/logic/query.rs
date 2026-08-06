@@ -47,7 +47,7 @@ impl LogicEngine {
                 }
                 final_mask = searched;
             } else if let Some(facet_vals) = self.facets_cache.get(fk) {
-                if let Some(facet_mask) = facet_vals.get(fv) {
+                if let Some((_, facet_mask)) = facet_vals.get(fv) {
                     final_mask &= facet_mask;
                 } else {
                     final_mask.clear();
@@ -94,35 +94,37 @@ impl LogicEngine {
             final_mask &= f_mask;
         }
 
-        let mut results = Vec::new();
+        let grouper_def = self.manifest.groupers.get(grouper);
+        let reverse = grouper_def.is_some_and(|g| g.reverse);
+
+        let mut items = Vec::new();
         if let Some(facet_map) = self.facets_cache.get(grouper) {
-            for (val, mask) in facet_map {
+            for (val, (sort_key, mask)) in facet_map {
                 let count = mask.intersection_len(&final_mask) as usize;
                 if count > 0 {
-                    results.push(json!({
-                        "value": val,
-                        "label": val,
-                        "count": count
-                    }));
+                    items.push((
+                        sort_key.clone(),
+                        val.clone(),
+                        json!({
+                            "value": val,
+                            "label": val,
+                            "count": count
+                        }),
+                    ));
                 }
             }
         }
 
-        results.sort_by(|a, b| {
-            let label_a = a
-                .get("label")
-                .and_then(Value::as_str)
-                .unwrap_or("")
-                .to_lowercase();
-            let label_b = b
-                .get("label")
-                .and_then(Value::as_str)
-                .unwrap_or("")
-                .to_lowercase();
-            alphanumeric_sort::compare_str(&label_a, &label_b)
+        items.sort_by(|a, b| {
+            a.0.cmp(&b.0)
+                .then_with(|| alphanumeric_sort::compare_str(&a.1, &b.1))
         });
 
-        results
+        if reverse {
+            items.reverse();
+        }
+
+        items.into_iter().map(|(_, _, json_val)| json_val).collect()
     }
 
     pub fn find_ids(&self, query_str: &str) -> Vec<String> {
