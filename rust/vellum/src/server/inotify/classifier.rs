@@ -31,10 +31,7 @@ pub async fn classify_events(paths: &[PathBuf], state: &Arc<AppState>) -> Change
     }
     drop(guard);
 
-    let known_ids: HashSet<String> = {
-        let logic = state.logic.read().await;
-        logic.dict.keys().cloned().collect()
-    };
+    let logic = state.logic.read().await;
 
     for p in paths {
         let p_canon = p.canonicalize().unwrap_or_else(|_| p.clone());
@@ -43,8 +40,8 @@ pub async fn classify_events(paths: &[PathBuf], state: &Arc<AppState>) -> Change
             flags.config = true;
         }
 
-        if let Some(album_id) = resolve_album_id(&p_canon, &library_root, &known_ids)
-            .or_else(|| resolve_album_id(p, &library_root, &known_ids))
+        if let Some(album_id) = resolve_album_id(&p_canon, &library_root, &logic.dict)
+            .or_else(|| resolve_album_id(p, &library_root, &logic.dict))
             && let Ok(mut tracked) = state.tracked_albums.lock()
         {
             tracked.insert(album_id);
@@ -60,6 +57,7 @@ pub async fn classify_events(paths: &[PathBuf], state: &Arc<AppState>) -> Change
             }
         }
     }
+    drop(logic);
 
     flags
 }
@@ -67,7 +65,7 @@ pub async fn classify_events(paths: &[PathBuf], state: &Arc<AppState>) -> Change
 fn resolve_album_id(
     path: &Path,
     library_root: &Path,
-    known_ids: &HashSet<String>,
+    dict: &std::collections::HashMap<String, serde_json::Value>,
 ) -> Option<String> {
     let rel = path.strip_prefix(library_root).ok()?;
     let mut curr = if path.is_dir() {
@@ -84,7 +82,7 @@ fn resolve_album_id(
 
         if curr.join("metadata.toml").exists()
             || curr.join("album.lock.json").exists()
-            || known_ids.contains(&rel_str)
+            || dict.contains_key(&rel_str)
         {
             return Some(rel_str);
         }
@@ -96,7 +94,7 @@ fn resolve_album_id(
     }
 
     let rel_str = rel.to_string_lossy().to_string();
-    if known_ids.contains(&rel_str) {
+    if dict.contains_key(&rel_str) {
         return Some(rel_str);
     }
 
