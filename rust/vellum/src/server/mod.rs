@@ -112,10 +112,16 @@ pub async fn run(port: u16) -> Result<()> {
         config: RwLock::new(server_config),
         mpd_engine,
         tracked_albums: Arc::new(std::sync::Mutex::new(std::collections::HashSet::new())),
-        full_rescan_needed: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+        full_rescan_needed: Arc::new(std::sync::atomic::AtomicBool::new(true)),
     });
 
     inotify::start(Arc::clone(&app_state));
+
+    tokio::spawn(async move {
+        if let Err(e) = crate::update::run(None, false, None, true).await {
+            log::error!("Startup auto-update error: {e}");
+        }
+    });
 
     let cors = CorsLayer::new()
         .allow_origin(Any)
