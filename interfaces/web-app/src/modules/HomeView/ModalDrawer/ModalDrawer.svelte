@@ -23,6 +23,25 @@ let discCount = $derived(Number(infoData.total_discs) || 1);
 let trackCount = $derived(Number(infoData.total_tracks) || 0);
 let durationStr = $derived(infoData.duration_formatted || "--:--");
 
+let isReady = $state(false);
+
+$effect(() => {
+  if (!coverHash) {
+    isReady = true;
+    return;
+  }
+
+  const dpr = window.devicePixelRatio || 1;
+  const targetWidth = Math.round((leftColumnWidth - 64) * dpr);
+  const srcUrl = `/api/covers/catmullrom/${targetWidth}px/${coverHash}?v=${coverHash}`;
+
+  const img = new Image();
+  img.src = srcUrl;
+  img.decode().finally(() => {
+    isReady = true;
+  });
+});
+
 function fadeIf(node: Element, params: any) {
   if (view.isFocusInstant) {
     return { duration: 0, css: () => "" };
@@ -73,6 +92,7 @@ function handleBackdropClick(e: MouseEvent) {
 
 <svelte:window bind:innerWidth={windowWidth} />
 
+{#if isReady}
 <div
   class="modal-backdrop"
   onclick={handleBackdropClick}
@@ -176,6 +196,7 @@ function handleBackdropClick(e: MouseEvent) {
     </div>
   </div>
 </div>
+{/if}
 
 <style>
 .button-bar {
