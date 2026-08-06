@@ -1,6 +1,6 @@
 # Vellum
 
-Vellum is an MPD client and album-centric library engine built from the first Unix Philosophy principles for archivist-minded collectors. It brings full Lua scriptability, plain-text data management, Ahead-Of-Time library compilation guarantees, hot reloading, and incredible performance to your album collection.
+Vellum is an MPD client and album-centric music library engine built from the first Unix Philosophy principles for archivist-minded collectors. It brings full Lua scriptability, plain-text data management, Ahead-Of-Time library compilation guarantees, hot reloading, and incredible performance to your album collection.
 
 > Vellum is prepared animal skin or membrane, typically used as writing material. — [Wikipedia](https://en.wikipedia.org/wiki/Vellum)
 
