@@ -1,6 +1,6 @@
 # Leland
 
-**Leland** is an MPD client and album-centric music library engine built from the first Unix Philosophy principles for archivist-minded collectors. It brings full Lua scriptability, plain-text data management, Ahead-Of-Time library compilation guarantees, hot reloading, and incredible performance to your album collection.
+**Leland** is an MPD client and album-centric music library engine built from the first Unix Philosophy principles for archivist-minded collectors. It brings full Lua scriptability, plain-text data management, and Ahead-Of-Time library compilation guarantees to your album collection.
 
 ## Philosophy
 
@@ -71,7 +71,7 @@ This project is in active development. To ensure a reproducible environment it's
 Clone the repository:
 
 ```bash
-git clone https://github.com/lewelove/leland.git
+git clone https://github.com/lewelove/Leland.git leland
 cd leland
 ```
 
