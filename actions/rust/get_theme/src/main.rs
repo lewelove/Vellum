@@ -35,7 +35,7 @@ fn main() -> Result<()> {
         .context("Missing albums array")?;
 
     let library_str = payload
-        .pointer("/config/vellum/storage/library")
+        .pointer("/config/leland/storage/library")
         .and_then(Value::as_str)
         .context("Missing library in payload")?;
 

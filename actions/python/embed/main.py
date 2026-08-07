@@ -255,7 +255,7 @@ def main():
         sys.exit(1)
 
     raw_albums = data.get("albums", [])
-    vellum_cfg = data.get("config", {}).get("vellum", {})
+    leland_cfg = data.get("config", {}).get("leland", {})
     action_cfg = data.get("config", {}).get("action", {})
     options_str = data.get("options", "")
 
@@ -288,7 +288,7 @@ def main():
             continue
         albums.append(album_lock)
 
-    library_str = vellum_cfg.get("storage", {}).get("library", "")
+    library_str = leland_cfg.get("storage", {}).get("library", "")
     if not library_str:
         print("Error: library not defined in config")
         sys.exit(1)

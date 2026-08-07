@@ -1,0 +1,84 @@
+pub mod album;
+pub mod assets;
+pub mod build;
+pub mod context;
+pub mod covers;
+pub mod stream;
+pub mod tracks;
+pub mod utils;
+
+use anyhow::{Context, Result};
+use std::path::PathBuf;
+use std::sync::Arc;
+use tokio::sync::mpsc;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CompileMode {
+    Standard,
+    Intermediary,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExportTarget {
+    File,
+    Stdout,
+}
+
+pub struct CompileFlags {
+    pub mode: CompileMode,
+    pub target: ExportTarget,
+    pub pretty: bool,
+}
+
+pub struct CompileOptions {
+    pub target_path: PathBuf,
+    pub flags: Vec<String>,
+    pub specific_albums: Option<Vec<PathBuf>>,
+    pub jobs: Option<usize>,
+    pub notify_tx: Option<mpsc::Sender<stream::AlbumUpdateSignal>>,
+    pub compile_flags: CompileFlags,
+}
+
+pub async fn run(mut options: CompileOptions) -> Result<()> {
+    let config = libleland::lua::ResolvedConfig::load().context("Config failed")?;
+    if !options.flags.contains(&"default".to_string()) {
+        options.flags.push("default".to_string());
+    }
+
+    let effective_jobs = options.jobs.or(config.app.compiler.jobs);
+
+    let albums = if let Some(l) = options.specific_albums {
+        l
+    } else {
+        libleland::scanner::find_target_albums(&options.target_path)?
+    };
+
+    if albums.is_empty() {
+        return Ok(());
+    }
+
+    if options.compile_flags.mode == CompileMode::Intermediary {
+        for root in &albums {
+            let m = build::build(
+                root,
+                &config,
+            )?;
+            if options.compile_flags.pretty {
+                println!("{}", serde_json::to_string_pretty(&m)?);
+            } else {
+                println!("{}", serde_json::to_string(&m)?);
+            }
+        }
+        return Ok(());
+    }
+
+    let ctx = stream::StreamContext {
+        albums: albums.clone(),
+        config: Arc::new(config),
+        target: options.compile_flags.target,
+        jobs: effective_jobs,
+        notify_tx: options.notify_tx,
+    };
+
+    stream::run(ctx).await
+}

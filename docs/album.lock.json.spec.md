@@ -5,7 +5,7 @@ This document describes specification of the `album.lock.json` file, how it comp
 ```jsonc
 {
   // type definitions
-  // values below are used to determine type of vellum value for each lock file key
+  // values below are used to determine type of leland value for each lock file key
   //
   // "" -> string
   // 1 -> number
@@ -28,10 +28,10 @@ This document describes specification of the `album.lock.json` file, how it comp
     // The `album.date` value, a string.
     "date": "",
 
-    // Album path relative to `vl.config.storage.library`.
+    // Album path relative to `ll.config.storage.library`.
     "id": ""
 
-    // User configurable keys from `vl.compile.album.key`.
+    // User configurable keys from `ll.compile.album.key`.
     "keys": {},
 
     "info": {
@@ -107,7 +107,7 @@ This document describes specification of the `album.lock.json` file, how it comp
       // `tracks[].title`
       "title": "",
 
-      // User keys provided by `vl.compile.tracks.key`
+      // User keys provided by `ll.compile.tracks.key`
       "keys": {},
       "info": {
         "sample_rate": 1,

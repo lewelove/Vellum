@@ -118,7 +118,7 @@ onMount(() => {
 </script>
 
 <svelte:head>
-  <link rel="stylesheet" href="/api/interfaces/default/assets/vellum.css?v={view.assetVersion}" />
+  <link rel="stylesheet" href="/api/interfaces/default/assets/leland.css?v={view.assetVersion}" />
 </svelte:head>
 
 <main tabindex="-1">

@@ -1549,6 +1549,43 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7a79a3332a6609480d7d0c9eab957bca6b455b91bb84e66d19f5ff66294b85b8"
 
 [[package]]
+name = "leland"
+version = "0.1.0"
+dependencies = [
+ "alphanumeric-sort",
+ "anyhow",
+ "axum",
+ "base64",
+ "blake3",
+ "chrono",
+ "clap",
+ "dirs",
+ "fast_image_resize",
+ "futures",
+ "image",
+ "indexmap",
+ "indicatif",
+ "libleland",
+ "log",
+ "mpd_client",
+ "notify",
+ "rand 0.10.0",
+ "rayon",
+ "regex",
+ "reqwest",
+ "roaring",
+ "serde",
+ "serde_json",
+ "simple_logger",
+ "thiserror 2.0.18",
+ "tokio",
+ "toml",
+ "tower-http",
+ "walkdir",
+ "xxhash-rust",
+]
+
+[[package]]
 name = "libc"
 version = "0.2.182"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1565,17 +1602,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "libredox"
-version = "0.1.12"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3d0b95e02c851351f877147b7deea7b1afb1df71b63aa5f8270716e0c5720616"
-dependencies = [
- "bitflags 2.11.0",
- "libc",
-]
-
-[[package]]
-name = "libvellum"
+name = "libleland"
 version = "0.1.0"
 dependencies = [
  "alphanumeric-sort",
@@ -1596,6 +1623,16 @@ dependencies = [
  "thiserror 2.0.18",
  "toml",
  "walkdir",
+]
+
+[[package]]
+name = "libredox"
+version = "0.1.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3d0b95e02c851351f877147b7deea7b1afb1df71b63aa5f8270716e0c5720616"
+dependencies = [
+ "bitflags 2.11.0",
+ "libc",
 ]
 
 [[package]]
@@ -3244,43 +3281,6 @@ dependencies = [
  "aligned-vec",
  "num-traits",
  "wasm-bindgen",
-]
-
-[[package]]
-name = "vellum"
-version = "0.1.0"
-dependencies = [
- "alphanumeric-sort",
- "anyhow",
- "axum",
- "base64",
- "blake3",
- "chrono",
- "clap",
- "dirs",
- "fast_image_resize",
- "futures",
- "image",
- "indexmap",
- "indicatif",
- "libvellum",
- "log",
- "mpd_client",
- "notify",
- "rand 0.10.0",
- "rayon",
- "regex",
- "reqwest",
- "roaring",
- "serde",
- "serde_json",
- "simple_logger",
- "thiserror 2.0.18",
- "tokio",
- "toml",
- "tower-http",
- "walkdir",
- "xxhash-rust",
 ]
 
 [[package]]

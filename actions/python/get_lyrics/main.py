@@ -68,8 +68,8 @@ def clean_genius_lyrics(lyrics, title):
 def sanitize_filename(name):
     return re.sub(r'[<>:"/\\|?*]', '_', name)
 
-def get_album_lyrics(vellum_cfg, album_lock, access_token, mpd_file):
-    library_str = vellum_cfg.get("storage", {}).get("library", "")
+def get_album_lyrics(leland_cfg, album_lock, access_token, mpd_file):
+    library_str = leland_cfg.get("storage", {}).get("library", "")
     if not library_str:
         print("Error: library not defined in config")
         return
@@ -162,12 +162,12 @@ def main():
         sys.exit(1)
 
     albums = data.get("albums", [])
-    vellum_cfg = data.get("config", {}).get("vellum", {})
+    leland_cfg = data.get("config", {}).get("leland", {})
     action_cfg = data.get("config", {}).get("action", {})
 
     token = os.environ.get("GENIUS_ACCESS_TOKEN") or os.environ.get("GENIUS_API_KEY")
     if not token:
-        token = vellum_cfg.get("actions", {}).get("genius_access_token")
+        token = leland_cfg.get("actions", {}).get("genius_access_token")
     if not token:
         token = action_cfg.get("genius_access_token")
     
@@ -178,7 +178,7 @@ def main():
     mpd_file = get_playing_file()
 
     for album_lock in albums:
-        get_album_lyrics(vellum_cfg, album_lock, token, mpd_file)
+        get_album_lyrics(leland_cfg, album_lock, token, mpd_file)
 
 if __name__ == "__main__":
     main()

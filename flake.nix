@@ -1,5 +1,5 @@
 {
-  description = "Vellum Development Environment";
+  description = "Leland Development Environment";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -80,8 +80,8 @@
 
             for arg in "$@"; do
               case "$arg" in
-                libvellum)  TARGET="libvellum" ;;
-                vellum)     TARGET="vellum" ;;
+                libleland)  TARGET="libleland" ;;
+                leland)     TARGET="leland" ;;
                 actions)    TARGET="actions" ;;
                 interface)  TARGET="interface" ;;
                 web-app)    TARGET="interface" ;;
@@ -89,55 +89,68 @@
               esac
             done
 
-            build_vellum() {
+            build_leland() {
+
+              echo ""
+              echo "Building \`leland\` Binary..."
+              echo ""
+
               cd "$ROOT/rust"
               cargo clippy --workspace -- -D warnings
-              cargo test --workspace
-              cargo build -p vellum --release "''${ARGS[@]}"
+              cargo build -p leland --release "''${ARGS[@]}"
             }
 
-            build_libvellum() {
+            build_libleland() {
               cd "$ROOT/rust"
               cargo clippy --workspace -- -D warnings
               cargo test --workspace
-              cargo build -p libvellum --release "''${ARGS[@]}"
+              cargo build -p libleland --release "''${ARGS[@]}"
             }
 
             build_actions() {
+
+              echo ""
+              echo "Building Actions..."
+              echo ""
+
+              cd "$ROOT/actions/rust"
+              cargo clippy --workspace -- -D warnings
+              cargo build --workspace --release "''${ARGS[@]}"
+              
               cd "$ROOT"
               nix build .#get_lyrics --out-link actions/python/get_lyrics/result
               nix build .#search_cover --out-link actions/python/search_cover/result
               nix build .#embed --out-link actions/python/embed/result
               nix build .#rename --out-link actions/python/rename/result
               
-              cd "$ROOT/actions/rust"
-              cargo clippy --workspace -- -D warnings
-              cargo test --workspace
-              cargo build --workspace --release "''${ARGS[@]}"
-              
+              ln -sf "rust/target/release/get_theme" "$ROOT/actions/get_theme"
+              ln -sf "rust/target/release/collect" "$ROOT/actions/collect"
               ln -sf "python/get_lyrics/result/bin/get_lyrics" "$ROOT/actions/get_lyrics"
               ln -sf "python/search_cover/result/bin/search_cover" "$ROOT/actions/search_cover"
               ln -sf "python/embed/result/bin/embed" "$ROOT/actions/embed"
               ln -sf "python/rename/result/bin/rename" "$ROOT/actions/rename"
-              ln -sf "rust/target/release/get_theme" "$ROOT/actions/get_theme"
-              ln -sf "rust/target/release/collect" "$ROOT/actions/collect"
             }
 
             build_interface() {
+
+              echo ""
+              echo "Building Web App Interface..."
+              echo ""
+
               cd "$ROOT/interfaces/web-app"
               bun run build
             }
 
-            if [ "$TARGET" = "vellum" ]; then
-              build_vellum
-            elif [ "$TARGET" = "libvellum" ]; then
-              build_libvellum
+            if [ "$TARGET" = "leland" ]; then
+              build_leland
+            elif [ "$TARGET" = "libleland" ]; then
+              build_libleland
             elif [ "$TARGET" = "actions" ]; then
               build_actions
             elif [ "$TARGET" = "interface" ]; then
               build_interface
             else
-              build_vellum
+              build_leland
               build_actions
               build_interface
             fi
@@ -175,8 +188,8 @@
           '';
         };
 
-        vellum-bin = pkgs.writeShellApplication {
-          name = "vellum";
+        leland-bin = pkgs.writeShellApplication {
+          name = "leland";
           runtimeInputs = [ 
             pkgs.bun
             pkgs.cargo 
@@ -191,14 +204,14 @@
           ];
           text = ''
             ROOT=$(git rev-parse --show-toplevel)
-            BIN="$ROOT/rust/target/release/vellum"
+            BIN="$ROOT/rust/target/release/leland"
             COMMAND=''${1:-"help"}
             if [ "$#" -gt 0 ]; then shift; fi
 
             case "$COMMAND" in
               interface|server|manifest|compile|update|harvest|x|query)
                 if [ ! -f "$BIN" ]; then
-                  echo "Error: vellum binary not found at $BIN. Run 'build vellum --release' first."
+                  echo "Error: leland binary not found at $BIN. Run 'build leland --release' first."
                   exit 1
                 fi
                 cd "$ROOT" && "$BIN" "$COMMAND" "$@"
@@ -221,7 +234,7 @@
                 cargo test "''${TEST_ARGS[@]}"
                 ;;
               help|--help|-h)
-                echo "Vellum CLI Commands:"
+                echo "Leland CLI Commands:"
                 echo "  interface       : Run system installed interface"
                 echo "  server          : Start Backend Rust Server"
                 echo "  compile         : Compile metadata locks"
@@ -247,7 +260,7 @@
           openssl
           build-cli
           check-cli
-          vellum-bin
+          leland-bin
           cargo
           rustc
           rust-analyzer
