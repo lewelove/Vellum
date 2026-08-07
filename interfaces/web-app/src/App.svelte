@@ -3,6 +3,7 @@ import { onMount } from "svelte";
 import { view } from "./library/view.svelte.ts";
 import { initApp } from "./library/init.ts";
 import { nav, setTab } from "./navigation.svelte.ts";
+import { executeAction } from "./api.ts";
 
 import HomeView from "./modules/HomeView/HomeView.svelte";
 import QueueView from "./modules/QueueView/QueueView.svelte";
@@ -50,6 +51,13 @@ function handleKeydown(e: KeyboardEvent) {
 
   const code = e.code;
   const key = e.key;
+
+  if ((e.ctrlKey || e.metaKey) && (key === "," || code === "Comma")) {
+    e.preventDefault();
+    e.stopPropagation();
+    executeAction("open_config_in_terminal", "").catch(() => {});
+    return;
+  }
 
   if (code === "Space") {
     e.preventDefault();
