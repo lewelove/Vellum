@@ -31,6 +31,9 @@ pub async fn create_album_directory(
     let meta_path = album_path.join("metadata.toml");
     write_metadata_toml(data, &meta_path)?;
 
+    let id_path = album_path.join("id.toml");
+    write_id_toml(data, &id_path)?;
+
     let history_path = album_path.join("history.toml");
     write_history_toml(&history_path)?;
 
@@ -83,10 +86,6 @@ fn write_metadata_toml(data: &AlbumData, path: &Path) -> Result<()> {
     if !data.styles.is_empty() {
         lines.push(format!("styles = {}", toml_array(&data.styles)));
     }
-    if let Some(ref durl) = data.discogs_master_url {
-        lines.push(String::new());
-        lines.push(format!("discogs_master_url = \"{}\"", escape_toml_string(durl)));
-    }
 
     lines.push(String::new());
 
@@ -112,9 +111,17 @@ fn write_metadata_toml(data: &AlbumData, path: &Path) -> Result<()> {
     Ok(())
 }
 
+fn write_id_toml(data: &AlbumData, path: &Path) -> Result<()> {
+    if let Some(ref id) = data.discogs_master_id {
+        let content = format!("[album]\n\ndiscogs_masterid = \"{}\"\n", escape_toml_string(id));
+        fs::write(path, content)?;
+    }
+    Ok(())
+}
+
 fn write_history_toml(path: &Path) -> Result<()> {
     let now = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
-    let content = format!("[album]\n\ndate_added_vellum = \"{now}\"\n");
+    let content = format!("[album]\n\ndate_added_vellum = {now}\n");
     fs::write(path, content)?;
     Ok(())
 }

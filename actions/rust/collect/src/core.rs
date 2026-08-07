@@ -45,7 +45,7 @@ pub async fn execute_collect(payload: &ActionPayload) -> Result<()> {
 async fn fetch_and_fill_discogs_master(id: u64, data: &mut AlbumData) -> Result<()> {
     let master = fetch_discogs_master(id).await?;
     data.discogs_raw = Some(serde_json::to_value(&master)?);
-    data.discogs_master_url = Some(format!("https://discogs.com/master/{id}"));
+    data.discogs_master_id = Some(id.to_string());
     data.album = master.title;
     data.date = master.year.map_or_else(String::new, |y| y.to_string());
 
@@ -104,7 +104,7 @@ fn fetch_and_fill_discogs_release(
     data: &mut AlbumData,
 ) -> Result<()> {
     data.discogs_raw = Some(serde_json::to_value(&release)?);
-    data.discogs_master_url = Some(format!("https://discogs.com/release/{id}"));
+    data.discogs_master_id = Some(id.to_string());
     data.album = release.title;
     data.date = release.year.map_or_else(String::new, |y| y.to_string());
 
