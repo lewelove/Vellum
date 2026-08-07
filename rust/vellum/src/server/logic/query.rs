@@ -47,7 +47,7 @@ impl LogicEngine {
                 }
                 final_mask = searched;
             } else if let Some(facet_vals) = self.facets_cache.get(fk) {
-                if let Some((_, facet_mask)) = facet_vals.get(fv) {
+                if let Some((_, _, facet_mask)) = facet_vals.get(fv) {
                     final_mask &= facet_mask;
                 } else {
                     final_mask.clear();
@@ -99,7 +99,7 @@ impl LogicEngine {
 
         let mut items = Vec::new();
         if let Some(facet_map) = self.facets_cache.get(grouper) {
-            for (val, (sort_key, mask)) in facet_map {
+            for (val, (sort_key, sort_str, mask)) in facet_map {
                 let count = mask.intersection_len(&final_mask) as usize;
                 if count > 0 {
                     items.push((
@@ -108,6 +108,7 @@ impl LogicEngine {
                         json!({
                             "value": val,
                             "label": val,
+                            "sort": sort_str,
                             "count": count
                         }),
                     ));

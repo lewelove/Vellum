@@ -6,6 +6,28 @@ fn value_to_display_string(val: &Value) -> String {
     val.as_str().map_or_else(|| val.to_string(), ToString::to_string)
 }
 
+fn sort_val_to_string(val: &Value) -> String {
+    match val {
+        Value::String(s) => s.clone(),
+        Value::Number(n) => n.to_string(),
+        Value::Array(arr) => arr.iter().map(sort_val_to_string).collect::<Vec<_>>().join(" "),
+        Value::Object(map) => {
+            let mut entries: Vec<_> = map.iter().collect();
+            entries.sort_by(|(k1, _), (k2, _)| {
+                let n1 = k1.parse::<usize>().ok();
+                let n2 = k2.parse::<usize>().ok();
+                match (n1, n2) {
+                    (Some(a), Some(b)) => a.cmp(&b),
+                    _ => k1.cmp(k2),
+                }
+            });
+            entries.into_iter().map(|(_, v)| sort_val_to_string(v)).collect::<Vec<_>>().join(" ")
+        }
+        Value::Bool(b) => b.to_string(),
+        Value::Null => String::new(),
+    }
+}
+
 impl LogicEngine {
     pub fn build_cache(&mut self) {
         self.libraries_cache.clear();
@@ -59,23 +81,30 @@ impl LogicEngine {
                                     value_to_display_string,
                                 );
                                 let s = map.get("sort").unwrap_or(&Value::Null);
-                                (v, s.clone())
+                                let s_val = if s.is_null() {
+                                    Value::String(v.clone())
+                                } else {
+                                    s.clone()
+                                };
+                                (v, s_val)
                             },
                         );
 
                         let sort_key = value_to_sort_key(&sort_val);
+
                         facet_map
                             .entry(display_val)
-                            .and_modify(|(existing_key, bitmap)| {
+                            .and_modify(|(existing_key, existing_str, bitmap)| {
                                 if sort_key < *existing_key {
                                     *existing_key = sort_key.clone();
+                                    *existing_str = sort_val_to_string(&sort_val);
                                 }
                                 bitmap.insert(uid);
                             })
                             .or_insert_with(|| {
                                 let mut bm = RoaringBitmap::new();
                                 bm.insert(uid);
-                                (sort_key, bm)
+                                (sort_key, sort_val_to_string(&sort_val), bm)
                             });
                     };
 

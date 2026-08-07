@@ -1,51 +1,42 @@
 <script lang="ts">
 import { fade } from "svelte/transition";
-import { SvelteMap } from "svelte/reactivity";
 
 let { items = [], container = null }: { items?: any[]; container?: HTMLElement | null } = $props();
-
-const ALL_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ#".split("");
 
 let indexContainer: HTMLDivElement | null = $state(null);
 let charsWrapper: HTMLDivElement | null = $state(null);
 let isScrubbing = $state(false);
 let scrubChar = $state("");
+let activeEntryIndex = $state(-1);
 let bubbleY = $state(0);
 
 function getBucketChar(label: string) {
-  if (!label) return "#";
+  if (!label) return "?";
   const normalized = label
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toUpperCase();
   const char = normalized.charAt(0);
-  return /[A-Z]/.test(char) ? char : "#";
+  if (/[A-Z]/.test(char)) return char;
+  if (/[0-9]/.test(char)) return "#";
+  return "?";
 }
 
-let charJumpMap = $derived.by(() => {
-  const map = new SvelteMap<string, number>();
+let indexEntries = $derived.by(() => {
+  const entries: { char: string; itemIndex: number }[] = [];
   items.forEach((item, i) => {
-    const char = getBucketChar(item.label);
-    if (!map.has(char)) {
-      map.set(char, i);
+    const rawKey = item.sort ?? item.label ?? "";
+    const sortKey = String(rawKey);
+    const char = getBucketChar(sortKey);
+    if (entries.length === 0 || entries[entries.length - 1].char !== char) {
+      entries.push({ char, itemIndex: i });
     }
   });
-
-  let nextAvailableIdx = items.length > 0 ? items.length - 1 : 0;
-  for (let i = ALL_CHARS.length - 1; i >= 0; i--) {
-    const char = ALL_CHARS[i];
-    const val = map.get(char);
-    if (val !== undefined) {
-      nextAvailableIdx = val;
-    } else {
-      map.set(char, nextAvailableIdx);
-    }
-  }
-  return map;
+  return entries;
 });
 
 function calculateScrub(e: PointerEvent) {
-  if (!charsWrapper || !indexContainer || ALL_CHARS.length === 0) return;
+  if (!charsWrapper || !indexContainer || indexEntries.length === 0) return;
 
   const wrapperRect = charsWrapper.getBoundingClientRect();
   const containerRect = indexContainer.getBoundingClientRect();
@@ -56,24 +47,17 @@ function calculateScrub(e: PointerEvent) {
   let pct = wrapperY / wrapperRect.height;
   pct = Math.max(0, Math.min(1, pct));
 
-  const charIndex = Math.min(Math.floor(pct * ALL_CHARS.length), ALL_CHARS.length - 1);
-  const targetChar = ALL_CHARS[charIndex];
+  const entryIndex = Math.min(Math.floor(pct * indexEntries.length), indexEntries.length - 1);
+  const targetEntry = indexEntries[entryIndex];
 
-  if (targetChar !== scrubChar) {
-    scrubChar = targetChar;
+  if (activeEntryIndex !== entryIndex) {
+    activeEntryIndex = entryIndex;
+    scrubChar = targetEntry.char;
 
     if (container) {
-      const jumpIndex = charJumpMap.get(targetChar);
-      if (jumpIndex !== undefined && jumpIndex < items.length) {
-        const targetEl = container.querySelector(`#sidebar-item-${jumpIndex}`) as HTMLElement;
-        if (targetEl) {
-          container.scrollTop = targetEl.offsetTop - 12;
-        }
-      } else if (jumpIndex === items.length - 1 && items.length > 0) {
-        const targetEl = container.querySelector(`#sidebar-item-${jumpIndex}`) as HTMLElement;
-        if (targetEl) {
-          container.scrollTop = targetEl.offsetTop;
-        }
+      const targetEl = container.querySelector(`#sidebar-item-${targetEntry.itemIndex}`) as HTMLElement;
+      if (targetEl) {
+        container.scrollTop = targetEl.offsetTop - 12;
       }
     }
   }
@@ -93,6 +77,7 @@ function onPointerMove(e: PointerEvent) {
 function onPointerUp(e: PointerEvent) {
   isScrubbing = false;
   scrubChar = "";
+  activeEntryIndex = -1;
   if (indexContainer && indexContainer.hasPointerCapture(e.pointerId)) {
     indexContainer.releasePointerCapture(e.pointerId);
   }
@@ -111,9 +96,9 @@ function onPointerUp(e: PointerEvent) {
   tabindex="0"
 >
   <div class="chars-wrapper" bind:this={charsWrapper}>
-    {#each ALL_CHARS as char (char)}
-      <div class="index-char" class:active={isScrubbing && char === scrubChar}>
-        {char}
+    {#each indexEntries as entry, idx (idx)}
+      <div class="index-char" class:active={isScrubbing && activeEntryIndex === idx}>
+        {entry.char}
       </div>
     {/each}
   </div>

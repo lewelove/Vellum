@@ -16,7 +16,7 @@ pub struct LogicEngine {
     pub manifest: LogicManifest,
     pub(crate) libraries_cache: HashMap<String, RoaringBitmap>,
     pub(crate) filters_cache: HashMap<String, RoaringBitmap>,
-    pub(crate) facets_cache: HashMap<String, HashMap<String, (SortKey, RoaringBitmap)>>,
+    pub(crate) facets_cache: HashMap<String, HashMap<String, (SortKey, String, RoaringBitmap)>>,
     pub(crate) orders_cache: HashMap<String, Vec<u32>>,
     pub(crate) shelves_cache: HashMap<String, Vec<u32>>,
     pub(crate) uid_to_id: HashMap<u32, String>,
