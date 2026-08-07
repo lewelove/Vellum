@@ -121,7 +121,7 @@ fn write_id_toml(data: &AlbumData, path: &Path) -> Result<()> {
 
 fn write_history_toml(path: &Path) -> Result<()> {
     let now = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
-    let content = format!("[album]\n\ndate_added_leland = {now}\n");
+    let content = format!("[album]\n\ndate_added_dale = {now}\n");
     fs::write(path, content)?;
     Ok(())
 }

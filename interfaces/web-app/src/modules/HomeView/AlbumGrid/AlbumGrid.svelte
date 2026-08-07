@@ -77,7 +77,7 @@ function getTextCanvas(album: any, coverSize: number, textBlockHeight: number, t
   cCtx.fillStyle = colorsState.palette.ok200;
   cCtx.fillRect(0, 0, coverSize, textBlockHeight);
 
-  const fontStack = "'Inter Leland', 'Noto Sans', system-ui, sans-serif";
+  const fontStack = "'Inter Dale', 'Noto Sans', system-ui, sans-serif";
 
   cCtx.fillStyle = colorsState.palette.ok100;
   cCtx.globalAlpha = 1.0;

@@ -2,12 +2,12 @@
 @import url("https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-25..200");
 
 @font-face {
-  font-family: "Inter Leland";
+  font-family: "Inter Dale";
   src: url("/fonts/InterRegular.woff2") format("woff2");
 }
 
 @font-face {
-  font-family: "Inter Leland Tnum";
+  font-family: "Inter Dale Tnum";
   src: url("/fonts/InterTnumRegular.woff2") format("woff2");
 }
 
@@ -66,11 +66,11 @@
   --panel-text-shadow: 0 1px 3px oklch(0 0 0 / 0.15);
 
   --font-stack:
-    "Inter Leland", "Noto Sans", "Noto Sans JP", "Noto Sans SC", "Noto Sans TC", "Noto Sans KR",
+    "Inter Dale", "Noto Sans", "Noto Sans JP", "Noto Sans SC", "Noto Sans TC", "Noto Sans KR",
     "system-ui", sans-serif;
 
   --font-mono:
-    "Inter Leland Tnum", "Inter Leland", "Noto Sans", "Noto Sans JP", "Noto Sans SC",
+    "Inter Dale Tnum", "Inter Dale", "Noto Sans", "Noto Sans JP", "Noto Sans SC",
     "Noto Sans TC", "Noto Sans KR", "system-ui", sans-serif, monospace;
 }
 

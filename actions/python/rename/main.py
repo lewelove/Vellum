@@ -140,12 +140,12 @@ def main():
         sys.exit(1)
 
     albums = data.get("albums", [])
-    leland_cfg = data.get("config", {}).get("leland", {})
+    dale_cfg = data.get("config", {}).get("dale", {})
     options_str = data.get("options", "")
 
     auto_apply = "--auto" in options_str or "-y" in options_str
 
-    library_str = leland_cfg.get("storage", {}).get("library", "")
+    library_str = dale_cfg.get("storage", {}).get("library", "")
     if not library_str:
         sys.exit(1)
 

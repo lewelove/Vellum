@@ -647,6 +647,43 @@ dependencies = [
 ]
 
 [[package]]
+name = "dale"
+version = "0.1.0"
+dependencies = [
+ "alphanumeric-sort",
+ "anyhow",
+ "axum",
+ "base64",
+ "blake3",
+ "chrono",
+ "clap",
+ "dirs",
+ "fast_image_resize",
+ "futures",
+ "image",
+ "indexmap",
+ "indicatif",
+ "libdale",
+ "log",
+ "mpd_client",
+ "notify",
+ "rand 0.10.0",
+ "rayon",
+ "regex",
+ "reqwest",
+ "roaring",
+ "serde",
+ "serde_json",
+ "simple_logger",
+ "thiserror 2.0.18",
+ "tokio",
+ "toml",
+ "tower-http",
+ "walkdir",
+ "xxhash-rust",
+]
+
+[[package]]
 name = "data-encoding"
 version = "2.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1549,60 +1586,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7a79a3332a6609480d7d0c9eab957bca6b455b91bb84e66d19f5ff66294b85b8"
 
 [[package]]
-name = "leland"
-version = "0.1.0"
-dependencies = [
- "alphanumeric-sort",
- "anyhow",
- "axum",
- "base64",
- "blake3",
- "chrono",
- "clap",
- "dirs",
- "fast_image_resize",
- "futures",
- "image",
- "indexmap",
- "indicatif",
- "libleland",
- "log",
- "mpd_client",
- "notify",
- "rand 0.10.0",
- "rayon",
- "regex",
- "reqwest",
- "roaring",
- "serde",
- "serde_json",
- "simple_logger",
- "thiserror 2.0.18",
- "tokio",
- "toml",
- "tower-http",
- "walkdir",
- "xxhash-rust",
-]
-
-[[package]]
 name = "libc"
 version = "0.2.182"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6800badb6cb2082ffd7b6a67e6125bb39f18782f793520caee8cb8846be06112"
 
 [[package]]
-name = "libfuzzer-sys"
-version = "0.4.12"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f12a681b7dd8ce12bff52488013ba614b869148d54dd79836ab85aafdd53f08d"
-dependencies = [
- "arbitrary",
- "cc",
-]
-
-[[package]]
-name = "libleland"
+name = "libdale"
 version = "0.1.0"
 dependencies = [
  "alphanumeric-sort",
@@ -1623,6 +1613,16 @@ dependencies = [
  "thiserror 2.0.18",
  "toml",
  "walkdir",
+]
+
+[[package]]
+name = "libfuzzer-sys"
+version = "0.4.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f12a681b7dd8ce12bff52488013ba614b869148d54dd79836ab85aafdd53f08d"
+dependencies = [
+ "arbitrary",
+ "cc",
 ]
 
 [[package]]

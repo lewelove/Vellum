@@ -1,5 +1,5 @@
 {
-  description = "Leland Development Environment";
+  description = "Dale Development Environment";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -80,8 +80,8 @@
 
             for arg in "$@"; do
               case "$arg" in
-                libleland)  TARGET="libleland" ;;
-                leland)     TARGET="leland" ;;
+                libdale)  TARGET="libdale" ;;
+                dale)     TARGET="dale" ;;
                 actions)    TARGET="actions" ;;
                 interface)  TARGET="interface" ;;
                 web-app)    TARGET="interface" ;;
@@ -89,22 +89,22 @@
               esac
             done
 
-            build_leland() {
+            build_dale() {
 
               echo ""
-              echo "Building \`leland\` Binary..."
+              echo "Building \`dale\` Binary..."
               echo ""
 
               cd "$ROOT/rust"
               cargo clippy --workspace -- -D warnings
-              cargo build -p leland --release "''${ARGS[@]}"
+              cargo build -p dale --release "''${ARGS[@]}"
             }
 
-            build_libleland() {
+            build_libdale() {
               cd "$ROOT/rust"
               cargo clippy --workspace -- -D warnings
               cargo test --workspace
-              cargo build -p libleland --release "''${ARGS[@]}"
+              cargo build -p libdale --release "''${ARGS[@]}"
             }
 
             build_actions() {
@@ -141,16 +141,16 @@
               bun run build
             }
 
-            if [ "$TARGET" = "leland" ]; then
-              build_leland
-            elif [ "$TARGET" = "libleland" ]; then
-              build_libleland
+            if [ "$TARGET" = "dale" ]; then
+              build_dale
+            elif [ "$TARGET" = "libdale" ]; then
+              build_libdale
             elif [ "$TARGET" = "actions" ]; then
               build_actions
             elif [ "$TARGET" = "interface" ]; then
               build_interface
             else
-              build_leland
+              build_dale
               build_actions
               build_interface
             fi
@@ -188,8 +188,8 @@
           '';
         };
 
-        leland-bin = pkgs.writeShellApplication {
-          name = "leland";
+        dale-bin = pkgs.writeShellApplication {
+          name = "dale";
           runtimeInputs = [ 
             pkgs.bun
             pkgs.cargo 
@@ -204,14 +204,14 @@
           ];
           text = ''
             ROOT=$(git rev-parse --show-toplevel)
-            BIN="$ROOT/rust/target/release/leland"
+            BIN="$ROOT/rust/target/release/dale"
             COMMAND=''${1:-"help"}
             if [ "$#" -gt 0 ]; then shift; fi
 
             case "$COMMAND" in
               interface|server|manifest|compile|update|harvest|x|query)
                 if [ ! -f "$BIN" ]; then
-                  echo "Error: leland binary not found at $BIN. Run 'build leland --release' first."
+                  echo "Error: dale binary not found at $BIN. Run 'build dale --release' first."
                   exit 1
                 fi
                 cd "$ROOT" && "$BIN" "$COMMAND" "$@"
@@ -234,7 +234,7 @@
                 cargo test "''${TEST_ARGS[@]}"
                 ;;
               help|--help|-h)
-                echo "Leland CLI Commands:"
+                echo "Dale CLI Commands:"
                 echo "  interface       : Run system installed interface"
                 echo "  server          : Start Backend Rust Server"
                 echo "  compile         : Compile metadata locks"
@@ -260,7 +260,7 @@
           openssl
           build-cli
           check-cli
-          leland-bin
+          dale-bin
           cargo
           rustc
           rust-analyzer

@@ -1,8 +1,8 @@
 [workspace]
 
 members = [
-  "libleland",
-  "leland",
+  "libdale",
+  "dale",
 ]
 
 resolver = "2"
