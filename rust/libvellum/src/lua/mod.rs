@@ -5,6 +5,7 @@ mod tests;
 use anyhow::{Context, Result};
 use config::{ActionConfig, AppConfig, CoversConfig, CoversRegistry, InterfaceConfig};
 use indexmap::IndexMap;
+use mlua::serde::SerializeOptions;
 use mlua::{Lua, LuaSerdeExt, Table};
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
@@ -184,13 +185,17 @@ fn register_native_functions(lua: &Lua) -> Result<()> {
     let globals = lua.globals();
     let vl: mlua::Table = globals.get("vl").unwrap_or_else(|_| lua.create_table().unwrap());
 
+    let opts = SerializeOptions::new()
+        .serialize_none_to_null(false)
+        .serialize_unit_to_null(false);
+
     let json_table = lua.create_table().map_err(|e| anyhow::anyhow!("{e}"))?;
     json_table.set(
         "decode",
-        lua.create_function(|lua, s: String| {
+        lua.create_function(move |lua, s: String| {
             let val: serde_json::Value = serde_json::from_str(&s)
                 .map_err(mlua::Error::external)?;
-            lua.to_value(&val)
+            lua.to_value_with(&val, opts)
         }).map_err(|e| anyhow::anyhow!("{e}"))?,
     ).map_err(|e| anyhow::anyhow!("{e}"))?;
 
@@ -207,11 +212,11 @@ fn register_native_functions(lua: &Lua) -> Result<()> {
     let toml_table = lua.create_table().map_err(|e| anyhow::anyhow!("{e}"))?;
     toml_table.set(
         "decode",
-        lua.create_function(|lua, s: String| {
+        lua.create_function(move |lua, s: String| {
             let toml_val: toml::Value = toml::from_str(&s)
                 .map_err(mlua::Error::external)?;
             let json_val = crate::types::toml_to_json(toml_val);
-            lua.to_value(&json_val)
+            lua.to_value_with(&json_val, opts)
         }).map_err(|e| anyhow::anyhow!("{e}"))?,
     ).map_err(|e| anyhow::anyhow!("{e}"))?;
 
@@ -372,9 +377,12 @@ impl LuaEngine {
         let eval_fn: mlua::Function = globals
             .get("__VELLUM_EVALUATE_ALBUM_LOGIC")
             .map_err(|e| anyhow::anyhow!("{e}"))?;
+        let opts = SerializeOptions::new()
+            .serialize_none_to_null(false)
+            .serialize_unit_to_null(false);
         let lua_album = self
             .lua
-            .to_value(album_val)
+            .to_value_with(album_val, opts)
             .map_err(|e| anyhow::anyhow!("{e}"))?;
         let res: mlua::Table = eval_fn.call(lua_album).map_err(|e| anyhow::anyhow!("{e}"))?;
         let json_res: serde_json::Value = self
@@ -394,14 +402,18 @@ impl LuaEngine {
             .get("__VELLUM_DISPATCHER")
             .map_err(|e| anyhow::anyhow!("{e}"))?;
 
+        let opts = SerializeOptions::new()
+            .serialize_none_to_null(false)
+            .serialize_unit_to_null(false);
+
         let lua_ctx = self
             .lua
-            .to_value(ctx_val)
+            .to_value_with(ctx_val, opts)
             .map_err(|e| anyhow::anyhow!("{e}"))?;
 
         let lua_manifests = self
             .lua
-            .to_value(manifests_val)
+            .to_value_with(manifests_val, opts)
             .map_err(|e| anyhow::anyhow!("{e}"))?;
 
         let res: mlua::Table = dispatcher
