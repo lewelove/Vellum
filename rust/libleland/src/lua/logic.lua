@@ -14,7 +14,6 @@ function __LELAND_GET_LOGIC_MANIFEST()
     for k, v in pairs(REGISTRY.groupers or {}) do
         manifest.groupers[k] = {
             label = v.label or k,
-            strict = v.strict or false,
             index = v.index,
             count = v.count,
             reverse = v.reverse or false
@@ -23,14 +22,12 @@ function __LELAND_GET_LOGIC_MANIFEST()
     for k, v in pairs(REGISTRY.orders or {}) do
         manifest.orders[k] = {
             label = v.label or k,
-            reverse = v.reverse or false,
-            strict = v.strict or false
+            reverse = v.reverse or false
         }
     end
     for k, v in pairs(REGISTRY.libraries or {}) do
         manifest.libraries[k] = {
             label = v.label or k,
-            strict = v.strict or false,
             filters = v.filters or {},
             groupers = v.groupers or {},
             orders = v.orders or {}

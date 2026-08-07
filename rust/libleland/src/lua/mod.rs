@@ -9,7 +9,7 @@ use mlua::serde::SerializeOptions;
 use mlua::{Lua, LuaSerdeExt, Table};
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 const LUA_CORE: &str = include_str!("core.lua");
@@ -29,8 +29,6 @@ pub struct FilterDef {
 pub struct GrouperDef {
     pub label: String,
     #[serde(default)]
-    pub strict: bool,
-    #[serde(default)]
     pub index: Option<bool>,
     #[serde(default)]
     pub count: Option<bool>,
@@ -43,15 +41,11 @@ pub struct OrderDef {
     pub label: String,
     #[serde(default)]
     pub reverse: bool,
-    #[serde(default)]
-    pub strict: bool,
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug, Default)]
 pub struct LibraryDef {
     pub label: String,
-    #[serde(default)]
-    pub strict: bool,
     #[serde(default)]
     pub filters: Vec<String>,
     #[serde(default)]
@@ -108,60 +102,25 @@ impl LogicManifest {
             }
         }
 
-        let global_groupers: HashSet<String> = self
-            .groupers
-            .iter()
-            .filter(|(_, g)| !g.strict)
-            .map(|(id, _)| id.clone())
-            .collect();
-
-        let global_orders: HashSet<String> = self
-            .orders
-            .iter()
-            .filter(|(_, s)| !s.strict)
-            .map(|(id, _)| id.clone())
-            .collect();
-
         for (_, library) in &mut self.libraries {
-            let mut allowed_filter_ids = Vec::new();
-            for f in &library.filters {
-                if self.filters.contains_key(f) {
-                    allowed_filter_ids.push(f.clone());
-                }
-            }
-            library.allowed_filters = allowed_filter_ids;
-
-            let mut allowed_grouper_ids = HashSet::new();
-            for g in &library.groupers {
-                allowed_grouper_ids.insert(g.clone());
-            }
-            if !library.strict {
-                for g in &global_groupers {
-                    allowed_grouper_ids.insert(g.clone());
-                }
-            }
-
-            let mut allowed_order_ids = HashSet::new();
-            for s in &library.orders {
-                allowed_order_ids.insert(s.clone());
-            }
-            if !library.strict {
-                for s in &global_orders {
-                    allowed_order_ids.insert(s.clone());
-                }
-            }
-
-            library.allowed_groupers = self
-                .groupers
-                .keys()
-                .filter(|k| allowed_grouper_ids.contains(*k))
+            library.allowed_filters = library
+                .filters
+                .iter()
+                .filter(|f| self.filters.contains_key(*f))
                 .cloned()
                 .collect();
 
-            library.allowed_orders = self
+            library.allowed_groupers = library
+                .groupers
+                .iter()
+                .filter(|g| self.groupers.contains_key(*g))
+                .cloned()
+                .collect();
+
+            library.allowed_orders = library
                 .orders
-                .keys()
-                .filter(|k| allowed_order_ids.contains(*k))
+                .iter()
+                .filter(|o| self.orders.contains_key(*o))
                 .cloned()
                 .collect();
         }
