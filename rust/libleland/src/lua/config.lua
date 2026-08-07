@@ -46,21 +46,36 @@ _G.ll.cache.cover = setmetatable({
 })
 
 _G.ll.filter = function(name, t)
+    if REGISTRY.filters[name] == nil then
+        table.insert(REGISTRY.filters_order, name)
+    end
     REGISTRY.filters[name] = t
 end
 
 _G.ll.grouper = function(name, t)
+    if REGISTRY.groupers[name] == nil then
+        table.insert(REGISTRY.groupers_order, name)
+    end
     REGISTRY.groupers[name] = t
 end
 
 _G.ll.order = function(name, t)
+    if REGISTRY.orders[name] == nil then
+        table.insert(REGISTRY.orders_order, name)
+    end
     REGISTRY.orders[name] = t
 end
 
 _G.ll.library = function(name, t)
+    if REGISTRY.libraries[name] == nil then
+        table.insert(REGISTRY.libraries_order, name)
+    end
     REGISTRY.libraries[name] = t
 end
 
 _G.ll.shelf = function(name, t)
+    if REGISTRY.shelves[name] == nil then
+        table.insert(REGISTRY.shelves_order, name)
+    end
     REGISTRY.shelves[name] = t
 end

@@ -13,17 +13,22 @@ _G.REGISTRY = {
     actions = {},
     dependencies = {},
     filters = {},
+    filters_order = {},
     groupers = {},
+    groupers_order = {},
     orders = {},
+    orders_order = {},
     libraries = {},
-    shelves = {}
+    libraries_order = {},
+    shelves = {},
+    shelves_order = {}
 }
 
 if not package.searchpath then
     package.searchpath = function(name, path)
         local sep = package.config:sub(1, 1)
         name = name:gsub("%.", sep)
-        for c in path:gmatch("[^;]+") do
+        for c in package.path:gmatch("[^;]+") do
             local filename = c:gsub("%?", name)
             local f = io.open(filename, "r")
             if f then

@@ -9,9 +9,8 @@ let isSortMenuOpen = $state(false);
 let isGroupMenuOpen = $state(false);
 let scrollContainer: HTMLDivElement | null = $state(null);
 
-let activeLibraryDef = $derived(collection.availableLibraries[view.activeLibrary] || {});
-let allowedFilters = $derived(activeLibraryDef.allowed_filters || []);
-let showFilterDropdown = $derived(allowedFilters.length > 0);
+let visibleFilters = $derived(collection.getVisibleFilters(view.activeLibrary));
+let showFilterDropdown = $derived(visibleFilters.length > 0);
 
 let visibleFacets = $derived(collection.getVisibleFacets(view.activeLibrary));
 let showGroupDropdown = $derived(visibleFacets.length > 0);
@@ -201,17 +200,17 @@ function toggleDirection() {
 
           {#if isLibraryFilterMenuOpen}
             <div class="v-menu">
-              {#each allowedFilters as fKey (fKey)}
+              {#each visibleFilters as { key, label } (key)}
                 <button
                   type="button"
                   class="v-menu-item"
-                  class:selected={view.activeLibraryFilter === fKey}
+                  class:selected={view.activeLibraryFilter === key}
                   onclick={() => {
-                    view.setLibraryFilter(fKey);
+                    view.setLibraryFilter(key);
                     isLibraryFilterMenuOpen = false;
                   }}
                 >
-                  {collection.availableFilters[fKey]?.label || fKey}
+                  {label}
                 </button>
               {/each}
             </div>

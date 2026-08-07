@@ -150,6 +150,19 @@ class CollectionStore {
     return order.map((k: string) => ({ key: k, ...this.availableShelves[k] }));
   }
 
+  getVisibleFilters(activeLibrary: string): any[] {
+    const library = this.availableLibraries[activeLibrary];
+    const order = this.manifest.filters_order || Object.keys(this.availableFilters);
+    if (library && library.allowed_filters) {
+      return library.allowed_filters
+        .filter((k: string) => this.availableFilters[k])
+        .map((k: string) => ({ key: k, label: this.availableFilters[k].label || k }));
+    }
+    return order
+      .filter((k: string) => this.availableFilters[k])
+      .map((k: string) => ({ key: k, label: this.availableFilters[k].label || k }));
+  }
+
   getVisibleFacets(activeLibrary: string): any[] {
     const library = this.availableLibraries[activeLibrary];
     const order = this.manifest.groupers_order || Object.keys(this.availableFacets);

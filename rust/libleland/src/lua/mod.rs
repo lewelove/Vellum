@@ -88,11 +88,45 @@ pub struct LogicManifest {
 
 impl LogicManifest {
     pub fn normalize(&mut self) {
-        self.filters_order = self.filters.keys().cloned().collect();
-        self.groupers_order = self.groupers.keys().cloned().collect();
-        self.orders_order = self.orders.keys().cloned().collect();
-        self.libraries_order = self.libraries.keys().cloned().collect();
-        self.shelves_order = self.shelves.keys().cloned().collect();
+        if !self.filters_order.is_empty() {
+            self.filters.sort_by_cached_key(|k, _| {
+                self.filters_order.iter().position(|x| x == k).unwrap_or(usize::MAX)
+            });
+        } else {
+            self.filters_order = self.filters.keys().cloned().collect();
+        }
+
+        if !self.groupers_order.is_empty() {
+            self.groupers.sort_by_cached_key(|k, _| {
+                self.groupers_order.iter().position(|x| x == k).unwrap_or(usize::MAX)
+            });
+        } else {
+            self.groupers_order = self.groupers.keys().cloned().collect();
+        }
+
+        if !self.orders_order.is_empty() {
+            self.orders.sort_by_cached_key(|k, _| {
+                self.orders_order.iter().position(|x| x == k).unwrap_or(usize::MAX)
+            });
+        } else {
+            self.orders_order = self.orders.keys().cloned().collect();
+        }
+
+        if !self.libraries_order.is_empty() {
+            self.libraries.sort_by_cached_key(|k, _| {
+                self.libraries_order.iter().position(|x| x == k).unwrap_or(usize::MAX)
+            });
+        } else {
+            self.libraries_order = self.libraries.keys().cloned().collect();
+        }
+
+        if !self.shelves_order.is_empty() {
+            self.shelves.sort_by_cached_key(|k, _| {
+                self.shelves_order.iter().position(|x| x == k).unwrap_or(usize::MAX)
+            });
+        } else {
+            self.shelves_order = self.shelves.keys().cloned().collect();
+        }
 
         for (_, g) in &mut self.groupers {
             let idx = g.index.unwrap_or(false);

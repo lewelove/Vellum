@@ -6,7 +6,12 @@ function __LELAND_GET_LOGIC_MANIFEST()
         groupers = {},
         orders = {},
         libraries = {},
-        shelves = {}
+        shelves = {},
+        filters_order = REGISTRY.filters_order or {},
+        groupers_order = REGISTRY.groupers_order or {},
+        orders_order = REGISTRY.orders_order or {},
+        libraries_order = REGISTRY.libraries_order or {},
+        shelves_order = REGISTRY.shelves_order or {}
     }
     for k, v in pairs(REGISTRY.filters or {}) do
         manifest.filters[k] = { label = v.label or k }
