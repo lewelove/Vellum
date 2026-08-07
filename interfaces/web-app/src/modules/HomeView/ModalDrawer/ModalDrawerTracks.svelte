@@ -144,7 +144,7 @@ function handlePlayDisc(discNumber: number) {
   justify-content: space-between;
   align-items: center;
   user-select: none;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .disc-header-right {
