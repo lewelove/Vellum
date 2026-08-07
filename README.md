@@ -123,23 +123,19 @@ ll.config({
 -- you want to load from TOML manifests and be present in `album.lock.json`
 
 -- [album.lock.json].album.keys level
-ll.compile.album.key({
-  album_key_name = true
-})
+ll.compile.album.key( "album_key_name", true )
 
 -- [album.lock.json].tracks[].keys level
-ll.compile.tracks.key({ 
-  track_key_name = true
-})
+ll.compile.tracks.key( "track_key_name", true )
 
 -- For `leland interface` command to run you point default interface
 -- to the `interfaces/web-app` directory from the previous step
 -- and specify the run-production-build script
-ll.interfaces({ default = {
+ll.interface( "default", {
   -- Quite handy!
   directory = repo_dir .. "interfaces/web-app/"
   run = repo_dir .. "interfaces/web-app/run_prod.sh"
-}})
+})
 ```
 
 For the config reference check out [my leland dotfiles](https://github.com/lewelove/nix-config/tree/main/dotfiles/.config/leland). The config documentation is coming soon...
@@ -171,8 +167,8 @@ The `leland` CLI tool is the central driver for managing your library's state.
 - `leland manifest` — Scan your library root for unmanaged audio directories and generate the initial `metadata.toml` manifest.
 - `leland update` — The core compiler command. Reads your TOML manifests and compiles the `album.lock.json` files.
 - `leland server` — Start the Axum backend server.
-- `leland interface` — Run interfaces defined in `ll.interfaces`.
-- `leland x` — Run defined actions via runtime `ll.actions` router.
+- `leland interface` — Run interface defined with `ll.interface`.
+- `leland x` — Run defined action via runtime `ll.action` router.
 
 ## AI Disclosure & Human Design
 This software was developed in part with the assistance of LLMs, which were used as a tool for research and as a code-monkey for Rust syntax implementation. All business logic, architecture, UX — including complete creative vision — were designed and vetted with a great deal of intent and hard work by a human — myself. This README and all documentation were handrolled on my keyboard, from my bedroom, in my own words — as I believe this is an honest way to show you that I care about what you'll read here.

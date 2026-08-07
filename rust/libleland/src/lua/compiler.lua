@@ -1,26 +1,24 @@
 _G.ll = _G.ll or {}
 _G.ll.compile = _G.ll.compile or {}
 _G.ll.compile.album = {
-    key = function(t)
-        local count = 0
-        for _ in pairs(t) do count = count + 1 end
-        if count > 1 then error("ll.compile.album.key({}) accepts only 1 key per call.") end
-        for k, v in pairs(t) do
-            if type(v) == "function" then
-                REGISTRY.keys.album[k] = v
+    key = function(name, v)
+        if type(v) == "function" then
+            REGISTRY.keys.album[name] = v
+        elseif v == true then
+            REGISTRY.keys.album[name] = function(ctx, m)
+                return m.metadata and m.metadata.album and m.metadata.album[name]
             end
         end
     end
 }
 
 _G.ll.compile.tracks = {
-    key = function(t)
-        local count = 0
-        for _ in pairs(t) do count = count + 1 end
-        if count > 1 then error("ll.compile.tracks.key({}) accepts only 1 key per call.") end
-        for k, v in pairs(t) do
-            if type(v) == "function" then
-                REGISTRY.keys.tracks[k] = v
+    key = function(name, v)
+        if type(v) == "function" then
+            REGISTRY.keys.tracks[name] = v
+        elseif v == true then
+            REGISTRY.keys.tracks[name] = function(ctx, m, i)
+                return m.metadata and m.metadata.tracks and m.metadata.tracks[i] and m.metadata.tracks[i][name]
             end
         end
     end,

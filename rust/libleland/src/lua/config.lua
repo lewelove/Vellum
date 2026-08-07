@@ -1,49 +1,30 @@
 _G.ll = _G.ll or {}
 
 _G.ll.config = function(t)
-    if t.interfaces then
-        for k, v in pairs(t.interfaces) do
-            if type(v) == "boolean" then
-                if v == true then
-                    REGISTRY.interfaces[k] = { enable = true, config = {}, assets = {} }
-                end
-            elseif type(v) == "table" then
-                v.enable = true
-                if v.config == nil then v.config = {} end
-                if v.assets == nil then v.assets = {} end
-                REGISTRY.interfaces[k] = v
-            end
-        end
-        t.interfaces = nil
-    end
     REGISTRY.config = t
 end
 
-_G.ll.interfaces = function(t)
-    for k, v in pairs(t) do
-        if type(v) == "boolean" then
-            if v == true then
-                REGISTRY.interfaces[k] = { enable = true, config = {}, assets = {} }
-            end
-        elseif type(v) == "table" then
-            v.enable = true
-            if v.config == nil then v.config = {} end
-            if v.assets == nil then v.assets = {} end
-            REGISTRY.interfaces[k] = v
+_G.ll.interface = function(name, t)
+    if type(t) == "boolean" then
+        if t == true then
+            REGISTRY.interfaces[name] = { enable = true, config = {}, assets = {} }
         end
+    elseif type(t) == "table" then
+        t.enable = true
+        if t.config == nil then t.config = {} end
+        if t.assets == nil then t.assets = {} end
+        REGISTRY.interfaces[name] = t
     end
 end
 
-_G.ll.actions = function(t)
-    for k, v in pairs(t) do
-        if type(v) == "boolean" then
-            if v == true then
-                REGISTRY.actions[k] = { config = {} }
-            end
-        elseif type(v) == "table" then
-            if v.config == nil then v.config = {} end
-            REGISTRY.actions[k] = v
+_G.ll.action = function(name, t)
+    if type(t) == "boolean" then
+        if t == true then
+            REGISTRY.actions[name] = { config = {} }
         end
+    elseif type(t) == "table" then
+        if t.config == nil then t.config = {} end
+        REGISTRY.actions[name] = t
     end
 end
 
