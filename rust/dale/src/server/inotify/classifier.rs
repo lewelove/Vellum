@@ -16,7 +16,7 @@ pub async fn classify_events(paths: &[PathBuf], state: &Arc<AppState>) -> Change
 
     let guard = state.config.read().await;
     let config_dir = guard.config_dir.clone();
-    let library_root = guard.library_root.clone();
+    let music_directory = guard.music_directory.clone();
     let deps: Vec<PathBuf> = guard.resolved_dependencies.clone();
 
     let mut interface_assets: Vec<(String, PathBuf, bool)> = Vec::new();
@@ -40,8 +40,8 @@ pub async fn classify_events(paths: &[PathBuf], state: &Arc<AppState>) -> Change
             flags.config = true;
         }
 
-        if let Some(album_id) = resolve_album_id(&p_canon, &library_root, &logic.dict)
-            .or_else(|| resolve_album_id(p, &library_root, &logic.dict))
+        if let Some(album_id) = resolve_album_id(&p_canon, &music_directory, &logic.dict)
+            .or_else(|| resolve_album_id(p, &music_directory, &logic.dict))
             && let Ok(mut tracked) = state.tracked_albums.lock()
         {
             tracked.insert(album_id);
@@ -64,18 +64,18 @@ pub async fn classify_events(paths: &[PathBuf], state: &Arc<AppState>) -> Change
 
 fn resolve_album_id(
     path: &Path,
-    library_root: &Path,
+    music_directory: &Path,
     dict: &std::collections::HashMap<String, serde_json::Value>,
 ) -> Option<String> {
-    let rel = path.strip_prefix(library_root).ok()?;
+    let rel = path.strip_prefix(music_directory).ok()?;
     let mut curr = if path.is_dir() {
         path.to_path_buf()
     } else {
         path.parent()?.to_path_buf()
     };
 
-    while curr.starts_with(library_root) && curr != library_root {
-        let Ok(curr_rel) = curr.strip_prefix(library_root) else {
+    while curr.starts_with(music_directory) && curr != music_directory {
+        let Ok(curr_rel) = curr.strip_prefix(music_directory) else {
             break;
         };
         let rel_str = curr_rel.to_string_lossy().to_string();

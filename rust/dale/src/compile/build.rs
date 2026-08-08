@@ -15,9 +15,9 @@ pub fn build(
     let primary_manifest = parsed_manifests.get("metadata").ok_or_else(|| DaleError::MissingPrimaryManifest { path: album_root.to_path_buf() })?;
     let primary_tracks = primary_manifest.get("tracks").and_then(Value::as_array).ok_or_else(|| DaleError::MissingTracksBlock { path: album_root.to_path_buf() })?;
 
-    let context::PreparedContext { audio_files, library_root } = context::prepare_build_context(config, album_root);
+    let context::PreparedContext { audio_files, music_directory } = context::prepare_build_context(config, album_root);
 
-    let lib_hash = crate::update::cache::calculate_hash(&library_root.to_string_lossy());
+    let lib_hash = crate::update::cache::calculate_hash(&music_directory.to_string_lossy());
     let (cover_file_info, cover_metrics) = covers::resolve_cover_data_cached(album_root, config, &lib_hash);
 
     let is_virtual = album::is_virtual_album(album_root);
@@ -39,11 +39,11 @@ pub fn build(
     )?;
 
     let config_json = serde_json::to_value(&config.app).unwrap_or_else(|_| json!({}));
-    let id_str = libdale::resolvers::rel_path(album_root, &library_root);
+    let id_str = libdale::resolvers::rel_path(album_root, &music_directory);
 
     let project_root_str = config.path.parent().unwrap_or_else(|| Path::new(".")).to_string_lossy();
     let album_root_str = album_root.to_string_lossy();
-    let library_root_str = library_root.to_string_lossy();
+    let music_directory_str = music_directory.to_string_lossy();
 
     let ctx = json!({
         "config": config_json,
@@ -51,7 +51,7 @@ pub fn build(
         "paths": {
             "album_root": album_root_str,
             "project_root": project_root_str,
-            "library_root": library_root_str
+            "music_directory": music_directory_str
         },
         "total_discs": total_discs,
         "total_tracks": total_tracks,
@@ -122,7 +122,7 @@ pub fn build(
         "paths": {
             "album_root": album_root_str,
             "project_root": project_root_str,
-            "library_root": library_root_str
+            "music_directory": music_directory_str
         }
     }));
 

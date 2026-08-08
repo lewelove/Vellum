@@ -10,7 +10,7 @@ use std::sync::Arc;
 async fn resolve_target_ids(
     params: &HashMap<String, String>,
     state: &Arc<AppState>,
-    library_root: &std::path::Path,
+    music_directory: &std::path::Path,
 ) -> Vec<String> {
     let mut target_ids = Vec::new();
     let playing = params.get("playing").is_some_and(|v| v == "true");
@@ -28,14 +28,14 @@ async fn resolve_target_ids(
             target_ids.push(id);
         }
     } else if playing {
-        if let Ok(path) = crate::x::get_playing_album(&library_root.to_string_lossy()).await
-            && let Ok(rel) = path.strip_prefix(library_root)
+        if let Ok(path) = crate::x::get_playing_album(&music_directory.to_string_lossy()).await
+            && let Ok(rel) = path.strip_prefix(music_directory)
         {
             target_ids.push(rel.to_string_lossy().to_string());
         }
     } else if library_arg || recursive_arg.is_some() {
         let root = recursive_arg
-            .map_or_else(|| library_root.to_path_buf(), |dir| libdale::utils::expand_path(&dir));
+            .map_or_else(|| music_directory.to_path_buf(), |dir| libdale::utils::expand_path(&dir));
         target_ids = tokio::task::spawn_blocking(move || {
             let mut ids = Vec::new();
             for entry in walkdir::WalkDir::new(&root)
@@ -71,7 +71,7 @@ async fn resolve_target_ids(
 async fn run_external_process(
     action_path: std::path::PathBuf,
     target_ids: Vec<String>,
-    library_root: std::path::PathBuf,
+    music_directory: std::path::PathBuf,
     params: HashMap<String, String>,
     app_config_json: serde_json::Value,
     action_config: serde_json::Value,
@@ -79,7 +79,7 @@ async fn run_external_process(
 ) -> Response {
     let mut lock_jsons = Vec::new();
     for target_id in &target_ids {
-        let lock_file_path = library_root.join(target_id).join("album.lock.json");
+        let lock_file_path = music_directory.join(target_id).join("album.lock.json");
         if let Ok(json_data) = tokio::fs::read_to_string(&lock_file_path).await
             && let Ok(lock_json) = serde_json::from_str::<serde_json::Value>(&json_data)
         {
@@ -168,7 +168,7 @@ pub async fn execute_action(
 
     let config_guard = state.config.read().await;
     let action_cfg_opt = config_guard.actions.get(&name_key).cloned();
-    let library_root = config_guard.library_root.clone();
+    let music_directory = config_guard.music_directory.clone();
     let app_config_json = serde_json::to_value(&config_guard.app).unwrap_or_else(|_| json!({}));
     let config_dir = config_guard.config_dir.clone();
     let env_vars =
@@ -176,7 +176,7 @@ pub async fn execute_action(
     drop(config_guard);
 
     let action_cfg = action_cfg_opt.unwrap_or_default();
-    let target_ids = resolve_target_ids(&params, &state, &library_root).await;
+    let target_ids = resolve_target_ids(&params, &state, &music_directory).await;
 
     if let Some(run_str) = &action_cfg.run {
         let expanded_action_path = libdale::utils::expand_path(run_str);
@@ -190,7 +190,7 @@ pub async fn execute_action(
             return run_external_process(
                 action_path,
                 target_ids,
-                library_root,
+                music_directory,
                 params,
                 app_config_json,
                 action_cfg.config,
@@ -221,7 +221,7 @@ pub async fn execute_action(
         }
     } else {
         for target_id in &target_ids {
-            let album_path = library_root.join(target_id);
+            let album_path = music_directory.join(target_id);
             if matches!(
                 crate::x::builtin::execute_builtin(&name_key, &album_path, &merged_config),
                 Ok(true)

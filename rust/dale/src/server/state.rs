@@ -18,7 +18,7 @@ pub struct AppState {
 
 #[derive(Clone)]
 pub struct AppConfig {
-    pub library_root: PathBuf,
+    pub music_directory: PathBuf,
     pub cache_root: PathBuf,
     pub state_root: PathBuf,
     pub resolved_dependencies: Vec<PathBuf>,

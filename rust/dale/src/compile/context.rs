@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 pub struct PreparedContext {
     pub audio_files: Vec<PathBuf>,
-    pub library_root: PathBuf,
+    pub music_directory: PathBuf,
 }
 
 pub fn prepare_build_context(
@@ -14,10 +14,10 @@ pub fn prepare_build_context(
     let ext_refs: Vec<&str> = exts.iter().map(AsRef::as_ref).collect();
     let audio_files = libdale::scanner::scan_audio_files(album_root, &ext_refs);
 
-    let lib_root_raw = &config.app.storage.library;
-    let library_root = expand_path(lib_root_raw)
+    let music_dir_raw = &config.app.storage.music_directory;
+    let music_directory = expand_path(music_dir_raw)
         .canonicalize()
-        .unwrap_or_else(|_| expand_path(lib_root_raw));
+        .unwrap_or_else(|_| expand_path(music_dir_raw));
 
-    PreparedContext { audio_files, library_root }
+    PreparedContext { audio_files, music_directory }
 }

@@ -93,8 +93,8 @@ async fn get_tracks_internal(
         logic.get_album_json(id)
     };
 
-    let library_root = {
-        state.config.read().await.library_root.clone()
+    let music_directory = {
+        state.config.read().await.music_directory.clone()
     };
 
     if let Some(raw) = json_str
@@ -111,8 +111,8 @@ async fn get_tracks_internal(
                     }
 
                     if let Some(tp) = track.get("file").and_then(|f| f.get("path")).and_then(|v| v.as_str()) {
-                        let abs = library_root.join(id).join(tp);
-                        if let Ok(rel) = abs.strip_prefix(&library_root)
+                        let abs = music_directory.join(id).join(tp);
+                        if let Ok(rel) = abs.strip_prefix(&music_directory)
                             && let Some(s) = rel.to_str() {
                                 paths.push(s.to_string());
                             }

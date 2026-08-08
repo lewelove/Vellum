@@ -61,11 +61,11 @@ pub async fn run(port: u16) -> Result<()> {
         .unwrap_or_else(|| Path::new("."))
         .to_path_buf();
 
-    let lib_root_str = &config.app.storage.library;
+    let music_dir_str = &config.app.storage.music_directory;
 
-    let library_root = expand_path(lib_root_str)
+    let music_directory = expand_path(music_dir_str)
         .canonicalize()
-        .context("Invalid library_root path")?;
+        .context("Invalid music_directory path")?;
 
     let cache_root = expand_path(&config.app.storage.cache);
     let state_root = expand_path(&config.app.storage.state);
@@ -80,7 +80,7 @@ pub async fn run(port: u16) -> Result<()> {
     let mut logic_engine = logic::LogicEngine::new()?;
 
     let server_config = ServerConfig {
-        library_root: library_root.clone(),
+        music_directory: music_directory.clone(),
         cache_root,
         state_root: state_root.clone(),
         resolved_dependencies,
@@ -93,7 +93,7 @@ pub async fn run(port: u16) -> Result<()> {
 
     let ui_state_val = load_state(&state_root);
 
-    let lib_scanner = library::scanner::Library::new(library_root.clone());
+    let lib_scanner = library::scanner::Library::new(music_directory.clone());
     lib_scanner.scan(&mut logic_engine);
 
     let logic_arc = Arc::new(RwLock::new(logic_engine));

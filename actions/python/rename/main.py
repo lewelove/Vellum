@@ -18,7 +18,7 @@ def trigger_update(album_id):
 def sanitize_filename(name):
     return re.sub(r'[<>:"/\\|?*]', '_', name)
 
-def process_album(album_lock, library, auto_apply):
+def process_album(album_lock, music_dir, auto_apply):
     album_obj = album_lock.get("album", {})
     tracks_data = album_lock.get("tracks", [])
     if not tracks_data:
@@ -28,7 +28,7 @@ def process_album(album_lock, library, auto_apply):
     if not album_id:
         return
 
-    target_dir = library / album_id
+    target_dir = music_dir / album_id
     if not target_dir.exists():
         return
 
@@ -106,7 +106,7 @@ def process_album(album_lock, library, auto_apply):
     print(f"\n\033[1;36m{target_dir.name}\033[0m")
     for task in rename_tasks:
         print(f"\033[1m🎵 {task['rel_path']}\033[0m")
-        print(f"   \033[34m~ {task['old_name']} -> {task['new_name']}\033[0m")
+        print(f"   \033[34m~ {task['old_name']} -> {task['new_filename']}\033[0m")
 
     if not auto_apply:
         try:
@@ -145,14 +145,14 @@ def main():
 
     auto_apply = "--auto" in options_str or "-y" in options_str
 
-    library_str = dale_cfg.get("storage", {}).get("library", "")
-    if not library_str:
+    music_dir_str = dale_cfg.get("storage", {}).get("music_directory", "")
+    if not music_dir_str:
         sys.exit(1)
 
-    library = Path(library_str).expanduser().resolve()
+    music_dir = Path(music_dir_str).expanduser().resolve()
 
     for album_lock in albums:
-        process_album(album_lock, library, auto_apply)
+        process_album(album_lock, music_dir, auto_apply)
 
 if __name__ == "__main__":
     main()

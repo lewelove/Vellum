@@ -33,7 +33,7 @@ pub struct ActionConfig {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct StorageConfig {
     #[serde(default)]
-    pub library: String,
+    pub music_directory: String,
     pub environment: Option<String>,
     #[serde(default = "default_cache")]
     pub cache: String,
@@ -44,6 +44,7 @@ pub struct StorageConfig {
 fn default_cache() -> String {
     "~/.cache/dale".to_string()
 }
+
 fn default_state() -> String {
     "~/.local/share/dale".to_string()
 }
@@ -51,7 +52,7 @@ fn default_state() -> String {
 impl Default for StorageConfig {
     fn default() -> Self {
         Self {
-            library: String::new(),
+            music_directory: String::new(),
             environment: None,
             cache: default_cache(),
             state: default_state(),

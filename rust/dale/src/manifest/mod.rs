@@ -23,7 +23,7 @@ pub struct ManifestOptions {
 
 pub fn run(target_path: Option<PathBuf>, options: &ManifestOptions) -> Result<()> {
     let config = libdale::lua::ResolvedConfig::load().context("Failed to load config")?;
-    let lib_root = expand_path(&config.app.storage.library);
+    let music_dir = expand_path(&config.app.storage.music_directory);
 
     let manifest_cfg = &config.app.manifest;
     let supported_exts: Vec<String> = manifest_cfg
@@ -33,7 +33,7 @@ pub fn run(target_path: Option<PathBuf>, options: &ManifestOptions) -> Result<()
     let grouping_keys = vec!["albumartist".to_string(), "album".to_string()];
 
     let scan_root = match options.mode {
-        ManifestMode::Library => target_path.unwrap_or_else(|| lib_root.clone()),
+        ManifestMode::Library => target_path.unwrap_or_else(|| music_dir.clone()),
         ManifestMode::Album => target_path.unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))),
     };
 
@@ -72,7 +72,7 @@ fn process_album_group(
         ManifestMode::Album => false,
         ManifestMode::Library => true,
     };
-    
+
     let (anchor_opt, is_valid) = grouper::resolve_anchor(&tracks, validate_exclusivity, supported_exts);
     if !is_valid {
         return Ok(());

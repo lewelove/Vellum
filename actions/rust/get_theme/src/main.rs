@@ -34,12 +34,12 @@ fn main() -> Result<()> {
         .and_then(Value::as_array)
         .context("Missing albums array")?;
 
-    let library_str = payload
-        .pointer("/config/dale/storage/library")
+    let music_dir_str = payload
+        .pointer("/config/dale/storage/music_directory")
         .and_then(Value::as_str)
-        .context("Missing library in payload")?;
+        .context("Missing music_directory in payload")?;
 
-    let library = expand_path(library_str);
+    let music_dir = expand_path(music_dir_str);
 
     let action_cfg_val = payload.pointer("/config/action").cloned().unwrap_or_default();
     let script_config: ScriptConfig = serde_json::from_value(action_cfg_val).unwrap_or_default();
@@ -58,7 +58,7 @@ fn main() -> Result<()> {
             .and_then(Value::as_str)
             .unwrap_or("cover.jpg");
 
-        let album_dir = library.join(album_path_str);
+        let album_dir = music_dir.join(album_path_str);
         let out_path = album_dir.join("theme.toml");
 
         if out_path.exists() && !force {

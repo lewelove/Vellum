@@ -51,7 +51,7 @@ async fn load_image_bmp_fast(path: PathBuf) -> Option<Vec<u8>> {
 
 async fn ensure_master_cover(
     state: &Arc<AppState>,
-    library_root: &StdPath,
+    music_directory: &StdPath,
     master_path: PathBuf,
     master_size: u32,
     master_algo_str: &str,
@@ -77,7 +77,7 @@ async fn ensure_master_cover(
         return Err(StatusCode::NOT_FOUND);
     };
 
-    let original_path = library_root.join(album_id).join(cover_path);
+    let original_path = music_directory.join(album_id).join(cover_path);
     let blob_path_clone = master_path.clone();
     let master_algo_str_clone = master_algo_str.to_string();
 
@@ -139,15 +139,15 @@ pub async fn get_resized_cover(
         .unwrap_or(200)
         .clamp(16, 2048);
 
-    let (cache_root, library_root, is_registered, master_size, master_algo_str) = {
+    let (cache_root, music_directory, is_registered, master_size, master_algo_str) = {
         let guard = state.config.read().await;
         let cache = guard.cache_root.clone();
-        let library = guard.library_root.clone();
+        let music_dir = guard.music_directory.clone();
         let registered = guard.covers.targets.iter().any(|c| c.size == width && c.filter == algo);
         let m_size = guard.covers.master.size;
         let m_filter = guard.covers.master.filter.clone();
         drop(guard);
-        (cache, library, registered, m_size, m_filter)
+        (cache, music_dir, registered, m_size, m_filter)
     };
 
     if let Some(t_path) = find_cached_cover(&cache_root, &algo, width, &hash)
@@ -166,7 +166,7 @@ pub async fn get_resized_cover(
         .join(format!("{master_size}px"))
         .join(format!("{hash}.qoi"));
 
-    if let Err(status) = ensure_master_cover(&state, &library_root, master_blob_path.clone(), master_size, &master_algo_str, &hash).await {
+    if let Err(status) = ensure_master_cover(&state, &music_directory, master_blob_path.clone(), master_size, &master_algo_str, &hash).await {
         return status.into_response();
     }
 
@@ -236,7 +236,7 @@ pub async fn get_album_cover(
         
         logic.dict.get(&id).map(|meta| {
             let cp = meta.get("cover_path").and_then(|v| v.as_str()).unwrap_or("default_cover.png");
-            config_guard.library_root.join(&id).join(cp)
+            config_guard.music_directory.join(&id).join(cp)
         })
     };
 

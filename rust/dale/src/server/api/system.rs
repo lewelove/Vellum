@@ -149,11 +149,11 @@ pub async fn trigger_full_reset(State(state): State<Arc<AppState>>) -> Response 
     log::info!("Rebuilding library database...");
     let start_time = std::time::Instant::now();
 
-    let library_root = state.config.read().await.library_root.clone();
+    let music_directory = state.config.read().await.music_directory.clone();
     let logic_arc = Arc::clone(&state.logic);
 
     let (album_count, manifest) = tokio::task::spawn_blocking(move || {
-        let scanner = crate::server::library::scanner::Library::new(library_root);
+        let scanner = crate::server::library::scanner::Library::new(music_directory);
         let mut logic = logic_arc.blocking_write();
         scanner.scan(&mut logic);
         (logic.dict.len(), logic.manifest.clone())
@@ -293,13 +293,13 @@ pub async fn trigger_reload(
 ) -> Response {
     let start_time = std::time::Instant::now();
     if let Some(path) = params.get("path") {
-        let library_root = state.config.read().await.library_root.clone();
+        let music_directory = state.config.read().await.music_directory.clone();
         let path_clone = path.clone();
         let logic_arc = Arc::clone(&state.logic);
 
         let (update_res, dict_entry, shelves) = tokio::task::spawn_blocking(move || {
             let mut logic = logic_arc.blocking_write();
-            let scanner = crate::server::library::scanner::Library::new(library_root);
+            let scanner = crate::server::library::scanner::Library::new(music_directory);
             let res = scanner.update_album(&path_clone, &mut logic);
 
             let entry = match &res {
@@ -353,7 +353,7 @@ pub async fn force_update_album(
 ) -> Response {
     let path = {
         let config_guard = state.config.read().await;
-        config_guard.library_root.join(id)
+        config_guard.music_directory.join(id)
     };
     if tokio::fs::try_exists(&path).await.unwrap_or(false) {
         let _ = tokio::process::Command::new("dale")

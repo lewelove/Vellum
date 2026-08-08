@@ -11,9 +11,9 @@ pub struct QueryFlags {
 
 pub async fn run(query_str: Option<String>, flags: QueryFlags) -> Result<()> {
     let config = libdale::lua::ResolvedConfig::load().context("Failed to load config")?;
-    let lib_root = expand_path(&config.app.storage.library)
+    let music_dir = expand_path(&config.app.storage.music_directory)
         .canonicalize()
-        .unwrap_or_else(|_| expand_path(&config.app.storage.library));
+        .unwrap_or_else(|_| expand_path(&config.app.storage.music_directory));
 
     let mut target_ids = Vec::new();
 
@@ -36,8 +36,8 @@ pub async fn run(query_str: Option<String>, flags: QueryFlags) -> Result<()> {
         let ids: Vec<String> = res.json().await.context("Invalid response from server")?;
         target_ids = ids;
     } else if flags.playing {
-        let playing_path = crate::x::get_playing_album(&config.app.storage.library).await?;
-        let rel_path = playing_path.strip_prefix(&lib_root).map_or_else(|_| playing_path.to_string_lossy().to_string(), |p| p.to_string_lossy().to_string());
+        let playing_path = crate::x::get_playing_album(&config.app.storage.music_directory).await?;
+        let rel_path = playing_path.strip_prefix(&music_dir).map_or_else(|_| playing_path.to_string_lossy().to_string(), |p| p.to_string_lossy().to_string());
         target_ids.push(rel_path);
     } else {
         anyhow::bail!("No query provided. Use --playing or provide an SQL query.");
@@ -46,7 +46,7 @@ pub async fn run(query_str: Option<String>, flags: QueryFlags) -> Result<()> {
     if flags.json {
         let mut albums = Vec::new();
         for id in &target_ids {
-            let lock_file_path = lib_root.join(id).join("album.lock.json");
+            let lock_file_path = music_dir.join(id).join("album.lock.json");
             if let Ok(content) = std::fs::read_to_string(&lock_file_path)
                 && let Ok(json_val) = serde_json::from_str::<serde_json::Value>(&content)
             {
@@ -59,14 +59,14 @@ pub async fn run(query_str: Option<String>, flags: QueryFlags) -> Result<()> {
             if flags.id {
                 println!("{id}");
             } else if flags.uid {
-                let base_path = lib_root.join(&id);
+                let base_path = music_dir.join(&id);
                 println!("{}", base_path.display());
             } else if flags.lock {
-                let base_path = lib_root.join(&id);
+                let base_path = music_dir.join(&id);
                 let final_path = base_path.join("album.lock.json");
                 println!("{}", final_path.display());
             } else {
-                let base_path = lib_root.join(&id);
+                let base_path = music_dir.join(&id);
                 println!("{}", base_path.display());
             }
         }

@@ -39,7 +39,7 @@ pub fn load_env_vars_from_path(env_path: Option<&str>) -> std::collections::Hash
 }
 
 async fn resolve_target_ids(
-    library_root: &Path,
+    music_directory: &Path,
     target: &TargetFlags,
 ) -> Result<Vec<String>> {
     let default_dir = if !target.playing
@@ -74,9 +74,9 @@ async fn resolve_target_ids(
     } else if let Some(id) = &target.id {
         Ok(vec![id.clone()])
     } else if target.playing {
-        let playing_path = get_playing_album(&library_root.to_string_lossy()).await?;
+        let playing_path = get_playing_album(&music_directory.to_string_lossy()).await?;
         let id = playing_path
-            .strip_prefix(library_root)
+            .strip_prefix(music_directory)
             .map_or_else(
                 |_| playing_path.to_string_lossy().to_string(),
                 |p| p.to_string_lossy().to_string(),
@@ -84,7 +84,7 @@ async fn resolve_target_ids(
         Ok(vec![id])
     } else if target.library {
         let mut ids = Vec::new();
-        for entry in walkdir::WalkDir::new(library_root).follow_links(true).into_iter().filter_map(Result::ok) {
+        for entry in walkdir::WalkDir::new(music_directory).follow_links(true).into_iter().filter_map(Result::ok) {
             if entry.file_name() == "album.lock.json"
                 && let Ok(content) = std::fs::read_to_string(entry.path())
                 && let Ok(json) = serde_json::from_str::<serde_json::Value>(&content)
@@ -125,10 +125,10 @@ async fn resolve_target_ids(
     }
 }
 
-fn load_lock_jsons(library_root: &Path, target_ids: &[String]) -> Vec<serde_json::Value> {
+fn load_lock_jsons(music_directory: &Path, target_ids: &[String]) -> Vec<serde_json::Value> {
     let mut lock_jsons = Vec::new();
     for target_id in target_ids {
-        let lock_file_path = library_root.join(target_id).join("album.lock.json");
+        let lock_file_path = music_directory.join(target_id).join("album.lock.json");
         if let Ok(json_data) = std::fs::read_to_string(&lock_file_path)
             && let Ok(lock_json) = serde_json::from_str::<serde_json::Value>(&json_data)
         {
@@ -196,12 +196,12 @@ pub async fn execute(
     let config = libdale::lua::ResolvedConfig::load().context("Failed to load config")?;
     let config_dir = config.path.parent().unwrap_or_else(|| Path::new("."));
 
-    let library_root = expand_path(&config.app.storage.library)
+    let music_directory = expand_path(&config.app.storage.music_directory)
         .canonicalize()
-        .unwrap_or_else(|_| expand_path(&config.app.storage.library));
+        .unwrap_or_else(|_| expand_path(&config.app.storage.music_directory));
 
-    let target_ids = resolve_target_ids(&library_root, &target).await?;
-    let lock_jsons = load_lock_jsons(&library_root, &target_ids);
+    let target_ids = resolve_target_ids(&music_directory, &target).await?;
+    let lock_jsons = load_lock_jsons(&music_directory, &target_ids);
 
     let action_cfg_opt = config.actions.get(&name_key).cloned();
     let config_json = serde_json::to_value(&config.app)?;
@@ -245,7 +245,7 @@ pub async fn execute(
         }
     } else {
         for target_id in &target_ids {
-            let album_path = library_root.join(target_id);
+            let album_path = music_directory.join(target_id);
             if builtin::execute_builtin(&name_key, &album_path, &action_config)? {
                 executed_builtin = true;
             }

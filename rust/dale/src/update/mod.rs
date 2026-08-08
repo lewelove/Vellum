@@ -24,17 +24,17 @@ pub async fn run(
     silent: bool,
 ) -> Result<()> {
     let config = libdale::lua::ResolvedConfig::load().context("Failed to load config")?;
-    let library_root = expand_path(&config.app.storage.library)
+    let music_directory = expand_path(&config.app.storage.music_directory)
         .canonicalize()
-        .context("Invalid library_root")?;
+        .context("Invalid music_directory")?;
 
     let effective_jobs = jobs.or(config.app.compiler.jobs);
 
     let is_full_library =
-        target_path.is_none() || target_path.as_deref() == Some(library_root.as_path());
+        target_path.is_none() || target_path.as_deref() == Some(music_directory.as_path());
     notify_if_force_update(force, is_full_library).await;
 
-    let lib_hash = calculate_hash(&library_root.to_string_lossy());
+    let lib_hash = calculate_hash(&music_directory.to_string_lossy());
     let cache_root = expand_path(&config.app.storage.cache);
     let base_cache_dir = cache_root.join("libraries").join(&lib_hash);
     fs::create_dir_all(&base_cache_dir)?;
@@ -49,20 +49,20 @@ pub async fn run(
     let force = force || config_changed;
 
     let scan_root = target_path.map_or_else(
-        || library_root.clone(),
+        || music_directory.clone(),
         |p| p.canonicalize().unwrap_or(p),
     );
 
     let (work_queue, missing_paths) = if !force
         && is_full_library
-        && let Some((wq, mp)) = try_get_server_tracked_albums(&library_root).await
+        && let Some((wq, mp)) = try_get_server_tracked_albums(&music_directory).await
     {
         if !silent && !wq.is_empty() {
             log::info!("Verifying {} tracked albums...", wq.len());
         }
 
         let results =
-            verify_albums_parallel(wq, &cache, force, effective_jobs, &library_root)?;
+            verify_albums_parallel(wq, &cache, force, effective_jobs, &music_directory)?;
         let mut verified_wq = Vec::new();
         for (path, is_dirty) in results {
             if is_dirty {
@@ -72,14 +72,14 @@ pub async fn run(
         (verified_wq, mp)
     } else {
         let all_albums = libdale::scanner::find_target_albums(&scan_root)?;
-        let mp = find_missing_paths(&all_albums, &library_root, &scan_root, &cache);
+        let mp = find_missing_paths(&all_albums, &music_directory, &scan_root, &cache);
 
         if !silent {
             log::info!("Verifying {} albums...", all_albums.len());
         }
 
         let results =
-            verify_albums_parallel(all_albums, &cache, force, effective_jobs, &library_root)?;
+            verify_albums_parallel(all_albums, &cache, force, effective_jobs, &music_directory)?;
         let mut wq = Vec::new();
         for (path, is_dirty) in results {
             if is_dirty {
@@ -108,7 +108,7 @@ pub async fn run(
     let task_args = NotificationTaskArgs {
         notify_rx,
         cache_for_task: Arc::clone(&cache_arc),
-        lib_root_for_task: Arc::new(library_root),
+        lib_root_for_task: Arc::new(music_directory),
         missing_paths,
         start_time,
         silent,
@@ -135,7 +135,7 @@ pub async fn run(
 }
 
 async fn try_get_server_tracked_albums(
-    library_root: &Path,
+    music_directory: &Path,
 ) -> Option<(Vec<PathBuf>, Vec<PathBuf>)> {
     let resp = reqwest::Client::new()
         .get("http://127.0.0.1:8000/api/internal/tracked_albums")
@@ -163,7 +163,7 @@ async fn try_get_server_tracked_albums(
 
     for item in tracked_arr {
         if let Some(id) = item.as_str() {
-            let p = library_root.join(id);
+            let p = music_directory.join(id);
             if p.exists() {
                 work_queue.push(p);
             } else {

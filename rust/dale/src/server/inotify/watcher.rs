@@ -59,7 +59,7 @@ async fn sync_watches(
     let mut needed_non_recursive = std::collections::HashSet::new();
 
     needed_recursive.insert(config_dir.to_path_buf());
-    needed_recursive.insert(guard.library_root.clone());
+    needed_recursive.insert(guard.music_directory.clone());
 
     for cfg in guard.interfaces.values() {
         for asset_str in cfg.assets.values() {

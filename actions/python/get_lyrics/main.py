@@ -41,11 +41,11 @@ def trigger_update(album_id):
 def clean_genius_lyrics(lyrics, title):
     if not lyrics:
         return ""
-    
+
     lines = lyrics.split("\n")
     if lines and "Contributors" in lines[0]:
         lines.pop(0)
-    
+
     filtered_lines = []
     for line in lines:
         trimmed = line.strip()
@@ -53,36 +53,36 @@ def clean_genius_lyrics(lyrics, title):
             filtered_lines.append("")
             continue
         filtered_lines.append(trimmed)
-    
+
     cleaned = "\n".join(filtered_lines)
-    
+
     cleaned = re.sub(r"\(\s*\n\s*", "(", cleaned)
     cleaned = re.sub(r"\s*\n\s*\)", ")", cleaned)
     cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
-    
+
     cleaned = re.sub(r"[0-9]*Embed$", "", cleaned)
     cleaned = cleaned.strip()
-    
+
     return cleaned
 
 def sanitize_filename(name):
     return re.sub(r'[<>:"/\\|?*]', '_', name)
 
 def get_album_lyrics(dale_cfg, album_lock, access_token, mpd_file):
-    library_str = dale_cfg.get("storage", {}).get("library", "")
-    if not library_str:
-        print("Error: library not defined in config")
+    music_dir_str = dale_cfg.get("storage", {}).get("music_directory", "")
+    if not music_dir_str:
+        print("Error: music_directory not defined in config")
         return
 
-    library = Path(library_str).expanduser().resolve()
-    
+    music_dir = Path(music_dir_str).expanduser().resolve()
+
     album_meta = album_lock.get("album", {})
     album_id = album_meta.get("id", "")
     if not album_id:
         print("Error: album_path (id) not found in metadata lock")
         return
 
-    root = (library / album_id).resolve()
+    root = (music_dir / album_id).resolve()
     album_artist = album_meta.get("albumartist")
     total_discs = int(album_meta.get("info", {}).get("total_discs", 1))
     tracks = album_lock.get("tracks", [])
@@ -114,7 +114,7 @@ def get_album_lyrics(dale_cfg, album_lock, access_token, mpd_file):
         title = track.get("title")
         track_num = str(track.get("tracknumber", "0")).zfill(2)
         disc_num = str(track.get("discnumber", "1"))
-        
+
         if not title:
             return
 
@@ -124,7 +124,7 @@ def get_album_lyrics(dale_cfg, album_lock, access_token, mpd_file):
             filename = f"{disc_num}.{track_num} - {safe_title}.txt"
         else:
             filename = f"{track_num} - {safe_title}.txt"
-            
+
         dest_path = lyrics_dir / filename
 
         if dest_path.exists():
@@ -170,7 +170,7 @@ def main():
         token = dale_cfg.get("actions", {}).get("genius_access_token")
     if not token:
         token = action_cfg.get("genius_access_token")
-    
+
     if not token:
         print("Error: Genius Access Token is required.")
         sys.exit(1)

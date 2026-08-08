@@ -54,10 +54,10 @@ def process_album(album_lock, target_dir, auto_apply):
             album_pool.update({k.lower(): v for k, v in album_obj[pool_key].items()})
 
     total_discs = int(album_obj.get("info", {}).get("total_discs", 1))
-    
+
     cover_filename = album_obj.get("covers", {}).get("main", {}).get("file", {}).get("path", "cover.png")
     cover_path = target_dir / cover_filename
-    
+
     disk_cover_data = None
     disk_cover_hash = None
     if cover_path.exists():
@@ -68,7 +68,7 @@ def process_album(album_lock, target_dir, auto_apply):
     first_track_path = target_dir / tracks_data[0].get("file", {}).get("path", "")
     if not first_track_path.exists():
         return 0, False
-        
+
     first_audio = FLAC(first_track_path)
     embedded_cover_hash = None
     if first_audio.pictures:
@@ -106,10 +106,10 @@ def process_album(album_lock, target_dir, auto_apply):
         target_tags["ARTIST"] = str(track_pool.get("artist", ""))
         target_tags["TITLE"] = str(track_pool.get("title", ""))
         target_tags["TRACKNUMBER"] = str(track_pool.get("tracknumber", "0"))
-        
+
         if total_discs > 1:
             target_tags["DISCNUMBER"] = str(track_pool.get("discnumber", "1"))
-    
+
         tasks.append({
             "path": rel_path,
             "target_tags": target_tags,
@@ -120,11 +120,11 @@ def process_album(album_lock, target_dir, auto_apply):
         track_file = target_dir / task["path"]
         if not track_file.exists():
             continue
-            
+
         audio = FLAC(track_file)
         target_keys = set(task["target_tags"].keys())
         diffs = []
-        
+
         for old_tag in list(audio.keys()):
             u_old = old_tag.upper()
             if u_old not in target_keys:
@@ -159,7 +159,7 @@ def process_album(album_lock, target_dir, auto_apply):
         for d in first_diffs:
             if all(d in t["diffs"] for t in active_tasks):
                 common_diffs.append(d)
-                
+
         for t in active_tasks:
             t["diffs"] = [d for d in t["diffs"] if d not in common_diffs]
 
@@ -228,20 +228,20 @@ def process_album(album_lock, target_dir, auto_apply):
     for task in tasks:
         rel_path = task["path"]
         audio = FLAC(target_dir / rel_path)
-        
+
         target_tags = task["target_tags"]
         for old_tag in list(audio.keys()):
             if old_tag.upper() not in target_tags:
                 del audio[old_tag]
         for tag, val in target_tags.items():
             audio[tag] = [val]
-        
+
         if update_cover:
             audio.clear_pictures()
             audio.add_picture(new_pic)
-            
+
         audio.save()
-        
+
     print("\033[32m✔ Done.\033[0m")
     lines_printed += 1
     return lines_printed, True
@@ -288,12 +288,12 @@ def main():
             continue
         albums.append(album_lock)
 
-    library_str = dale_cfg.get("storage", {}).get("library", "")
-    if not library_str:
-        print("Error: library not defined in config")
+    music_dir_str = dale_cfg.get("storage", {}).get("music_directory", "")
+    if not music_dir_str:
+        print("Error: music_directory not defined in config")
         sys.exit(1)
 
-    library = Path(library_str).expanduser().resolve()
+    music_dir = Path(music_dir_str).expanduser().resolve()
     total_albums = len(albums)
 
     for idx, album_lock in enumerate(albums, 1):
@@ -302,7 +302,7 @@ def main():
             continue
 
         print(f"\n{render_progress_bar(idx, total_albums)}")
-        target_dir = library / album_id
+        target_dir = music_dir / album_id
         lines_printed, was_processed = process_album(album_lock, target_dir, auto_apply)
 
         sys.stdout.write(f"\033[{lines_printed + 2}A\033[J")
