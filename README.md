@@ -114,8 +114,9 @@ local repo_dir = "Path/To/Cloned/Repo/"
 
 dl.config({ 
   storage = { 
-    -- Define a library path containing all your albums
-    library = "Path/To/Your/Library/Root/"
+    -- Define a music directory path containing all your albums,
+    -- it must match an MPD's config `music_directory` path
+    music_directory = "Path/To/Your/Music/Directory/"
   }
 })
 
