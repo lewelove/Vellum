@@ -12,8 +12,8 @@ let scrollContainer: HTMLDivElement | null = $state(null);
 let visibleFilters = $derived(collection.getVisibleFilters(view.activeLibrary));
 let showFilterDropdown = $derived(visibleFilters.length > 0);
 
-let visibleFacets = $derived(collection.getVisibleFacets(view.activeLibrary));
-let showGroupDropdown = $derived(visibleFacets.length > 0);
+let visibleGroupers = $derived(collection.getVisibleGroupers(view.activeLibrary));
+let showGroupDropdown = $derived(visibleGroupers.length > 0);
 
 let visibleOrders = $derived(collection.getVisibleOrders(view.activeLibrary));
 let showSortDropdown = $derived(visibleOrders.length > 0);
@@ -24,7 +24,7 @@ let filterLabel = $derived(
 );
 let groupLabel = $derived(
   view.activeSidebarGrouper
-    ? collection.availableFacets[view.activeSidebarGrouper]?.label || "Unknown"
+    ? collection.availableGroupers[view.activeSidebarGrouper]?.label || "Unknown"
     : ""
 );
 let sortLabel = $derived(
@@ -38,7 +38,7 @@ let items = $derived(view.getSidebarGroup(view.activeSidebarGrouper));
 let isReverse = $derived(view.userSortOrder === "reverse");
 
 let activeGrouperDef = $derived(
-  view.activeSidebarGrouper ? collection.availableFacets[view.activeSidebarGrouper] || {} : {}
+  view.activeSidebarGrouper ? collection.availableGroupers[view.activeSidebarGrouper] || {} : {}
 );
 let showIndex = $derived(activeGrouperDef.index === true);
 let showCount = $derived(activeGrouperDef.count === true);
@@ -236,7 +236,7 @@ function toggleDirection() {
 
           {#if isGroupMenuOpen}
             <div class="v-menu">
-              {#each visibleFacets as { key, label } (key)}
+              {#each visibleGroupers as { key, label } (key)}
                 <button
                   type="button"
                   class="v-menu-item"

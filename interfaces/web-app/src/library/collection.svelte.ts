@@ -130,7 +130,7 @@ class CollectionStore {
   get availableLibraries(): Record<string, any> {
     return this.manifest.libraries || {};
   }
-  get availableFacets(): Record<string, any> {
+  get availableGroupers(): Record<string, any> {
     return this.manifest.groupers || {};
   }
   get availableOrders(): Record<string, any> {
@@ -163,17 +163,17 @@ class CollectionStore {
       .map((k: string) => ({ key: k, label: this.availableFilters[k].label || k }));
   }
 
-  getVisibleFacets(activeLibrary: string): any[] {
+  getVisibleGroupers(activeLibrary: string): any[] {
     const library = this.availableLibraries[activeLibrary];
-    const order = this.manifest.groupers_order || Object.keys(this.availableFacets);
+    const order = this.manifest.groupers_order || Object.keys(this.availableGroupers);
     if (library && library.allowed_groupers) {
       return library.allowed_groupers
-        .filter((k: string) => this.availableFacets[k])
-        .map((k: string) => ({ key: k, label: this.availableFacets[k].label || k }));
+        .filter((k: string) => this.availableGroupers[k])
+        .map((k: string) => ({ key: k, label: this.availableGroupers[k].label || k }));
     }
     return order
-      .filter((k: string) => this.availableFacets[k])
-      .map((k: string) => ({ key: k, label: this.availableFacets[k].label || k }));
+      .filter((k: string) => this.availableGroupers[k])
+      .map((k: string) => ({ key: k, label: this.availableGroupers[k].label || k }));
   }
 
   getVisibleOrders(activeLibrary: string): any[] {

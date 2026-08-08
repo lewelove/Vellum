@@ -46,9 +46,9 @@ impl LogicEngine {
                     }
                 }
                 final_mask = searched;
-            } else if let Some(facet_vals) = self.facets_cache.get(fk) {
-                if let Some((_, _, facet_mask)) = facet_vals.get(fv) {
-                    final_mask &= facet_mask;
+            } else if let Some(grouper_vals) = self.groupers_cache.get(fk) {
+                if let Some((_, _, grouper_mask)) = grouper_vals.get(fv) {
+                    final_mask &= grouper_mask;
                 } else {
                     final_mask.clear();
                 }
@@ -98,8 +98,8 @@ impl LogicEngine {
         let reverse = grouper_def.is_some_and(|g| g.reverse);
 
         let mut items = Vec::new();
-        if let Some(facet_map) = self.facets_cache.get(grouper) {
-            for (val, (sort_key, sort_str, mask)) in facet_map {
+        if let Some(grouper_map) = self.groupers_cache.get(grouper) {
+            for (val, (sort_key, sort_str, mask)) in grouper_map {
                 let count = mask.intersection_len(&final_mask) as usize;
                 if count > 0 {
                     items.push((

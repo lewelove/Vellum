@@ -32,7 +32,7 @@ impl LogicEngine {
     pub fn build_cache(&mut self) {
         self.libraries_cache.clear();
         self.filters_cache.clear();
-        self.facets_cache.clear();
+        self.groupers_cache.clear();
         self.orders_cache.clear();
         self.shelves_cache.clear();
 
@@ -67,7 +67,7 @@ impl LogicEngine {
 
             if let Some(groupers) = eval_res.get("groupers").and_then(Value::as_object) {
                 for (grouper_id, val) in groupers {
-                    let facet_map = self.facets_cache.entry(grouper_id.clone()).or_default();
+                    let grouper_map = self.groupers_cache.entry(grouper_id.clone()).or_default();
 
                     let mut process_item = |obj: &Value| {
                         let (display_val, sort_val) = obj.as_object().map_or_else(
@@ -92,7 +92,7 @@ impl LogicEngine {
 
                         let sort_key = value_to_sort_key(&sort_val);
 
-                        facet_map
+                        grouper_map
                             .entry(display_val)
                             .and_modify(|(existing_key, existing_str, bitmap)| {
                                 if sort_key < *existing_key {
