@@ -147,7 +147,7 @@ function toggleDirection() {
         onclick={toggleSubView}
         title={view.homeSubView === "library" ? "Libraries" : "Shelves"}
       >
-        <span class="icon">{view.homeSubView === "library" ? "auto_stories" : "newsstand"}</span>
+        <span class="icon">{view.homeSubView === "library" ? "auto_stories" : "shelves"}</span>
       </button>
 
       <div class="v-button-wrapper v-flex-grow">

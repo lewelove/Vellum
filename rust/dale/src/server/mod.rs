@@ -41,6 +41,7 @@ fn default_state() -> serde_json::Value {
         "activeTab": "home",
         "homeSubView": "library",
         "activeLibrary": "library",
+        "activeCabinet": "default",
         "sortKey": "default",
         "sortOrder": "default",
         "groupKey": "genre",
@@ -48,6 +49,9 @@ fn default_state() -> serde_json::Value {
             "key": null,
             "val": null
         },
+        "activeShelf": null,
+        "activeShelfOrder": "original",
+        "activeShelfOrderReverse": false,
         "sidebarWidth": 280
     })
 }

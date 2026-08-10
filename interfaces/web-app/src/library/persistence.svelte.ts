@@ -9,6 +9,7 @@ export function applyPersistedState(state: any, view: ViewState) {
 
   view.loadLibraryState(view.activeLibrary);
 
+  if (state.activeCabinet !== undefined) view.activeCabinet = state.activeCabinet;
   if (state.activeLibraryFilter !== undefined) view.activeLibraryFilter = state.activeLibraryFilter;
   if (state.groupKey !== undefined) view.activeSidebarGrouper = state.groupKey;
   if (state.filter !== undefined) view.activeFilter = state.filter;
@@ -22,6 +23,10 @@ export function applyPersistedState(state: any, view: ViewState) {
   }
 
   view.activeShelf = state.activeShelf || null;
+  if (state.activeShelfOrder !== undefined) view.activeShelfOrder = state.activeShelfOrder;
+  if (state.activeShelfOrderReverse !== undefined)
+    view.activeShelfOrderReverse = state.activeShelfOrderReverse;
+
   view.isShaderEnabled = state.isShaderEnabled ?? true;
   view.sidebarWidth = state.sidebarWidth || 280;
 }
@@ -35,6 +40,7 @@ export function persistState(view: ViewState) {
       activeTab: nav.activeTab,
       homeSubView: view.homeSubView,
       activeLibrary: view.activeLibrary,
+      activeCabinet: view.activeCabinet,
       librariesState: $state.snapshot(view.librariesState),
       activeLibraryFilter: view.activeLibraryFilter,
       sortKey: view.userSortPreference,
@@ -42,6 +48,8 @@ export function persistState(view: ViewState) {
       groupKey: view.activeSidebarGrouper,
       filter: $state.snapshot(view.activeFilter),
       activeShelf: view.activeShelf,
+      activeShelfOrder: view.activeShelfOrder,
+      activeShelfOrderReverse: view.activeShelfOrderReverse,
       isShaderEnabled: view.isShaderEnabled,
       sidebarWidth: view.sidebarWidth
     })

@@ -70,9 +70,39 @@ impl LogicEngine {
         res
     }
 
-    pub fn request_shelf_view(&self, shelf_key: &str) -> Vec<String> {
+    pub fn request_shelf_view(
+        &self,
+        shelf_key: &str,
+        order_key: Option<&str>,
+        reverse: bool,
+    ) -> Vec<String> {
         let empty_vec = Vec::new();
-        let uids = self.shelves_cache.get(shelf_key).unwrap_or(&empty_vec);
+        let native_uids = self.shelves_cache.get(shelf_key).unwrap_or(&empty_vec);
+
+        let mut uids = order_key.map_or_else(
+            || native_uids.clone(),
+            |ok| {
+                if ok != "original" && self.orders_cache.contains_key(ok) {
+                    let sorted_uids = &self.orders_cache[ok];
+                    let mut set = roaring::RoaringBitmap::new();
+                    for &uid in native_uids {
+                        set.insert(uid);
+                    }
+                    sorted_uids
+                        .iter()
+                        .filter(|uid| set.contains(**uid))
+                        .copied()
+                        .collect()
+                } else {
+                    native_uids.clone()
+                }
+            },
+        );
+
+        if reverse {
+            uids.reverse();
+        }
+
         uids.iter()
             .filter_map(|uid| self.uid_to_id.get(uid).cloned())
             .collect()

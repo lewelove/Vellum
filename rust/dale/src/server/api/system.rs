@@ -270,7 +270,7 @@ async fn notify_reload_changes(
         }
         let mut s = std::collections::HashMap::new();
         for key in logic.manifest.shelves.keys() {
-            s.insert(key.clone(), logic.request_shelf_view(key));
+            s.insert(key.clone(), logic.request_shelf_view(key, None, false));
         }
         drop(logic);
         (entries, s)
@@ -312,7 +312,7 @@ pub async fn trigger_reload(
 
             let mut s = std::collections::HashMap::new();
             for key in logic.manifest.shelves.keys() {
-                s.insert(key.clone(), logic.request_shelf_view(key));
+                s.insert(key.clone(), logic.request_shelf_view(key, None, false));
             }
             drop(logic);
             (res, entry, s)

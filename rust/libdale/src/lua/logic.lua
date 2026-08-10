@@ -7,11 +7,13 @@ function __DALE_GET_LOGIC_MANIFEST()
         orders = {},
         libraries = {},
         shelves = {},
+        cabinets = {},
         filters_order = REGISTRY.filters_order or {},
         groupers_order = REGISTRY.groupers_order or {},
         orders_order = REGISTRY.orders_order or {},
         libraries_order = REGISTRY.libraries_order or {},
-        shelves_order = REGISTRY.shelves_order or {}
+        shelves_order = REGISTRY.shelves_order or {},
+        cabinets_order = REGISTRY.cabinets_order or {}
     }
     for k, v in pairs(REGISTRY.filters or {}) do
         manifest.filters[k] = { label = v.label or k }
@@ -42,6 +44,13 @@ function __DALE_GET_LOGIC_MANIFEST()
         manifest.shelves[k] = {
             label = v.label or k,
             reverse = v.reverse or false
+        }
+    end
+    for k, v in pairs(REGISTRY.cabinets or {}) do
+        manifest.cabinets[k] = {
+            label = v.label or k,
+            shelves = v.shelves or {},
+            orders = v.orders or {}
         }
     end
     return manifest

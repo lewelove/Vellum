@@ -15,7 +15,8 @@ class CollectionStore {
     libraries: {},
     groupers: {},
     orders: {},
-    shelves: {}
+    shelves: {},
+    cabinets: {}
   });
   config: Record<string, any> = $state({});
 
@@ -139,6 +140,9 @@ class CollectionStore {
   get availableShelves(): Record<string, any> {
     return this.manifest.shelves || {};
   }
+  get availableCabinets(): Record<string, any> {
+    return this.manifest.cabinets || {};
+  }
 
   get librariesList(): any[] {
     const order = this.manifest.libraries_order || Object.keys(this.availableLibraries);
@@ -148,6 +152,11 @@ class CollectionStore {
   get shelvesList(): any[] {
     const order = this.manifest.shelves_order || Object.keys(this.availableShelves);
     return order.map((k: string) => ({ key: k, ...this.availableShelves[k] }));
+  }
+
+  get cabinetsList(): any[] {
+    const order = this.manifest.cabinets_order || Object.keys(this.availableCabinets);
+    return order.map((k: string) => ({ key: k, ...this.availableCabinets[k] }));
   }
 
   getVisibleFilters(activeLibrary: string): any[] {
@@ -185,6 +194,29 @@ class CollectionStore {
         .map((k: string) => ({ key: k, label: this.availableOrders[k].label || k }));
     }
     return order
+      .filter((k: string) => this.availableOrders[k])
+      .map((k: string) => ({ key: k, label: this.availableOrders[k].label || k }));
+  }
+
+  getVisibleShelvesForCabinet(activeCabinet: string): any[] {
+    const cabinet = this.availableCabinets[activeCabinet];
+    const order = this.manifest.shelves_order || Object.keys(this.availableShelves);
+    if (cabinet && cabinet.allowed_shelves && cabinet.allowed_shelves.length > 0) {
+      return cabinet.allowed_shelves
+        .filter((k: string) => this.availableShelves[k])
+        .map((k: string) => ({ key: k, label: this.availableShelves[k].label || k }));
+    }
+    return order
+      .filter((k: string) => this.availableShelves[k])
+      .map((k: string) => ({ key: k, label: this.availableShelves[k].label || k }));
+  }
+
+  getVisibleOrdersForCabinet(activeCabinet: string): any[] {
+    const cabinet = this.availableCabinets[activeCabinet];
+    if (!cabinet || !cabinet.allowed_orders || cabinet.allowed_orders.length === 0) {
+      return [];
+    }
+    return cabinet.allowed_orders
       .filter((k: string) => this.availableOrders[k])
       .map((k: string) => ({ key: k, label: this.availableOrders[k].label || k }));
   }

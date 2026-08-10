@@ -19,7 +19,7 @@ async fn handle_socket(mut socket: WebSocket, state: Arc<AppState>) {
             let l = state.logic.read().await;
             let mut s = std::collections::HashMap::new();
             for key in l.manifest.shelves.keys() {
-                s.insert(key.clone(), l.request_shelf_view(key));
+                s.insert(key.clone(), l.request_shelf_view(key, None, false));
             }
             (l.dict.clone(), l.track_lookup.clone(), l.manifest.clone(), s)
         };
@@ -71,6 +71,13 @@ async fn handle_socket(mut socket: WebSocket, state: Arc<AppState>) {
                                 
                                 let ids = state.logic.read().await.request_view(library, library_filter, sort, filter_key, filter_val, reverse);
                                 let _ = socket.send(ax_ws::Message::Text(json!({ "type": "VIEW_DATA", "ids": ids }).to_string().into())).await;
+                            } else if req_type == "SHELF_REQUEST" {
+                                let shelf = req.get("shelf").and_then(|v| v.as_str()).unwrap_or("");
+                                let order = req.get("order").and_then(|v| v.as_str());
+                                let reverse = req.get("reverse").and_then(serde_json::Value::as_bool).unwrap_or(false);
+
+                                let ids = state.logic.read().await.request_shelf_view(shelf, order, reverse);
+                                let _ = socket.send(ax_ws::Message::Text(json!({ "type": "SHELF_DATA", "ids": ids }).to_string().into())).await;
                             } else if req_type == "GROUP_REQUEST" {
                                 let library = req.get("library").and_then(|v| v.as_str()).unwrap_or("library");
                                 let library_filter = req.get("library_filter").and_then(|v| v.as_str());

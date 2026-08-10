@@ -21,7 +21,9 @@ _G.REGISTRY = {
     libraries = {},
     libraries_order = {},
     shelves = {},
-    shelves_order = {}
+    shelves_order = {},
+    cabinets = {},
+    cabinets_order = {}
 }
 
 if not package.searchpath then

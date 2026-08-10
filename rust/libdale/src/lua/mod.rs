@@ -68,12 +68,26 @@ pub struct ShelfDef {
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug, Default)]
+pub struct CabinetDef {
+    pub label: String,
+    #[serde(default)]
+    pub shelves: Vec<String>,
+    #[serde(default)]
+    pub orders: Vec<String>,
+    #[serde(skip_deserializing, default)]
+    pub allowed_shelves: Vec<String>,
+    #[serde(skip_deserializing, default)]
+    pub allowed_orders: Vec<String>,
+}
+
+#[derive(Deserialize, Serialize, Clone, Debug, Default)]
 pub struct LogicManifest {
     pub filters: IndexMap<String, FilterDef>,
     pub groupers: IndexMap<String, GrouperDef>,
     pub orders: IndexMap<String, OrderDef>,
     pub libraries: IndexMap<String, LibraryDef>,
     pub shelves: IndexMap<String, ShelfDef>,
+    pub cabinets: IndexMap<String, CabinetDef>,
     #[serde(default)]
     pub filters_order: Vec<String>,
     #[serde(default)]
@@ -84,6 +98,8 @@ pub struct LogicManifest {
     pub libraries_order: Vec<String>,
     #[serde(default)]
     pub shelves_order: Vec<String>,
+    #[serde(default)]
+    pub cabinets_order: Vec<String>,
 }
 
 impl LogicManifest {
@@ -128,6 +144,14 @@ impl LogicManifest {
             self.shelves_order = self.shelves.keys().cloned().collect();
         }
 
+        if !self.cabinets_order.is_empty() {
+            self.cabinets.sort_by_cached_key(|k, _| {
+                self.cabinets_order.iter().position(|x| x == k).unwrap_or(usize::MAX)
+            });
+        } else {
+            self.cabinets_order = self.cabinets.keys().cloned().collect();
+        }
+
         for (_, g) in &mut self.groupers {
             let idx = g.index.unwrap_or(false);
             g.index = Some(idx);
@@ -152,6 +176,22 @@ impl LogicManifest {
                 .collect();
 
             library.allowed_orders = library
+                .orders
+                .iter()
+                .filter(|o| self.orders.contains_key(*o))
+                .cloned()
+                .collect();
+        }
+
+        for (_, cabinet) in &mut self.cabinets {
+            cabinet.allowed_shelves = cabinet
+                .shelves
+                .iter()
+                .filter(|s| self.shelves.contains_key(*s))
+                .cloned()
+                .collect();
+
+            cabinet.allowed_orders = cabinet
                 .orders
                 .iter()
                 .filter(|o| self.orders.contains_key(*o))

@@ -12,6 +12,7 @@ export class ViewState {
   focusedAlbum: any = $state(null);
 
   activeLibrary: string = $state("library");
+  activeCabinet: string = $state("default");
   activeLibraryFilter: string | null = $state(null);
   activeFilter: { key: string | null; val: string | null } = $state({ key: null, val: null });
   activeSort: { key: string | null; order: string } = $state({ key: null, order: "default" });
@@ -19,6 +20,9 @@ export class ViewState {
   userSortOrder: string = $state("default");
   activeSidebarGrouper: string | null = $state(null);
   activeShelf: string | null = $state(null);
+  activeShelfOrder: string = $state("original");
+  activeShelfOrderReverse: boolean = $state(false);
+  shelfViewIds: string[] = $state([]);
   librariesState: Record<string, any> = $state({});
   libraryVersion: number = $state(0);
   shelfVersion: number = $state(0);
@@ -82,6 +86,11 @@ export class ViewState {
       this.refreshSidebar();
     } else if (json.type === "VIEW_DATA") {
       if (this._pendingViewReset) this.libraryVersion++;
+      this.isLoading = false;
+      this._pendingViewReset = false;
+    } else if (json.type === "SHELF_DATA") {
+      this.shelfViewIds = json.ids || [];
+      if (this._pendingViewReset) this.shelfVersion++;
       this.isLoading = false;
       this._pendingViewReset = false;
     } else if (json.type === "INTERFACE_ASSET_UPDATE" || json.type === "INTERFACE_CONFIG_UPDATE") {
@@ -166,14 +175,6 @@ export class ViewState {
     return this.isShaderEnabled && player.state !== "stop";
   }
 
-  get shelfViewIds() {
-    const shelfKey =
-      this.activeShelf ||
-      (collection.manifest.shelves_order && collection.manifest.shelves_order[0]) ||
-      Object.keys(collection.availableShelves)[0];
-    return shelfKey ? collection.sidebarShelves[shelfKey] || [] : [];
-  }
-
   get libraryAlbums() {
     return collection.mapIdsToAlbums(collection.libraryViewIds);
   }
@@ -246,9 +247,29 @@ export class ViewState {
     this._pendingViewReset = resetScroll;
 
     if (nav.activeTab === "home" && this.homeSubView === "shelves") {
-      if (resetScroll) this.shelfVersion++;
-      this.isLoading = false;
-      this._pendingViewReset = false;
+      const visibleShelves = collection.getVisibleShelvesForCabinet(this.activeCabinet);
+      if (visibleShelves.length > 0 && !visibleShelves.some((s) => s.key === this.activeShelf)) {
+        this.activeShelf = visibleShelves[0].key;
+      }
+      const visibleOrders = collection.getVisibleOrdersForCabinet(this.activeCabinet);
+      if (
+        this.activeShelfOrder !== "original" &&
+        !visibleOrders.some((o) => o.key === this.activeShelfOrder)
+      ) {
+        this.activeShelfOrder = "original";
+      }
+
+      const shelfKey =
+        this.activeShelf ||
+        (collection.manifest.shelves_order && collection.manifest.shelves_order[0]) ||
+        Object.keys(collection.availableShelves)[0];
+
+      sync.send({
+        type: "SHELF_REQUEST",
+        shelf: shelfKey,
+        order: this.activeShelfOrder === "original" ? null : this.activeShelfOrder,
+        reverse: this.activeShelfOrderReverse
+      });
     } else {
       sync.send({
         type: "VIEW_REQUEST",
@@ -280,6 +301,17 @@ export class ViewState {
     this.persistState();
   }
 
+  setCabinet(key: string) {
+    this.activeCabinet = key;
+    const visibleShelves = collection.getVisibleShelvesForCabinet(key);
+    this.activeShelf = visibleShelves.length > 0 ? visibleShelves[0].key : null;
+    this.activeShelfOrder = "original";
+    this.activeShelfOrderReverse = false;
+    this.focusedAlbum = null;
+    this.refreshView(true);
+    this.persistState();
+  }
+
   setLibraryFilter(key: string) {
     this.activeLibraryFilter = key;
     this.activeFilter = { key: null, val: null };
@@ -291,7 +323,19 @@ export class ViewState {
   setShelf(key: string) {
     this.activeShelf = key;
     this.focusedAlbum = null;
-    this.shelfVersion++;
+    this.refreshView(true);
+    this.persistState();
+  }
+
+  setShelfOrder(key: string) {
+    this.activeShelfOrder = key;
+    this.refreshView(true);
+    this.persistState();
+  }
+
+  toggleShelfOrderDirection() {
+    this.activeShelfOrderReverse = !this.activeShelfOrderReverse;
+    this.refreshView(true);
     this.persistState();
   }
 

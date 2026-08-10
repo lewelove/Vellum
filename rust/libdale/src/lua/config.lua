@@ -79,3 +79,10 @@ _G.dl.shelf = function(name, t)
     end
     REGISTRY.shelves[name] = t
 end
+
+_G.dl.cabinet = function(name, t)
+    if REGISTRY.cabinets[name] == nil then
+        table.insert(REGISTRY.cabinets_order, name)
+    end
+    REGISTRY.cabinets[name] = t
+end

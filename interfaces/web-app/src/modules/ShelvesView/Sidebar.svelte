@@ -2,18 +2,48 @@
 import { view } from "../../library/view.svelte.ts";
 import { collection } from "../../library/collection.svelte.ts";
 
-let isShelfMenuOpen = $state(false);
+let isCabinetMenuOpen = $state(false);
+let isOrderMenuOpen = $state(false);
 
-let activeShelf = $derived(
-  view.activeShelf ||
-    (collection.manifest.shelves_order && collection.manifest.shelves_order[0]) ||
-    Object.keys(collection.availableShelves)[0]
+let activeCabinet = $derived(
+  view.activeCabinet ||
+    (collection.manifest.cabinets_order && collection.manifest.cabinets_order[0]) ||
+    Object.keys(collection.availableCabinets)[0] ||
+    "default"
 );
-let shelfLabel = $derived(collection.availableShelves[activeShelf]?.label || "Unknown");
+
+let cabinetLabel = $derived(collection.availableCabinets[activeCabinet]?.label || "Cabinet");
+
+let visibleShelves = $derived(collection.getVisibleShelvesForCabinet(activeCabinet));
+let activeShelf = $derived(
+  view.activeShelf || (visibleShelves.length > 0 ? visibleShelves[0].key : "")
+);
+
+let visibleOrders = $derived(collection.getVisibleOrdersForCabinet(activeCabinet));
+let showOrderDropdown = $derived(visibleOrders.length >= 1);
+
+let orderLabel = $derived(
+  view.activeShelfOrder === "original"
+    ? "Original"
+    : collection.availableOrders[view.activeShelfOrder]?.label || "Original"
+);
+
+function selectCabinet(key: string) {
+  view.setCabinet(key);
+  isCabinetMenuOpen = false;
+}
 
 function selectShelf(key: string) {
   view.setShelf(key);
-  isShelfMenuOpen = false;
+}
+
+function selectOrder(key: string) {
+  view.setShelfOrder(key);
+  isOrderMenuOpen = false;
+}
+
+function toggleDirection() {
+  view.toggleShelfOrderDirection();
 }
 
 function toggleSubView() {
@@ -23,13 +53,24 @@ function toggleSubView() {
   view.persistState();
 }
 
-function toggleShelfMenu() {
-  isShelfMenuOpen = !isShelfMenuOpen;
+function toggleCabinetMenu() {
+  isCabinetMenuOpen = !isCabinetMenuOpen;
+  if (isCabinetMenuOpen) {
+    isOrderMenuOpen = false;
+  }
+}
+
+function toggleOrderMenu() {
+  isOrderMenuOpen = !isOrderMenuOpen;
+  if (isOrderMenuOpen) {
+    isCabinetMenuOpen = false;
+  }
 }
 
 function handleKeydown(e: KeyboardEvent) {
   if (e.key === "Escape") {
-    isShelfMenuOpen = false;
+    isCabinetMenuOpen = false;
+    isOrderMenuOpen = false;
   }
 }
 </script>
@@ -45,42 +86,94 @@ function handleKeydown(e: KeyboardEvent) {
         onclick={toggleSubView}
         title={view.homeSubView === "library" ? "Libraries" : "Shelves"}
       >
-        <span class="icon">{view.homeSubView === "library" ? "auto_stories" : "newsstand"}</span>
+        <span class="icon">{view.homeSubView === "library" ? "auto_stories" : "shelves"}</span>
       </button>
 
-      <div class="v-button-wrapper v-flex-grow">
-        <button
-          type="button"
-          class="v-btn-icon v-sidebar-button v-btn-menu"
-          onclick={toggleShelfMenu}
-          class:active={isShelfMenuOpen}
-          title="Shelf"
-        >
-          <span class="v-truncate btn-label iconless">{shelfLabel}</span>
-          <span class="icon end-icon">{isShelfMenuOpen ? "arrow_drop_up" : "arrow_drop_down"}</span>
-        </button>
+      {#if collection.cabinetsList.length > 0}
+        <div class="v-button-wrapper v-flex-grow">
+          <button
+            type="button"
+            class="v-btn-icon v-sidebar-button v-btn-menu"
+            onclick={toggleCabinetMenu}
+            class:active={isCabinetMenuOpen}
+            title="Cabinet"
+          >
+            <span class="v-truncate btn-label iconless">{cabinetLabel}</span>
+            <span class="icon end-icon">{isCabinetMenuOpen ? "arrow_drop_up" : "arrow_drop_down"}</span>
+          </button>
 
-        {#if isShelfMenuOpen}
-          <div class="v-menu">
-            {#each collection.shelvesList as shelf (shelf.key)}
+          {#if isCabinetMenuOpen}
+            <div class="v-menu">
+              {#each collection.cabinetsList as cab (cab.key)}
+                <button
+                  type="button"
+                  class="v-menu-item"
+                  class:selected={activeCabinet === cab.key}
+                  onclick={() => selectCabinet(cab.key)}
+                >
+                  {cab.label}
+                </button>
+              {/each}
+            </div>
+          {/if}
+        </div>
+      {/if}
+    </div>
+
+    {#if showOrderDropdown}
+      <div class="v-control-row">
+        <div class="v-button-wrapper v-flex-grow">
+          <button
+            type="button"
+            class="v-btn-icon v-sidebar-button v-btn-menu"
+            onclick={toggleOrderMenu}
+            class:active={isOrderMenuOpen}
+            title="Sort By"
+          >
+            <span class="icon start-icon">swap_vert</span>
+            <span class="v-truncate btn-label">{orderLabel}</span>
+            <span class="icon end-icon">{isOrderMenuOpen ? "arrow_drop_up" : "arrow_drop_down"}</span>
+          </button>
+
+          {#if isOrderMenuOpen}
+            <div class="v-menu">
               <button
                 type="button"
                 class="v-menu-item"
-                class:selected={activeShelf === shelf.key}
-                onclick={() => selectShelf(shelf.key)}
+                class:selected={view.activeShelfOrder === "original"}
+                onclick={() => selectOrder("original")}
               >
-                {shelf.label}
+                Original
               </button>
-            {/each}
-          </div>
-        {/if}
+              {#each visibleOrders as { key, label } (key)}
+                <button
+                  type="button"
+                  class="v-menu-item"
+                  class:selected={view.activeShelfOrder === key}
+                  onclick={() => selectOrder(key)}
+                >
+                  {label}
+                </button>
+              {/each}
+            </div>
+          {/if}
+        </div>
+
+        <button
+          type="button"
+          class="v-btn-icon v-sidebar-button"
+          onclick={toggleDirection}
+          title={view.activeShelfOrderReverse ? "Reverse Order" : "Default Order"}
+        >
+          <span class="icon order-arrow" class:mirrored={view.activeShelfOrderReverse}>arrow_shape_up_stack</span>
+        </button>
       </div>
-    </div>
+    {/if}
   </div>
 
   <div class="v-sidebar-scroll">
     <div class="v-scroll-fade-top"></div>
-    {#each collection.shelvesList as shelf (shelf.key)}
+    {#each visibleShelves as shelf (shelf.key)}
       <button
         type="button"
         class="v-sidebar-item"
@@ -96,6 +189,14 @@ function handleKeydown(e: KeyboardEvent) {
 </div>
 
 <style>
+.order-arrow {
+  font-size: 22px;
+}
+
+.order-arrow.mirrored {
+  transform: scaleY(-1);
+}
+
 .scroll-spacer {
   height: 12px;
   flex-shrink: 0;
