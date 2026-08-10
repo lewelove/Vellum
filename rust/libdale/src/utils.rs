@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use base64::{Engine as _, engine::general_purpose::{STANDARD, URL_SAFE_NO_PAD}};
 
 #[must_use]
@@ -13,6 +13,34 @@ pub fn expand_path(path_str: &str) -> PathBuf {
             }
         }
     PathBuf::from(path_str)
+}
+
+#[must_use]
+pub fn resolve_path(path_str: &str, config_dir: &Path) -> PathBuf {
+    let expanded = expand_path(path_str);
+    if expanded.is_absolute() {
+        return expanded;
+    }
+
+    let direct = config_dir.join(&expanded);
+    if direct.exists() {
+        return direct;
+    }
+
+    if let Ok(entries) = std::fs::read_dir(config_dir) {
+        for entry in entries.flatten() {
+            if let Ok(file_type) = entry.file_type()
+                && file_type.is_dir()
+            {
+                let sub_candidate = entry.path().join(&expanded);
+                if sub_candidate.exists() {
+                    return sub_candidate;
+                }
+            }
+        }
+    }
+
+    direct
 }
 
 pub fn get_file_info(path: &std::path::Path, rel_path: &str, compute_hash: bool) -> Result<serde_json::Value, anyhow::Error> {

@@ -170,7 +170,6 @@ pub async fn execute_action(
     let action_cfg_opt = config_guard.actions.get(&name_key).cloned();
     let music_directory = config_guard.music_directory.clone();
     let app_config_json = serde_json::to_value(&config_guard.app).unwrap_or_else(|_| json!({}));
-    let config_dir = config_guard.config_dir.clone();
     let env_vars =
         crate::x::load_env_vars_from_path(config_guard.app.storage.environment.as_deref());
     drop(config_guard);
@@ -179,12 +178,7 @@ pub async fn execute_action(
     let target_ids = resolve_target_ids(&params, &state, &music_directory).await;
 
     if let Some(run_str) = &action_cfg.run {
-        let expanded_action_path = libdale::utils::expand_path(run_str);
-        let action_path = if expanded_action_path.is_absolute() {
-            expanded_action_path
-        } else {
-            config_dir.join(expanded_action_path)
-        };
+        let action_path = std::path::PathBuf::from(run_str);
 
         if tokio::fs::try_exists(&action_path).await.unwrap_or(false) {
             return run_external_process(
@@ -198,6 +192,11 @@ pub async fn execute_action(
             )
             .await;
         }
+        return (
+            StatusCode::NOT_FOUND,
+            Json(json!({"error": format!("Action '{name}' script not found at path: {}", action_path.display())})),
+        )
+            .into_response();
     }
 
     let mut merged_config = action_cfg.config.clone();

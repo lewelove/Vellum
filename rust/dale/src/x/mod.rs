@@ -194,7 +194,6 @@ pub async fn execute(
 ) -> Result<()> {
     let name_key = name.replace('-', "_");
     let config = libdale::lua::ResolvedConfig::load().context("Failed to load config")?;
-    let config_dir = config.path.parent().unwrap_or_else(|| Path::new("."));
 
     let music_directory = expand_path(&config.app.storage.music_directory)
         .canonicalize()
@@ -223,18 +222,14 @@ pub async fn execute(
     }
 
     if let Some(r_str) = action_cfg_opt.as_ref().and_then(|a| a.run.clone()) {
-        let expanded_action_path = expand_path(&r_str);
-        let action_path = if expanded_action_path.is_absolute() {
-            expanded_action_path
-        } else {
-            config_dir.join(expanded_action_path)
-        };
+        let action_path = PathBuf::from(&r_str);
 
         if action_path.exists() {
             let env_vars = load_env_vars_from_path(config.app.storage.environment.as_deref());
             run_external_action(&action_path, &env_vars, &combined_json).await?;
             return Ok(());
         }
+        anyhow::bail!("Action '{name}' script not found at path: {}", action_path.display());
     }
 
     let mut executed_builtin = false;

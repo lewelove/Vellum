@@ -511,6 +511,7 @@ pub struct ResolvedConfig {
 impl ResolvedConfig {
     pub fn load() -> Result<Self> {
         let path = resolve_config_path().context("Could not locate init.lua")?;
+        let config_dir = path.parent().unwrap_or_else(|| Path::new("."));
         let engine = LuaEngine::new()?;
         let mut evaluated = engine.evaluate_config(&path)?;
 
@@ -519,6 +520,37 @@ impl ResolvedConfig {
                 filter: "lanczos".to_string(),
                 size: 200,
             });
+        }
+
+        if !evaluated.app.storage.music_directory.is_empty() {
+            evaluated.app.storage.music_directory = crate::utils::resolve_path(&evaluated.app.storage.music_directory, config_dir).to_string_lossy().to_string();
+        }
+        if let Some(ref env_path) = evaluated.app.storage.environment {
+            evaluated.app.storage.environment = Some(crate::utils::resolve_path(env_path, config_dir).to_string_lossy().to_string());
+        }
+        if !evaluated.app.storage.cache.is_empty() {
+            evaluated.app.storage.cache = crate::utils::resolve_path(&evaluated.app.storage.cache, config_dir).to_string_lossy().to_string();
+        }
+        if !evaluated.app.storage.state.is_empty() {
+            evaluated.app.storage.state = crate::utils::resolve_path(&evaluated.app.storage.state, config_dir).to_string_lossy().to_string();
+        }
+
+        for intf in evaluated.interfaces.values_mut() {
+            if let Some(ref dir) = intf.directory {
+                intf.directory = Some(crate::utils::resolve_path(dir, config_dir).to_string_lossy().to_string());
+            }
+            if let Some(ref run_script) = intf.run {
+                intf.run = Some(crate::utils::resolve_path(run_script, config_dir).to_string_lossy().to_string());
+            }
+            for asset_path in intf.assets.values_mut() {
+                *asset_path = crate::utils::resolve_path(asset_path, config_dir).to_string_lossy().to_string();
+            }
+        }
+
+        for action in evaluated.actions.values_mut() {
+            if let Some(ref run_script) = action.run {
+                action.run = Some(crate::utils::resolve_path(run_script, config_dir).to_string_lossy().to_string());
+            }
         }
 
         let mut dependencies = evaluated.dependencies;
