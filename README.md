@@ -32,17 +32,19 @@ The reasons behind architecture choices are a few cool features they unlock:
 
 ## Examples of Why This Architecture Is Incredible
 
-Here are few examples of the raw power of this architecture based on concrete use cases for my actual album library:
+Here are the few raw power examples of this architecture based on concrete use cases for my actual album collection:
 
 ### Fetch Raw Data Once — Consume Forever
 
 When adding an album to your library simply fetch raw response JSONs from the upstream metadata source (Discogs, MusicBrainz, etc), save them, and consume at compile time.
 
-Example: I want my albums to always have the `genres` and `styles` keys as arrays of strings from the Discogs Master release group. I find master release group with the `discogs.com/master/...` URL, then use a script to fetch a JSON from it, and save it under `{album_directory}/Info/discogs_master.json`. Then I express `genres` and `styles` key compilation logic directly in Lua:
+The Goal: I want my albums to always have the `genres` and `styles` keys as arrays of strings from the Discogs Master release group, so I can group albums by these keys in the UI.
+The Solution: I find album master release group on Discogs, copy the `discogs.com/master/...` URL, then use a small Discogs API key based program (look into `actions/` for code reference) to fetch a JSON and save it under `{album_directory}/Info/discogs_master.json`. Then I express `genres` and `styles` key compilation logic directly in Lua:
 
 ```lua
 dl.compile.album.key("genres", function(ctx, m)
-  local path = ctx.paths.album_root .. "/Info/discogs_master.json" -- Join the path with the album root from context
+  -- Join the path with the album root from context
+  local path = ctx.paths.album_root .. "/Info/discogs_master.json"
   local discogs = dl.fs.read_json(path) -- Read JSON directly
   return discogs.genres -- Return the array! That's it!
 end)
@@ -76,13 +78,17 @@ meta = albums[0].get("album", {}) # Select the first album from the array
 artist = urllib.parse.quote(meta.get("albumartist", "")) 
 title = urllib.parse.quote(meta.get("album", ""))
 
+# Generate the `covers.musichoarders.xyz` URL
 url = (
-    f"https://covers.musichoarders.xyz/?theme=dark" # Generate the `covers.musichoarders.xyz` URL
-    f"&sources=amazonmusic,applemusic,deezer,discogs,fanarttv,lastfm,musicbrainz,qobuz,soulseek" # List cover search sources
-    f"&country=US&artist={artist}&album={title}" # Inject metadata
+    f"https://covers.musichoarders.xyz/?theme=dark"
+    # List cover search sources
+    f"&sources=amazonmusic,applemusic,deezer,discogs,fanarttv,lastfm,musicbrainz,qobuz,soulseek"
+    # Inject metadata
+    f"&country=US&artist={artist}&album={title}"
 )
 
-subprocess.Popen(["xdg-open", url], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) # Open the link using standard xdg-open
+# Open the link using standard xdg-open
+subprocess.Popen(["xdg-open", url], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 ```
 
 Save this script as `search-cover.py`, make executable, and provide the action runtime to it:
