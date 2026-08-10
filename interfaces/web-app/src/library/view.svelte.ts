@@ -343,6 +343,8 @@ export class ViewState {
     this.activeSidebarGrouper = key;
     if (this.activeFilter.key !== key) {
       this.activeFilter = { key: null, val: null };
+      this.focusedAlbum = null;
+      this.refreshView(true);
     }
     this.refreshSidebar();
     this.persistState();
