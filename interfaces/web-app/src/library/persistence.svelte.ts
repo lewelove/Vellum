@@ -3,9 +3,9 @@ import type { ViewState } from "./view.svelte.ts";
 
 export function applyPersistedState(state: any, view: ViewState) {
   nav.activeTab = state.activeTab || "home";
-  view.homeSubView = state.homeSubView || "library";
+  view.homeSubView = state.homeSubView || "libraries";
   view.librariesState = state.librariesState || {};
-  view.activeLibrary = state.activeLibrary || state.activeCollection || "library";
+  view.activeLibrary = state.activeLibrary || "library";
 
   view.loadLibraryState(view.activeLibrary);
 
@@ -19,7 +19,7 @@ export function applyPersistedState(state: any, view: ViewState) {
   }
   if (state.sortOrder !== undefined) {
     view.userSortOrder = state.sortOrder;
-    view.activeSort = { key: view.activeSort.key, order: state.sortOrder };
+    view.activeSort = { key: view.userSortPreference, order: state.sortOrder };
   }
 
   view.activeShelf = state.activeShelf || null;

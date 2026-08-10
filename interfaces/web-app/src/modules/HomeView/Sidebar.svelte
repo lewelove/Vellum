@@ -7,7 +7,11 @@ let isLibraryMenuOpen = $state(false);
 let isLibraryFilterMenuOpen = $state(false);
 let isSortMenuOpen = $state(false);
 let isGroupMenuOpen = $state(false);
+let isCabinetMenuOpen = $state(false);
+let isCabinetOrderMenuOpen = $state(false);
 let scrollContainer: HTMLDivElement | null = $state(null);
+
+let isCabinetsMode = $derived(view.homeSubView === "cabinets");
 
 let visibleFilters = $derived(collection.getVisibleFilters(view.activeLibrary));
 let showFilterDropdown = $derived(visibleFilters.length > 0);
@@ -33,6 +37,27 @@ let sortLabel = $derived(
     : ""
 );
 
+let activeCabinet = $derived(
+  view.activeCabinet ||
+    (collection.manifest.cabinets_order && collection.manifest.cabinets_order[0]) ||
+    Object.keys(collection.availableCabinets)[0] ||
+    "default"
+);
+let cabinetLabel = $derived(collection.availableCabinets[activeCabinet]?.label || "Cabinet");
+
+let visibleShelves = $derived(collection.getVisibleShelvesForCabinet(activeCabinet));
+let activeShelf = $derived(
+  view.activeShelf || (visibleShelves.length > 0 ? visibleShelves[0].key : "")
+);
+
+let visibleCabinetOrders = $derived(collection.getVisibleOrdersForCabinet(activeCabinet));
+let showCabinetOrderDropdown = $derived(visibleCabinetOrders.length >= 1);
+let cabinetOrderLabel = $derived(
+  view.activeShelfOrder === "original"
+    ? "Original"
+    : collection.availableOrders[view.activeShelfOrder]?.label || "Original"
+);
+
 let items = $derived(view.getSidebarGroup(view.activeSidebarGrouper));
 
 let isReverse = $derived(view.userSortOrder === "reverse");
@@ -45,54 +70,61 @@ let showCount = $derived(activeGrouperDef.count === true);
 
 function handleKeydown(e: KeyboardEvent) {
   if (e.key === "Escape") {
-    isLibraryMenuOpen = false;
-    isLibraryFilterMenuOpen = false;
-    isSortMenuOpen = false;
-    isGroupMenuOpen = false;
+    closeAllMenus();
   }
 }
 
+function closeAllMenus() {
+  isLibraryMenuOpen = false;
+  isLibraryFilterMenuOpen = false;
+  isSortMenuOpen = false;
+  isGroupMenuOpen = false;
+  isCabinetMenuOpen = false;
+  isCabinetOrderMenuOpen = false;
+}
+
 function toggleSubView() {
-  view.homeSubView = view.homeSubView === "library" ? "shelves" : "library";
+  closeAllMenus();
+  view.homeSubView = view.homeSubView === "libraries" ? "cabinets" : "libraries";
   view.focusedAlbum = null;
   view.refreshView(true);
   view.persistState();
 }
 
 function toggleLibraryMenu() {
-  isLibraryMenuOpen = !isLibraryMenuOpen;
-  if (isLibraryMenuOpen) {
-    isLibraryFilterMenuOpen = false;
-    isSortMenuOpen = false;
-    isGroupMenuOpen = false;
-  }
+  const target = !isLibraryMenuOpen;
+  closeAllMenus();
+  isLibraryMenuOpen = target;
 }
 
 function toggleLibraryFilterMenu() {
-  isLibraryFilterMenuOpen = !isLibraryFilterMenuOpen;
-  if (isLibraryFilterMenuOpen) {
-    isLibraryMenuOpen = false;
-    isSortMenuOpen = false;
-    isGroupMenuOpen = false;
-  }
+  const target = !isLibraryFilterMenuOpen;
+  closeAllMenus();
+  isLibraryFilterMenuOpen = target;
 }
 
 function toggleSortMenu() {
-  isSortMenuOpen = !isSortMenuOpen;
-  if (isSortMenuOpen) {
-    isLibraryMenuOpen = false;
-    isLibraryFilterMenuOpen = false;
-    isGroupMenuOpen = false;
-  }
+  const target = !isSortMenuOpen;
+  closeAllMenus();
+  isSortMenuOpen = target;
 }
 
 function toggleGroupMenu() {
-  isGroupMenuOpen = !isGroupMenuOpen;
-  if (isGroupMenuOpen) {
-    isLibraryMenuOpen = false;
-    isLibraryFilterMenuOpen = false;
-    isSortMenuOpen = false;
-  }
+  const target = !isGroupMenuOpen;
+  closeAllMenus();
+  isGroupMenuOpen = target;
+}
+
+function toggleCabinetMenu() {
+  const target = !isCabinetMenuOpen;
+  closeAllMenus();
+  isCabinetMenuOpen = target;
+}
+
+function toggleCabinetOrderMenu() {
+  const target = !isCabinetOrderMenuOpen;
+  closeAllMenus();
+  isCabinetOrderMenuOpen = target;
 }
 
 function selectLibrary(key: string) {
@@ -100,9 +132,19 @@ function selectLibrary(key: string) {
   isLibraryMenuOpen = false;
 }
 
+function selectCabinet(key: string) {
+  view.setCabinet(key);
+  isCabinetMenuOpen = false;
+}
+
 function selectOrder(key: string) {
   view.setUserSort(key);
   isSortMenuOpen = false;
+}
+
+function selectCabinetOrder(key: string) {
+  view.setShelfOrder(key);
+  isCabinetOrderMenuOpen = false;
 }
 
 function selectGrouper(key: string) {
@@ -112,6 +154,10 @@ function selectGrouper(key: string) {
 
 function toggleDirection() {
   view.toggleSortOrder();
+}
+
+function toggleCabinetDirection() {
+  view.toggleShelfOrderDirection();
 }
 </script>
 
@@ -145,180 +191,273 @@ function toggleDirection() {
         type="button"
         class="v-btn-icon v-sidebar-button"
         onclick={toggleSubView}
-        title={view.homeSubView === "library" ? "Libraries" : "Shelves"}
+        title={isCabinetsMode ? "Cabinets" : "Libraries"}
       >
-        <span class="icon">{view.homeSubView === "library" ? "auto_stories" : "shelves"}</span>
+        <span class="icon">{isCabinetsMode ? "shelves" : "auto_stories"}</span>
       </button>
 
-      <div class="v-button-wrapper v-flex-grow">
-        <button
-          type="button"
-          class="v-btn-icon v-sidebar-button v-btn-menu"
-          onclick={toggleLibraryMenu}
-          class:active={isLibraryMenuOpen}
-          title="Library"
-        >
-          <span class="v-truncate btn-label iconless">{libraryLabel}</span>
-          <span class="icon end-icon"
-            >{isLibraryMenuOpen ? "arrow_drop_up" : "arrow_drop_down"}</span
-          >
-        </button>
+      {#if isCabinetsMode}
+        {#if collection.cabinetsList.length > 0}
+          <div class="v-button-wrapper v-flex-grow">
+            <button
+              type="button"
+              class="v-btn-icon v-sidebar-button v-btn-menu"
+              onclick={toggleCabinetMenu}
+              class:active={isCabinetMenuOpen}
+              title="Cabinet"
+            >
+              <span class="v-truncate btn-label iconless">{cabinetLabel}</span>
+              <span class="icon end-icon">{isCabinetMenuOpen ? "arrow_drop_up" : "arrow_drop_down"}</span>
+            </button>
 
-        {#if isLibraryMenuOpen}
-          <div class="v-menu">
-            {#each collection.librariesList as lib (lib.key)}
-              <button
-                type="button"
-                class="v-menu-item"
-                class:selected={view.activeLibrary === lib.key}
-                onclick={() => selectLibrary(lib.key)}
-              >
-                {lib.label}
-              </button>
-            {/each}
+            {#if isCabinetMenuOpen}
+              <div class="v-menu">
+                {#each collection.cabinetsList as cab (cab.key)}
+                  <button
+                    type="button"
+                    class="v-menu-item"
+                    class:selected={activeCabinet === cab.key}
+                    onclick={() => selectCabinet(cab.key)}
+                  >
+                    {cab.label}
+                  </button>
+                {/each}
+              </div>
+            {/if}
           </div>
         {/if}
-      </div>
+      {:else}
+        <div class="v-button-wrapper v-flex-grow">
+          <button
+            type="button"
+            class="v-btn-icon v-sidebar-button v-btn-menu"
+            onclick={toggleLibraryMenu}
+            class:active={isLibraryMenuOpen}
+            title="Library"
+          >
+            <span class="v-truncate btn-label iconless">{libraryLabel}</span>
+            <span class="icon end-icon">{isLibraryMenuOpen ? "arrow_drop_up" : "arrow_drop_down"}</span>
+          </button>
+
+          {#if isLibraryMenuOpen}
+            <div class="v-menu">
+              {#each collection.librariesList as lib (lib.key)}
+                <button
+                  type="button"
+                  class="v-menu-item"
+                  class:selected={view.activeLibrary === lib.key}
+                  onclick={() => selectLibrary(lib.key)}
+                >
+                  {lib.label}
+                </button>
+              {/each}
+            </div>
+          {/if}
+        </div>
+      {/if}
     </div>
 
-    {#if showFilterDropdown}
-      <div class="v-control-row">
-        <div class="v-button-wrapper v-flex-grow">
-          <button
-            type="button"
-            class="v-btn-icon v-sidebar-button v-btn-menu"
-            onclick={toggleLibraryFilterMenu}
-            class:active={isLibraryFilterMenuOpen}
-            title="Filter"
-          >
-            <span class="icon start-icon">texture</span>
-            <span class="v-truncate btn-label">{filterLabel}</span>
-            <span class="icon end-icon"
-              >{isLibraryFilterMenuOpen ? "arrow_drop_up" : "arrow_drop_down"}</span
+    {#if isCabinetsMode}
+      {#if showCabinetOrderDropdown}
+        <div class="v-control-row">
+          <div class="v-button-wrapper v-flex-grow">
+            <button
+              type="button"
+              class="v-btn-icon v-sidebar-button v-btn-menu"
+              onclick={toggleCabinetOrderMenu}
+              class:active={isCabinetOrderMenuOpen}
+              title="Sort By"
             >
-          </button>
+              <span class="icon start-icon">swap_vert</span>
+              <span class="v-truncate btn-label">{cabinetOrderLabel}</span>
+              <span class="icon end-icon">{isCabinetOrderMenuOpen ? "arrow_drop_up" : "arrow_drop_down"}</span>
+            </button>
 
-          {#if isLibraryFilterMenuOpen}
-            <div class="v-menu">
-              {#each visibleFilters as { key, label } (key)}
+            {#if isCabinetOrderMenuOpen}
+              <div class="v-menu">
                 <button
                   type="button"
                   class="v-menu-item"
-                  class:selected={view.activeLibraryFilter === key}
-                  onclick={() => {
-                    view.setLibraryFilter(key);
-                    isLibraryFilterMenuOpen = false;
-                  }}
+                  class:selected={view.activeShelfOrder === "original"}
+                  onclick={() => selectCabinetOrder("original")}
                 >
-                  {label}
+                  Original
                 </button>
-              {/each}
-            </div>
-          {/if}
-        </div>
-      </div>
-    {/if}
+                {#each visibleCabinetOrders as { key, label } (key)}
+                  <button
+                    type="button"
+                    class="v-menu-item"
+                    class:selected={view.activeShelfOrder === key}
+                    onclick={() => selectCabinetOrder(key)}
+                  >
+                    {label}
+                  </button>
+                {/each}
+              </div>
+            {/if}
+          </div>
 
-    {#if showGroupDropdown}
-      <div class="v-control-row">
-        <div class="v-button-wrapper v-flex-grow">
           <button
             type="button"
-            class="v-btn-icon v-sidebar-button v-btn-menu"
-            onclick={toggleGroupMenu}
-            class:active={isGroupMenuOpen}
-            title="Group By"
+            class="v-btn-icon v-sidebar-button"
+            onclick={toggleCabinetDirection}
+            title={view.activeShelfOrderReverse ? "Reverse Order" : "Default Order"}
           >
-            <span class="icon start-icon">stack_group</span>
-            <span class="v-truncate btn-label">{groupLabel}</span>
-            <span class="icon end-icon">{isGroupMenuOpen ? "arrow_drop_up" : "arrow_drop_down"}</span>
+            <span class="icon order-arrow" class:mirrored={view.activeShelfOrderReverse}>arrow_shape_up_stack</span>
           </button>
-
-          {#if isGroupMenuOpen}
-            <div class="v-menu">
-              {#each visibleGroupers as { key, label } (key)}
-                <button
-                  type="button"
-                  class="v-menu-item"
-                  class:selected={view.activeSidebarGrouper === key}
-                  onclick={() => selectGrouper(key)}
-                >
-                  {label}
-                </button>
-              {/each}
-            </div>
-          {/if}
         </div>
-      </div>
-    {/if}
+      {/if}
+    {:else}
+      {#if showFilterDropdown}
+        <div class="v-control-row">
+          <div class="v-button-wrapper v-flex-grow">
+            <button
+              type="button"
+              class="v-btn-icon v-sidebar-button v-btn-menu"
+              onclick={toggleLibraryFilterMenu}
+              class:active={isLibraryFilterMenuOpen}
+              title="Filter"
+            >
+              <span class="icon start-icon">texture</span>
+              <span class="v-truncate btn-label">{filterLabel}</span>
+              <span class="icon end-icon">{isLibraryFilterMenuOpen ? "arrow_drop_up" : "arrow_drop_down"}</span>
+            </button>
 
-    {#if showSortDropdown}
-      <div class="v-control-row">
-        <div class="v-button-wrapper v-flex-grow">
+            {#if isLibraryFilterMenuOpen}
+              <div class="v-menu">
+                {#each visibleFilters as { key, label } (key)}
+                  <button
+                    type="button"
+                    class="v-menu-item"
+                    class:selected={view.activeLibraryFilter === key}
+                    onclick={() => {
+                      view.setLibraryFilter(key);
+                      isLibraryFilterMenuOpen = false;
+                    }}
+                  >
+                    {label}
+                  </button>
+                {/each}
+              </div>
+            {/if}
+          </div>
+        </div>
+      {/if}
+
+      {#if showGroupDropdown}
+        <div class="v-control-row">
+          <div class="v-button-wrapper v-flex-grow">
+            <button
+              type="button"
+              class="v-btn-icon v-sidebar-button v-btn-menu"
+              onclick={toggleGroupMenu}
+              class:active={isGroupMenuOpen}
+              title="Group By"
+            >
+              <span class="icon start-icon">stack_group</span>
+              <span class="v-truncate btn-label">{groupLabel}</span>
+              <span class="icon end-icon">{isGroupMenuOpen ? "arrow_drop_up" : "arrow_drop_down"}</span>
+            </button>
+
+            {#if isGroupMenuOpen}
+              <div class="v-menu">
+                {#each visibleGroupers as { key, label } (key)}
+                  <button
+                    type="button"
+                    class="v-menu-item"
+                    class:selected={view.activeSidebarGrouper === key}
+                    onclick={() => selectGrouper(key)}
+                  >
+                    {label}
+                  </button>
+                {/each}
+              </div>
+            {/if}
+          </div>
+        </div>
+      {/if}
+
+      {#if showSortDropdown}
+        <div class="v-control-row">
+          <div class="v-button-wrapper v-flex-grow">
+            <button
+              type="button"
+              class="v-btn-icon v-sidebar-button v-btn-menu"
+              onclick={toggleSortMenu}
+              class:active={isSortMenuOpen}
+              title="Sort By"
+            >
+              <span class="icon start-icon">swap_vert</span>
+              <span class="v-truncate btn-label">{sortLabel}</span>
+              <span class="icon end-icon">{isSortMenuOpen ? "arrow_drop_up" : "arrow_drop_down"}</span>
+            </button>
+
+            {#if isSortMenuOpen}
+              <div class="v-menu">
+                {#each visibleOrders as { key, label } (key)}
+                  <button
+                    type="button"
+                    class="v-menu-item"
+                    class:selected={view.userSortPreference === key}
+                    onclick={() => selectOrder(key)}
+                  >
+                    {label}
+                  </button>
+                {/each}
+              </div>
+            {/if}
+          </div>
+
           <button
             type="button"
-            class="v-btn-icon v-sidebar-button v-btn-menu"
-            onclick={toggleSortMenu}
-            class:active={isSortMenuOpen}
-            title="Sort By"
+            class="v-btn-icon v-sidebar-button"
+            onclick={toggleDirection}
+            title={isReverse ? "Reverse Order" : "Default Order"}
           >
-            <span class="icon start-icon">swap_vert</span>
-            <span class="v-truncate btn-label">{sortLabel}</span>
-            <span class="icon end-icon">{isSortMenuOpen ? "arrow_drop_up" : "arrow_drop_down"}</span>
+            <span class="icon order-arrow" class:mirrored={isReverse}>arrow_shape_up_stack</span>
           </button>
-
-          {#if isSortMenuOpen}
-            <div class="v-menu">
-              {#each visibleOrders as { key, label } (key)}
-                <button
-                  type="button"
-                  class="v-menu-item"
-                  class:selected={view.userSortPreference === key}
-                  onclick={() => selectOrder(key)}
-                >
-                  {label}
-                </button>
-              {/each}
-            </div>
-          {/if}
         </div>
-
-        <button
-          type="button"
-          class="v-btn-icon v-sidebar-button"
-          onclick={toggleDirection}
-          title={isReverse ? "Reverse Order" : "Default Order"}
-        >
-          <span class="icon order-arrow" class:mirrored={isReverse}>arrow_shape_up_stack</span>
-        </button>
-      </div>
+      {/if}
     {/if}
   </div>
 
   <div class="v-sidebar-body">
     <div class="v-sidebar-scroll" bind:this={scrollContainer}>
       <div class="v-scroll-fade-top"></div>
-      {#each items as item, i (item.value || item.label || i)}
-        {@render Item({
-          index: i,
-          label: item.label,
-          count: item.count,
-          active:
-            Boolean(view.activeSidebarGrouper) &&
-            view.activeFilter.key === view.activeSidebarGrouper &&
-            view.activeFilter.val === item.value,
-          onclick: () => {
-            if (view.activeSidebarGrouper) {
-              view.applyFilter(view.activeSidebarGrouper, item.value);
+      {#if isCabinetsMode}
+        {#each visibleShelves as shelf (shelf.key)}
+          <button
+            type="button"
+            class="v-sidebar-item"
+            class:active={activeShelf === shelf.key}
+            onclick={() => view.setShelf(shelf.key)}
+          >
+            <span class="v-truncate label" title={shelf.label}>{shelf.label}</span>
+          </button>
+        {/each}
+      {:else}
+        {#each items as item, i (item.value || item.label || i)}
+          {@render Item({
+            index: i,
+            label: item.label,
+            count: item.count,
+            active:
+              Boolean(view.activeSidebarGrouper) &&
+              view.activeFilter.key === view.activeSidebarGrouper &&
+              view.activeFilter.val === item.value,
+            onclick: () => {
+              if (view.activeSidebarGrouper) {
+                view.applyFilter(view.activeSidebarGrouper, item.value);
+              }
             }
-          }
-        })}
-      {/each}
+          })}
+        {/each}
+      {/if}
       <div class="scroll-spacer"></div>
       <div class="v-scroll-fade-bottom"></div>
     </div>
 
-    {#if items.length > 0 && showIndex}
+    {#if !isCabinetsMode && items.length > 0 && showIndex}
       <SidebarIndex {items} container={scrollContainer} />
     {/if}
   </div>

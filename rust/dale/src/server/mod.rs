@@ -39,7 +39,7 @@ fn load_state(state_root: &Path) -> serde_json::Value {
 fn default_state() -> serde_json::Value {
     serde_json::json!({
         "activeTab": "home",
-        "homeSubView": "library",
+        "homeSubView": "libraries",
         "activeLibrary": "library",
         "activeCabinet": "default",
         "sortKey": "default",

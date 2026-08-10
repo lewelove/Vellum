@@ -7,7 +7,7 @@ import { applyPersistedState, persistState } from "./persistence.svelte.ts";
 export class ViewState {
   isLoading: boolean = $state(true);
   isConnected: boolean = $state(false);
-  homeSubView: "library" | "shelves" = $state("library");
+  homeSubView: "libraries" | "cabinets" = $state("libraries");
 
   focusedAlbum: any = $state(null);
 
@@ -246,7 +246,7 @@ export class ViewState {
     if (!sync.isOpen) return;
     this._pendingViewReset = resetScroll;
 
-    if (nav.activeTab === "home" && this.homeSubView === "shelves") {
+    if (nav.activeTab === "home" && this.homeSubView === "cabinets") {
       const visibleShelves = collection.getVisibleShelvesForCabinet(this.activeCabinet);
       if (visibleShelves.length > 0 && !visibleShelves.some((s) => s.key === this.activeShelf)) {
         this.activeShelf = visibleShelves[0].key;

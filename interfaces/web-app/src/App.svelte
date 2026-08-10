@@ -82,7 +82,6 @@ function handleKeydown(e: KeyboardEvent) {
   }
 
   if (lowerKey === "1" || lowerKey === "h") {
-    view.homeSubView = "library";
     if (nav.activeTab !== "home") {
       setTab("home");
     } else {
@@ -94,7 +93,7 @@ function handleKeydown(e: KeyboardEvent) {
     setTab("queue");
   }
   if (lowerKey === "s") {
-    view.homeSubView = "shelves";
+    view.homeSubView = "cabinets";
     if (nav.activeTab !== "home") {
       setTab("home");
     } else {

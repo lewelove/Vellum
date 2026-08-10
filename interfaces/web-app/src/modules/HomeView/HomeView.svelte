@@ -1,9 +1,9 @@
 <script lang="ts">
 import { view } from "../../library/view.svelte.ts";
 import NavigationBar from "../NavigationBar.svelte";
-import AlbumGrid from "./AlbumGrid/AlbumGrid.svelte";
-import SidebarLibrary from "./Sidebar.svelte";
-import SidebarShelves from "../ShelvesView/Sidebar.svelte";
+import LibrariesView from "./LibrariesView.svelte";
+import CabinetsView from "./CabinetsView.svelte";
+import Sidebar from "./Sidebar.svelte";
 import ModalDrawer from "./ModalDrawer/ModalDrawer.svelte";
 
 let isResizing = $state(false);
@@ -32,12 +32,17 @@ function startResizing() {
 
   <div class="workspace">
     <section class="plane home-grid" class:resizing={isResizing}>
-      <AlbumGrid
-        albums={view.homeSubView === "shelves" ? view.shelfAlbums : view.libraryAlbums}
-        version={view.homeSubView === "shelves" ? view.shelfVersion : view.libraryVersion}
-        activeAlbumId={view.focusedAlbum?.id}
-        onfocus={(album) => view.setFocus(album)}
-      />
+      {#if view.homeSubView === "cabinets"}
+        <CabinetsView
+          activeAlbumId={view.focusedAlbum?.id}
+          onfocus={(album) => view.setFocus(album)}
+        />
+      {:else}
+        <LibrariesView
+          activeAlbumId={view.focusedAlbum?.id}
+          onfocus={(album) => view.setFocus(album)}
+        />
+      {/if}
     </section>
 
     <aside class="sidebar-shell right" class:dormant={isModalVisible}>
@@ -45,11 +50,7 @@ function startResizing() {
         <button type="button" class="sidebar-resizer" onmousedown={startResizing} aria-label="Resize sidebar"
         ></button>
         <div class="sidebar-inner">
-          {#if view.homeSubView === "shelves"}
-            <SidebarShelves />
-          {:else}
-            <SidebarLibrary />
-          {/if}
+          <Sidebar />
         </div>
       </div>
     </aside>
