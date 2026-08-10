@@ -1,28 +1,34 @@
-# DALE: Data-driven Album Library Engine
+# Dale: Data-driven Album Library Engine
 
 **Dale** is an MPD client and album-centric music library engine built from the first Unix Philosophy principles for archivist-minded collectors. It brings full Lua scriptability, plain-text data management, and Ahead-Of-Time library compilation guarantees to your album collection.
 
-## Philosophy
+> This README and all documentation were written by me, the developer, with my own hands, on a physical keyboard, in my own words. Thank you for reading it.
 
-- **The Album as The Fundamental Collection Unit.** This project focuses solely on collection and management of music albums. The point, I guess, is to bring back the feeling of physical collecting to the digital world. An album is the fundamental unit of Dale because an album is the fundamental unit of any music collection in real life.
+## Quick Project Rundown
 
-- **Immutable Audio / Mutable Metadata.** Audio files making up the album should be a bit-perfect preservation of the original media. Audio files are inherently static. Your metadata is inherently dynamic. This is the reason why the engine treats audio as a read-only source and separates everything mutable into separate ancillary files.
+**Dale** is built around the compiler architecture and the radical separation of concerns. Here's the quick rundown:
 
-- **Power to The User.** The entire creative vision of this project was conceived around a stance: **you should not be bound by your collection interface choices**. Plain-text is *the* universal interface. To build upon it — is to bring raw power and future-proof compatibility to your collection for decades to come.
+### Principles
 
-## Cool Features
+- **The Album as The Fundamental Unit.** This project focuses solely on collection and management of music albums. The point, I guess, is to bring back the feeling of physical collecting to the digital world. The fundamentality of the album for this project reflects how you collect music in real life.
+- **Immutable Audio / Mutable Metadata.** Audio files making up the album should be a bit-perfect preservation of the original media. Audio files are inherently static. Your metadata is inherently dynamic. The engine treats audio as a read-only source. Everything mutable is expected to exist as ancillary files alongside it.
+- **Power to The User.** The entire creative vision of this project was conceived around a stance: you should not be bound by your collection interface choices. Every active decision made for this project reflects it.
 
-### Everything in Plain-Text
-Entire library metadata — from song names and album lengths in milliseconds — to custom album source URLs and ReplayGain values — to **anything specific that can exist in a text form describing an album in your collection** is stored and compiled within ancillary plain-text files. Edit them in Neovim, RipGrep/Sed them, run scripts against them. Everything can be version controlled, every change can be tracked, backed up and reverted — independently of the audio's embedded tags — in human readable database-less format. Once your collection's metadata hits Git and is uploaded to a remote repo you will never lose it ever again.
+### Architecture
 
-### Album as a Compiled Data Object
-For the analogy's sake imagine an album directory as an entry in the physical archive. This entry contains data written with the human intent (`metadata.toml` and other TOML manifests) and the source you're trying to preserve (audio, cover art, lyrics, documents). Then you take all these and run a compiler against them to produce an album's **index** in this imagined archive. When you think about an album in this way, it stops being an opaque fuzzy object interpreted by each different media player on the fly, and becomes a set of data points that can be compiled into a standardized machine-readable data object (`album.lock.json`). This object is then read by the server to register it and to provide data for any further user-album interfacing. The compilation step also brings you all cool compile time features AOT programming languages have. You can express all these — type checking, correctness enforcement, linting, key-to-manifest binding and validation — in the Lua config.
+- **Complete plain-text power.** Store anything that you care about in plain-text alongside the album. Custom date added values, lyrics, your own personal notes, source URLs, ReplayGain values, static album analysis results, *anything*. Edit these files in Neovim, RipGrep/Sed them. Plain-text is *the* universal interface.
+- **Album as a Compiled Data Object.** Take these metadata files, take the audio source, the cover, and *compile* them. Result: machine-readable, standardized `album.lock.json`. Use this object to interface the album in any way imaginable.
+- **Database-less storage.** No opaque SQLite databases somewhere in media player cache. 1 Album = 1 Directory = 1 Source of Truth. Everything in plain sight. Zero lock-in.
+- **Decoupled Backend and Frontend.** Dale is the Rust web server first — the user interface intentionally comes second. The interface choice is yours. You can write interfaces in any language that supports Web API communications with the running backend. You can build TUI apps, Godot based game-interfaces, or you can even straight up use Curl. The project's goal is to provide robust primitives and allow you to build upon them.
 
-### Decoupled Frontend and Backend
-**Dale is the Rust web server first — the User Interface intentionally comes second.** The separation of concerns is essential in Unix Philosophy. Want to change UI theme? Want to add some cool display feature? No need to worry. You can directly edit contents of the `web-app/` or fully rewrite your own UI in a WebDev stack and run it in a browser — wiring it up to a running backend server using its Web API **today**. Furthermore, any UI framework that supports Web API functionality can control MPD and retrieve library and album data. You can build TUI apps, Godot based game-interfaces, or you can even straight up use Curl. The project's goal is to provide robust primitives, so you can interface your album collection in any weird & brilliant way possible.
+## Why This Way?
 
-### Actions
-Since every album is compiled into a plain-text JSON — every album becomes scriptable. An **action** is a standalone executable that reads intermediary JSON from stdin (provided by the engine and populated with albums and config data at runtime) and performs some kind of logic based on this data. That's it. You can write actions in any language that supports reading JSONs (or even in simple shell scripts with Jq) and use them to infinitely expand library management functionality in Unix Philosophy style. Each action is configurable via its own CLI arguments and Lua config. Every action is callable by its own `/api/actions/{action_name}/` endpoint, so you can wire them up to and execute from any future interface. For built-in actions and more context of what they may be useful for look into the `actions/` directory.
+The reasons behind architecture choices are a few cool features they unlock:
+
+- **Version control of your metadata with Git.** Never lose your metadata after a batch edit ever again. *Or ever again, period.* Something went wrong? Just `git reset --hard`. Upload it to a remote repo and then nothing can take it away from you.
+- **Full Lua scriptability at compile/interface time.** Control the data flow from ancillary files to `album.lock.json` before it hits the interface. Control the logic of how albums are separated by virtual libraries, filtered, grouped, and ordered *inside* the interface. All done in a god-tier scripting language — Lua.
+- **Ahead-Of-Time Compilation Guarantees.** Since each album is compiled ahead-of-time you can enforce all cool compile time features AOT programming languages have. Type check your metadata, lint it, standardize its structure, validate it. All can be expressed in Lua as well.
+- **Actions.** If every album is a JSON file — then every album is scriptable. An **action** is a standalone executable that reads intermediary JSON from stdin provided by Dale at runtime. Infinitely expand your library management functionality in Unix Philosophy style.
 
 ## Interface Showcase
 
@@ -178,4 +184,4 @@ This software was developed in part with the assistance of LLMs, which were used
 **I am the primary and the most active user of this software.** I am building it for myself, in hopes that **you** will find it useful too. This project was born from the unstoppable love for album collecting and archival, respect for Unix Philosophy, and genuine lack of anything close to "album-as-a-compiled-data-object" in the world of media players. Since I daily-drive it — and don't intend to stop any time soon — I'll try to maintain it as long as I am using Linux and listening to albums. Thank you for reading this README.md and (hopefully) using this software. All feedback is always appreciated.
 
 ## License
-I want this project to remain free and open source software forever, which is why it is licensed under the [GNU Affero General Public License v3.0](https://www.gnu.org/licenses/agpl-3.0.en.html). Proprietary license exemptions are not offered.
+Dale is free software and I want it to remain free forever, which is why it is licensed under the [GNU Affero General Public License v3.0](https://www.gnu.org/licenses/agpl-3.0.en.html). Proprietary license exemptions are not offered.
