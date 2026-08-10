@@ -30,6 +30,81 @@ The reasons behind architecture choices are a few cool features they unlock:
 - **Ahead-Of-Time Compilation Guarantees.** Since each album is compiled ahead-of-time you can enforce all cool compile time features AOT programming languages have. Type check your metadata, lint it, standardize its structure, validate it. All can be expressed in Lua as well.
 - **Actions.** If every album is a JSON file — then every album is scriptable. An **action** is a standalone executable that reads intermediary JSON from stdin provided by Dale at runtime. Infinitely expand your library management functionality in Unix Philosophy style. Each action can be called by an `/api/actions/{action_name}/` endpoint from any current or future interface.
 
+## Examples of Why This Architecture Is Incredible
+
+Here are few examples of the raw power of this architecture based on concrete use cases for my actual album library:
+
+### Fetch Raw Data Once — Consume Forever
+
+When adding an album to your library simply fetch raw response JSONs from the upstream metadata source (Discogs, MusicBrainz, etc), save them, and consume at compile time.
+
+Example: I want my albums to always have the `genres` and `styles` keys as arrays of strings from the Discogs Master release group. I find master release group with the `discogs.com/master/...` URL, then use a script to fetch a JSON from it, and save it under `{album_directory}/Info/discogs_master.json`. Then I express `genres` and `styles` key compilation logic directly in Lua:
+
+```lua
+dl.compile.album.key("genres", function(ctx, m)
+  local path = ctx.paths.album_root .. "/Info/discogs_master.json" -- Join the path with the album root from context
+  local discogs = dl.fs.read_json(path) -- Read JSON directly
+  return discogs.genres -- Return the array! That's it!
+end)
+
+dl.compile.album.key("styles", function(ctx, m)
+  local path = ctx.paths.album_root .. "/Info/discogs_master.json"
+  local discogs = dl.fs.read_json(path)
+  return discogs.styles -- Same with `styles`!
+end)
+```
+
+The same can be done with literally any metadata provider that can supply you with the JSON files. And because the `dl.fs` registers the path for the backend dependency graph watcher, any change to `Info/discogs_master.json` for *any* album (like the re-fetch or direct edit) triggers its hot-recompilation!
+
+### Use Actions to Find High-Res Album Artwork
+
+After album is compiled and populated with basic metadata, use an action to find its cover artwork. The resource I use constantly is [covers.musichoarders.xyz](https://covers.musichoarders.xyz/). It supports direct URL metadata injection with URI-encoded strings. Here's the simplest Python script you can use:
+
+```python
+#!/usr/bin/env python3
+import sys, json, urllib.parse, subprocess
+
+data = json.load(sys.stdin) # Read intermediary JSON from stdin
+
+albums = data.get("albums", [])
+if not albums:
+    sys.exit(0)
+
+meta = albums[0].get("album", {}) # Select the first album from the array
+
+# Select `albumartist` and `album` keys and URI-encode them
+artist = urllib.parse.quote(meta.get("albumartist", "")) 
+title = urllib.parse.quote(meta.get("album", ""))
+
+url = (
+    f"https://covers.musichoarders.xyz/?theme=dark" # Generate the `covers.musichoarders.xyz` URL
+    f"&sources=amazonmusic,applemusic,deezer,discogs,fanarttv,lastfm,musicbrainz,qobuz,soulseek" # List cover search sources
+    f"&country=US&artist={artist}&album={title}" # Inject metadata
+)
+
+subprocess.Popen(["xdg-open", url], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) # Open the link using standard xdg-open
+```
+
+Save this script as `search-cover.py`, make executable, and provide the action runtime to it:
+
+```lua
+dl.action("search-cover", {
+  run = "/Path/To/Your/search-cover.py"
+})
+```
+
+Run it from any album directory with compiled `album.lock.json`:
+
+```bash
+dale x search-cover
+```
+
+Or trigger for the currently playing album from anywhere:
+
+```bash
+dale x -p search-cover
+```
+
 ## Interface Showcase
 
 The engine is bundled with the default Web App interface written in fast and reactive Svelte framework. You can run it as standalone headless process with Bun and access it via any browser.
