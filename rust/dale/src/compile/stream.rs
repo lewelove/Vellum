@@ -1,8 +1,8 @@
-use crate::compile::{ExportTarget, build};
+use crate::compile::{build, utils, ExportTarget};
 use anyhow::Result;
 use libdale::error::DaleError;
 use rayon::prelude::*;
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::mpsc;
@@ -44,17 +44,14 @@ pub async fn run(ctx: StreamContext) -> Result<()> {
     Ok(())
 }
 
-fn spawn_builders(
-    ctx: &StreamContext,
-    dtx: mpsc::Sender<Value>,
-) -> tokio::task::JoinHandle<()> {
+fn spawn_builders(ctx: &StreamContext, dtx: mpsc::Sender<Value>) -> tokio::task::JoinHandle<()> {
     let albums = ctx.albums.clone();
     let cfg = Arc::clone(&ctx.config);
     let jobs = ctx.jobs;
 
     tokio::task::spawn_blocking(move || {
-        let default_jobs = std::thread::available_parallelism()
-            .map_or(1, std::num::NonZero::get);
+        let default_jobs =
+            std::thread::available_parallelism().map_or(1, std::num::NonZero::get);
         let pool = rayon::ThreadPoolBuilder::new()
             .num_threads(jobs.unwrap_or(default_jobs))
             .build()
@@ -66,7 +63,7 @@ fn spawn_builders(
                         let _ = dtx.blocking_send(man);
                     }
                     Err(e) => match e {
-                        DaleError::ManifestIoError(_) 
+                        DaleError::ManifestIoError(_)
                         | DaleError::ManifestParseError { .. }
                         | DaleError::JsonError(_) => {
                             log::error!("SYSTEM FAILURE: {e}");
@@ -74,32 +71,11 @@ fn spawn_builders(
                         _ => {
                             log::warn!("VALIDATION REJECTED: {e}");
                         }
-                    }
+                    },
                 }
             });
         });
     })
-}
-
-fn strip_empty_values(value: &mut Value) {
-    match value {
-        Value::Object(map) => {
-            map.retain(|_, v| match v {
-                Value::String(s) => !s.is_empty(),
-                Value::Null => false,
-                _ => true,
-            });
-            for v in map.values_mut() {
-                strip_empty_values(v);
-            }
-        }
-        Value::Array(arr) => {
-            for v in arr.iter_mut() {
-                strip_empty_values(v);
-            }
-        }
-        _ => {}
-    }
 }
 
 fn finalize(
@@ -107,15 +83,25 @@ fn finalize(
     target: ExportTarget,
     notify_tx: Option<Arc<mpsc::Sender<AlbumUpdateSignal>>>,
 ) -> Result<()> {
-    let artist = v.get("album").and_then(|a| a.get("albumartist")).and_then(Value::as_str).unwrap_or("Unknown").to_string();
-    let album = v.get("album").and_then(|a| a.get("album")).and_then(Value::as_str).unwrap_or("Unknown").to_string();
+    let artist = v
+        .get("album")
+        .and_then(|a| a.get("albumartist"))
+        .and_then(Value::as_str)
+        .unwrap_or("Unknown")
+        .to_string();
+    let album = v
+        .get("album")
+        .and_then(|a| a.get("album"))
+        .and_then(Value::as_str)
+        .unwrap_or("Unknown")
+        .to_string();
 
     let ctx = v
         .as_object_mut()
         .and_then(|o| o.remove("ctx"))
         .unwrap_or_else(|| json!({}));
 
-    strip_empty_values(&mut v);
+    utils::strip_empty_values(&mut v);
 
     let album_root_str = ctx
         .get("paths")
@@ -131,8 +117,8 @@ fn finalize(
             println!("{content}");
         } else {
             let lock_path = album_root.join("album.lock.json");
-            let should_write = std::fs::read_to_string(&lock_path)
-                .map_or(true, |existing| existing != content);
+            let should_write =
+                std::fs::read_to_string(&lock_path).map_or(true, |existing| existing != content);
 
             if should_write {
                 std::fs::write(lock_path, content.clone())?;
@@ -143,12 +129,14 @@ fn finalize(
                 let tx = (*tx_arc).clone();
                 let lock_json = content;
                 tokio::spawn(async move {
-                    let _ = tx.send(AlbumUpdateSignal {
-                        path: root_clone,
-                        artist,
-                        album,
-                        lock_json,
-                    }).await;
+                    let _ = tx
+                        .send(AlbumUpdateSignal {
+                            path: root_clone,
+                            artist,
+                            album,
+                            lock_json,
+                        })
+                        .await;
                 });
             }
         }

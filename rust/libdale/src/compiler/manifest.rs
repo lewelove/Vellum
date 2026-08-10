@@ -1,8 +1,8 @@
 use crate::error::DaleError;
-use serde_json::{Value, json};
+use crate::types::toml_to_json;
+use serde_json::{json, Value};
 use std::collections::HashSet;
 use std::path::Path;
-use crate::types::toml_to_json;
 
 pub fn load_manifests(
     album_root: &Path,
@@ -10,30 +10,48 @@ pub fn load_manifests(
 ) -> Result<serde_json::Map<String, Value>, DaleError> {
     let metadata_path = album_root.join("metadata.toml");
     if !metadata_path.exists() {
-        return Err(DaleError::MissingPrimaryManifest { path: album_root.to_path_buf() });
+        return Err(DaleError::MissingPrimaryManifest {
+            path: album_root.to_path_buf(),
+        });
     }
 
     let mut result_manifests = serde_json::Map::new();
 
     let primary_json = parse_single_manifest(&metadata_path, album_root, "metadata", None)?;
-    let expected_tracks = primary_json.get("tracks").and_then(|t| t.as_array()).map_or(0, std::vec::Vec::len);
+    let expected_tracks = primary_json
+        .get("tracks")
+        .and_then(|t| t.as_array())
+        .map_or(0, std::vec::Vec::len);
     result_manifests.insert("metadata".to_string(), primary_json);
 
     let theme_path = album_root.join("theme.toml");
     if theme_path.exists() {
-        let aux_json = parse_single_manifest(&theme_path, album_root, "theme", Some(expected_tracks))?;
+        let aux_json =
+            parse_single_manifest(&theme_path, album_root, "theme", Some(expected_tracks))?;
         result_manifests.insert("theme".to_string(), aux_json);
     }
 
     if let Some(names) = manifest_names {
         for m_val in names {
-            if let Some(m_name) = m_val.as_str() {
-                if m_name == "metadata.toml" || m_name == "theme.toml" { continue; }
-                let m_path = album_root.join(m_name);
-                if !m_path.exists() { continue; }
-                
-                let m_key = m_name.strip_suffix(".toml").unwrap_or(m_name);
-                let aux_json = parse_single_manifest(&m_path, album_root, m_key, Some(expected_tracks))?;
+            if let Some(m_name_raw) = m_val.as_str() {
+                let path_ref = Path::new(m_name_raw);
+                let m_key = path_ref
+                    .file_stem()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or(m_name_raw);
+
+                if m_key.eq_ignore_ascii_case("metadata") || m_key.eq_ignore_ascii_case("theme") {
+                    continue;
+                }
+
+                let m_filename = format!("{m_key}.toml");
+                let m_path = album_root.join(&m_filename);
+                if !m_path.exists() {
+                    continue;
+                }
+
+                let aux_json =
+                    parse_single_manifest(&m_path, album_root, m_key, Some(expected_tracks))?;
                 result_manifests.insert(m_key.to_string(), aux_json);
             }
         }
@@ -49,59 +67,64 @@ fn parse_single_manifest(
     expected_tracks: Option<usize>,
 ) -> Result<Value, DaleError> {
     let content = std::fs::read_to_string(path)?;
-    let parsed_toml = toml::from_str::<toml::Value>(&content)
-        .map_err(|source| DaleError::ManifestParseError { path: path.to_path_buf(), source })?;
-    
+    let parsed_toml = toml::from_str::<toml::Value>(&content).map_err(|source| {
+        DaleError::ManifestParseError {
+            path: path.to_path_buf(),
+            source,
+        }
+    })?;
+
     let mut json_val = toml_to_json(parsed_toml);
 
     let album_obj = json_val.get("album").cloned().unwrap_or_else(|| json!({}));
 
-    let tracks_obj = if let Some(tracks_arr) = json_val.get_mut("tracks").and_then(Value::as_array_mut) {
-        if tracks_arr.is_empty() && expected_tracks.is_some() {
-            Value::Array(vec![])
-        } else {
-            if let Some(expected) = expected_tracks
-                && tracks_arr.len() != expected
-            {
-                return Err(DaleError::TrackCountMismatch {
-                    manifest: name.to_string(),
-                    path: album_root.to_path_buf(),
-                    primary_count: expected,
-                    aux_count: tracks_arr.len(),
-                });
-            }
-
-            let mut tuples = Vec::new();
-            let mut seen_ids = HashSet::new();
-
-            for (idx, t) in tracks_arr.iter_mut().enumerate() {
-                let track_no = extract_strict_u32(t.get("tracknumber"), "tracknumber", None)
-                    .map_err(|_| DaleError::MissingTrackIdentity {
+    let tracks_obj =
+        if let Some(tracks_arr) = json_val.get_mut("tracks").and_then(Value::as_array_mut) {
+            if tracks_arr.is_empty() && expected_tracks.is_some() {
+                Value::Array(vec![])
+            } else {
+                if let Some(expected) = expected_tracks
+                    && tracks_arr.len() != expected
+                {
+                    return Err(DaleError::TrackCountMismatch {
                         manifest: name.to_string(),
                         path: album_root.to_path_buf(),
-                        index: idx + 1,
-                    })?;
-                let disc_no = extract_strict_u32(t.get("discnumber"), "discnumber", Some(1))?;
-
-                if !seen_ids.insert((disc_no, track_no)) {
-                    return Err(DaleError::DuplicateTrackIdentity {
-                        manifest: name.to_string(),
-                        path: album_root.to_path_buf(),
-                        disc: disc_no,
-                        track: track_no,
+                        primary_count: expected,
+                        aux_count: tracks_arr.len(),
                     });
                 }
-                tuples.push((disc_no, track_no, t.clone()));
+
+                let mut tuples = Vec::new();
+                let mut seen_ids = HashSet::new();
+
+                for (idx, t) in tracks_arr.iter_mut().enumerate() {
+                    let track_no = extract_strict_u32(t.get("tracknumber"), "tracknumber", None)
+                        .map_err(|_| DaleError::MissingTrackIdentity {
+                            manifest: name.to_string(),
+                            path: album_root.to_path_buf(),
+                            index: idx + 1,
+                        })?;
+                    let disc_no = extract_strict_u32(t.get("discnumber"), "discnumber", Some(1))?;
+
+                    if !seen_ids.insert((disc_no, track_no)) {
+                        return Err(DaleError::DuplicateTrackIdentity {
+                            manifest: name.to_string(),
+                            path: album_root.to_path_buf(),
+                            disc: disc_no,
+                            track: track_no,
+                        });
+                    }
+                    tuples.push((disc_no, track_no, t.clone()));
+                }
+
+                tuples.sort_by_key(|(d, t, _)| (*d, *t));
+
+                let sorted_tracks: Vec<Value> = tuples.into_iter().map(|(_, _, val)| val).collect();
+                Value::Array(sorted_tracks)
             }
-
-            tuples.sort_by_key(|(d, t, _)| (*d, *t));
-
-            let sorted_tracks: Vec<Value> = tuples.into_iter().map(|(_, _, val)| val).collect();
-            Value::Array(sorted_tracks)
-        }
-    } else {
-        Value::Array(vec![])
-    };
+        } else {
+            Value::Array(vec![])
+        };
 
     Ok(json!({
         "album": album_obj,
@@ -109,13 +132,19 @@ fn parse_single_manifest(
     }))
 }
 
-pub fn extract_strict_u32(val: Option<&Value>, name: &str, default: Option<u32>) -> Result<u32, DaleError> {
+pub fn extract_strict_u32(
+    val: Option<&Value>,
+    name: &str,
+    default: Option<u32>,
+) -> Result<u32, DaleError> {
     let Some(v) = val else {
         return default.map_or_else(
-            || Err(DaleError::InvalidIdentityFormat {
-                field: name.to_string(),
-                message: "Missing expected integer".to_string(),
-            }),
+            || {
+                Err(DaleError::InvalidIdentityFormat {
+                    field: name.to_string(),
+                    message: "Missing expected integer".to_string(),
+                })
+            },
             Ok,
         );
     };
@@ -129,20 +158,21 @@ pub fn extract_strict_u32(val: Option<&Value>, name: &str, default: Option<u32>)
             }),
         Value::String(s) => {
             let base = s.split('/').next().unwrap_or("").trim();
-            base.parse::<u32>().map_err(|_| DaleError::InvalidIdentityFormat {
-                field: name.to_string(),
-                message: format!("Cannot interpret string '{s}' as integer"),
-            })
+            base.parse::<u32>()
+                .map_err(|_| DaleError::InvalidIdentityFormat {
+                    field: name.to_string(),
+                    message: format!("Cannot interpret string '{s}' as integer"),
+                })
         }
-        Value::Null => {
-            default.map_or_else(
-                || Err(DaleError::InvalidIdentityFormat {
+        Value::Null => default.map_or_else(
+            || {
+                Err(DaleError::InvalidIdentityFormat {
                     field: name.to_string(),
                     message: "Field cannot be null".to_string(),
-                }),
-                Ok,
-            )
-        }
+                })
+            },
+            Ok,
+        ),
         _ => Err(DaleError::InvalidIdentityFormat {
             field: name.to_string(),
             message: "Unsupported data type found".to_string(),

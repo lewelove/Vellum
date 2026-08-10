@@ -1,6 +1,36 @@
-use serde_json::{Value, json};
 use libdale::error::DaleError;
+use serde_json::{json, Value};
 use std::path::Path;
+
+pub fn strip_empty_values(value: &mut Value) {
+    match value {
+        Value::Object(map) => {
+            for v in map.values_mut() {
+                strip_empty_values(v);
+            }
+            map.retain(|_, v| match v {
+                Value::String(s) => !s.is_empty(),
+                Value::Null => false,
+                Value::Object(m) => !m.is_empty(),
+                Value::Array(a) => !a.is_empty(),
+                _ => true,
+            });
+        }
+        Value::Array(arr) => {
+            for v in arr.iter_mut() {
+                strip_empty_values(v);
+            }
+            arr.retain(|v| match v {
+                Value::String(s) => !s.is_empty(),
+                Value::Null => false,
+                Value::Object(m) => !m.is_empty(),
+                Value::Array(a) => !a.is_empty(),
+                _ => true,
+            });
+        }
+        _ => {}
+    }
+}
 
 pub fn sort_json_keys(value: &mut Value) {
     match value {
@@ -35,7 +65,7 @@ pub fn is_valid_hex_color(s: &str) -> bool {
 
 pub fn validate_and_format_colors(colors: &Value, album_root: &Path) -> Result<Value, DaleError> {
     let mut formatted_colors = serde_json::Map::new();
-    
+
     if let Some(fg) = colors.get("foreground")
         && let Some(s) = fg.as_str()
     {
@@ -48,7 +78,7 @@ pub fn validate_and_format_colors(colors: &Value, album_root: &Path) -> Result<V
         }
         formatted_colors.insert("foreground".to_string(), json!(s));
     }
-    
+
     if let Some(bg) = colors.get("background") {
         if let Some(arr) = bg.as_array() {
             let mut bg_arr = Vec::new();
