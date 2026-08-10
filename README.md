@@ -10,7 +10,7 @@
 
 ### Principles
 
-- **The Album as The Fundamental Unit.** This project focuses solely on collection and management of music albums. The point, I guess, is to bring back the feeling of physical collecting to the digital world. The fundamentality of the album for this project reflects how you collect music in real life.
+- **The Album as The Fundamental Unit.** This project focuses solely on collection and management of music albums. The point, I guess, is to bring back the feeling of physical collecting to the digital world. The importance of the album for this project reflects how you collect music in real life.
 - **Immutable Audio / Mutable Metadata.** Audio files making up the album should be a bit-perfect preservation of the original media. Audio files are inherently static. Your metadata is inherently dynamic. The engine treats audio as a read-only source. Everything mutable is expected to exist as ancillary files alongside it.
 - **Power to The User.** The entire creative vision of this project was conceived around a stance: you should not be bound by your collection interface choices. Every active decision made for this project reflects it.
 
@@ -28,7 +28,7 @@ The reasons behind architecture choices are a few cool features they unlock:
 - **Version control of your metadata with Git.** Never lose your metadata after a batch edit ever again. *Or ever again, period.* Something went wrong? Just `git reset --hard`. Upload it to a remote repo and then nothing can take it away from you.
 - **Full Lua scriptability at compile/interface time.** Control the data flow from ancillary files to `album.lock.json` before it hits the interface. Control the logic of how albums are separated by virtual libraries, filtered, grouped, and ordered *inside* the interface. All done in a god-tier scripting language — Lua.
 - **Ahead-Of-Time Compilation Guarantees.** Since each album is compiled ahead-of-time you can enforce all cool compile time features AOT programming languages have. Type check your metadata, lint it, standardize its structure, validate it. All can be expressed in Lua as well.
-- **Actions.** If every album is a JSON file — then every album is scriptable. An **action** is a standalone executable that reads intermediary JSON from stdin provided by Dale at runtime. Infinitely expand your library management functionality in Unix Philosophy style.
+- **Actions.** If every album is a JSON file — then every album is scriptable. An **action** is a standalone executable that reads intermediary JSON from stdin provided by Dale at runtime. Infinitely expand your library management functionality in Unix Philosophy style. Each action can be called by an `/api/actions/{action_name}/` endpoint from any current or future interface.
 
 ## Interface Showcase
 
@@ -93,7 +93,7 @@ Or if you have `direnv` installed:
 direnv allow
 ```
 
-For default interface to run from cloned developer repo you must `cd` into its directory, install `node_modules` and `chmod +x run.sh`:
+For default interface to run from cloned developer repo you must install its dependencies and make interface run scripts executable:
 
 ```bash
 cd interfaces/web-app
@@ -101,7 +101,7 @@ bun install
 chmod +x run_dev.sh run_prod.sh
 ```
 
-Build the Rust binary, Web App, and all the Actions:
+Build the Rust binary, Web App, and all Actions:
 
 ```bash
 build
@@ -140,7 +140,7 @@ dl.compile.tracks.key( "track_key_name", true )
 -- and specify the run-production-build script
 dl.interface( "default", {
   -- Quite handy!
-  directory = repo_dir .. "interfaces/web-app/"
+  directory = repo_dir .. "interfaces/web-app/",
   run = repo_dir .. "interfaces/web-app/run_prod.sh"
 })
 ```
@@ -178,7 +178,7 @@ The `dale` CLI tool is the central driver for managing your library's state.
 - `dale x` — Run defined action via runtime `dl.action` router.
 
 ## AI Disclosure & Human Design
-This software was developed in part with the assistance of LLMs, which were used as a tool for research and as a code-monkey for Rust syntax implementation. All business logic, architecture, UX — including complete creative vision — were designed and vetted with a great deal of intent and hard work by a human — myself. This README and all documentation were handrolled on my keyboard, from my bedroom, in my own words — as I believe this is an honest way to show you that I care about what you'll read here.
+This software was developed in part with the assistance of LLMs, which were used as a tool for research and as a code-monkey for Rust syntax implementation. All business logic, architecture, UX — including complete creative vision — were designed and vetted with a great deal of intent and hard work by a human — myself. All text you'll read here was written by me also, as I believe this is an honest way to show you that I care.
 
 ## A Note From The Developer
 **I am the primary and the most active user of this software.** I am building it for myself, in hopes that **you** will find it useful too. This project was born from the unstoppable love for album collecting and archival, respect for Unix Philosophy, and genuine lack of anything close to "album-as-a-compiled-data-object" in the world of media players. Since I daily-drive it — and don't intend to stop any time soon — I'll try to maintain it as long as I am using Linux and listening to albums. Thank you for reading this README.md and (hopefully) using this software. All feedback is always appreciated.
