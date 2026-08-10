@@ -204,7 +204,7 @@ main {
   background: none;
   border: none;
   color: var(--text-muted);
-  font-size: 14px;
+  font-size: 15px;
   font-family: var(--font-stack);
   cursor: pointer;
   border-radius: 8px;
