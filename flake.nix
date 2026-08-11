@@ -90,13 +90,18 @@
             done
 
             build_dale() {
-
+              echo ""
+              echo "Checking and linting code..."
+              echo ""
+              cd "$ROOT/rust"
+              cargo clippy --workspace -- -D warnings
+              echo ""
+              echo "Running tests..."
+              echo ""
+              cargo test -p libdale
               echo ""
               echo "Building \`dale\` Binary..."
               echo ""
-
-              cd "$ROOT/rust"
-              cargo clippy --workspace -- -D warnings
               cargo build -p dale --release "''${ARGS[@]}"
             }
 
@@ -108,7 +113,6 @@
             }
 
             build_actions() {
-
               echo ""
               echo "Building Actions..."
               echo ""
