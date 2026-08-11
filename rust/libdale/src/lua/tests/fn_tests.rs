@@ -1,30 +1,33 @@
 //! Unit tests for Lua function utilities (`dl.fn`).
 
 use crate::lua::LuaEngine;
+use mlua::Table;
 
-/// Verifies that `dl.fn.require` returns the value when given valid input.
+/// Verifies that `dl.fn.present` returns the value when given valid input.
 #[test]
-fn test_dl_fn_require_valid() {
+fn test_dl_fn_present_valid() {
     let engine = LuaEngine::new().expect("Failed to create LuaEngine");
     let result: String = engine
         .lua
-        .load("return dl.fn.require('hello')")
+        .load("return dl.fn.present('hello')")
         .eval()
         .expect("Execution failed");
 
     assert_eq!(result, "hello");
 }
 
-/// Verifies that `dl.fn.require` fails when given empty input.
+/// Verifies that `dl.fn.present` fails when given empty input or an empty table.
 #[test]
-fn test_dl_fn_require_invalid() {
+fn test_dl_fn_present_invalid() {
     let engine = LuaEngine::new().expect("Failed to create LuaEngine");
-    let result = engine.lua.load("return dl.fn.require('')").eval::<String>();
-
+    let result = engine.lua.load("return dl.fn.present('')").eval::<String>();
     assert!(result.is_err());
+
+    let empty_table_res = engine.lua.load("return dl.fn.present({})").eval::<Table>();
+    assert!(empty_table_res.is_err());
 }
 
-/// Verifies that `dl.fn.type_check` validates data types correctly.
+/// Verifies that `dl.fn.type_check` validates data types correctly and allows missing values.
 #[test]
 fn test_dl_fn_type_check() {
     let engine = LuaEngine::new().expect("Failed to create LuaEngine");
@@ -48,6 +51,13 @@ fn test_dl_fn_type_check() {
         .load("return dl.fn.type_check(123, 'string')")
         .eval::<String>();
     assert!(invalid.is_err());
+
+    let missing: Option<String> = engine
+        .lua
+        .load("return dl.fn.type_check(nil, 'string')")
+        .eval()
+        .expect("Execution failed");
+    assert!(missing.is_none());
 }
 
 /// Verifies that `dl.fn.coalesce` returns the first non-empty argument.

@@ -4,7 +4,7 @@ use super::TempFile;
 use crate::lua::LuaEngine;
 use mlua::Table;
 
-/// Verifies that `dl.fs.exists` reports file existence correctly.
+/// Verifies that `dl.fs.exists` reports file existence correctly and returns `false` on missing or nil paths.
 #[test]
 fn test_dl_fs_exists() {
     let engine = LuaEngine::new().expect("Failed to create LuaEngine");
@@ -21,9 +21,15 @@ fn test_dl_fs_exists() {
         .eval()
         .expect("Execution failed");
     assert!(!not_exists);
+
+    let nil_arg: bool = engine.lua.load("return dl.fs.exists(nil)").eval().expect("Execution failed");
+    assert!(!nil_arg);
+
+    let empty_arg: bool = engine.lua.load("return dl.fs.exists('')").eval().expect("Execution failed");
+    assert!(!empty_arg);
 }
 
-/// Verifies that `dl.fs.read` reads file contents and records file dependencies.
+/// Verifies that `dl.fs.read` reads file contents, records dependencies, and returns `nil` for missing paths.
 #[test]
 fn test_dl_fs_read() {
     let engine = LuaEngine::new().expect("Failed to create LuaEngine");
@@ -41,9 +47,12 @@ fn test_dl_fs_read() {
     let missing_code = "return dl.fs.read('/tmp/non_existent_dale_test_file.tmp')";
     let missing_res: Option<String> = engine.lua.load(missing_code).eval().expect("Execution failed");
     assert!(missing_res.is_none());
+
+    let nil_res: Option<String> = engine.lua.load("return dl.fs.read(nil)").eval().expect("Execution failed");
+    assert!(nil_res.is_none());
 }
 
-/// Verifies that `dl.fs.read_lines` reads non-comment lines and ignores missing paths.
+/// Verifies that `dl.fs.read_lines` reads non-comment lines and returns an empty table `{}` for missing files.
 #[test]
 fn test_dl_fs_read_lines() {
     let engine = LuaEngine::new().expect("Failed to create LuaEngine");
@@ -57,11 +66,11 @@ fn test_dl_fs_read_lines() {
     assert_eq!(lines[1], "second");
 
     let missing_code = "return dl.fs.read_lines('/tmp/non_existent_dale_test_file.tmp')";
-    let missing_lines: Vec<String> = engine.lua.load(missing_code).eval().expect("Execution failed");
-    assert!(missing_lines.is_empty());
+    let missing_lines: Table = engine.lua.load(missing_code).eval().expect("Execution failed");
+    assert_eq!(missing_lines.raw_len(), 0);
 }
 
-/// Verifies that `dl.fs.read_json` parses JSON files and reports invalid syntax.
+/// Verifies that `dl.fs.read_json` parses JSON files, returns `nil` for missing paths, and errors on malformed syntax.
 #[test]
 fn test_dl_fs_read_json() {
     let engine = LuaEngine::new().expect("Failed to create LuaEngine");
@@ -84,7 +93,7 @@ fn test_dl_fs_read_json() {
     assert!(bad_res.is_err());
 }
 
-/// Verifies that `dl.fs.read_toml` parses TOML files and reports invalid syntax.
+/// Verifies that `dl.fs.read_toml` parses TOML files, returns `nil` for missing paths, and errors on malformed syntax.
 #[test]
 fn test_dl_fs_read_toml() {
     let engine = LuaEngine::new().expect("Failed to create LuaEngine");
