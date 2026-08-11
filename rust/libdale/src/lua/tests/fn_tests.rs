@@ -49,3 +49,30 @@ fn test_dl_fn_type_check() {
         .eval::<String>();
     assert!(invalid.is_err());
 }
+
+/// Verifies that `dl.fn.coalesce` returns the first non-empty argument.
+#[test]
+fn test_dl_fn_coalesce() {
+    let engine = LuaEngine::new().expect("Failed to create LuaEngine");
+
+    let first_valid: String = engine
+        .lua
+        .load("return dl.fn.coalesce('', nil, 'first', 'second')")
+        .eval()
+        .expect("Execution failed");
+    assert_eq!(first_valid, "first");
+
+    let table_valid: String = engine
+        .lua
+        .load("return dl.fn.coalesce({}, '', 'from_table')")
+        .eval()
+        .expect("Execution failed");
+    assert_eq!(table_valid, "from_table");
+
+    let all_empty: Option<String> = engine
+        .lua
+        .load("return dl.fn.coalesce('', nil, {})")
+        .eval()
+        .expect("Execution failed");
+    assert!(all_empty.is_none());
+}

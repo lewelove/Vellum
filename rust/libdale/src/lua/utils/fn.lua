@@ -17,5 +17,15 @@ _G.dl.fn = {
             if lua_type ~= "table" then error("Expected table but got " .. lua_type) end
         end
         return v
+    end,
+    coalesce = function(...)
+        local n = select("#", ...)
+        for i = 1, n do
+            local v = select(i, ...)
+            if v ~= nil and v ~= "" and (type(v) ~= "table" or next(v) ~= nil) then
+                return v
+            end
+        end
+        return nil
     end
 }
