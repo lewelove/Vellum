@@ -1,5 +1,6 @@
-_G.dl = _G.dl or {}
-_G.dl.fs = _G.dl.fs or {}
+_G.dale = _G.dale or {}
+_G.d = _G.dale
+_G.dale.fs = _G.dale.fs or {}
 
 local function expand_path(filepath)
     if type(filepath) ~= "string" or filepath == "" then
@@ -14,7 +15,7 @@ local function expand_path(filepath)
     return filepath
 end
 
-function _G.dl.fs.exists(filepath)
+function _G.dale.fs.exists(filepath)
     local expanded = expand_path(filepath)
     if not expanded then
         return false
@@ -28,7 +29,7 @@ function _G.dl.fs.exists(filepath)
     return false
 end
 
-function _G.dl.fs.read(filepath)
+function _G.dale.fs.read(filepath)
     local expanded = expand_path(filepath)
     if not expanded then
         return nil
@@ -43,23 +44,23 @@ function _G.dl.fs.read(filepath)
     return content
 end
 
-function _G.dl.fs.read_json(filepath)
-    local content = _G.dl.fs.read(filepath)
+function _G.dale.fs.read_json(filepath)
+    local content = _G.dale.fs.read(filepath)
     if not content or content:match("^%s*$") then
         return nil
     end
-    return _G.dl.json.decode(content)
+    return _G.dale.json.decode(content)
 end
 
-function _G.dl.fs.read_toml(filepath)
-    local content = _G.dl.fs.read(filepath)
+function _G.dale.fs.read_toml(filepath)
+    local content = _G.dale.fs.read(filepath)
     if not content or content:match("^%s*$") then
         return nil
     end
-    return _G.dl.toml.decode(content)
+    return _G.dale.toml.decode(content)
 end
 
-function _G.dl.fs.read_lines(filepath)
+function _G.dale.fs.read_lines(filepath)
     local expanded = expand_path(filepath)
     if not expanded then
         return {}

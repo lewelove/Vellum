@@ -216,7 +216,9 @@ pub struct EvaluatedLuaData {
 
 fn register_native_functions(lua: &Lua) -> Result<()> {
     let globals = lua.globals();
-    let dl: mlua::Table = globals.get("dl").unwrap_or_else(|_| lua.create_table().unwrap());
+    let dale_table: mlua::Table = globals
+        .get("dale")
+        .unwrap_or_else(|_| lua.create_table().unwrap());
 
     let opts = SerializeOptions::new()
         .serialize_none_to_null(false)
@@ -240,7 +242,7 @@ fn register_native_functions(lua: &Lua) -> Result<()> {
         }).map_err(|e| anyhow::anyhow!("{e}"))?,
     ).map_err(|e| anyhow::anyhow!("{e}"))?;
 
-    dl.set("json", json_table).map_err(|e| anyhow::anyhow!("{e}"))?;
+    dale_table.set("json", json_table).map_err(|e| anyhow::anyhow!("{e}"))?;
 
     let toml_table = lua.create_table().map_err(|e| anyhow::anyhow!("{e}"))?;
     toml_table.set(
@@ -262,9 +264,10 @@ fn register_native_functions(lua: &Lua) -> Result<()> {
         }).map_err(|e| anyhow::anyhow!("{e}"))?,
     ).map_err(|e| anyhow::anyhow!("{e}"))?;
 
-    dl.set("toml", toml_table).map_err(|e| anyhow::anyhow!("{e}"))?;
+    dale_table.set("toml", toml_table).map_err(|e| anyhow::anyhow!("{e}"))?;
 
-    globals.set("dl", dl).map_err(|e| anyhow::anyhow!("{e}"))?;
+    globals.set("dale", dale_table.clone()).map_err(|e| anyhow::anyhow!("{e}"))?;
+    globals.set("d", dale_table).map_err(|e| anyhow::anyhow!("{e}"))?;
     Ok(())
 }
 

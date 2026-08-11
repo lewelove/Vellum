@@ -42,21 +42,21 @@ The Goal: I want my albums to always have the `genres` and `styles` keys as arra
 The Solution: I find album master release group on Discogs, copy the `discogs.com/master/...` URL, then use a small Discogs API key based program (look into `actions/` for code reference) to fetch a JSON and save it under `{album_directory}/Info/discogs_master.json`. Then I express `genres` and `styles` key compilation logic directly in Lua:
 
 ```lua
-dl.compile.album.key("genres", function(ctx, m)
+dale.compile.album.key("genres", function(ctx, m)
   -- Join the path with the album root from context
   local path = ctx.paths.album_root .. "/Info/discogs_master.json"
-  local discogs = dl.fs.read_json(path) -- Read JSON directly
+  local discogs = d.fs.read_json(path) -- Read JSON directly
   return discogs.genres -- Return the array! That's it!
 end)
 
-dl.compile.album.key("styles", function(ctx, m)
+dale.compile.album.key("styles", function(ctx, m)
   local path = ctx.paths.album_root .. "/Info/discogs_master.json"
-  local discogs = dl.fs.read_json(path)
+  local discogs = d.fs.read_json(path)
   return discogs.styles -- Same with `styles`!
 end)
 ```
 
-The same can be done with literally any metadata provider that can supply you with the JSON files. And because the `dl.fs` registers the path for the backend dependency graph watcher, any change to `Info/discogs_master.json` for *any* album (like the re-fetch or direct edit) triggers its hot-recompilation!
+The same can be done with literally any metadata provider that can supply you with the JSON files. And because the `d.fs` registers the path for the backend dependency graph watcher, any change to `Info/discogs_master.json` for *any* album (like the re-fetch or direct edit) triggers its hot-recompilation!
 
 ### Use Actions to Find High-Res Album Artwork
 
@@ -94,7 +94,7 @@ subprocess.Popen(["xdg-open", url], stdout=subprocess.DEVNULL, stderr=subprocess
 Save this script as `search-cover.py`, make executable, and provide the action runtime to it:
 
 ```lua
-dl.action("search-cover", {
+dale.action("search-cover", {
   run = "/Path/To/Your/search-cover.py"
 })
 ```
@@ -199,7 +199,7 @@ You create `~/.config/dale/init.lua` file:
 -- you can define cloned repository path as local string variable
 local repo_dir = "Path/To/Cloned/Repo/"
 
-dl.config({ 
+dale.config({ 
   storage = { 
     -- Define a music directory path containing all your albums,
     -- it must match an MPD's config `music_directory` path
@@ -211,15 +211,15 @@ dl.config({
 -- you want to load from TOML manifests and be present in `album.lock.json`
 
 -- [album.lock.json].album.keys level
-dl.compile.album.key( "album_key_name", true )
+dale.compile.album.key( "album_key_name", true )
 
 -- [album.lock.json].tracks[].keys level
-dl.compile.tracks.key( "track_key_name", true )
+dale.compile.tracks.key( "track_key_name", true )
 
 -- For `dale interface` command to run you point default interface
 -- to the `interfaces/web-app` directory from the previous step
 -- and specify the run-production-build script
-dl.interface( "default", {
+dale.interface( "default", {
   -- Quite handy!
   directory = repo_dir .. "interfaces/web-app/",
   run = repo_dir .. "interfaces/web-app/run_prod.sh"
@@ -255,8 +255,8 @@ The `dale` CLI tool is the central driver for managing your library's state.
 - `dale manifest` — Scan your library root for unmanaged audio directories and generate the initial `metadata.toml` manifest.
 - `dale update` — The core compiler command. Reads your TOML manifests and compiles the `album.lock.json` files.
 - `dale server` — Start the Axum backend server.
-- `dale interface` — Run interface defined with `dl.interface`.
-- `dale x` — Run defined action via runtime `dl.action` router.
+- `dale interface` — Run interface defined with `dale.interface()`.
+- `dale x` — Run defined action via runtime `dale.action()` router.
 
 ## AI Disclosure & Human Design
 This software was developed in part with the assistance of LLMs, which were used as a tool for research and as a code-monkey for Rust syntax implementation. All business logic, architecture, UX — including complete creative vision — were designed and vetted with a great deal of intent and hard work by a human — myself. All text you'll read here was written by me also, as I believe this is an honest way to show you that I care.

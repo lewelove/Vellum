@@ -1,4 +1,5 @@
-_G.dl = _G.dl or {}
+_G.dale = _G.dale or {}
+_G.d = _G.dale
 
 local function is_blank(v)
     if v == nil then return true end
@@ -11,7 +12,7 @@ local function is_blank(v)
     return false
 end
 
-_G.dl.fn = {
+_G.dale.fn = {
     present = function(v, msg)
         if is_blank(v) then
             error(msg or "Value must be present and non-empty")

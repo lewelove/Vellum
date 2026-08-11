@@ -1,3 +1,6 @@
+_G.dale = _G.dale or {}
+_G.d = _G.dale
+
 _G.REGISTRY = {
     config = {},
     covers = {

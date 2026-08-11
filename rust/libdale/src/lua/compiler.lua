@@ -1,6 +1,7 @@
-_G.dl = _G.dl or {}
-_G.dl.compile = _G.dl.compile or {}
-_G.dl.compile.album = {
+_G.dale = _G.dale or {}
+_G.d = _G.dale
+_G.dale.compile = _G.dale.compile or {}
+_G.dale.compile.album = {
     key = function(name, v)
         if type(v) == "function" then
             REGISTRY.keys.album[name] = v
@@ -12,7 +13,7 @@ _G.dl.compile.album = {
     end
 }
 
-_G.dl.compile.tracks = {
+_G.dale.compile.tracks = {
     key = function(name, v)
         if type(v) == "function" then
             REGISTRY.keys.tracks[name] = v
@@ -34,9 +35,9 @@ _G.dl.compile.tracks = {
     end
 }
 
-_G.dl.compile.a = _G.dl.compile.album
-_G.dl.compile.track = _G.dl.compile.tracks
-_G.dl.compile.t = _G.dl.compile.tracks
+_G.dale.compile.a = _G.dale.compile.album
+_G.dale.compile.track = _G.dale.compile.tracks
+_G.dale.compile.t = _G.dale.compile.tracks
 
 function __DALE_DISPATCHER(ctx, manifests)
     local results = { album = {}, tracks = {} }
