@@ -31,20 +31,16 @@ end
 
 _G.dale.cache = _G.dale.cache or {}
 
-local cover_fn = function(t)
+_G.dale.cache.cover = function(t)
     table.insert(REGISTRY.covers.targets, t)
 end
 
-_G.dale.cache.cover = setmetatable({
-    master = function(t)
+_G.dale.cache.master = {
+    cover = function(t)
         if t.size then REGISTRY.covers.master.size = t.size end
         if t.filter then REGISTRY.covers.master.filter = t.filter end
     end
-}, {
-    __call = function(_, t)
-        cover_fn(t)
-    end
-})
+}
 
 _G.dale.filter = function(name, t)
     if REGISTRY.filters[name] == nil then
