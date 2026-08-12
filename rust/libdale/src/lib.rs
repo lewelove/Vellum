@@ -1,3 +1,4 @@
+pub mod config;
 pub mod compiler;
 pub mod error;
 pub mod harvest;

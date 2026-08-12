@@ -1,9 +1,8 @@
-pub mod config;
 #[cfg(test)]
 mod tests;
 
+use crate::config::{ActionConfig, AppConfig, CoversConfig, CoversRegistry, InterfaceConfig};
 use anyhow::{Context, Result};
-use config::{ActionConfig, AppConfig, CoversConfig, CoversRegistry, InterfaceConfig};
 use indexmap::IndexMap;
 use mlua::serde::SerializeOptions;
 use mlua::{Lua, LuaSerdeExt, Table};

@@ -1,6 +1,6 @@
 use crate::server::logic::LogicEngine;
 use crate::server::mpd::MpdEngine;
-use libdale::lua::config::{ActionConfig, CoversRegistry, InterfaceConfig};
+use libdale::config::{ActionConfig, CoversRegistry, InterfaceConfig};
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, atomic::AtomicBool};
@@ -26,5 +26,5 @@ pub struct AppConfig {
     pub interfaces: HashMap<String, InterfaceConfig>,
     pub actions: HashMap<String, ActionConfig>,
     pub config_dir: PathBuf,
-    pub app: libdale::lua::config::AppConfig,
+    pub app: libdale::config::AppConfig,
 }
