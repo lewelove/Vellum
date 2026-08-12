@@ -2,7 +2,8 @@
 members = [
   "libactions",
   "get_theme",
-  "collect"
+  "collect",
+  "discogs_fetch_master"
 ]
 resolver = "2"
 

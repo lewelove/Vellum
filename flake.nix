@@ -129,6 +129,7 @@
               
               ln -sf "rust/target/release/get_theme" "$ROOT/actions/get_theme"
               ln -sf "rust/target/release/collect" "$ROOT/actions/collect"
+              ln -sf "rust/target/release/discogs_fetch_master" "$ROOT/actions/discogs_fetch_master"
               ln -sf "python/get_lyrics/result/bin/get_lyrics" "$ROOT/actions/get_lyrics"
               ln -sf "python/search_cover/result/bin/search_cover" "$ROOT/actions/search_cover"
               ln -sf "python/embed/result/bin/embed" "$ROOT/actions/embed"
