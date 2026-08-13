@@ -122,8 +122,9 @@ pub async fn run(port: u16) -> Result<()> {
 
     inotify::start(Arc::clone(&app_state));
 
+    let app_state_clone = Arc::clone(&app_state);
     tokio::spawn(async move {
-        if let Err(e) = crate::update::run(None, false, None, true).await {
+        if let Err(e) = crate::update::run_server_update(app_state_clone, None, false, None, true, None).await {
             log::error!("Startup auto-update error: {e}");
         }
     });

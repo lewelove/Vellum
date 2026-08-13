@@ -8,8 +8,9 @@ pub mod tracks;
 pub mod utils;
 
 use anyhow::{Context, Result};
+use std::collections::HashSet;
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CompileMode {
@@ -36,6 +37,7 @@ pub struct CompileOptions {
     pub jobs: Option<usize>,
     pub compile_flags: CompileFlags,
     pub ingest_tx: Option<tokio::sync::mpsc::Sender<crate::server::api::system::AlbumIngestPayload>>,
+    pub active_writes: Option<Arc<Mutex<HashSet<PathBuf>>>>,
 }
 
 pub async fn run(
@@ -80,6 +82,7 @@ pub async fn run(
         target: options.compile_flags.target,
         jobs: effective_jobs,
         ingest_tx: options.ingest_tx,
+        active_writes: options.active_writes,
     };
 
     stream::run(ctx).await

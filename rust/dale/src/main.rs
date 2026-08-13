@@ -174,6 +174,7 @@ async fn main() -> Result<()> {
                     pretty,
                 },
                 ingest_tx: None,
+                active_writes: None,
             };
             let _ = compile::run(options).await?;
             Ok(())

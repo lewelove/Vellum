@@ -3,9 +3,10 @@ use anyhow::Result;
 use libdale::error::DaleError;
 use rayon::prelude::*;
 use serde_json::{json, Value};
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 pub struct StreamContext {
     pub albums: Vec<PathBuf>,
@@ -13,6 +14,7 @@ pub struct StreamContext {
     pub target: ExportTarget,
     pub jobs: Option<usize>,
     pub ingest_tx: Option<tokio::sync::mpsc::Sender<crate::server::api::system::AlbumIngestPayload>>,
+    pub active_writes: Option<Arc<Mutex<HashSet<PathBuf>>>>,
 }
 
 pub async fn run(ctx: StreamContext) -> Result<usize> {
@@ -24,11 +26,16 @@ pub async fn run(ctx: StreamContext) -> Result<usize> {
     let target = ctx.target;
     let written_ref = Arc::clone(&written_count);
     let ingest_tx = ctx.ingest_tx;
+    let active_writes = ctx.active_writes.clone();
 
     let direct_handle = tokio::spawn(async move {
         while let Some((v, eval_res)) = drx.recv().await {
             let written_inner = Arc::clone(&written_ref);
-            let res = tokio::task::spawn_blocking(move || finalize(v, eval_res, target)).await;
+            let active_ref = active_writes.clone();
+            let res = tokio::task::spawn_blocking(move || {
+                finalize(v, eval_res, target, active_ref.as_ref())
+            })
+            .await;
             if let Ok(Ok((written, payload))) = res {
                 if written {
                     written_inner.fetch_add(1, Ordering::Relaxed);
@@ -109,6 +116,7 @@ fn finalize(
     mut v: Value,
     eval_res: Option<Value>,
     target: ExportTarget,
+    active_writes: Option<&Arc<Mutex<HashSet<PathBuf>>>>,
 ) -> Result<(bool, Option<crate::server::api::system::AlbumIngestPayload>)> {
     let artist = v
         .get("album")
@@ -157,17 +165,28 @@ fn finalize(
 
         let payload = crate::server::api::system::AlbumIngestPayload {
             id: album_id,
+            artist: artist.clone(),
+            album: album.clone(),
             lock_json: content.clone(),
             eval_res,
         };
 
         if should_write {
-            std::fs::write(lock_path, content)?;
-            log::info!("Updated: {artist} - {album}");
+            if let Some(aw) = active_writes
+                && let Ok(mut active) = aw.lock()
+            {
+                if let Ok(canon) = lock_path.canonicalize() {
+                    active.insert(canon);
+                }
+                active.insert(lock_path.clone());
+            } else {
+                log::info!("Updated: {artist} - {album}");
+            }
+            std::fs::write(&lock_path, content)?;
             return Ok((true, Some(payload)));
         }
 
-        return Ok((false, Some(payload)));
+        return Ok((false, None));
     }
     Ok((false, None))
 }

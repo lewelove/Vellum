@@ -126,28 +126,40 @@ pub async fn ingest_and_broadcast_albums(
     state: &Arc<AppState>,
 ) {
     let music_directory = state.config.read().await.music_directory.clone();
-    if let Ok(mut active) = state.active_writes.lock() {
-        for (album_id, lock_json, _) in &recompiled_items {
-            if !album_id.is_empty() && !lock_json.is_empty() {
-                let lock_file_path = music_directory.join(album_id).join("album.lock.json");
-                if let Ok(canon) = lock_file_path.canonicalize() {
-                    active.insert(canon);
-                }
-                active.insert(lock_file_path);
-            }
-        }
-    }
+
+    let items_with_auth: Vec<_> = {
+        let active = state
+            .active_writes
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        recompiled_items
+            .into_iter()
+            .map(|(album_id, lock_json, eval_res)| {
+                let is_auth = if eval_res.is_some() {
+                    let p = music_directory.join(&album_id).join("album.lock.json");
+                    let canon = p.canonicalize().unwrap_or_else(|_| p.clone());
+                    active.contains(&canon) || active.contains(&p)
+                } else {
+                    false
+                };
+                (album_id, lock_json, eval_res, is_auth)
+            })
+            .collect()
+    };
 
     let (updated_dict_entries, removed_ids, shelves) = {
         let mut logic = state.logic.write().await;
         let mut entries = std::collections::HashMap::new();
         let mut removed = Vec::new();
 
-        for (album_id, lock_json, eval_res) in recompiled_items {
+        for (album_id, lock_json, eval_res, is_authorized) in items_with_auth {
             logic.remove_album(&album_id);
             if let Some(eval) = eval_res {
+                if !is_authorized {
+                    log::info!("Updated album state: {album_id}");
+                }
+
                 let _ = logic.ingest_pre_evaluated(&album_id, &lock_json, eval);
-                log::info!("Updated album state: {album_id}");
                 if let Some(entry) = logic.dict.get(&album_id).cloned() {
                     entries.insert(album_id, entry);
                 }

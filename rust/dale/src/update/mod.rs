@@ -4,6 +4,7 @@ pub mod verify;
 use anyhow::{Context, Result};
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use cache::{
     calculate_hash, get_lua_config_hash, load_cache, save_cache, validate_library_root, FileStat,
@@ -18,16 +19,16 @@ pub async fn run(
     jobs: Option<usize>,
     silent: bool,
 ) -> Result<()> {
+    if is_server_up(8000).await {
+        return run_delegated_update(target_path, force, jobs, silent, 8000).await;
+    }
+
     let config = libdale::lua::ResolvedConfig::load().context("Failed to load config")?;
     let music_directory = expand_path(&config.app.storage.music_directory)
         .canonicalize()
         .context("Invalid music_directory")?;
 
     let effective_jobs = jobs.or(config.app.compiler.jobs);
-
-    let is_full_library =
-        target_path.is_none() || target_path.as_deref() == Some(music_directory.as_path());
-    notify_if_force_update(force, is_full_library).await;
 
     let lib_hash = calculate_hash(&music_directory.to_string_lossy());
     let cache_root = expand_path(&config.app.storage.cache);
@@ -40,6 +41,180 @@ pub async fn run(
 
     let (config_changed, lua_hash_file, lua_hash) =
         check_lua_config_changed(&config.dependencies, &cache_root, silent);
+    let force = force || config_changed;
+
+    let scan_root = target_path.map_or_else(
+        || music_directory.clone(),
+        |p| p.canonicalize().unwrap_or(p),
+    );
+
+    let (work_queue, missing_paths) = resolve_work_queue(
+        &scan_root,
+        &music_directory,
+        &cache,
+        force,
+        effective_jobs,
+        None,
+        silent,
+    )?;
+
+    if work_queue.is_empty() && missing_paths.is_empty() {
+        if !silent {
+            log::info!("Library is up to date.");
+        }
+        let _ = fs::write(&lua_hash_file, &lua_hash);
+        save_cache(&cache, &base_cache_dir.join("library.json"))?;
+        return Ok(());
+    }
+
+    let checked_count = work_queue.len();
+    let missing_count = missing_paths.len();
+    let start_time = std::time::Instant::now();
+
+    let compile_options = compile::CompileOptions {
+        target_path: scan_root,
+        flags: vec!["default".to_string()],
+        specific_albums: Some(work_queue.clone()),
+        jobs: effective_jobs,
+        compile_flags: compile::CompileFlags {
+            mode: compile::CompileMode::Standard,
+            target: compile::ExportTarget::File,
+            pretty: false,
+        },
+        ingest_tx: None,
+        active_writes: None,
+    };
+
+    let written_count = compile::run(compile_options).await?;
+
+    update_cache_entries(&mut cache, &work_queue, &missing_paths, &music_directory, silent);
+
+    let elapsed = start_time.elapsed().as_millis();
+    if !silent {
+        log::info!(
+            "Update complete: {checked_count} checked ({written_count} modified), {missing_count} removed. Finished in {elapsed}ms."
+        );
+    }
+
+    let _ = fs::write(&lua_hash_file, &lua_hash);
+    save_cache(&cache, &base_cache_dir.join("library.json"))?;
+
+    Ok(())
+}
+
+async fn run_delegated_update(
+    target_path: Option<PathBuf>,
+    force: bool,
+    jobs: Option<usize>,
+    silent: bool,
+    port: u16,
+) -> Result<()> {
+    let client = reqwest::Client::new();
+    let body = serde_json::json!({
+        "path": target_path.map(|p| p.to_string_lossy().to_string()),
+        "force": force,
+        "jobs": jobs,
+        "silent": silent,
+    });
+
+    let mut res = client
+        .post(format!("http://127.0.0.1:{port}/api/internal/trigger_update"))
+        .json(&body)
+        .send()
+        .await
+        .context("Failed to connect to running server for delegated update")?;
+
+    if !res.status().is_success() {
+        let text = res.text().await.unwrap_or_default();
+        anyhow::bail!("Server update failed: {text}");
+    }
+
+    let mut buffer = String::new();
+
+    while let Ok(Some(chunk)) = res.chunk().await {
+        buffer.push_str(&String::from_utf8_lossy(&chunk));
+        while let Some(pos) = buffer.find('\n') {
+            let line = buffer[..pos].trim_end().to_string();
+            buffer.drain(..=pos);
+            if !line.is_empty() {
+                log::info!("{line}");
+            }
+        }
+    }
+
+    if !buffer.trim().is_empty() {
+        let line = buffer.trim();
+        log::info!("{line}");
+    }
+
+    Ok(())
+}
+
+fn emit_log(msg: String, silent: bool, log_tx: Option<&tokio::sync::mpsc::Sender<String>>) {
+    if let Some(tx) = log_tx {
+        let _ = tx.try_send(msg);
+    } else if !silent {
+        log::info!("{msg}");
+    }
+}
+
+fn spawn_server_ingest_handler(
+    state: Arc<crate::server::state::AppState>,
+    silent: bool,
+    log_tx: Option<tokio::sync::mpsc::Sender<String>>,
+) -> (
+    tokio::sync::mpsc::Sender<crate::server::api::system::AlbumIngestPayload>,
+    tokio::task::JoinHandle<()>,
+) {
+    let (ingest_tx, mut ingest_rx) =
+        tokio::sync::mpsc::channel::<crate::server::api::system::AlbumIngestPayload>(512);
+
+    let ingest_handle = tokio::spawn(async move {
+        while let Some(payload) = ingest_rx.recv().await {
+            if !payload.lock_json.is_empty() && (!payload.artist.is_empty() || !payload.album.is_empty()) {
+                let artist = &payload.artist;
+                let album = &payload.album;
+                emit_log(
+                    format!("Updated: {artist} - {album}"),
+                    silent,
+                    log_tx.as_ref(),
+                );
+            }
+            let item = vec![(payload.id, payload.lock_json, payload.eval_res)];
+            crate::server::inotify::handler::ingest_and_broadcast_albums(item, &state).await;
+        }
+    });
+
+    (ingest_tx, ingest_handle)
+}
+
+pub async fn run_server_update(
+    state: Arc<crate::server::state::AppState>,
+    target_path: Option<PathBuf>,
+    force: bool,
+    jobs: Option<usize>,
+    silent: bool,
+    log_tx: Option<tokio::sync::mpsc::Sender<String>>,
+) -> Result<()> {
+    let config = state.config.read().await.app.clone();
+    let music_directory = state.config.read().await.music_directory.clone();
+    let cache_root = state.config.read().await.cache_root.clone();
+    let dependencies = state.config.read().await.resolved_dependencies.clone();
+
+    let effective_jobs = jobs.or(config.compiler.jobs);
+    let is_full_library =
+        target_path.is_none() || target_path.as_deref() == Some(music_directory.as_path());
+
+    let lib_hash = calculate_hash(&music_directory.to_string_lossy());
+    let base_cache_dir = cache_root.join("libraries").join(&lib_hash);
+    fs::create_dir_all(&base_cache_dir)?;
+
+    validate_library_root(&base_cache_dir, &lib_hash).await?;
+
+    let mut cache = load_cache(&base_cache_dir.join("library.json"));
+
+    let (config_changed, lua_hash_file, lua_hash) =
+        check_lua_config_changed(&dependencies, &cache_root, silent);
     let force = force || config_changed;
 
     let scan_root = target_path.map_or_else(
@@ -64,9 +239,7 @@ pub async fn run(
     )?;
 
     if work_queue.is_empty() && missing_paths.is_empty() {
-        if !silent {
-            log::info!("Library is up to date.");
-        }
+        emit_log("Library is up to date.".to_string(), silent, log_tx.as_ref());
         let _ = fs::write(&lua_hash_file, &lua_hash);
         save_cache(&cache, &base_cache_dir.join("library.json"))?;
         return Ok(());
@@ -76,23 +249,56 @@ pub async fn run(
     let missing_count = missing_paths.len();
     let start_time = std::time::Instant::now();
 
-    let (ingest_tx, ingest_handle) = setup_ingest_handler(8000).await;
-    send_missing_payloads(ingest_tx.as_ref(), &missing_paths, &music_directory).await;
+    let (ingest_tx, ingest_handle) =
+        spawn_server_ingest_handler(Arc::clone(&state), silent, log_tx.clone());
 
-    let written_count = compile_work_queue(scan_root, work_queue.clone(), effective_jobs, ingest_tx).await?;
-
-    if let Some(handle) = ingest_handle {
-        let _ = handle.await;
+    for missing in &missing_paths {
+        let album_id = libdale::resolvers::rel_path(missing, &music_directory);
+        let display_path = missing.strip_prefix(&music_directory).unwrap_or(missing);
+        emit_log(
+            format!("Removed: {}", display_path.display()),
+            silent,
+            log_tx.as_ref(),
+        );
+        let _ = ingest_tx
+            .send(crate::server::api::system::AlbumIngestPayload {
+                id: album_id,
+                artist: String::new(),
+                album: String::new(),
+                lock_json: String::new(),
+                eval_res: None,
+            })
+            .await;
     }
+
+    emit_log(format!("Verifying {checked_count} albums..."), silent, log_tx.as_ref());
+
+    let compile_options = compile::CompileOptions {
+        target_path: scan_root,
+        flags: vec!["default".to_string()],
+        specific_albums: Some(work_queue.clone()),
+        jobs: effective_jobs,
+        compile_flags: compile::CompileFlags {
+            mode: compile::CompileMode::Standard,
+            target: compile::ExportTarget::File,
+            pretty: false,
+        },
+        ingest_tx: Some(ingest_tx),
+        active_writes: Some(Arc::clone(&state.active_writes)),
+    };
+
+    let written_count = compile::run(compile_options).await?;
+
+    let _ = ingest_handle.await;
 
     update_cache_entries(&mut cache, &work_queue, &missing_paths, &music_directory, silent);
 
     let elapsed = start_time.elapsed().as_millis();
-    if !silent {
-        log::info!(
-            "Update complete: {checked_count} checked ({written_count} modified), {missing_count} removed. Finished in {elapsed}ms."
-        );
-    }
+    emit_log(
+        format!("Update complete: {checked_count} checked ({written_count} modified), {missing_count} removed. Finished in {elapsed}ms."),
+        silent,
+        log_tx.as_ref(),
+    );
 
     let _ = fs::write(&lua_hash_file, &lua_hash);
     save_cache(&cache, &base_cache_dir.join("library.json"))?;
@@ -138,71 +344,6 @@ fn resolve_work_queue(
             }
         }
         Ok((wq, mp))
-    }
-}
-
-async fn setup_ingest_handler(
-    port: u16,
-) -> (
-    Option<tokio::sync::mpsc::Sender<crate::server::api::system::AlbumIngestPayload>>,
-    Option<tokio::task::JoinHandle<()>>,
-) {
-    if !is_server_up(port).await {
-        return (None, None);
-    }
-
-    let (tx, mut rx) =
-        tokio::sync::mpsc::channel::<crate::server::api::system::AlbumIngestPayload>(512);
-    let handle = tokio::spawn(async move {
-        let client = reqwest::Client::new();
-        let mut batch = Vec::new();
-        let mut last_send = std::time::Instant::now();
-
-        while let Some(payload) = rx.recv().await {
-            batch.push(payload);
-            if last_send.elapsed().as_millis() >= 100 && !batch.is_empty() {
-                let send_batch = std::mem::take(&mut batch);
-                last_send = std::time::Instant::now();
-                let _ = client
-                    .post(format!("http://127.0.0.1:{port}/api/internal/ingest"))
-                    .json(&send_batch)
-                    .timeout(std::time::Duration::from_secs(5))
-                    .send()
-                    .await;
-            }
-        }
-
-        if !batch.is_empty() {
-            let _ = client
-                .post(format!("http://127.0.0.1:{port}/api/internal/ingest"))
-                .json(&batch)
-                .timeout(std::time::Duration::from_secs(5))
-                .send()
-                .await;
-        }
-    });
-
-    (Some(tx), Some(handle))
-}
-
-async fn send_missing_payloads(
-    ingest_tx: Option<&tokio::sync::mpsc::Sender<crate::server::api::system::AlbumIngestPayload>>,
-    missing_paths: &[PathBuf],
-    music_directory: &Path,
-) {
-    let Some(tx) = ingest_tx else {
-        return;
-    };
-
-    for missing in missing_paths {
-        let album_id = libdale::resolvers::rel_path(missing, music_directory);
-        let _ = tx
-            .send(crate::server::api::system::AlbumIngestPayload {
-                id: album_id,
-                lock_json: String::new(),
-                eval_res: None,
-            })
-            .await;
     }
 }
 
@@ -315,17 +456,6 @@ async fn try_get_server_tracked_albums(
     Some((work_queue, missing_paths))
 }
 
-async fn notify_if_force_update(force: bool, is_full_library: bool) {
-    if force && is_full_library {
-        let client = reqwest::Client::new();
-        let _ = client
-            .post("http://127.0.0.1:8000/api/internal/notify_force_update")
-            .timeout(std::time::Duration::from_secs(2))
-            .send()
-            .await;
-    }
-}
-
 fn check_lua_config_changed(
     dependencies: &[PathBuf],
     cache_root: &Path,
@@ -341,28 +471,4 @@ fn check_lua_config_changed(
     }
 
     (config_changed, lua_hash_file, lua_hash)
-}
-
-async fn compile_work_queue(
-    scan_root: PathBuf,
-    work_queue: Vec<PathBuf>,
-    jobs: Option<usize>,
-    ingest_tx: Option<tokio::sync::mpsc::Sender<crate::server::api::system::AlbumIngestPayload>>,
-) -> Result<usize> {
-    if !work_queue.is_empty() {
-        let compile_options = compile::CompileOptions {
-            target_path: scan_root,
-            flags: vec!["default".to_string()],
-            specific_albums: Some(work_queue),
-            jobs,
-            compile_flags: compile::CompileFlags {
-                mode: compile::CompileMode::Standard,
-                target: compile::ExportTarget::File,
-                pretty: false,
-            },
-            ingest_tx,
-        };
-        return compile::run(compile_options).await;
-    }
-    Ok(0)
 }

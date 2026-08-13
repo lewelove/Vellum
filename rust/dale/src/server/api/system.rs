@@ -5,13 +5,65 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct AlbumIngestPayload {
     pub id: String,
+    #[serde(default)]
+    pub artist: String,
+    #[serde(default)]
+    pub album: String,
     pub lock_json: String,
     pub eval_res: Option<serde_json::Value>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct UpdateTriggerPayload {
+    pub path: Option<String>,
+    #[serde(default)]
+    pub force: bool,
+    pub jobs: Option<usize>,
+    #[serde(default)]
+    pub silent: bool,
+}
+
+pub async fn trigger_update(
+    State(state): State<Arc<AppState>>,
+    Json(payload): Json<UpdateTriggerPayload>,
+) -> Response {
+    let (tx, rx) = tokio::sync::mpsc::channel::<String>(100);
+
+    let target_path = payload.path.map(PathBuf::from);
+    let force = payload.force;
+    let jobs = payload.jobs;
+    let silent = payload.silent;
+
+    tokio::spawn(async move {
+        if let Err(e) = crate::update::run_server_update(
+            state,
+            target_path,
+            force,
+            jobs,
+            silent,
+            Some(tx.clone()),
+        )
+        .await
+        {
+            let _ = tx.send(format!("Update failed: {e}")).await;
+        }
+    });
+
+    let stream = futures::stream::unfold(rx, |mut rx| async move {
+        let msg = rx.recv().await?;
+        Some((Ok::<_, std::convert::Infallible>(format!("{msg}\n")), rx))
+    });
+
+    Response::builder()
+        .header(axum::http::header::CONTENT_TYPE, "text/plain; charset=utf-8")
+        .body(axum::body::Body::from_stream(stream))
+        .unwrap_or_else(|_| StatusCode::INTERNAL_SERVER_ERROR.into_response())
 }
 
 pub async fn get_tracked_albums(State(state): State<Arc<AppState>>) -> Response {
