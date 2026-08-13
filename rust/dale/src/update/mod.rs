@@ -194,16 +194,35 @@ fn spawn_server_ingest_handler(
         tokio::sync::mpsc::channel::<crate::server::api::system::AlbumIngestPayload>(512);
 
     let ingest_handle = tokio::spawn(async move {
-        while let Some(payload) = ingest_rx.recv().await {
-            if !payload.lock_json.is_empty()
-                && (!payload.artist.is_empty() || !payload.album.is_empty())
-            {
-                let artist = &payload.artist;
-                let album = &payload.album;
-                emit_log(&format!("Updated: {artist} - {album}"), silent, &log_txs);
+        while let Some(first_payload) = ingest_rx.recv().await {
+            let mut batch = vec![first_payload];
+
+            while let Ok(payload) = ingest_rx.try_recv() {
+                batch.push(payload);
             }
-            let item = vec![(payload.id, payload.lock_json, payload.eval_res)];
-            crate::server::inotify::handler::ingest_and_broadcast_albums(item, true, &state).await;
+
+            tokio::time::sleep(std::time::Duration::from_millis(15)).await;
+            while let Ok(payload) = ingest_rx.try_recv() {
+                batch.push(payload);
+            }
+
+            let items: Vec<_> = batch
+                .into_iter()
+                .map(|payload| {
+                    if !payload.lock_json.is_empty()
+                        && (!payload.artist.is_empty() || !payload.album.is_empty())
+                    {
+                        emit_log(
+                            &format!("Updated: {} - {}", payload.artist, payload.album),
+                            silent,
+                            &log_txs,
+                        );
+                    }
+                    (payload.id, payload.lock_json, payload.eval_res)
+                })
+                .collect();
+
+            crate::server::inotify::handler::ingest_and_broadcast_albums(items, true, &state).await;
         }
     });
 
