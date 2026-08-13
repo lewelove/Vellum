@@ -15,6 +15,7 @@ pub struct StreamContext {
     pub jobs: Option<usize>,
     pub ingest_tx: Option<tokio::sync::mpsc::Sender<crate::server::api::system::AlbumIngestPayload>>,
     pub active_writes: Option<Arc<Mutex<HashSet<PathBuf>>>>,
+    pub silent: bool,
 }
 
 pub async fn run(ctx: StreamContext) -> Result<usize> {
@@ -27,13 +28,14 @@ pub async fn run(ctx: StreamContext) -> Result<usize> {
     let written_ref = Arc::clone(&written_count);
     let ingest_tx = ctx.ingest_tx;
     let active_writes = ctx.active_writes.clone();
+    let silent = ctx.silent;
 
     let direct_handle = tokio::spawn(async move {
         while let Some((v, eval_res)) = drx.recv().await {
             let written_inner = Arc::clone(&written_ref);
             let active_ref = active_writes.clone();
             let res = tokio::task::spawn_blocking(move || {
-                finalize(v, eval_res, target, active_ref.as_ref())
+                finalize(v, eval_res, target, active_ref.as_ref(), silent)
             })
             .await;
             if let Ok(Ok((written, payload))) = res {
@@ -117,6 +119,7 @@ fn finalize(
     eval_res: Option<Value>,
     target: ExportTarget,
     active_writes: Option<&Arc<Mutex<HashSet<PathBuf>>>>,
+    silent: bool,
 ) -> Result<(bool, Option<crate::server::api::system::AlbumIngestPayload>)> {
     let artist = v
         .get("album")
@@ -179,7 +182,7 @@ fn finalize(
                     active.insert(canon);
                 }
                 active.insert(lock_path.clone());
-            } else {
+            } else if !silent {
                 log::info!("Updated: {artist} - {album}");
             }
             std::fs::write(&lock_path, content)?;

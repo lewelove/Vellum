@@ -83,6 +83,7 @@ pub async fn run(
         },
         ingest_tx: None,
         active_writes: None,
+        silent,
     };
 
     let written_count = compile::run(compile_options).await?;
@@ -136,13 +137,13 @@ async fn run_delegated_update(
         while let Some(pos) = buffer.find('\n') {
             let line = buffer[..pos].trim_end().to_string();
             buffer.drain(..=pos);
-            if !line.is_empty() {
+            if !line.is_empty() && !silent {
                 log::info!("{line}");
             }
         }
     }
 
-    if !buffer.trim().is_empty() {
+    if !buffer.trim().is_empty() && !silent {
         let line = buffer.trim();
         log::info!("{line}");
     }
@@ -151,9 +152,12 @@ async fn run_delegated_update(
 }
 
 fn emit_log(msg: String, silent: bool, log_tx: Option<&tokio::sync::mpsc::Sender<String>>) {
+    if silent {
+        return;
+    }
     if let Some(tx) = log_tx {
         let _ = tx.try_send(msg);
-    } else if !silent {
+    } else {
         log::info!("{msg}");
     }
 }
@@ -285,6 +289,7 @@ pub async fn run_server_update(
         },
         ingest_tx: Some(ingest_tx),
         active_writes: Some(Arc::clone(&state.active_writes)),
+        silent,
     };
 
     let written_count = compile::run(compile_options).await?;

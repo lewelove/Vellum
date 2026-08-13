@@ -38,6 +38,7 @@ pub struct CompileOptions {
     pub compile_flags: CompileFlags,
     pub ingest_tx: Option<tokio::sync::mpsc::Sender<crate::server::api::system::AlbumIngestPayload>>,
     pub active_writes: Option<Arc<Mutex<HashSet<PathBuf>>>>,
+    pub silent: bool,
 }
 
 pub async fn run(
@@ -83,6 +84,7 @@ pub async fn run(
         jobs: effective_jobs,
         ingest_tx: options.ingest_tx,
         active_writes: options.active_writes,
+        silent: options.silent,
     };
 
     stream::run(ctx).await
