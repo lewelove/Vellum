@@ -117,45 +117,24 @@ async fn handle_album_changes(changed_albums: HashSet<PathBuf>, state: &Arc<AppS
     .unwrap_or_default();
 
     if !recompiled_items.is_empty() {
-        ingest_and_broadcast_albums(recompiled_items, state).await;
+        ingest_and_broadcast_albums(recompiled_items, false, state).await;
     }
 }
 
 pub async fn ingest_and_broadcast_albums(
     recompiled_items: Vec<(String, String, Option<serde_json::Value>)>,
+    is_internal_update: bool,
     state: &Arc<AppState>,
 ) {
-    let music_directory = state.config.read().await.music_directory.clone();
-
-    let items_with_auth: Vec<_> = {
-        let active = state
-            .active_writes
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        recompiled_items
-            .into_iter()
-            .map(|(album_id, lock_json, eval_res)| {
-                let is_auth = if eval_res.is_some() {
-                    let p = music_directory.join(&album_id).join("album.lock.json");
-                    let canon = p.canonicalize().unwrap_or_else(|_| p.clone());
-                    active.contains(&canon) || active.contains(&p)
-                } else {
-                    false
-                };
-                (album_id, lock_json, eval_res, is_auth)
-            })
-            .collect()
-    };
-
     let (updated_dict_entries, removed_ids, shelves) = {
         let mut logic = state.logic.write().await;
         let mut entries = std::collections::HashMap::new();
         let mut removed = Vec::new();
 
-        for (album_id, lock_json, eval_res, is_authorized) in items_with_auth {
+        for (album_id, lock_json, eval_res) in recompiled_items {
             logic.remove_album(&album_id);
             if let Some(eval) = eval_res {
-                if !is_authorized {
+                if !is_internal_update {
                     log::info!("Updated album state: {album_id}");
                 }
 

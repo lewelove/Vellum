@@ -181,7 +181,7 @@ fn spawn_server_ingest_handler(
                 );
             }
             let item = vec![(payload.id, payload.lock_json, payload.eval_res)];
-            crate::server::inotify::handler::ingest_and_broadcast_albums(item, &state).await;
+            crate::server::inotify::handler::ingest_and_broadcast_albums(item, true, &state).await;
         }
     });
 

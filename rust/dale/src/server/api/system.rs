@@ -303,7 +303,7 @@ pub async fn ingest_reload_payloads(
         .map(|p| (p.id, p.lock_json, p.eval_res))
         .collect();
 
-    crate::server::inotify::handler::ingest_and_broadcast_albums(recompiled_items, &state).await;
+    crate::server::inotify::handler::ingest_and_broadcast_albums(recompiled_items, false, &state).await;
     StatusCode::OK.into_response()
 }
 
