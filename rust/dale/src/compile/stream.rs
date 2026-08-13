@@ -122,6 +122,12 @@ fn finalize(
         .and_then(Value::as_str)
         .unwrap_or("Unknown")
         .to_string();
+    let album_id = v
+        .get("album")
+        .and_then(|a| a.get("id"))
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_string();
 
     let ctx = v
         .as_object_mut()
@@ -134,12 +140,6 @@ fn finalize(
         .get("paths")
         .and_then(|p| p.get("album_root"))
         .and_then(Value::as_str);
-
-    let album_id = ctx
-        .get("id")
-        .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .to_string();
 
     if let Some(path) = album_root_str {
         let album_root = Path::new(path);
