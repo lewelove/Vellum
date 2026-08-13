@@ -206,23 +206,23 @@ fn spawn_server_ingest_handler(
                 batch.push(payload);
             }
 
-            let items: Vec<_> = batch
-                .into_iter()
-                .map(|payload| {
-                    if !payload.lock_json.is_empty()
-                        && (!payload.artist.is_empty() || !payload.album.is_empty())
-                    {
-                        emit_log(
-                            &format!("Updated: {} - {}", payload.artist, payload.album),
-                            silent,
-                            &log_txs,
-                        );
-                    }
-                    (payload.id, payload.lock_json, payload.eval_res)
-                })
-                .collect();
+            let mut items = Vec::with_capacity(batch.len());
+            let mut logs = Vec::new();
+
+            for payload in batch {
+                if !payload.lock_json.is_empty()
+                    && (!payload.artist.is_empty() || !payload.album.is_empty())
+                {
+                    logs.push(format!("Updated: {} - {}", payload.artist, payload.album));
+                }
+                items.push((payload.id, payload.lock_json, payload.eval_res));
+            }
 
             crate::server::inotify::handler::ingest_and_broadcast_albums(items, true, &state).await;
+
+            for log_msg in &logs {
+                emit_log(log_msg, silent, &log_txs);
+            }
         }
     });
 
