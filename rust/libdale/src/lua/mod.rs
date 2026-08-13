@@ -569,11 +569,11 @@ impl ResolvedConfig {
     }
 }
 
-pub fn get_or_init_lua_vm<F, R>(config_path: &Path, f: F) -> Result<R>
+pub fn with_evaluated_lua_vm<F, R>(config_path: &Path, f: F) -> Result<R>
 where
-    F: FnOnce(&LuaEngine) -> Result<R>,
+    F: FnOnce(&LuaEngine, EvaluatedLuaData) -> Result<R>,
 {
     let engine = LuaEngine::new()?;
-    engine.evaluate_config(config_path)?;
-    f(&engine)
+    let eval = engine.evaluate_config(config_path)?;
+    f(&engine, eval)
 }

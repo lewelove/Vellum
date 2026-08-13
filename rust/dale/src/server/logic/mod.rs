@@ -5,7 +5,7 @@ pub mod sort;
 pub use sort::{SortKey, value_to_sort_key};
 
 use anyhow::Result;
-use libdale::lua::{LogicManifest, get_or_init_lua_vm};
+use libdale::lua::{LogicManifest, with_evaluated_lua_vm};
 use roaring::RoaringBitmap;
 use serde_json::{Value, json};
 use std::collections::HashMap;
@@ -32,10 +32,7 @@ pub struct LogicEngine {
 impl LogicEngine {
     pub fn new() -> Result<Self> {
         let config_path = libdale::lua::resolve_config_path().unwrap_or_default();
-        let manifest = get_or_init_lua_vm(&config_path, |engine| {
-            let eval = engine.evaluate_config(&config_path)?;
-            Ok(eval.manifest)
-        })?;
+        let manifest = with_evaluated_lua_vm(&config_path, |_, eval| Ok(eval.manifest))?;
 
         Ok(Self {
             config_path,
@@ -57,8 +54,7 @@ impl LogicEngine {
     }
 
     pub fn reload_manifest(&mut self, config_path: &Path) -> Result<()> {
-        let manifest = get_or_init_lua_vm(config_path, |engine| {
-            let eval = engine.evaluate_config(config_path)?;
+        let manifest = with_evaluated_lua_vm(config_path, |engine, eval| {
             let mut new_evaluated = HashMap::new();
             for (&uid, id) in &self.uid_to_id {
                 if let Some(json_str) = self.lock_cache.get(id)
@@ -194,7 +190,7 @@ impl LogicEngine {
 
     pub fn ingest(&mut self, id: &str, metadata_json: &str) -> Result<()> {
         let parsed: Value = serde_json::from_str(metadata_json)?;
-        let eval_res = get_or_init_lua_vm(&self.config_path, |engine| {
+        let eval_res = with_evaluated_lua_vm(&self.config_path, |engine, _| {
             engine.evaluate_album_logic(&parsed)
         })?;
 
