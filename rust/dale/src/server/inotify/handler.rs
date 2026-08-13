@@ -99,6 +99,9 @@ async fn handle_album_changes(changed_albums: HashSet<PathBuf>, state: &Arc<AppS
 
                     if should_write {
                         if let Ok(mut active) = active_writes.lock() {
+                            if let Ok(canon) = lock_file_path.canonicalize() {
+                                active.insert(canon);
+                            }
                             active.insert(lock_file_path.clone());
                         }
                         let _ = std::fs::write(&lock_file_path, &lock_json);
@@ -122,6 +125,19 @@ pub async fn ingest_and_broadcast_albums(
     recompiled_items: Vec<(String, String, Option<serde_json::Value>)>,
     state: &Arc<AppState>,
 ) {
+    let music_directory = state.config.read().await.music_directory.clone();
+    if let Ok(mut active) = state.active_writes.lock() {
+        for (album_id, lock_json, _) in &recompiled_items {
+            if !album_id.is_empty() && !lock_json.is_empty() {
+                let lock_file_path = music_directory.join(album_id).join("album.lock.json");
+                if let Ok(canon) = lock_file_path.canonicalize() {
+                    active.insert(canon);
+                }
+                active.insert(lock_file_path);
+            }
+        }
+    }
+
     let (updated_dict_entries, removed_ids, shelves) = {
         let mut logic = state.logic.write().await;
         let mut entries = std::collections::HashMap::new();
