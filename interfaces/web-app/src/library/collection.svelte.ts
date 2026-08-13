@@ -72,7 +72,7 @@ class CollectionStore {
     } else if (json.type === "CONFIG_UPDATE" || json.type === "INTERFACE_CONFIG_UPDATE") {
       if (json.config) {
         this.config = { ...this.config, ...json.config };
-        if (json.type === "INTERFACE_CONFIG_UPDATE") updateConfig(json.config);
+        updateConfig(json.config);
       }
     } else if (json.type === "MPD_STATUS") {
       updatePlayerState(json);

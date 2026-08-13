@@ -3,6 +3,7 @@ import { sync } from "./sync.svelte.ts";
 
 class Prewarmer {
   pinnedTextures: Map<string, ImageBitmap> = $state(new Map());
+  private validUrls = new Set<string>();
   private inFlight = new Set<string>();
   private failedUrls = new Set<string>();
   private pendingUpdates = false;
@@ -13,14 +14,42 @@ class Prewarmer {
     sync.addEventListener("message", (e: Event) => {
       const json = (e as CustomEvent).detail;
       if (
-        json.type === "INIT_DICT" ||
+        json.type === "ALBUM_REMOVED" ||
         json.type === "ALBUM_UPDATED" ||
+        json.type === "ALBUMS_UPDATED" ||
+        json.type === "INIT_DICT" ||
+        json.type === "LOGIC_UPDATE" ||
         json.type === "CONFIG_UPDATE" ||
         json.type === "INTERFACE_CONFIG_UPDATE"
       ) {
+        this.pruneTextures();
         this.orchestrate();
       }
     });
+  }
+
+  pruneTextures() {
+    this.validUrls.clear();
+    for (const album of Object.values(collection.dict)) {
+      const url = collection.getThumbnailUrl(album);
+      if (url) this.validUrls.add(url);
+    }
+
+    let evicted = false;
+    this.pinnedTextures.forEach((bitmap, url) => {
+      if (!this.validUrls.has(url)) {
+        if (bitmap && typeof bitmap.close === "function") {
+          bitmap.close();
+        }
+        this.pinnedTextures.delete(url);
+        this.failedUrls.delete(url);
+        evicted = true;
+      }
+    });
+
+    if (evicted) {
+      this.scheduleFlush();
+    }
   }
 
   flush() {
@@ -56,8 +85,14 @@ class Prewarmer {
         premultiplyAlpha: "none",
         colorSpaceConversion: "default"
       });
-      this.pinnedTextures.set(url, bitmap);
-      this.scheduleFlush();
+      if (!this.validUrls.has(url)) {
+        if (bitmap && typeof bitmap.close === "function") {
+          bitmap.close();
+        }
+      } else {
+        this.pinnedTextures.set(url, bitmap);
+        this.scheduleFlush();
+      }
     } catch (err) {
       this.failedUrls.add(url);
     }
@@ -89,8 +124,14 @@ class Prewarmer {
             premultiplyAlpha: "none",
             colorSpaceConversion: "default"
           });
-          this.pinnedTextures.set(url, bitmap);
-          this.scheduleFlush();
+          if (!this.validUrls.has(url)) {
+            if (bitmap && typeof bitmap.close === "function") {
+              bitmap.close();
+            }
+          } else {
+            this.pinnedTextures.set(url, bitmap);
+            this.scheduleFlush();
+          }
         } catch (err) {
           this.failedUrls.add(url);
         }

@@ -10,11 +10,13 @@ import { prewarmer } from "../../../library/prewarmer.svelte.ts";
 let {
   albums = [],
   version = 0,
+  resetVersion = 0,
   activeAlbumId = null,
   onfocus = () => {}
 }: {
   albums?: any[];
   version?: number;
+  resetVersion?: number;
   activeAlbumId?: string | null;
   onfocus?: (album: any) => void;
 } = $props();
@@ -372,8 +374,15 @@ $effect(() => {
 
 $effect(() => {
   const _v = version;
-  ctrl.resetScroll();
+  const _a = albums;
   textCache.clear();
+});
+
+$effect(() => {
+  const _rv = resetVersion;
+  if (_rv !== 0) {
+    ctrl.resetScroll();
+  }
 });
 
 $effect(() => {

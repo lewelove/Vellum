@@ -14,6 +14,7 @@ pub struct AppState {
     pub mpd_engine: MpdEngine,
     pub tracked_albums: Arc<Mutex<HashSet<String>>>,
     pub full_rescan_needed: Arc<AtomicBool>,
+    pub active_writes: Arc<Mutex<HashSet<PathBuf>>>,
 }
 
 #[derive(Clone)]

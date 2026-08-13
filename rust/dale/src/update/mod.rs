@@ -1,20 +1,15 @@
 pub mod cache;
-pub mod notify;
 pub mod verify;
 
 use anyhow::{Context, Result};
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
-use tokio::sync::Mutex;
-use tokio::sync::mpsc;
 
 use cache::{
-    calculate_hash, get_lua_config_hash, load_cache, save_cache, validate_library_root,
+    calculate_hash, get_lua_config_hash, load_cache, save_cache, validate_library_root, FileStat,
 };
 use crate::compile;
 use libdale::utils::expand_path;
-use notify::{NotificationTaskArgs, start_notification_task};
 use verify::{find_missing_paths, verify_albums_parallel};
 
 pub async fn run(
@@ -41,8 +36,7 @@ pub async fn run(
 
     validate_library_root(&base_cache_dir, &lib_hash).await?;
 
-    let cache_file = base_cache_dir.join("library.json");
-    let cache = load_cache(&cache_file);
+    let mut cache = load_cache(&base_cache_dir.join("library.json"));
 
     let (config_changed, lua_hash_file, lua_hash) =
         check_lua_config_changed(&config.dependencies, &cache_root, silent);
@@ -53,85 +47,231 @@ pub async fn run(
         |p| p.canonicalize().unwrap_or(p),
     );
 
-    let (work_queue, missing_paths) = if !force
-        && is_full_library
-        && let Some((wq, mp)) = try_get_server_tracked_albums(&music_directory).await
-    {
-        if !silent && !wq.is_empty() {
-            log::info!("Verifying {} tracked albums...", wq.len());
-        }
-
-        let results =
-            verify_albums_parallel(wq, &cache, force, effective_jobs, &music_directory)?;
-        let mut verified_wq = Vec::new();
-        for (path, is_dirty) in results {
-            if is_dirty {
-                verified_wq.push(path);
-            }
-        }
-        (verified_wq, mp)
+    let tracked = if !force && is_full_library {
+        try_get_server_tracked_albums(&music_directory).await
     } else {
-        let all_albums = libdale::scanner::find_target_albums(&scan_root)?;
-        let mp = find_missing_paths(&all_albums, &music_directory, &scan_root, &cache);
-
-        if !silent {
-            log::info!("Verifying {} albums...", all_albums.len());
-        }
-
-        let results =
-            verify_albums_parallel(all_albums, &cache, force, effective_jobs, &music_directory)?;
-        let mut wq = Vec::new();
-        for (path, is_dirty) in results {
-            if is_dirty {
-                wq.push(path);
-            }
-        }
-        (wq, mp)
+        None
     };
+
+    let (work_queue, missing_paths) = resolve_work_queue(
+        &scan_root,
+        &music_directory,
+        &cache,
+        force,
+        effective_jobs,
+        tracked,
+        silent,
+    )?;
 
     if work_queue.is_empty() && missing_paths.is_empty() {
         if !silent {
             log::info!("Library is up to date.");
         }
         let _ = fs::write(&lua_hash_file, &lua_hash);
-        save_cache(&cache, &cache_file)?;
+        save_cache(&cache, &base_cache_dir.join("library.json"))?;
         return Ok(());
     }
 
-    let dirty_count = work_queue.len();
+    let checked_count = work_queue.len();
     let missing_count = missing_paths.len();
     let start_time = std::time::Instant::now();
 
-    let (notify_tx, notify_rx) = mpsc::channel::<compile::stream::AlbumUpdateSignal>(100);
-    let cache_arc = Arc::new(Mutex::new(cache));
+    let (ingest_tx, ingest_handle) = setup_ingest_handler(8000).await;
+    send_missing_payloads(ingest_tx.as_ref(), &missing_paths, &music_directory).await;
 
-    let task_args = NotificationTaskArgs {
-        notify_rx,
-        cache_for_task: Arc::clone(&cache_arc),
-        lib_root_for_task: Arc::new(music_directory),
-        missing_paths,
-        start_time,
-        silent,
-    };
-    let notification_task = start_notification_task(task_args);
+    let written_count = compile_work_queue(scan_root, work_queue.clone(), effective_jobs, ingest_tx).await?;
 
-    compile_work_queue(scan_root, work_queue, effective_jobs, notify_tx.clone()).await?;
+    if let Some(handle) = ingest_handle {
+        let _ = handle.await;
+    }
 
-    drop(notify_tx);
-    let _ = notification_task.await;
+    update_cache_entries(&mut cache, &work_queue, &missing_paths, &music_directory, silent);
 
     let elapsed = start_time.elapsed().as_millis();
     if !silent {
         log::info!(
-            "Update complete: {dirty_count} updated, {missing_count} removed. Finished in {elapsed}ms."
+            "Update complete: {checked_count} checked ({written_count} modified), {missing_count} removed. Finished in {elapsed}ms."
         );
     }
 
-    let final_cache = Arc::try_unwrap(cache_arc).unwrap().into_inner();
     let _ = fs::write(&lua_hash_file, &lua_hash);
-    save_cache(&final_cache, &cache_file)?;
+    save_cache(&cache, &base_cache_dir.join("library.json"))?;
 
     Ok(())
+}
+
+fn resolve_work_queue(
+    scan_root: &Path,
+    music_directory: &Path,
+    cache: &std::collections::HashMap<String, FileStat>,
+    force: bool,
+    effective_jobs: Option<usize>,
+    tracked: Option<(Vec<PathBuf>, Vec<PathBuf>)>,
+    silent: bool,
+) -> Result<(Vec<PathBuf>, Vec<PathBuf>)> {
+    if !force && let Some((wq, mp)) = tracked {
+        if !silent && !wq.is_empty() {
+            log::info!("Verifying {} tracked albums...", wq.len());
+        }
+
+        let results = verify_albums_parallel(wq, cache, force, effective_jobs, music_directory)?;
+        let mut verified_wq = Vec::new();
+        for (path, is_dirty) in results {
+            if is_dirty {
+                verified_wq.push(path);
+            }
+        }
+        Ok((verified_wq, mp))
+    } else {
+        let all_albums = libdale::scanner::find_target_albums(scan_root)?;
+        let mp = find_missing_paths(&all_albums, music_directory, scan_root, cache);
+
+        if !silent {
+            log::info!("Verifying {} albums...", all_albums.len());
+        }
+
+        let results = verify_albums_parallel(all_albums, cache, force, effective_jobs, music_directory)?;
+        let mut wq = Vec::new();
+        for (path, is_dirty) in results {
+            if is_dirty {
+                wq.push(path);
+            }
+        }
+        Ok((wq, mp))
+    }
+}
+
+async fn setup_ingest_handler(
+    port: u16,
+) -> (
+    Option<tokio::sync::mpsc::Sender<crate::server::api::system::AlbumIngestPayload>>,
+    Option<tokio::task::JoinHandle<()>>,
+) {
+    if !is_server_up(port).await {
+        return (None, None);
+    }
+
+    let (tx, mut rx) =
+        tokio::sync::mpsc::channel::<crate::server::api::system::AlbumIngestPayload>(512);
+    let handle = tokio::spawn(async move {
+        let client = reqwest::Client::new();
+        let mut batch = Vec::new();
+        let mut last_send = std::time::Instant::now();
+
+        while let Some(payload) = rx.recv().await {
+            batch.push(payload);
+            if last_send.elapsed().as_millis() >= 100 && !batch.is_empty() {
+                let send_batch = std::mem::take(&mut batch);
+                last_send = std::time::Instant::now();
+                let _ = client
+                    .post(format!("http://127.0.0.1:{port}/api/internal/ingest"))
+                    .json(&send_batch)
+                    .timeout(std::time::Duration::from_secs(5))
+                    .send()
+                    .await;
+            }
+        }
+
+        if !batch.is_empty() {
+            let _ = client
+                .post(format!("http://127.0.0.1:{port}/api/internal/ingest"))
+                .json(&batch)
+                .timeout(std::time::Duration::from_secs(5))
+                .send()
+                .await;
+        }
+    });
+
+    (Some(tx), Some(handle))
+}
+
+async fn send_missing_payloads(
+    ingest_tx: Option<&tokio::sync::mpsc::Sender<crate::server::api::system::AlbumIngestPayload>>,
+    missing_paths: &[PathBuf],
+    music_directory: &Path,
+) {
+    let Some(tx) = ingest_tx else {
+        return;
+    };
+
+    for missing in missing_paths {
+        let album_id = libdale::resolvers::rel_path(missing, music_directory);
+        let _ = tx
+            .send(crate::server::api::system::AlbumIngestPayload {
+                id: album_id,
+                lock_json: String::new(),
+                eval_res: None,
+            })
+            .await;
+    }
+}
+
+async fn is_server_up(port: u16) -> bool {
+    let client = reqwest::Client::new();
+    client
+        .get(format!("http://127.0.0.1:{port}/api/internal/tracked_albums"))
+        .timeout(std::time::Duration::from_millis(300))
+        .send()
+        .await
+        .is_ok_and(|r| r.status().is_success())
+}
+
+fn update_cache_entries(
+    cache: &mut std::collections::HashMap<String, FileStat>,
+    work_queue: &[PathBuf],
+    missing_paths: &[PathBuf],
+    music_directory: &Path,
+    silent: bool,
+) {
+    for album_root in work_queue {
+        let album_id = libdale::resolvers::rel_path(album_root, music_directory);
+        let prefix = if album_id.is_empty() {
+            String::new()
+        } else {
+            format!("{album_id}/")
+        };
+
+        cache.retain(|k, _| {
+            if prefix.is_empty() {
+                k.contains('/')
+            } else {
+                !k.starts_with(&prefix)
+            }
+        });
+
+        for entry in walkdir::WalkDir::new(album_root)
+            .follow_links(true)
+            .into_iter()
+            .filter_map(Result::ok)
+        {
+            let p = entry.path();
+            if p.is_file() {
+                let rel = libdale::resolvers::rel_path(p, music_directory);
+                if let Ok(m) = entry.metadata() {
+                    let mtime = m
+                        .modified()
+                        .unwrap_or(std::time::SystemTime::UNIX_EPOCH)
+                        .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                        .unwrap_or_default()
+                        .as_secs();
+                    let size = m.len();
+                    cache.insert(rel, FileStat { mtime, size });
+                }
+            }
+        }
+    }
+
+    for missing in missing_paths {
+        let album_id = libdale::resolvers::rel_path(missing, music_directory);
+        let prefix = format!("{album_id}/");
+
+        if !silent {
+            let display_path = missing.strip_prefix(music_directory).unwrap_or(missing);
+            log::info!("Removed: {}", display_path.display());
+        }
+
+        cache.retain(|k, _| !k.starts_with(&prefix));
+    }
 }
 
 async fn try_get_server_tracked_albums(
@@ -207,22 +347,22 @@ async fn compile_work_queue(
     scan_root: PathBuf,
     work_queue: Vec<PathBuf>,
     jobs: Option<usize>,
-    notify_tx: mpsc::Sender<compile::stream::AlbumUpdateSignal>,
-) -> Result<()> {
+    ingest_tx: Option<tokio::sync::mpsc::Sender<crate::server::api::system::AlbumIngestPayload>>,
+) -> Result<usize> {
     if !work_queue.is_empty() {
         let compile_options = compile::CompileOptions {
             target_path: scan_root,
             flags: vec!["default".to_string()],
             specific_albums: Some(work_queue),
             jobs,
-            notify_tx: Some(notify_tx),
             compile_flags: compile::CompileFlags {
                 mode: compile::CompileMode::Standard,
                 target: compile::ExportTarget::File,
                 pretty: false,
             },
+            ingest_tx,
         };
-        compile::run(compile_options).await?;
+        return compile::run(compile_options).await;
     }
-    Ok(())
+    Ok(0)
 }

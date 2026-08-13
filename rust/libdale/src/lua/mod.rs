@@ -7,7 +7,6 @@ use indexmap::IndexMap;
 use mlua::serde::SerializeOptions;
 use mlua::{Lua, LuaSerdeExt, Table};
 use serde::{Deserialize, Serialize};
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
@@ -570,27 +569,11 @@ impl ResolvedConfig {
     }
 }
 
-thread_local! {
-    pub static LUA_VM: RefCell<Option<LuaEngine>> = const { RefCell::new(None) };
-}
-
-pub fn reset_lua_vm() {
-    LUA_VM.with(|cell| {
-        *cell.borrow_mut() = None;
-    });
-}
-
 pub fn get_or_init_lua_vm<F, R>(config_path: &Path, f: F) -> Result<R>
 where
     F: FnOnce(&LuaEngine) -> Result<R>,
 {
-    LUA_VM.with(|cell| {
-        let mut opt = cell.borrow_mut();
-        if opt.is_none() {
-            let engine = LuaEngine::new()?;
-            engine.evaluate_config(config_path)?;
-            *opt = Some(engine);
-        }
-        f(opt.as_ref().unwrap())
-    })
+    let engine = LuaEngine::new()?;
+    engine.evaluate_config(config_path)?;
+    f(&engine)
 }

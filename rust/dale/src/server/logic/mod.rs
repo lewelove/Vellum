@@ -5,7 +5,7 @@ pub mod sort;
 pub use sort::{SortKey, value_to_sort_key};
 
 use anyhow::Result;
-use libdale::lua::{LogicManifest, get_or_init_lua_vm, reset_lua_vm};
+use libdale::lua::{LogicManifest, get_or_init_lua_vm};
 use roaring::RoaringBitmap;
 use serde_json::{Value, json};
 use std::collections::HashMap;
@@ -57,7 +57,6 @@ impl LogicEngine {
     }
 
     pub fn reload_manifest(&mut self, config_path: &Path) -> Result<()> {
-        reset_lua_vm();
         let manifest = get_or_init_lua_vm(config_path, |engine| {
             let eval = engine.evaluate_config(config_path)?;
             let mut new_evaluated = HashMap::new();

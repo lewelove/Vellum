@@ -33,26 +33,32 @@ impl Library {
 
         let evaluated_items: Vec<_> = lock_paths
             .into_par_iter()
-            .filter_map(|lock_path| {
-                let content = std::fs::read_to_string(&lock_path).ok()?;
-                let lock_data = serde_json::from_str::<LockFile>(&content).ok()?;
-                let album_dir = lock_path.parent().unwrap_or(&lock_path);
-                let expected_id = libdale::resolvers::rel_path(album_dir, root);
-                let alb_id = if lock_data.album.id == expected_id {
-                    lock_data.album.id
-                } else {
-                    expected_id
-                };
+            .map_init(
+                || {
+                    let engine = libdale::lua::LuaEngine::new().ok()?;
+                    engine.evaluate_config(config_path).ok()?;
+                    Some(engine)
+                },
+                |engine_opt, lock_path| {
+                    let engine = engine_opt.as_ref()?;
+                    let content = std::fs::read_to_string(&lock_path).ok()?;
+                    let lock_data = serde_json::from_str::<LockFile>(&content).ok()?;
+                    let album_dir = lock_path.parent().unwrap_or(&lock_path);
+                    let expected_id = libdale::resolvers::rel_path(album_dir, root);
+                    let alb_id = if lock_data.album.id == expected_id {
+                        lock_data.album.id
+                    } else {
+                        expected_id
+                    };
 
-                let eval_res = libdale::lua::get_or_init_lua_vm(config_path, |engine| {
                     let parsed: serde_json::Value =
                         serde_json::from_str(&content).unwrap_or_default();
-                    engine.evaluate_album_logic(&parsed)
-                })
-                .ok()?;
+                    let eval_res = engine.evaluate_album_logic(&parsed).ok()?;
 
-                Some((alb_id, content, eval_res))
-            })
+                    Some((alb_id, content, eval_res))
+                },
+            )
+            .flatten()
             .collect();
 
         logic_engine.clear();

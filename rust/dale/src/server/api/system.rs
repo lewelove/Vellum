@@ -3,9 +3,16 @@ use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::sync::Arc;
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct AlbumIngestPayload {
+    pub id: String,
+    pub lock_json: String,
+    pub eval_res: Option<serde_json::Value>,
+}
 
 pub async fn get_tracked_albums(State(state): State<Arc<AppState>>) -> Response {
     let full_rescan = state
@@ -175,118 +182,6 @@ pub async fn trigger_full_reset(State(state): State<Arc<AppState>>) -> Response 
     Json(json!({"status": "ok"})).into_response()
 }
 
-pub async fn trigger_batch_reload(
-    State(state): State<Arc<AppState>>,
-    Query(params): Query<std::collections::HashMap<String, String>>,
-    Json(payloads): Json<Vec<crate::update::notify::AlbumReloadPayload>>,
-) -> Response {
-    let start_time = std::time::Instant::now();
-    let compile_time = params.get("time").map_or("0", std::string::String::as_str);
-
-    let evaluated_items = evaluate_reload_payloads(payloads).await;
-
-    let mut processed_ids = Vec::new();
-    let mut removed_ids = Vec::new();
-
-    {
-        let mut logic = state.logic.write().await;
-        for (id, lock_json, eval_res) in evaluated_items {
-            logic.remove_album(&id);
-            if let Some(eval) = eval_res {
-                if logic.ingest_pre_evaluated(&id, &lock_json, eval).is_ok() {
-                    processed_ids.push(id);
-                }
-            } else {
-                removed_ids.push(id);
-            }
-        }
-        if !processed_ids.is_empty() || !removed_ids.is_empty() {
-            logic.build_cache();
-        }
-    }
-
-    if !processed_ids.is_empty() || !removed_ids.is_empty() {
-        if let Ok(mut tracked) = state.tracked_albums.lock() {
-            for id in &processed_ids {
-                tracked.remove(id);
-            }
-            for id in &removed_ids {
-                tracked.remove(id);
-            }
-        }
-
-        let elapsed = start_time.elapsed().as_millis();
-        log::info!(
-            "Updated {} albums, Removed {} albums in {}ms.",
-            processed_ids.len(),
-            removed_ids.len(),
-            compile_time
-        );
-        log::info!("Rebuilt Logic Engine in {elapsed}ms.");
-
-        notify_reload_changes(&state, &processed_ids, &removed_ids).await;
-    }
-
-    Json(processed_ids).into_response()
-}
-
-async fn evaluate_reload_payloads(
-    payloads: Vec<crate::update::notify::AlbumReloadPayload>,
-) -> Vec<(String, String, Option<serde_json::Value>)> {
-    tokio::task::spawn_blocking(move || {
-        let config_path = libdale::lua::resolve_config_path().unwrap_or_default();
-        payloads
-            .into_par_iter()
-            .map(|item| {
-                if item.lock_json.is_empty() {
-                    return (item.id, item.lock_json, None);
-                }
-                let eval_res = libdale::lua::get_or_init_lua_vm(&config_path, |engine| {
-                    let parsed: serde_json::Value =
-                        serde_json::from_str(&item.lock_json).unwrap_or_default();
-                    engine.evaluate_album_logic(&parsed)
-                })
-                .ok();
-                (item.id, item.lock_json, eval_res)
-            })
-            .collect::<Vec<_>>()
-    })
-    .await
-    .unwrap_or_default()
-}
-
-async fn notify_reload_changes(
-    state: &Arc<AppState>,
-    processed_ids: &[String],
-    removed_ids: &[String],
-) {
-    let (updated_entries, shelves) = {
-        let logic = state.logic.read().await;
-        let mut entries = serde_json::Map::new();
-        for id in processed_ids {
-            if let Some(entry) = logic.dict.get(id) {
-                entries.insert(id.clone(), entry.clone());
-            }
-        }
-        let mut s = std::collections::HashMap::new();
-        for key in logic.manifest.shelves.keys() {
-            s.insert(key.clone(), logic.request_shelf_view(key, None, false));
-        }
-        drop(logic);
-        (entries, s)
-    };
-
-    let _ = state.tx.send(
-        json!({
-            "type": "ALBUMS_UPDATED",
-            "updated": updated_entries,
-            "removed": removed_ids,
-            "shelves": shelves
-        })
-        .to_string(),
-    );
-}
-
 pub async fn trigger_reload(
     State(state): State<Arc<AppState>>,
     Query(params): Query<std::collections::HashMap<String, String>>,
@@ -345,6 +240,19 @@ pub async fn trigger_reload(
         return Json(json!({"status": "ok"})).into_response();
     }
     StatusCode::NOT_FOUND.into_response()
+}
+
+pub async fn ingest_reload_payloads(
+    State(state): State<Arc<AppState>>,
+    Json(payloads): Json<Vec<AlbumIngestPayload>>,
+) -> Response {
+    let recompiled_items: Vec<(String, String, Option<serde_json::Value>)> = payloads
+        .into_iter()
+        .map(|p| (p.id, p.lock_json, p.eval_res))
+        .collect();
+
+    crate::server::inotify::handler::ingest_and_broadcast_albums(recompiled_items, &state).await;
+    StatusCode::OK.into_response()
 }
 
 pub async fn force_update_album(

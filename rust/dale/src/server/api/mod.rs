@@ -18,7 +18,7 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/api/internal/notify_force_update", post(system::notify_force_update))
         .route("/api/internal/reset", post(system::trigger_full_reset))
         .route("/api/internal/reload", post(system::trigger_reload))
-        .route("/api/internal/batch_reload", post(system::trigger_batch_reload))
+        .route("/api/internal/ingest", post(system::ingest_reload_payloads))
         .route("/api/internal/query", post(system::run_query))
         .route("/api/internal/tracked_albums", get(system::get_tracked_albums))
         .route("/api/covers/{algo}/{size}/{hash}", get(assets::get_resized_cover))

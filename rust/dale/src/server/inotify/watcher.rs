@@ -5,14 +5,15 @@ use notify::{Event, RecommendedWatcher, RecursiveMode, Watcher};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
+use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
-pub fn setup_watcher(tx: tokio::sync::mpsc::Sender<Vec<PathBuf>>) -> RecommendedWatcher {
+pub fn setup_watcher(tx: UnboundedSender<Vec<PathBuf>>) -> RecommendedWatcher {
     RecommendedWatcher::new(
         move |res: notify::Result<Event>| {
             if let Ok(event) = res
                 && (event.kind.is_modify() || event.kind.is_create() || event.kind.is_remove())
             {
-                let _ = tx.blocking_send(event.paths);
+                let _ = tx.send(event.paths);
             }
         },
         notify::Config::default(),
@@ -21,7 +22,7 @@ pub fn setup_watcher(tx: tokio::sync::mpsc::Sender<Vec<PathBuf>>) -> Recommended
 }
 
 pub async fn run_loop(
-    mut rx: tokio::sync::mpsc::Receiver<Vec<PathBuf>>,
+    mut rx: UnboundedReceiver<Vec<PathBuf>>,
     watcher: &mut RecommendedWatcher,
     state: Arc<AppState>,
 ) {
@@ -39,6 +40,9 @@ pub async fn run_loop(
         while let Ok(more_paths) = rx.try_recv() {
             paths.extend(more_paths);
         }
+
+        paths.sort();
+        paths.dedup();
 
         let flags = classifier::classify_events(&paths, &state).await;
         handler::process_events(flags, &state).await;

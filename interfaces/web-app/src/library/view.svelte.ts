@@ -25,12 +25,26 @@ export class ViewState {
   shelfViewIds: string[] = $state([]);
   librariesState: Record<string, any> = $state({});
   libraryVersion: number = $state(0);
+  libraryResetVersion: number = $state(0);
   shelfVersion: number = $state(0);
+  shelfResetVersion: number = $state(0);
   isShaderEnabled: boolean = $state(true);
   assetVersion: number = $state(Date.now());
   sidebarWidth: number = $state(280);
   isFocusInstant: boolean = $state(false);
   _pendingViewReset: boolean = false;
+
+  libraryAlbums = $derived.by(() => {
+    const _v = this.libraryVersion;
+    const _d = collection.dict;
+    return collection.mapIdsToAlbums(collection.libraryViewIds);
+  });
+
+  shelfAlbums = $derived.by(() => {
+    const _v = this.shelfVersion;
+    const _d = collection.dict;
+    return collection.mapIdsToAlbums(this.shelfViewIds);
+  });
 
   constructor() {
     sync.addEventListener("open", () => {
@@ -85,16 +99,28 @@ export class ViewState {
       this.refreshView(true);
       this.refreshSidebar();
     } else if (json.type === "VIEW_DATA") {
-      if (this._pendingViewReset) this.libraryVersion++;
+      this.libraryVersion++;
+      if (this._pendingViewReset) {
+        this.libraryResetVersion++;
+      }
       this.isLoading = false;
       this._pendingViewReset = false;
     } else if (json.type === "SHELF_DATA") {
       this.shelfViewIds = json.ids || [];
-      if (this._pendingViewReset) this.shelfVersion++;
+      this.shelfVersion++;
+      if (this._pendingViewReset) {
+        this.shelfResetVersion++;
+      }
       this.isLoading = false;
       this._pendingViewReset = false;
-    } else if (json.type === "INTERFACE_ASSET_UPDATE" || json.type === "INTERFACE_CONFIG_UPDATE") {
+    } else if (
+      json.type === "INTERFACE_ASSET_UPDATE" ||
+      json.type === "INTERFACE_CONFIG_UPDATE" ||
+      json.type === "CONFIG_UPDATE"
+    ) {
       this.assetVersion = Date.now();
+      this.refreshView(false);
+      this.refreshSidebar();
     } else if (json.type === "LOGIC_UPDATE") {
       if (json.manifest) {
         collection.manifest = json.manifest;
@@ -168,18 +194,14 @@ export class ViewState {
       }
       this.refreshView(false);
       this.refreshSidebar();
+    } else if (json.type === "CACHE_REBUILT") {
+      this.refreshSidebar();
+      this.refreshView(false);
     }
   }
 
   get isShaderActive() {
     return this.isShaderEnabled && player.state !== "stop";
-  }
-
-  get libraryAlbums() {
-    return collection.mapIdsToAlbums(collection.libraryViewIds);
-  }
-  get shelfAlbums() {
-    return collection.mapIdsToAlbums(this.shelfViewIds);
   }
 
   getSidebarGroup(key: string | null): any[] {

@@ -1,9 +1,9 @@
-mod api;
-mod inotify;
-mod library;
-mod logic;
-mod mpd;
-mod state;
+pub mod api;
+pub mod inotify;
+pub mod library;
+pub mod logic;
+pub mod mpd;
+pub mod state;
 
 use anyhow::{Context, Result};
 use std::net::SocketAddr;
@@ -101,7 +101,7 @@ pub async fn run(port: u16) -> Result<()> {
     lib_scanner.scan(&mut logic_engine);
 
     let logic_arc = Arc::new(RwLock::new(logic_engine));
-    let (tx, _) = broadcast::channel(100);
+    let (tx, _) = broadcast::channel(1024);
 
     let mpd_engine = mpd::start_actor(
         tx.clone(),
@@ -117,6 +117,7 @@ pub async fn run(port: u16) -> Result<()> {
         mpd_engine,
         tracked_albums: Arc::new(std::sync::Mutex::new(std::collections::HashSet::new())),
         full_rescan_needed: Arc::new(std::sync::atomic::AtomicBool::new(true)),
+        active_writes: Arc::new(std::sync::Mutex::new(std::collections::HashSet::new())),
     });
 
     inotify::start(Arc::clone(&app_state));

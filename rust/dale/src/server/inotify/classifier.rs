@@ -35,11 +35,16 @@ pub async fn classify_events(paths: &[PathBuf], state: &Arc<AppState>) -> Change
     drop(guard);
 
     let logic = state.logic.read().await;
+    let mut active = state.active_writes.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
 
     for p in paths {
         let p_canon = p.canonicalize().unwrap_or_else(|_| p.clone());
 
-        if deps.contains(&p_canon) {
+        if active.remove(&p_canon) || active.remove(p) {
+            continue;
+        }
+
+        if deps.contains(&p_canon) || p_canon.starts_with(&config_dir) || p.starts_with(&config_dir) {
             flags.config = true;
         }
 
@@ -67,6 +72,7 @@ pub async fn classify_events(paths: &[PathBuf], state: &Arc<AppState>) -> Change
             }
         }
     }
+    drop(active);
     drop(logic);
 
     flags
@@ -79,6 +85,7 @@ fn is_manifest_file(path: &Path, declared_manifests: Option<&[String]>) -> bool 
 
     if file_name.eq_ignore_ascii_case("metadata.toml")
         || file_name.eq_ignore_ascii_case("theme.toml")
+        || file_name.eq_ignore_ascii_case("album.lock.json")
     {
         return true;
     }

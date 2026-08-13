@@ -1,12 +1,12 @@
-mod watcher;
 mod classifier;
-mod handler;
+pub mod handler;
+mod watcher;
 
 use crate::server::state::AppState;
 use std::sync::Arc;
 
 pub fn start(state: Arc<AppState>) {
-    let (tx, rx) = tokio::sync::mpsc::channel(100);
+    let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
     let mut fs_watcher = watcher::setup_watcher(tx);
 
     tokio::spawn(async move {

@@ -160,7 +160,6 @@ async fn main() -> Result<()> {
                 flags,
                 specific_albums: None,
                 jobs: None,
-                notify_tx: None,
                 compile_flags: compile::CompileFlags {
                     mode: if intermediary {
                         compile::CompileMode::Intermediary
@@ -174,8 +173,10 @@ async fn main() -> Result<()> {
                     },
                     pretty,
                 },
+                ingest_tx: None,
             };
-            compile::run(options).await
+            let _ = compile::run(options).await?;
+            Ok(())
         }
         Commands::Update {
             path,

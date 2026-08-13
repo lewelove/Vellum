@@ -14,6 +14,7 @@ let {
 <AlbumGrid
   albums={view.libraryAlbums}
   version={view.libraryVersion}
+  resetVersion={view.libraryResetVersion}
   {activeAlbumId}
   {onfocus}
 />

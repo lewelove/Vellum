@@ -95,9 +95,17 @@ async fn handle_socket(mut socket: WebSocket, state: Arc<AppState>) {
                     _ => {}
                 }
             }
-            Ok(msg) = rx.recv() => {
-                if socket.send(ax_ws::Message::Text(msg.into())).await.is_err() {
-                    break;
+            res = rx.recv() => {
+                match res {
+                    Ok(msg) => {
+                        if socket.send(ax_ws::Message::Text(msg.into())).await.is_err() {
+                            break;
+                        }
+                    }
+                    Err(tokio::sync::broadcast::error::RecvError::Lagged(skipped)) => {
+                        log::warn!("Client lagged by {skipped} messages");
+                    }
+                    Err(_) => break,
                 }
             }
         }
