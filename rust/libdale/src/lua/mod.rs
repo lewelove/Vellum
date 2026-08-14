@@ -390,7 +390,11 @@ impl LuaEngine {
         } else {
             crate::utils::resolve_path(&app_config.storage.cache, config_dir)
         };
-        self.lua.set_app_data(EngineContext::new(resolved_cache));
+        if let Some(mut ctx) = self.lua.app_data_mut::<EngineContext>() {
+            ctx.cache_root = resolved_cache;
+        } else {
+            self.lua.set_app_data(EngineContext::new(resolved_cache));
+        }
 
         let covers: CoversRegistry = call_getter(&self.lua, "__DALE_GET_COVERS")?;
         let interfaces: HashMap<String, InterfaceConfig> =
