@@ -69,9 +69,9 @@ pub async fn run(
         for root in &albums {
             let m = build::build(root, &config, &engine)?;
             if options.compile_flags.pretty {
-                println!("{}", serde_json::to_string_pretty(&m)?);
+                println!("{}", serde_json::to_string_pretty(&m.lock_json)?);
             } else {
-                println!("{}", serde_json::to_string(&m)?);
+                println!("{}", serde_json::to_string(&m.lock_json)?);
             }
         }
         return Ok(0);

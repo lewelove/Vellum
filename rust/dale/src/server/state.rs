@@ -2,9 +2,51 @@ use crate::server::logic::LogicEngine;
 use crate::server::mpd::MpdEngine;
 use libdale::config::{ActionConfig, CoversRegistry, InterfaceConfig};
 use std::collections::{HashMap, HashSet};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, atomic::AtomicBool};
 use tokio::sync::{broadcast, RwLock};
+
+#[derive(Default)]
+pub struct DependencyGraph {
+    pub file_to_albums: HashMap<PathBuf, HashSet<PathBuf>>,
+    pub album_to_files: HashMap<PathBuf, HashSet<PathBuf>>,
+}
+
+impl DependencyGraph {
+    pub fn update_album_deps(&mut self, album_path: PathBuf, new_deps: HashSet<PathBuf>) {
+        if let Some(old_deps) = self.album_to_files.remove(&album_path) {
+            for dep in old_deps {
+                if let Some(albums) = self.file_to_albums.get_mut(&dep) {
+                    albums.remove(&album_path);
+                    if albums.is_empty() {
+                        self.file_to_albums.remove(&dep);
+                    }
+                }
+            }
+        }
+
+        for dep in &new_deps {
+            self.file_to_albums
+                .entry(dep.clone())
+                .or_default()
+                .insert(album_path.clone());
+        }
+        self.album_to_files.insert(album_path, new_deps);
+    }
+
+    pub fn remove_album(&mut self, album_path: &Path) {
+        if let Some(deps) = self.album_to_files.remove(album_path) {
+            for dep in deps {
+                if let Some(albums) = self.file_to_albums.get_mut(&dep) {
+                    albums.remove(album_path);
+                    if albums.is_empty() {
+                        self.file_to_albums.remove(&dep);
+                    }
+                }
+            }
+        }
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum UpdateScope {
@@ -48,6 +90,7 @@ pub struct AppState {
     pub full_rescan_needed: Arc<AtomicBool>,
     pub active_writes: Arc<Mutex<HashSet<PathBuf>>>,
     pub update_lock: Arc<Mutex<UpdateState>>,
+    pub deps_graph: Arc<RwLock<DependencyGraph>>,
 }
 
 #[derive(Clone)]

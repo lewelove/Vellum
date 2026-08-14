@@ -1,19 +1,19 @@
 #[cfg(test)]
 mod tests;
+pub mod utils;
 
 use crate::config::{ActionConfig, AppConfig, CoversConfig, CoversRegistry, InterfaceConfig};
-use crate::error::DaleError;
 use anyhow::{Context, Result};
 use indexmap::IndexMap;
 use mlua::serde::SerializeOptions;
 use mlua::{Lua, LuaSerdeExt, Table};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 const LUA_CORE: &str = include_str!("core.lua");
 const LUA_UTILS_FN: &str = include_str!("utils/fn.lua");
-const LUA_UTILS_FS: &str = include_str!("utils/fs.lua");
 const LUA_CONFIG: &str = include_str!("config.lua");
 const LUA_COMPILER: &str = include_str!("compiler.lua");
 const LUA_ACTIONS: &str = include_str!("actions.lua");
@@ -22,6 +22,30 @@ const LUA_LOGIC: &str = include_str!("logic.lua");
 #[derive(Clone, Debug)]
 pub struct EngineContext {
     pub cache_root: PathBuf,
+    pub captured_deps: Arc<std::sync::Mutex<HashSet<PathBuf>>>,
+}
+
+impl EngineContext {
+    pub fn new(cache_root: PathBuf) -> Self {
+        Self {
+            cache_root,
+            captured_deps: Arc::new(std::sync::Mutex::new(HashSet::new())),
+        }
+    }
+
+    pub fn record_dependency(&self, path: PathBuf) {
+        if let Ok(mut deps) = self.captured_deps.lock() {
+            let canon = path.canonicalize().unwrap_or(path);
+            deps.insert(canon);
+        }
+    }
+
+    pub fn take_dependencies(&self) -> HashSet<PathBuf> {
+        self.captured_deps
+            .lock()
+            .map(|mut deps| std::mem::take(&mut *deps))
+            .unwrap_or_default()
+    }
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug, Default)]
@@ -264,64 +288,14 @@ fn create_toml_table(lua: &Lua, opts: SerializeOptions) -> mlua::Result<Table> {
     Ok(toml_table)
 }
 
-fn register_dep(lua: &Lua, path_str: &str) {
-    if let Ok(registry) = lua.globals().get::<Table>("REGISTRY")
-        && let Ok(deps) = registry.get::<Table>("dependencies")
-    {
-        let _ = deps.set(path_str, true);
-    }
-}
-
-fn create_fs_reader(
-    lua: &Lua,
-    opts: SerializeOptions,
-    expected_ext: &'static str,
-) -> mlua::Result<mlua::Function> {
-    lua.create_function(move |lua, path_str: Option<String>| {
-        let Some(p_str) = path_str else {
-            return Ok(mlua::Value::Nil);
-        };
-        if p_str.trim().is_empty() {
-            return Ok(mlua::Value::Nil);
-        }
-        let path = crate::utils::expand_path(&p_str);
-        let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
-        if !ext.eq_ignore_ascii_case(expected_ext) {
-            return Err(mlua::Error::external(DaleError::InvalidFileExtension {
-                path,
-                expected: expected_ext.to_string(),
-            }));
-        }
-        register_dep(lua, &path.to_string_lossy());
-        let context = lua.app_data_ref::<EngineContext>();
-        let Some(ctx) = context else {
-            return Err(mlua::Error::external(anyhow::anyhow!(
-                "EngineContext is not initialized"
-            )));
-        };
-        match crate::cache::read_object_cached(&path, &ctx.cache_root) {
-            Ok(json_val) => lua.to_value_with(&json_val, opts),
-            Err(DaleError::ManifestIoError(err))
-                if err.kind() == std::io::ErrorKind::NotFound =>
-            {
-                Ok(mlua::Value::Nil)
-            }
-            Err(e) => Err(mlua::Error::external(e)),
-        }
-    })
-}
-
-fn create_fs_table(lua: &Lua, opts: SerializeOptions) -> mlua::Result<Table> {
-    let fs_table = lua.create_table()?;
-    fs_table.set(
-        "read_json",
-        create_fs_reader(lua, opts, "json")?,
-    )?;
-    fs_table.set(
-        "read_toml",
-        create_fs_reader(lua, opts, "toml")?,
-    )?;
-    Ok(fs_table)
+fn call_getter<T: serde::de::DeserializeOwned>(lua: &Lua, fn_name: &str) -> Result<T> {
+    let func: mlua::Function = lua
+        .globals()
+        .get(fn_name)
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
+    let val: mlua::Value = func.call(()).map_err(|e| anyhow::anyhow!("{e}"))?;
+    let parsed: T = lua.from_value(val).map_err(|e| anyhow::anyhow!("{e}"))?;
+    Ok(parsed)
 }
 
 fn register_native_functions(lua: &Lua) -> mlua::Result<()> {
@@ -336,7 +310,7 @@ fn register_native_functions(lua: &Lua) -> mlua::Result<()> {
 
     dale_table.set("json", create_json_table(lua, opts)?)?;
     dale_table.set("toml", create_toml_table(lua, opts)?)?;
-    dale_table.set("fs", create_fs_table(lua, opts)?)?;
+    dale_table.set("fs", utils::fs::create_fs_table(lua, opts)?)?;
 
     globals.set("dale", dale_table.clone())?;
     globals.set("d", dale_table)?;
@@ -347,9 +321,7 @@ impl LuaEngine {
     pub fn new() -> Result<Self> {
         let lua = Lua::new();
         let default_cache = crate::utils::expand_path("~/.cache/dale");
-        lua.set_app_data(EngineContext {
-            cache_root: default_cache,
-        });
+        lua.set_app_data(EngineContext::new(default_cache));
 
         register_native_functions(&lua)
             .map_err(|e| anyhow::anyhow!("{e}"))
@@ -362,10 +334,6 @@ impl LuaEngine {
             .exec()
             .map_err(|e| anyhow::anyhow!("{e}"))
             .context("Failed to load utils/fn.lua")?;
-        lua.load(LUA_UTILS_FS)
-            .exec()
-            .map_err(|e| anyhow::anyhow!("{e}"))
-            .context("Failed to load utils/fs.lua")?;
         lua.load(LUA_CONFIG)
             .exec()
             .map_err(|e| anyhow::anyhow!("{e}"))
@@ -414,16 +382,7 @@ impl LuaEngine {
             .map_err(|e| anyhow::anyhow!("{e}"))
             .context("Failed to execute init.lua")?;
 
-        let globals = self.lua.globals();
-
-        let get_config: mlua::Function = globals
-            .get("__DALE_GET_CONFIG")
-            .map_err(|e| anyhow::anyhow!("{e}"))?;
-        let config_table: Table = get_config.call(()).map_err(|e| anyhow::anyhow!("{e}"))?;
-        let app_config: AppConfig = self
-            .lua
-            .from_value(mlua::Value::Table(config_table))
-            .map_err(|e| anyhow::anyhow!("{e}"))?;
+        let app_config: AppConfig = call_getter(&self.lua, "__DALE_GET_CONFIG")?;
 
         let config_dir = path.parent().unwrap_or_else(|| Path::new("."));
         let resolved_cache = if app_config.storage.cache.is_empty() {
@@ -431,55 +390,14 @@ impl LuaEngine {
         } else {
             crate::utils::resolve_path(&app_config.storage.cache, config_dir)
         };
-        self.lua.set_app_data(EngineContext {
-            cache_root: resolved_cache,
-        });
+        self.lua.set_app_data(EngineContext::new(resolved_cache));
 
-        let get_covers: mlua::Function = globals
-            .get("__DALE_GET_COVERS")
-            .map_err(|e| anyhow::anyhow!("{e}"))?;
-        let covers_table: Table = get_covers.call(()).map_err(|e| anyhow::anyhow!("{e}"))?;
-        let covers: CoversRegistry = self
-            .lua
-            .from_value(mlua::Value::Table(covers_table))
-            .map_err(|e| anyhow::anyhow!("{e}"))?;
-
-        let get_interfaces: mlua::Function = globals
-            .get("__DALE_GET_INTERFACES")
-            .map_err(|e| anyhow::anyhow!("{e}"))?;
-        let interfaces_table: Table =
-            get_interfaces.call(()).map_err(|e| anyhow::anyhow!("{e}"))?;
-        let interfaces: HashMap<String, InterfaceConfig> = self
-            .lua
-            .from_value(mlua::Value::Table(interfaces_table))
-            .map_err(|e| anyhow::anyhow!("{e}"))?;
-
-        let get_actions: mlua::Function = globals
-            .get("__DALE_GET_ACTIONS")
-            .map_err(|e| anyhow::anyhow!("{e}"))?;
-        let actions_table: Table = get_actions.call(()).map_err(|e| anyhow::anyhow!("{e}"))?;
-        let actions: HashMap<String, ActionConfig> = self
-            .lua
-            .from_value(mlua::Value::Table(actions_table))
-            .map_err(|e| anyhow::anyhow!("{e}"))?;
-
-        let get_deps: mlua::Function = globals
-            .get("__DALE_GET_DEPENDENCIES")
-            .map_err(|e| anyhow::anyhow!("{e}"))?;
-        let deps_table: Table = get_deps.call(()).map_err(|e| anyhow::anyhow!("{e}"))?;
-        let deps_str: Vec<String> = self
-            .lua
-            .from_value(mlua::Value::Table(deps_table))
-            .map_err(|e| anyhow::anyhow!("{e}"))?;
-
-        let get_manifest: mlua::Function = globals
-            .get("__DALE_GET_LOGIC_MANIFEST")
-            .map_err(|e| anyhow::anyhow!("{e}"))?;
-        let manifest_table: Table = get_manifest.call(()).map_err(|e| anyhow::anyhow!("{e}"))?;
-        let mut manifest: LogicManifest = self
-            .lua
-            .from_value(mlua::Value::Table(manifest_table))
-            .map_err(|e| anyhow::anyhow!("{e}"))?;
+        let covers: CoversRegistry = call_getter(&self.lua, "__DALE_GET_COVERS")?;
+        let interfaces: HashMap<String, InterfaceConfig> =
+            call_getter(&self.lua, "__DALE_GET_INTERFACES")?;
+        let actions: HashMap<String, ActionConfig> = call_getter(&self.lua, "__DALE_GET_ACTIONS")?;
+        let deps_str: Vec<String> = call_getter(&self.lua, "__DALE_GET_DEPENDENCIES")?;
+        let mut manifest: LogicManifest = call_getter(&self.lua, "__DALE_GET_LOGIC_MANIFEST")?;
         manifest.normalize();
 
         let mut dependencies = Vec::new();
@@ -487,6 +405,14 @@ impl LuaEngine {
             let p = crate::utils::expand_path(&d);
             dependencies.push(p.canonicalize().unwrap_or(p));
         }
+
+        if let Some(ctx) = self.lua.app_data_ref::<EngineContext>() {
+            for dep in ctx.take_dependencies() {
+                dependencies.push(dep);
+            }
+        }
+        dependencies.sort();
+        dependencies.dedup();
 
         Ok(EvaluatedLuaData {
             app: app_config,

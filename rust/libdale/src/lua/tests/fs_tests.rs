@@ -40,9 +40,12 @@ fn test_dl_fs_read() {
     let content: String = engine.lua.load(&code).eval().expect("Execution failed");
     assert_eq!(content, "test content");
 
-    let deps_code = format!("d.fs.read('{path_str}')\nreturn __DALE_GET_DEPENDENCIES()");
-    let deps: Vec<String> = engine.lua.load(&deps_code).eval().expect("Execution failed");
-    assert!(deps.iter().any(|d| d.contains(&path_str)));
+    let deps = engine
+        .lua
+        .app_data_ref::<crate::lua::EngineContext>()
+        .unwrap()
+        .take_dependencies();
+    assert!(deps.iter().any(|d| d.to_string_lossy().contains(&path_str)));
 
     let missing_code = "return d.fs.read('/tmp/non_existent_dale_test_file.tmp')";
     let missing_res: Option<String> = engine.lua.load(missing_code).eval().expect("Execution failed");

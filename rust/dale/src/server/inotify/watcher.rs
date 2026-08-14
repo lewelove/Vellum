@@ -86,6 +86,17 @@ async fn sync_watches(
             needed_non_recursive.insert(parent.to_path_buf());
         }
     }
+
+    let deps_graph = state.deps_graph.read().await;
+    for dep_file in deps_graph.file_to_albums.keys() {
+        if !dep_file.starts_with(config_dir)
+            && !dep_file.starts_with(&guard.music_directory)
+            && let Some(parent) = dep_file.parent()
+        {
+            needed_non_recursive.insert(parent.to_path_buf());
+        }
+    }
+    drop(deps_graph);
     drop(guard);
 
     for dir in needed_recursive {

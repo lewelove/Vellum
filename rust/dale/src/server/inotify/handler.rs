@@ -68,7 +68,7 @@ async fn handle_album_changes(changed_albums: HashSet<PathBuf>, state: &Arc<AppS
                     let album_id = rel.to_string_lossy().to_string();
 
                     if !album_path.exists() {
-                        return Some((album_id, String::new(), None));
+                        return Some((album_id, String::new(), None, HashSet::new()));
                     }
 
                     let lock_file_path = album_path.join("album.lock.json");
@@ -78,13 +78,14 @@ async fn handle_album_changes(changed_albums: HashSet<PathBuf>, state: &Arc<AppS
                         return None;
                     };
 
-                    let Ok(mut lock_val) =
+                    let Ok(res) =
                         crate::compile::build::build(&album_path, config_ref, engine)
                     else {
                         log::warn!("Compilation failed for {album_id}");
                         return None;
                     };
 
+                    let mut lock_val = res.lock_json;
                     let _ = lock_val.as_object_mut().and_then(|o| o.remove("ctx"));
                     crate::compile::utils::strip_empty_values(&mut lock_val);
 
@@ -107,10 +108,10 @@ async fn handle_album_changes(changed_albums: HashSet<PathBuf>, state: &Arc<AppS
                         let _ = std::fs::write(&lock_file_path, &lock_json);
                     }
 
-                    Some((album_id, lock_json, eval_res))
+                    Some((album_id, lock_json, eval_res, res.dependencies))
                 },
             )
-            .filter_map(|x| x)
+            .flatten()
             .collect::<Vec<_>>()
     })
     .await
@@ -122,16 +123,31 @@ async fn handle_album_changes(changed_albums: HashSet<PathBuf>, state: &Arc<AppS
 }
 
 pub async fn ingest_and_broadcast_albums(
-    recompiled_items: Vec<(String, String, Option<serde_json::Value>)>,
+    recompiled_items: Vec<(String, String, Option<serde_json::Value>, HashSet<PathBuf>)>,
     is_internal_update: bool,
     state: &Arc<AppState>,
 ) {
+    let music_directory = state.config.read().await.music_directory.clone();
+
+    {
+        let mut deps_graph = state.deps_graph.write().await;
+        for (album_id, _, eval_res, dependencies) in &recompiled_items {
+            let album_path = music_directory.join(album_id);
+            let album_path_canon = album_path.canonicalize().unwrap_or(album_path);
+            if eval_res.is_some() {
+                deps_graph.update_album_deps(album_path_canon, dependencies.clone());
+            } else {
+                deps_graph.remove_album(&album_path_canon);
+            }
+        }
+    }
+
     let (updated_dict_entries, removed_ids, shelves) = {
         let mut logic = state.logic.write().await;
         let mut entries = std::collections::HashMap::new();
         let mut removed = Vec::new();
 
-        for (album_id, lock_json, eval_res) in recompiled_items {
+        for (album_id, lock_json, eval_res, _) in recompiled_items {
             logic.remove_album(&album_id);
             if let Some(eval) = eval_res {
                 if !is_internal_update {

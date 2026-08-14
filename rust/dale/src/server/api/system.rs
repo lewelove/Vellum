@@ -17,6 +17,8 @@ pub struct AlbumIngestPayload {
     pub album: String,
     pub lock_json: String,
     pub eval_res: Option<serde_json::Value>,
+    #[serde(default)]
+    pub dependencies: Vec<PathBuf>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -298,9 +300,9 @@ pub async fn ingest_reload_payloads(
     State(state): State<Arc<AppState>>,
     Json(payloads): Json<Vec<AlbumIngestPayload>>,
 ) -> Response {
-    let recompiled_items: Vec<(String, String, Option<serde_json::Value>)> = payloads
+    let recompiled_items: Vec<(String, String, Option<serde_json::Value>, std::collections::HashSet<PathBuf>)> = payloads
         .into_iter()
-        .map(|p| (p.id, p.lock_json, p.eval_res))
+        .map(|p| (p.id, p.lock_json, p.eval_res, p.dependencies.into_iter().collect()))
         .collect();
 
     crate::server::inotify::handler::ingest_and_broadcast_albums(recompiled_items, false, &state).await;

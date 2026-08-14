@@ -17,6 +17,7 @@ pub async fn classify_events(paths: &[PathBuf], state: &Arc<AppState>) -> Change
         changed_albums: HashSet::new(),
     };
 
+    let deps_graph = state.deps_graph.read().await;
     let guard = state.config.read().await;
     let config_dir = guard.config_dir.clone();
     let music_directory = guard.music_directory.clone();
@@ -49,6 +50,12 @@ pub async fn classify_events(paths: &[PathBuf], state: &Arc<AppState>) -> Change
             flags.config = true;
         }
 
+        if let Some(albums) = deps_graph.file_to_albums.get(&p_canon).or_else(|| deps_graph.file_to_albums.get(p)) {
+            for album_path in albums {
+                flags.changed_albums.insert(album_path.clone());
+            }
+        }
+
         if let Some((album_id, album_path)) =
             resolve_album_info(&p_canon, &music_directory, &logic.dict)
                 .or_else(|| resolve_album_info(p, &music_directory, &logic.dict))
@@ -73,6 +80,7 @@ pub async fn classify_events(paths: &[PathBuf], state: &Arc<AppState>) -> Change
             }
         }
     }
+    drop(deps_graph);
     drop(active);
     drop(logic);
 

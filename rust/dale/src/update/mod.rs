@@ -215,7 +215,12 @@ fn spawn_server_ingest_handler(
                 {
                     logs.push(format!("Updated: {} - {}", payload.artist, payload.album));
                 }
-                items.push((payload.id, payload.lock_json, payload.eval_res));
+                items.push((
+                    payload.id,
+                    payload.lock_json,
+                    payload.eval_res,
+                    payload.dependencies.into_iter().collect(),
+                ));
             }
 
             crate::server::inotify::handler::ingest_and_broadcast_albums(items, true, &state).await;
@@ -438,6 +443,7 @@ async fn process_missing_and_compile(
                 album: String::new(),
                 lock_json: String::new(),
                 eval_res: None,
+                dependencies: Vec::new(),
             })
             .await;
     }

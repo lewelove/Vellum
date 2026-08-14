@@ -19,7 +19,7 @@ pub struct StreamContext {
 }
 
 pub async fn run(ctx: StreamContext) -> Result<usize> {
-    let (dtx, mut drx) = tokio::sync::mpsc::channel::<(Value, Option<Value>)>(512);
+    let (dtx, mut drx) = tokio::sync::mpsc::channel::<(Value, Option<Value>, HashSet<PathBuf>)>(512);
     let written_count = Arc::new(AtomicUsize::new(0));
 
     let build_handle = spawn_builders(&ctx, dtx);
@@ -31,11 +31,11 @@ pub async fn run(ctx: StreamContext) -> Result<usize> {
     let silent = ctx.silent;
 
     let direct_handle = tokio::spawn(async move {
-        while let Some((v, eval_res)) = drx.recv().await {
+        while let Some((v, eval_res, deps)) = drx.recv().await {
             let written_inner = Arc::clone(&written_ref);
             let active_ref = active_writes.clone();
             let res = tokio::task::spawn_blocking(move || {
-                finalize(v, eval_res, target, active_ref.as_ref(), silent)
+                finalize(v, eval_res, deps, target, active_ref.as_ref(), silent)
             })
             .await;
             if let Ok(Ok((written, payload))) = res {
@@ -59,7 +59,7 @@ pub async fn run(ctx: StreamContext) -> Result<usize> {
 
 fn spawn_builders(
     ctx: &StreamContext,
-    dtx: tokio::sync::mpsc::Sender<(Value, Option<Value>)>,
+    dtx: tokio::sync::mpsc::Sender<(Value, Option<Value>, HashSet<PathBuf>)>,
 ) -> tokio::task::JoinHandle<()> {
     let albums = ctx.albums.clone();
     let cfg = Arc::clone(&ctx.config);
@@ -93,9 +93,9 @@ fn spawn_builders(
                         return;
                     };
                     match build::build(ar, &cfg, engine) {
-                        Ok(man) => {
-                            let eval_res = engine.evaluate_album_logic(&man).ok();
-                            let _ = dtx.blocking_send((man, eval_res));
+                        Ok(out) => {
+                            let eval_res = engine.evaluate_album_logic(&out.lock_json).ok();
+                            let _ = dtx.blocking_send((out.lock_json, eval_res, out.dependencies));
                         }
                         Err(e) => match e {
                             DaleError::ManifestIoError(_)
@@ -121,6 +121,7 @@ fn spawn_builders(
 fn finalize(
     mut v: Value,
     eval_res: Option<Value>,
+    deps: HashSet<PathBuf>,
     target: ExportTarget,
     active_writes: Option<&Arc<Mutex<HashSet<PathBuf>>>>,
     silent: bool,
@@ -176,6 +177,7 @@ fn finalize(
             album: album.clone(),
             lock_json: content.clone(),
             eval_res,
+            dependencies: deps.into_iter().collect(),
         };
 
         if should_write {

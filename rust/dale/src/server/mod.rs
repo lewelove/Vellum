@@ -120,6 +120,7 @@ pub async fn run(port: u16) -> Result<()> {
         full_rescan_needed: Arc::new(std::sync::atomic::AtomicBool::new(true)),
         active_writes: Arc::new(std::sync::Mutex::new(std::collections::HashSet::new())),
         update_lock: Arc::new(std::sync::Mutex::new(state::UpdateState::default())),
+        deps_graph: Arc::new(RwLock::new(state::DependencyGraph::default())),
     });
 
     inotify::start(Arc::clone(&app_state));
