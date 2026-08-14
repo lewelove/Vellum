@@ -1,6 +1,8 @@
 mod core;
+mod discogs;
 mod fs;
 mod models;
+mod musicbrainz;
 
 use anyhow::Result;
 use libactions::payload::read_stdin_payload;

@@ -3,7 +3,8 @@ members = [
   "libactions",
   "get_theme",
   "collect",
-  "discogs_fetch_master"
+  "discogs_fetch_master",
+  "musicbrainz_search"
 ]
 resolver = "2"
 

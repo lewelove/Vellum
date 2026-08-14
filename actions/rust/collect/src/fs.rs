@@ -1,11 +1,10 @@
 use crate::models::{AlbumData, FormattingConfig};
 use anyhow::Result;
-use libactions::discogs;
-use libactions::fs::{escape_toml_string, sanitize_filename, toml_array};
+use libactions::fs::{escape_toml_string, sanitize_filename};
 use std::fs;
 use std::path::Path;
 
-pub async fn create_album_directory(
+pub fn create_album_directory(
     data: &AlbumData,
     formatting: &FormattingConfig,
     root: &Path,
@@ -23,71 +22,57 @@ pub async fn create_album_directory(
     let info_path = album_path.join(&formatting.info);
     fs::create_dir_all(&info_path)?;
 
-    if let Some(discogs) = &data.discogs_raw {
+    if let Some(master) = &data.discogs_master_raw {
         let path = info_path.join("discogs_master.json");
-        fs::write(path, serde_json::to_string_pretty(discogs)?)?;
+        fs::write(path, serde_json::to_string_pretty(master)?)?;
+    }
+
+    if let Some(release) = &data.discogs_release_raw {
+        let path = info_path.join("discogs_release.json");
+        fs::write(path, serde_json::to_string_pretty(release)?)?;
+    }
+
+    if let Some(mb_release) = &data.musicbrainz_release_raw {
+        let path = info_path.join("musicbrainz_release.json");
+        fs::write(path, serde_json::to_string_pretty(mb_release)?)?;
+    }
+
+    if let Some(mb_rg) = &data.musicbrainz_releasegroup_raw {
+        let path = info_path.join("musicbrainz_releasegroup.json");
+        fs::write(path, serde_json::to_string_pretty(mb_rg)?)?;
+    }
+
+    if let Some(mb_all) = &data.musicbrainz_all_releases_raw {
+        let path = info_path.join("musicbrainz_all_releases.json");
+        fs::write(path, serde_json::to_string_pretty(mb_all)?)?;
     }
 
     let meta_path = album_path.join("metadata.toml");
     write_metadata_toml(data, &meta_path)?;
 
-    let id_path = album_path.join("id.toml");
-    write_id_toml(data, &id_path)?;
-
     let history_path = album_path.join("history.toml");
-    write_history_toml(&history_path)?;
+    write_history_toml(data, &history_path)?;
 
     let virtual_path = album_path.join("virtual.toml");
     write_virtual_toml(&virtual_path)?;
 
-    let covers_dir = album_path.join("Digital Covers");
-
-    if data.discogs_cover_url.is_some() {
-        fs::create_dir_all(&covers_dir)?;
-    }
-
-    if let Some(url) = &data.discogs_cover_url {
-        let ext = extract_extension(url);
-        let cover_root = album_path.join(format!("cover.{ext}"));
-        if let Err(e) = discogs::download_discogs_cover(url, &cover_root).await {
-            eprintln!("Failed to download cover: {e:?}");
-        }
-    } else {
-        eprintln!("No discogs cover URL found in album data.");
-    }
-
     Ok(())
 }
 
-fn extract_extension(url: &str) -> String {
-    let without_query = url.split('?').next().unwrap_or(url);
-    let ext = without_query.split('.').next_back().unwrap_or("jpg").to_lowercase();
-    if ext == "png" {
-        "png".to_string()
-    } else {
-        "jpg".to_string()
-    }
-}
-
 fn write_metadata_toml(data: &AlbumData, path: &Path) -> Result<()> {
+    if path.exists() {
+        return Ok(());
+    }
+
     let mut lines = vec![
         "[album]".to_string(),
         String::new(),
         format!("albumartist = \"{}\"", escape_toml_string(&data.albumartist)),
         format!("album = \"{}\"", escape_toml_string(&data.album)),
         format!("date = \"{}\"", escape_toml_string(&data.date)),
+        "genre = \"\"".to_string(),
         String::new(),
     ];
-
-    if !data.genre.is_empty() {
-        lines.push("genre = \"\"".to_string());
-        lines.push(format!("genres = {}", toml_array(&data.genre)));
-    }
-    if !data.styles.is_empty() {
-        lines.push(format!("styles = {}", toml_array(&data.styles)));
-    }
-
-    lines.push(String::new());
 
     let total_discs = data.tracks.iter().map(|t| t.discnumber).max().unwrap_or(1);
 
@@ -111,22 +96,27 @@ fn write_metadata_toml(data: &AlbumData, path: &Path) -> Result<()> {
     Ok(())
 }
 
-fn write_id_toml(data: &AlbumData, path: &Path) -> Result<()> {
-    if let Some(ref id) = data.discogs_master_id {
-        let content = format!("[album]\n\ndiscogs_masterid = \"{}\"\n", escape_toml_string(id));
-        fs::write(path, content)?;
+fn write_history_toml(data: &AlbumData, path: &Path) -> Result<()> {
+    if path.exists() {
+        return Ok(());
     }
-    Ok(())
-}
 
-fn write_history_toml(path: &Path) -> Result<()> {
     let now = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
-    let content = format!("[album]\n\ndate_added_dale = {now}\n");
+    let artist_escaped = escape_toml_string(&data.albumartist);
+    let album_escaped = escape_toml_string(&data.album);
+    let date_escaped = escape_toml_string(&data.date);
+    let content = format!(
+        "[album]\n\nalbumartist = \"{artist_escaped}\"\nalbum = \"{album_escaped}\"\ndate = \"{date_escaped}\"\n\ndate_added_dale = {now}\n"
+    );
     fs::write(path, content)?;
     Ok(())
 }
 
 fn write_virtual_toml(path: &Path) -> Result<()> {
+    if path.exists() {
+        return Ok(());
+    }
+
     let content = "[album]\n\nvirtual = true\n".to_string();
     fs::write(path, content)?;
     Ok(())

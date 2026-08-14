@@ -314,6 +314,7 @@ dependencies = [
  "chrono",
  "discogs-rs",
  "libactions",
+ "reqwest 0.13.4",
  "serde",
  "serde_json",
  "tokio",
@@ -1313,6 +1314,19 @@ checksum = "bb85c154ba489f01b25c0d36ae69a87e4a1c73a72631fc6c0eb6dde34a73e44b"
 dependencies = [
  "num-traits",
  "pxfm",
+]
+
+[[package]]
+name = "musicbrainz_search"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "discogs-rs",
+ "libactions",
+ "serde",
+ "serde_json",
+ "tokio",
+ "urlencoding",
 ]
 
 [[package]]
