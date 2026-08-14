@@ -86,7 +86,7 @@ pub async fn run(port: u16) -> Result<()> {
 
     let server_config = ServerConfig {
         music_directory: music_directory.clone(),
-        cache_root,
+        cache_root: cache_root.clone(),
         state_root: state_root.clone(),
         resolved_dependencies,
         covers,
@@ -110,6 +110,10 @@ pub async fn run(port: u16) -> Result<()> {
         Arc::new(server_config.clone()),
     );
 
+    let lib_hash = crate::update::cache::calculate_hash(&music_directory.to_string_lossy());
+    let deps_json_path = cache_root.join("libraries").join(&lib_hash).join("dependencies.json");
+    let initial_deps_graph = state::DependencyGraph::load_from_file(&deps_json_path);
+
     let app_state = Arc::new(AppState {
         logic: Arc::clone(&logic_arc),
         ui_state: RwLock::new(ui_state_val),
@@ -120,7 +124,7 @@ pub async fn run(port: u16) -> Result<()> {
         full_rescan_needed: Arc::new(std::sync::atomic::AtomicBool::new(true)),
         active_writes: Arc::new(std::sync::Mutex::new(std::collections::HashSet::new())),
         update_lock: Arc::new(std::sync::Mutex::new(state::UpdateState::default())),
-        deps_graph: Arc::new(RwLock::new(state::DependencyGraph::default())),
+        deps_graph: Arc::new(RwLock::new(initial_deps_graph)),
     });
 
     inotify::start(Arc::clone(&app_state));

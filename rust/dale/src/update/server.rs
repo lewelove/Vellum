@@ -1,0 +1,352 @@
+use crate::compile;
+use crate::server::state::{AppState, PendingUpdateParams, UpdateScope};
+use crate::update::cache::{
+    calculate_hash, load_cache, save_cache, validate_library_root,
+};
+use crate::update::queue::{
+    check_lua_config_changed, resolve_work_queue, try_get_server_tracked_albums,
+    update_cache_entries,
+};
+use anyhow::Result;
+use std::collections::HashSet;
+use std::fs;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+
+pub struct CompilePassContext<'a> {
+    pub scope: &'a UpdateScope,
+    pub music_directory: &'a Path,
+    pub work_queue: &'a [PathBuf],
+    pub missing_paths: &'a [PathBuf],
+    pub effective_jobs: Option<usize>,
+    pub silent: bool,
+}
+
+pub fn emit_log(msg: &str, silent: bool, log_txs: &[tokio::sync::mpsc::Sender<String>]) {
+    if !silent {
+        log::info!("{msg}");
+    }
+    for tx in log_txs {
+        if let Err(tokio::sync::mpsc::error::TrySendError::Full(_)) = tx.try_send(msg.to_string()) {
+            log::warn!("Update log receiver queue full; dropping message for stream subscriber.");
+        }
+    }
+}
+
+pub fn spawn_server_ingest_handler(
+    state: Arc<AppState>,
+    silent: bool,
+    log_txs: Vec<tokio::sync::mpsc::Sender<String>>,
+) -> (
+    tokio::sync::mpsc::Sender<crate::server::api::system::AlbumIngestPayload>,
+    tokio::task::JoinHandle<()>,
+) {
+    let (ingest_tx, mut ingest_rx) =
+        tokio::sync::mpsc::channel::<crate::server::api::system::AlbumIngestPayload>(512);
+
+    let ingest_handle = tokio::spawn(async move {
+        while let Some(first_payload) = ingest_rx.recv().await {
+            let mut batch = vec![first_payload];
+
+            while let Ok(payload) = ingest_rx.try_recv() {
+                batch.push(payload);
+            }
+
+            tokio::time::sleep(std::time::Duration::from_millis(15)).await;
+            while let Ok(payload) = ingest_rx.try_recv() {
+                batch.push(payload);
+            }
+
+            let mut items = Vec::with_capacity(batch.len());
+            let mut logs = Vec::new();
+
+            for payload in batch {
+                if !payload.lock_json.is_empty()
+                    && (!payload.artist.is_empty() || !payload.album.is_empty())
+                {
+                    logs.push(format!("Updated: {} - {}", payload.artist, payload.album));
+                }
+                items.push((
+                    payload.id,
+                    payload.lock_json,
+                    payload.eval_res,
+                    payload.dependencies.into_iter().collect(),
+                ));
+            }
+
+            crate::server::inotify::handler::ingest_and_broadcast_albums(items, true, &state).await;
+
+            for log_msg in &logs {
+                emit_log(log_msg, silent, &log_txs);
+            }
+        }
+    });
+
+    (ingest_tx, ingest_handle)
+}
+
+pub async fn run_server_update(
+    state: Arc<AppState>,
+    target_path: Option<PathBuf>,
+    force: bool,
+    jobs: Option<usize>,
+    silent: bool,
+    log_tx: Option<tokio::sync::mpsc::Sender<String>>,
+) -> Result<()> {
+    let incoming_scope = target_path.map_or_else(
+        || UpdateScope::All,
+        |p| {
+            let mut set = HashSet::new();
+            set.insert(p);
+            UpdateScope::Paths(set)
+        },
+    );
+
+    let mut current_scope = incoming_scope;
+    let mut current_force = force;
+    let mut current_jobs = jobs;
+    let mut current_silent = silent;
+    let mut current_log_txs = log_tx.into_iter().collect::<Vec<_>>();
+
+    {
+        let mut lock = state
+            .update_lock
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+
+        if lock.is_running {
+            if let Some(ref mut pending) = lock.pending {
+                pending.scope.merge(current_scope);
+                pending.force = pending.force || current_force;
+                pending.jobs = current_jobs.or(pending.jobs);
+                pending.silent = pending.silent && current_silent;
+                pending.log_txs.extend(current_log_txs);
+            } else {
+                lock.pending = Some(PendingUpdateParams {
+                    scope: current_scope,
+                    force: current_force,
+                    jobs: current_jobs,
+                    silent: current_silent,
+                    log_txs: current_log_txs,
+                });
+            }
+            return Ok(());
+        }
+
+        lock.is_running = true;
+    }
+
+    let mut last_res;
+
+    loop {
+        let res = run_server_update_pass(
+            Arc::clone(&state),
+            current_scope.clone(),
+            current_force,
+            current_jobs,
+            current_silent,
+            current_log_txs.clone(),
+        )
+        .await;
+
+        if let Err(ref e) = res {
+            let err_msg = format!("Update failed: {e}");
+            emit_log(&err_msg, current_silent, &current_log_txs);
+        }
+
+        last_res = res;
+
+        let next_params = {
+            let mut lock = state
+                .update_lock
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+
+            lock.pending.take().map_or_else(
+                || {
+                    lock.is_running = false;
+                    None
+                },
+                Some,
+            )
+        };
+
+        if let Some(next) = next_params {
+            current_scope = next.scope;
+            current_force = next.force;
+            current_jobs = next.jobs;
+            current_silent = next.silent;
+            current_log_txs = next.log_txs;
+        } else {
+            break;
+        }
+    }
+
+    last_res
+}
+
+async fn run_server_update_pass(
+    state: Arc<AppState>,
+    scope: UpdateScope,
+    force: bool,
+    jobs: Option<usize>,
+    silent: bool,
+    log_txs: Vec<tokio::sync::mpsc::Sender<String>>,
+) -> Result<()> {
+    let config = state.config.read().await.app.clone();
+    let music_directory = state.config.read().await.music_directory.clone();
+    let cache_root = state.config.read().await.cache_root.clone();
+    let dependencies = state.config.read().await.resolved_dependencies.clone();
+
+    let effective_jobs = jobs.or(config.compiler.jobs);
+    let is_full_library = scope == UpdateScope::All;
+
+    let lib_hash = calculate_hash(&music_directory.to_string_lossy());
+    let base_cache_dir = cache_root.join("libraries").join(&lib_hash);
+    fs::create_dir_all(&base_cache_dir)?;
+
+    validate_library_root(&base_cache_dir, &lib_hash).await?;
+
+    let mut cache = load_cache(&base_cache_dir.join("library.json"));
+
+    let (config_changed, lua_hash_file, lua_hash) =
+        check_lua_config_changed(&dependencies, &cache_root, silent);
+    let force = force || config_changed;
+
+    let tracked = if !force && is_full_library {
+        try_get_server_tracked_albums(&music_directory).await
+    } else {
+        None
+    };
+
+    let (work_queue, missing_paths) = resolve_work_queue(
+        &scope,
+        &music_directory,
+        &cache,
+        force,
+        effective_jobs,
+        tracked,
+        silent,
+    )?;
+
+    if work_queue.is_empty() && missing_paths.is_empty() {
+        emit_log("Library is up to date.", silent, &log_txs);
+        let _ = fs::write(&lua_hash_file, &lua_hash);
+        save_cache(&cache, &base_cache_dir.join("library.json"))?;
+        let _ = state
+            .deps_graph
+            .read()
+            .await
+            .save_to_file(&base_cache_dir.join("dependencies.json"));
+        return Ok(());
+    }
+
+    let checked_count = work_queue.len();
+    let missing_count = missing_paths.len();
+    let start_time = std::time::Instant::now();
+
+    let written_count = process_missing_and_compile(
+        &state,
+        CompilePassContext {
+            scope: &scope,
+            music_directory: &music_directory,
+            work_queue: &work_queue,
+            missing_paths: &missing_paths,
+            effective_jobs,
+            silent,
+        },
+        &log_txs,
+    )
+    .await?;
+
+    update_cache_entries(&mut cache, &work_queue, &missing_paths, &music_directory, silent);
+
+    let elapsed = start_time.elapsed().as_millis();
+    emit_log(
+        &format!(
+            "Update complete: {checked_count} checked ({written_count} modified), {missing_count} removed. Finished in {elapsed}ms."
+        ),
+        silent,
+        &log_txs,
+    );
+
+    let _ = fs::write(&lua_hash_file, &lua_hash);
+    save_cache(&cache, &base_cache_dir.join("library.json"))?;
+    let _ = state
+        .deps_graph
+        .read()
+        .await
+        .save_to_file(&base_cache_dir.join("dependencies.json"));
+
+    Ok(())
+}
+
+async fn process_missing_and_compile(
+    state: &Arc<AppState>,
+    ctx: CompilePassContext<'_>,
+    log_txs: &[tokio::sync::mpsc::Sender<String>],
+) -> Result<usize> {
+    let (ingest_tx, ingest_handle) =
+        spawn_server_ingest_handler(Arc::clone(state), ctx.silent, log_txs.to_vec());
+
+    for missing in ctx.missing_paths {
+        let album_id = libdale::resolvers::rel_path(missing, ctx.music_directory);
+        let display_path = missing.strip_prefix(ctx.music_directory).unwrap_or(missing);
+        emit_log(
+            &format!("Removed: {}", display_path.display()),
+            ctx.silent,
+            log_txs,
+        );
+        let _ = ingest_tx
+            .send(crate::server::api::system::AlbumIngestPayload {
+                id: album_id,
+                artist: String::new(),
+                album: String::new(),
+                lock_json: String::new(),
+                eval_res: None,
+                dependencies: Vec::new(),
+            })
+            .await;
+    }
+
+    if !ctx.work_queue.is_empty() {
+        let checked_count = ctx.work_queue.len();
+        emit_log(
+            &format!("Verifying {checked_count} albums..."),
+            ctx.silent,
+            log_txs,
+        );
+    }
+
+    let scan_root = match ctx.scope {
+        UpdateScope::All => ctx.music_directory.to_path_buf(),
+        UpdateScope::Paths(paths) => {
+            if paths.len() == 1 {
+                paths.iter().next().cloned().unwrap()
+            } else {
+                ctx.music_directory.to_path_buf()
+            }
+        }
+    };
+
+    let compile_options = compile::CompileOptions {
+        target_path: scan_root,
+        flags: vec!["default".to_string()],
+        specific_albums: Some(ctx.work_queue.to_vec()),
+        jobs: ctx.effective_jobs,
+        compile_flags: compile::CompileFlags {
+            mode: compile::CompileMode::Standard,
+            target: compile::ExportTarget::File,
+            pretty: false,
+        },
+        ingest_tx: Some(ingest_tx),
+        active_writes: Some(Arc::clone(&state.active_writes)),
+        silent: ctx.silent,
+    };
+
+    let written_count = compile::run(compile_options).await?;
+
+    let _ = ingest_handle.await;
+
+    Ok(written_count)
+}

@@ -1,12 +1,13 @@
 use crate::server::logic::LogicEngine;
 use crate::server::mpd::MpdEngine;
 use libdale::config::{ActionConfig, CoversRegistry, InterfaceConfig};
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, atomic::AtomicBool};
 use tokio::sync::{broadcast, RwLock};
 
-#[derive(Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct DependencyGraph {
     pub file_to_albums: HashMap<PathBuf, HashSet<PathBuf>>,
     pub album_to_files: HashMap<PathBuf, HashSet<PathBuf>>,
@@ -45,6 +46,21 @@ impl DependencyGraph {
                 }
             }
         }
+    }
+
+    pub fn load_from_file(path: &Path) -> Self {
+        if let Ok(content) = std::fs::read_to_string(path)
+            && let Ok(graph) = serde_json::from_str::<Self>(&content)
+        {
+            return graph;
+        }
+        Self::default()
+    }
+
+    pub fn save_to_file(&self, path: &Path) -> anyhow::Result<()> {
+        let content = serde_json::to_string_pretty(self)?;
+        libdale::utils::write_atomic_cache_file(path, &content)?;
+        Ok(())
     }
 }
 
