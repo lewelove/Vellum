@@ -1,12 +1,49 @@
 use crate::error::DaleError;
-use crate::types::toml_to_json;
 use serde_json::{json, Value};
 use std::collections::HashSet;
 use std::path::Path;
 
+pub const BUILTIN_MANIFESTS: &[&str] = &["metadata", "theme", "virtual"];
+
+pub fn validate_and_filter_manifest_names(
+    names: &[String],
+) -> Result<Vec<String>, DaleError> {
+    let mut seen = HashSet::with_capacity(names.len());
+    let mut result = Vec::with_capacity(names.len());
+
+    for name in names {
+        if name.is_empty() {
+            return Err(DaleError::InvalidManifestName {
+                name: name.clone(),
+                reason: "Manifest name cannot be empty".to_string(),
+            });
+        }
+
+        if !name.chars().all(|c| matches!(c, 'a'..='z' | '0'..='9' | '_')) {
+            return Err(DaleError::InvalidManifestName {
+                name: name.clone(),
+                reason: "Manifest name must contain only lowercase alphanumeric characters and underscores".to_string(),
+            });
+        }
+
+        if !seen.insert(name.as_str()) {
+            return Err(DaleError::DuplicateManifestName {
+                name: name.clone(),
+            });
+        }
+
+        if !BUILTIN_MANIFESTS.contains(&name.as_str()) {
+            result.push(name.clone());
+        }
+    }
+
+    Ok(result)
+}
+
 pub fn load_manifests(
     album_root: &Path,
-    manifest_names: Option<&Vec<Value>>,
+    manifest_names: Option<&[String]>,
+    cache_root: &Path,
 ) -> Result<serde_json::Map<String, Value>, DaleError> {
     let metadata_path = album_root.join("metadata.toml");
     if !metadata_path.exists() {
@@ -17,43 +54,23 @@ pub fn load_manifests(
 
     let mut result_manifests = serde_json::Map::new();
 
-    let primary_json = parse_single_manifest(&metadata_path, album_root, "metadata", None)?;
+    let primary_json = parse_single_manifest(&metadata_path, album_root, "metadata", None, cache_root)?;
     let expected_tracks = primary_json
         .get("tracks")
         .and_then(|t| t.as_array())
         .map_or(0, std::vec::Vec::len);
     result_manifests.insert("metadata".to_string(), primary_json);
 
-    let theme_path = album_root.join("theme.toml");
-    if theme_path.exists() {
-        let aux_json =
-            parse_single_manifest(&theme_path, album_root, "theme", Some(expected_tracks))?;
-        result_manifests.insert("theme".to_string(), aux_json);
-    }
+    let aux_names = ["theme", "virtual"]
+        .into_iter()
+        .chain(manifest_names.into_iter().flatten().map(String::as_str));
 
-    if let Some(names) = manifest_names {
-        for m_val in names {
-            if let Some(m_name_raw) = m_val.as_str() {
-                let path_ref = Path::new(m_name_raw);
-                let m_key = path_ref
-                    .file_stem()
-                    .and_then(|s| s.to_str())
-                    .unwrap_or(m_name_raw);
-
-                if m_key.eq_ignore_ascii_case("metadata") || m_key.eq_ignore_ascii_case("theme") {
-                    continue;
-                }
-
-                let m_filename = format!("{m_key}.toml");
-                let m_path = album_root.join(&m_filename);
-                if !m_path.exists() {
-                    continue;
-                }
-
-                let aux_json =
-                    parse_single_manifest(&m_path, album_root, m_key, Some(expected_tracks))?;
-                result_manifests.insert(m_key.to_string(), aux_json);
-            }
+    for m_name in aux_names {
+        let m_path = album_root.join(format!("{m_name}.toml"));
+        if m_path.exists() {
+            let aux_json =
+                parse_single_manifest(&m_path, album_root, m_name, Some(expected_tracks), cache_root)?;
+            result_manifests.insert(m_name.to_string(), aux_json);
         }
     }
 
@@ -65,16 +82,12 @@ fn parse_single_manifest(
     album_root: &Path,
     name: &str,
     expected_tracks: Option<usize>,
+    cache_root: &Path,
 ) -> Result<Value, DaleError> {
-    let content = std::fs::read_to_string(path)?;
-    let parsed_toml = toml::from_str::<toml::Value>(&content).map_err(|source| {
-        DaleError::ManifestParseError {
-            path: path.to_path_buf(),
-            source,
-        }
-    })?;
-
-    let mut json_val = toml_to_json(parsed_toml);
+    let mut json_val = crate::cache::read_object_cached(
+        path,
+        cache_root,
+    )?;
 
     let album_obj = json_val.get("album").cloned().unwrap_or_else(|| json!({}));
 

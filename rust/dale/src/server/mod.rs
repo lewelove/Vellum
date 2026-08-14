@@ -23,6 +23,7 @@ fn create_directories(cache_root: &Path, state_root: &Path) {
     std::fs::create_dir_all(cache_root.join("covers").join("metadata")).ok();
     std::fs::create_dir_all(cache_root.join("harvest")).ok();
     std::fs::create_dir_all(cache_root.join("libraries")).ok();
+    std::fs::create_dir_all(cache_root.join("objects")).ok();
     std::fs::create_dir_all(state_root).ok();
 }
 

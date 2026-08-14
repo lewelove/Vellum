@@ -31,22 +31,12 @@ pub struct ActionConfig {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(default)]
 pub struct StorageConfig {
-    #[serde(default)]
     pub music_directory: String,
     pub environment: Option<String>,
-    #[serde(default = "default_cache")]
     pub cache: String,
-    #[serde(default = "default_state")]
     pub state: String,
-}
-
-fn default_cache() -> String {
-    "~/.cache/dale".to_string()
-}
-
-fn default_state() -> String {
-    "~/.local/share/dale".to_string()
 }
 
 impl Default for StorageConfig {
@@ -54,8 +44,8 @@ impl Default for StorageConfig {
         Self {
             music_directory: String::new(),
             environment: None,
-            cache: default_cache(),
-            state: default_state(),
+            cache: "~/.cache/dale".to_string(),
+            state: "~/.local/share/dale".to_string(),
         }
     }
 }
@@ -77,17 +67,21 @@ pub struct CoversConfig {
     pub size: u32,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
+#[serde(default)]
 pub struct CoversRegistry {
-    #[serde(default = "default_master_cover")]
     pub master: CoversConfig,
-    #[serde(default)]
     pub targets: Vec<CoversConfig>,
 }
 
-fn default_master_cover() -> CoversConfig {
-    CoversConfig {
-        filter: "mitchell".to_string(),
-        size: 1080,
+impl Default for CoversRegistry {
+    fn default() -> Self {
+        Self {
+            master: CoversConfig {
+                filter: "mitchell".to_string(),
+                size: 1080,
+            },
+            targets: Vec::new(),
+        }
     }
 }

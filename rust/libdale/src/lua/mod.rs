@@ -2,6 +2,7 @@
 mod tests;
 
 use crate::config::{ActionConfig, AppConfig, CoversConfig, CoversRegistry, InterfaceConfig};
+use crate::error::DaleError;
 use anyhow::{Context, Result};
 use indexmap::IndexMap;
 use mlua::serde::SerializeOptions;
@@ -17,6 +18,11 @@ const LUA_CONFIG: &str = include_str!("config.lua");
 const LUA_COMPILER: &str = include_str!("compiler.lua");
 const LUA_ACTIONS: &str = include_str!("actions.lua");
 const LUA_LOGIC: &str = include_str!("logic.lua");
+
+#[derive(Clone, Debug)]
+pub struct EngineContext {
+    pub cache_root: PathBuf,
+}
 
 #[derive(Deserialize, Serialize, Clone, Debug, Default)]
 pub struct FilterDef {
@@ -212,37 +218,30 @@ pub struct EvaluatedLuaData {
     pub manifest: LogicManifest,
 }
 
-fn register_native_functions(lua: &Lua) -> Result<()> {
-    let globals = lua.globals();
-    let dale_table: mlua::Table = globals
-        .get("dale")
-        .unwrap_or_else(|_| lua.create_table().unwrap());
-
-    let opts = SerializeOptions::new()
-        .serialize_none_to_null(false)
-        .serialize_unit_to_null(false);
-
-    let json_table = lua.create_table().map_err(|e| anyhow::anyhow!("{e}"))?;
+fn create_json_table(lua: &Lua, opts: SerializeOptions) -> mlua::Result<Table> {
+    let json_table = lua.create_table()?;
     json_table.set(
         "decode",
         lua.create_function(move |lua, s: String| {
             let val: serde_json::Value = serde_json::from_str(&s)
                 .map_err(mlua::Error::external)?;
             lua.to_value_with(&val, opts)
-        }).map_err(|e| anyhow::anyhow!("{e}"))?,
-    ).map_err(|e| anyhow::anyhow!("{e}"))?;
+        })?,
+    )?;
 
     json_table.set(
         "encode",
         lua.create_function(|lua, val: mlua::Value| {
             let json_val: serde_json::Value = lua.from_value(val)?;
             serde_json::to_string(&json_val).map_err(mlua::Error::external)
-        }).map_err(|e| anyhow::anyhow!("{e}"))?,
-    ).map_err(|e| anyhow::anyhow!("{e}"))?;
+        })?,
+    )?;
 
-    dale_table.set("json", json_table).map_err(|e| anyhow::anyhow!("{e}"))?;
+    Ok(json_table)
+}
 
-    let toml_table = lua.create_table().map_err(|e| anyhow::anyhow!("{e}"))?;
+fn create_toml_table(lua: &Lua, opts: SerializeOptions) -> mlua::Result<Table> {
+    let toml_table = lua.create_table()?;
     toml_table.set(
         "decode",
         lua.create_function(move |lua, s: String| {
@@ -250,8 +249,8 @@ fn register_native_functions(lua: &Lua) -> Result<()> {
                 .map_err(mlua::Error::external)?;
             let json_val = crate::types::toml_to_json(toml_val);
             lua.to_value_with(&json_val, opts)
-        }).map_err(|e| anyhow::anyhow!("{e}"))?,
-    ).map_err(|e| anyhow::anyhow!("{e}"))?;
+        })?,
+    )?;
 
     toml_table.set(
         "encode",
@@ -259,20 +258,102 @@ fn register_native_functions(lua: &Lua) -> Result<()> {
             let json_val: serde_json::Value = lua.from_value(val)?;
             let toml_val = crate::types::json_to_toml(json_val);
             toml::to_string_pretty(&toml_val).map_err(mlua::Error::external)
-        }).map_err(|e| anyhow::anyhow!("{e}"))?,
-    ).map_err(|e| anyhow::anyhow!("{e}"))?;
+        })?,
+    )?;
 
-    dale_table.set("toml", toml_table).map_err(|e| anyhow::anyhow!("{e}"))?;
+    Ok(toml_table)
+}
 
-    globals.set("dale", dale_table.clone()).map_err(|e| anyhow::anyhow!("{e}"))?;
-    globals.set("d", dale_table).map_err(|e| anyhow::anyhow!("{e}"))?;
+fn register_dep(lua: &Lua, path_str: &str) {
+    if let Ok(registry) = lua.globals().get::<Table>("REGISTRY")
+        && let Ok(deps) = registry.get::<Table>("dependencies")
+    {
+        let _ = deps.set(path_str, true);
+    }
+}
+
+fn create_fs_reader(
+    lua: &Lua,
+    opts: SerializeOptions,
+    expected_ext: &'static str,
+) -> mlua::Result<mlua::Function> {
+    lua.create_function(move |lua, path_str: Option<String>| {
+        let Some(p_str) = path_str else {
+            return Ok(mlua::Value::Nil);
+        };
+        if p_str.trim().is_empty() {
+            return Ok(mlua::Value::Nil);
+        }
+        let path = crate::utils::expand_path(&p_str);
+        let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
+        if !ext.eq_ignore_ascii_case(expected_ext) {
+            return Err(mlua::Error::external(DaleError::InvalidFileExtension {
+                path,
+                expected: expected_ext.to_string(),
+            }));
+        }
+        register_dep(lua, &path.to_string_lossy());
+        let context = lua.app_data_ref::<EngineContext>();
+        let Some(ctx) = context else {
+            return Err(mlua::Error::external(anyhow::anyhow!(
+                "EngineContext is not initialized"
+            )));
+        };
+        match crate::cache::read_object_cached(&path, &ctx.cache_root) {
+            Ok(json_val) => lua.to_value_with(&json_val, opts),
+            Err(DaleError::ManifestIoError(err))
+                if err.kind() == std::io::ErrorKind::NotFound =>
+            {
+                Ok(mlua::Value::Nil)
+            }
+            Err(e) => Err(mlua::Error::external(e)),
+        }
+    })
+}
+
+fn create_fs_table(lua: &Lua, opts: SerializeOptions) -> mlua::Result<Table> {
+    let fs_table = lua.create_table()?;
+    fs_table.set(
+        "read_json",
+        create_fs_reader(lua, opts, "json")?,
+    )?;
+    fs_table.set(
+        "read_toml",
+        create_fs_reader(lua, opts, "toml")?,
+    )?;
+    Ok(fs_table)
+}
+
+fn register_native_functions(lua: &Lua) -> mlua::Result<()> {
+    let globals = lua.globals();
+    let dale_table: Table = globals
+        .get::<Table>("dale")
+        .or_else(|_| lua.create_table())?;
+
+    let opts = SerializeOptions::new()
+        .serialize_none_to_null(false)
+        .serialize_unit_to_null(false);
+
+    dale_table.set("json", create_json_table(lua, opts)?)?;
+    dale_table.set("toml", create_toml_table(lua, opts)?)?;
+    dale_table.set("fs", create_fs_table(lua, opts)?)?;
+
+    globals.set("dale", dale_table.clone())?;
+    globals.set("d", dale_table)?;
     Ok(())
 }
 
 impl LuaEngine {
     pub fn new() -> Result<Self> {
         let lua = Lua::new();
-        register_native_functions(&lua)?;
+        let default_cache = crate::utils::expand_path("~/.cache/dale");
+        lua.set_app_data(EngineContext {
+            cache_root: default_cache,
+        });
+
+        register_native_functions(&lua)
+            .map_err(|e| anyhow::anyhow!("{e}"))
+            .context("Failed to register native Lua functions")?;
         lua.load(LUA_CORE)
             .exec()
             .map_err(|e| anyhow::anyhow!("{e}"))
@@ -320,6 +401,10 @@ impl LuaEngine {
                 .exec()
                 .map_err(|e| anyhow::anyhow!("{e}"))
                 .context("Failed to append config directory to package.path")?;
+
+            if let Ok(registry) = self.lua.globals().get::<Table>("REGISTRY") {
+                let _ = registry.set("config_dir", parent_str.to_string());
+            }
         }
 
         self.lua
@@ -339,6 +424,16 @@ impl LuaEngine {
             .lua
             .from_value(mlua::Value::Table(config_table))
             .map_err(|e| anyhow::anyhow!("{e}"))?;
+
+        let config_dir = path.parent().unwrap_or_else(|| Path::new("."));
+        let resolved_cache = if app_config.storage.cache.is_empty() {
+            crate::utils::expand_path("~/.cache/dale")
+        } else {
+            crate::utils::resolve_path(&app_config.storage.cache, config_dir)
+        };
+        self.lua.set_app_data(EngineContext {
+            cache_root: resolved_cache,
+        });
 
         let get_covers: mlua::Function = globals
             .get("__DALE_GET_COVERS")
@@ -515,6 +610,11 @@ impl ResolvedConfig {
         let config_dir = path.parent().unwrap_or_else(|| Path::new("."));
         let engine = LuaEngine::new()?;
         let mut evaluated = engine.evaluate_config(&path)?;
+
+        if let Some(ref manifests) = evaluated.app.compiler.manifests {
+            let validated = crate::compiler::manifest::validate_and_filter_manifest_names(manifests)?;
+            evaluated.app.compiler.manifests = Some(validated);
+        }
 
         if evaluated.covers.targets.is_empty() {
             evaluated.covers.targets.push(CoversConfig {

@@ -86,9 +86,9 @@ pub fn harvest_file_cached(path: &Path, cache_root: &Path) -> Result<TrackJson> 
     let mtime = metadata
         .modified()
         .unwrap_or(std::time::SystemTime::UNIX_EPOCH)
-        .duration_since(std::time::UNIX_EPOCH)
+        .duration_since(std::time::SystemTime::UNIX_EPOCH)
         .unwrap_or_default()
-        .as_secs();
+        .as_nanos();
     let size = metadata.len();
     let canon_path = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
 
@@ -98,19 +98,17 @@ pub fn harvest_file_cached(path: &Path, cache_root: &Path) -> Result<TrackJson> 
     let cache_dir = cache_root.join("harvest");
     let cache_file = cache_dir.join(format!("{key}.json"));
 
-    if cache_file.exists()
-        && let Ok(content) = fs::read_to_string(&cache_file)
-        && let Ok(cached_track) = serde_json::from_str::<TrackJson>(&content)
-    {
-        return Ok(cached_track);
+    if let Ok(content) = fs::read_to_string(&cache_file) {
+        if let Ok(cached_track) = serde_json::from_str::<TrackJson>(&content) {
+            return Ok(cached_track);
+        }
+        let _ = fs::remove_file(&cache_file);
     }
 
     let harvested = harvest_file(path)?;
 
-    if fs::create_dir_all(&cache_dir).is_ok()
-        && let Ok(json_str) = serde_json::to_string(&harvested)
-    {
-        let _ = fs::write(cache_file, json_str);
+    if let Ok(json_str) = serde_json::to_string(&harvested) {
+        let _ = crate::utils::write_atomic_cache_file(&cache_file, &json_str);
     }
 
     Ok(harvested)
@@ -121,7 +119,7 @@ fn extract_physics(metadata: &std::fs::Metadata, tagged_file: &lofty::file::Tagg
     let mtime = metadata
         .modified()
         .unwrap_or(std::time::SystemTime::UNIX_EPOCH)
-        .duration_since(std::time::UNIX_EPOCH)
+        .duration_since(std::time::SystemTime::UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs();
 

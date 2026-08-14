@@ -70,49 +70,61 @@ fn test_dl_fs_read_lines() {
     assert_eq!(missing_lines.raw_len(), 0);
 }
 
-/// Verifies that `d.fs.read_json` parses JSON files, returns `nil` for missing paths, and errors on malformed syntax.
+/// Verifies that `d.fs.read_json` parses JSON files, returns `nil` for missing paths, and errors on malformed syntax or wrong extensions.
 #[test]
 fn test_dl_fs_read_json() {
     let engine = LuaEngine::new().expect("Failed to create LuaEngine");
     let json_content = r#"{"artist":"Sample"}"#;
-    let temp_file = TempFile::new(json_content);
+    let temp_file = TempFile::with_extension(json_content, "json");
     let path_str = temp_file.path_str();
 
     let code = format!("local t = d.fs.read_json('{path_str}')\nreturn t.artist");
     let artist: String = engine.lua.load(&code).eval().expect("Execution failed");
     assert_eq!(artist, "Sample");
 
-    let missing_code = "return d.fs.read_json('/tmp/non_existent_dale_test_file.tmp')";
+    let missing_code = "return d.fs.read_json('/tmp/non_existent_dale_test_file.json')";
     let missing_res: Option<Table> = engine.lua.load(missing_code).eval().expect("Execution failed");
     assert!(missing_res.is_none());
 
-    let bad_file = TempFile::new("{invalid_json");
+    let bad_file = TempFile::with_extension("{invalid_json", "json");
     let bad_path = bad_file.path_str();
     let bad_code = format!("return d.fs.read_json('{bad_path}')");
     let bad_res = engine.lua.load(&bad_code).eval::<Table>();
     assert!(bad_res.is_err());
+
+    let wrong_ext_file = TempFile::with_extension(json_content, "txt");
+    let wrong_ext_path = wrong_ext_file.path_str();
+    let wrong_ext_code = format!("return d.fs.read_json('{wrong_ext_path}')");
+    let wrong_ext_res = engine.lua.load(&wrong_ext_code).eval::<Table>();
+    assert!(wrong_ext_res.is_err());
 }
 
-/// Verifies that `d.fs.read_toml` parses TOML files, returns `nil` for missing paths, and errors on malformed syntax.
+/// Verifies that `d.fs.read_toml` parses TOML files, returns `nil` for missing paths, and errors on malformed syntax or wrong extensions.
 #[test]
 fn test_dl_fs_read_toml() {
     let engine = LuaEngine::new().expect("Failed to create LuaEngine");
     let toml_content = r#"[album]
 artist = "Sample""#;
-    let temp_file = TempFile::new(toml_content);
+    let temp_file = TempFile::with_extension(toml_content, "toml");
     let path_str = temp_file.path_str();
 
     let code = format!("local t = d.fs.read_toml('{path_str}')\nreturn t.album.artist");
     let artist: String = engine.lua.load(&code).eval().expect("Execution failed");
     assert_eq!(artist, "Sample");
 
-    let missing_code = "return d.fs.read_toml('/tmp/non_existent_dale_test_file.tmp')";
+    let missing_code = "return d.fs.read_toml('/tmp/non_existent_dale_test_file.toml')";
     let missing_res: Option<Table> = engine.lua.load(missing_code).eval().expect("Execution failed");
     assert!(missing_res.is_none());
 
-    let bad_file = TempFile::new("[album");
+    let bad_file = TempFile::with_extension("[album", "toml");
     let bad_path = bad_file.path_str();
     let bad_code = format!("return d.fs.read_toml('{bad_path}')");
     let bad_res = engine.lua.load(&bad_code).eval::<Table>();
     assert!(bad_res.is_err());
+
+    let wrong_ext_file = TempFile::with_extension(toml_content, "txt");
+    let wrong_ext_path = wrong_ext_file.path_str();
+    let wrong_ext_code = format!("return d.fs.read_toml('{wrong_ext_path}')");
+    let wrong_ext_res = engine.lua.load(&wrong_ext_code).eval::<Table>();
+    assert!(wrong_ext_res.is_err());
 }

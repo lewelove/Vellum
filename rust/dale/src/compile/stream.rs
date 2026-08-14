@@ -100,6 +100,10 @@ fn spawn_builders(
                         Err(e) => match e {
                             DaleError::ManifestIoError(_)
                             | DaleError::ManifestParseError { .. }
+                            | DaleError::JsonParseError { .. }
+                            | DaleError::InvalidFileExtension { .. }
+                            | DaleError::InvalidManifestName { .. }
+                            | DaleError::DuplicateManifestName { .. }
                             | DaleError::JsonError(_) => {
                                 log::error!("SYSTEM FAILURE: {e}");
                             }

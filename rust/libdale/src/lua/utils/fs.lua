@@ -44,22 +44,6 @@ function _G.dale.fs.read(filepath)
     return content
 end
 
-function _G.dale.fs.read_json(filepath)
-    local content = _G.dale.fs.read(filepath)
-    if not content or content:match("^%s*$") then
-        return nil
-    end
-    return _G.dale.json.decode(content)
-end
-
-function _G.dale.fs.read_toml(filepath)
-    local content = _G.dale.fs.read(filepath)
-    if not content or content:match("^%s*$") then
-        return nil
-    end
-    return _G.dale.toml.decode(content)
-end
-
 function _G.dale.fs.read_lines(filepath)
     local expanded = expand_path(filepath)
     if not expanded then

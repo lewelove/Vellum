@@ -1,17 +1,23 @@
+use base64::{
+    engine::general_purpose::{STANDARD, URL_SAFE_NO_PAD},
+    Engine as _,
+};
+use std::io::Write;
 use std::path::{Path, PathBuf};
-use base64::{Engine as _, engine::general_purpose::{STANDARD, URL_SAFE_NO_PAD}};
+use tempfile::NamedTempFile;
 
 #[must_use]
 pub fn expand_path(path_str: &str) -> PathBuf {
     if path_str.starts_with('~')
-        && let Some(home) = dirs::home_dir() {
-            if path_str == "~" {
-                return home;
-            }
-            if let Some(stripped) = path_str.strip_prefix("~/") {
-                return home.join(stripped);
-            }
+        && let Some(home) = dirs::home_dir()
+    {
+        if path_str == "~" {
+            return home;
         }
+        if let Some(stripped) = path_str.strip_prefix("~/") {
+            return home.join(stripped);
+        }
+    }
     PathBuf::from(path_str)
 }
 
@@ -43,11 +49,18 @@ pub fn resolve_path(path_str: &str, config_dir: &Path) -> PathBuf {
     direct
 }
 
-pub fn get_file_info(path: &std::path::Path, rel_path: &str, compute_hash: bool) -> Result<serde_json::Value, anyhow::Error> {
+pub fn get_file_info(
+    path: &std::path::Path,
+    rel_path: &str,
+    compute_hash: bool,
+) -> Result<serde_json::Value, anyhow::Error> {
     let m = std::fs::metadata(path)?;
-    let mtime = m.modified()?.duration_since(std::time::SystemTime::UNIX_EPOCH)?.as_secs();
+    let mtime = m
+        .modified()?
+        .duration_since(std::time::SystemTime::UNIX_EPOCH)?
+        .as_secs();
     let byte_size = m.len();
-    
+
     let hash_val = if compute_hash {
         let content = std::fs::read(path)?;
         let hash = blake3::hash(&content);
@@ -63,7 +76,7 @@ pub fn get_file_info(path: &std::path::Path, rel_path: &str, compute_hash: bool)
     } else {
         serde_json::Value::Null
     };
-    
+
     Ok(serde_json::json!({
         "path": rel_path,
         "hash": hash_val,
@@ -77,4 +90,21 @@ pub fn calculate_blake3_address(content: &[u8]) -> String {
     let hash = blake3::hash(content);
     let raw = hash.as_bytes();
     URL_SAFE_NO_PAD.encode(raw).chars().take(16).collect()
+}
+
+pub fn write_atomic_cache_file(cache_file: &Path, content: &str) -> std::io::Result<()> {
+    let parent = cache_file.parent().ok_or_else(|| {
+        std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "Invalid cache file path: no parent directory",
+        )
+    })?;
+
+    std::fs::create_dir_all(parent)?;
+
+    let mut temp = NamedTempFile::new_in(parent)?;
+    temp.write_all(content.as_bytes())?;
+    temp.persist(cache_file).map_err(|e| e.error)?;
+
+    Ok(())
 }

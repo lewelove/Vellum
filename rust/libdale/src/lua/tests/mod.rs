@@ -19,9 +19,13 @@ impl TempFile {
     ///
     /// The file path uses process identity and nanosecond timestamps to ensure uniqueness.
     pub fn new(content: &str) -> Self {
+        Self::with_extension(content, "tmp")
+    }
+
+    pub fn with_extension(content: &str, ext: &str) -> Self {
         let mut path = std::env::temp_dir();
         let nanos = chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0);
-        let name = format!("dale_test_{}_{}.tmp", std::process::id(), nanos);
+        let name = format!("dale_test_{}_{}.{ext}", std::process::id(), nanos);
         path.push(name);
         fs::write(&path, content).expect("Failed to write temp test file");
         Self(path)

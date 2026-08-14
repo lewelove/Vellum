@@ -1,4 +1,5 @@
 use crate::server::state::AppState;
+use libdale::compiler::manifest::BUILTIN_MANIFESTS;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -83,29 +84,14 @@ fn is_manifest_file(path: &Path, declared_manifests: Option<&[String]>) -> bool 
         return false;
     };
 
-    if file_name.eq_ignore_ascii_case("metadata.toml")
-        || file_name.eq_ignore_ascii_case("theme.toml")
-        || file_name.eq_ignore_ascii_case("album.lock.json")
-    {
+    if file_name == "album.lock.json" {
         return true;
     }
 
-    if let Some(manifests) = declared_manifests {
-        let is_toml = path
-            .extension()
-            .is_some_and(|ext| ext.eq_ignore_ascii_case("toml"));
-        if !is_toml {
-            return false;
-        }
-
+    if path.extension().is_some_and(|ext| ext == "toml") {
         let file_stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
-
-        for m in manifests {
-            let m_clean = m.strip_suffix(".toml").unwrap_or(m);
-            if file_stem.eq_ignore_ascii_case(m_clean) {
-                return true;
-            }
-        }
+        return BUILTIN_MANIFESTS.contains(&file_stem)
+            || declared_manifests.is_some_and(|m| m.iter().any(|name| name == file_stem));
     }
 
     false

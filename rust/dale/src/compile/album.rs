@@ -3,16 +3,13 @@ use serde_json::{Value, json};
 use std::path::Path;
 use std::collections::BTreeMap;
 
-pub fn is_virtual_album(album_root: &Path) -> bool {
-    let virtual_path = album_root.join("virtual.toml");
-    if let Ok(content) = std::fs::read_to_string(&virtual_path)
-        && let Ok(parsed) = toml::from_str::<toml::Value>(&content)
-        && let Some(album) = parsed.get("album")
-        && let Some(virt) = album.get("virtual").and_then(toml::Value::as_bool)
-    {
-        return virt;
-    }
-    false
+pub fn is_virtual_album(parsed_manifests: &serde_json::Map<String, Value>) -> bool {
+    parsed_manifests
+        .get("virtual")
+        .and_then(|v| v.get("album"))
+        .and_then(|a| a.get("virtual"))
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
 }
 
 pub fn parse_mandatory_album_fields(
@@ -43,9 +40,13 @@ pub fn parse_mandatory_album_fields(
 pub fn generate_lock_manifests(
     parsed_manifests: &serde_json::Map<String, Value>,
     album_root: &Path,
+    is_virtual: bool,
 ) -> BTreeMap<String, Value> {
     let mut lock_manifests = BTreeMap::new();
-    for (name, _) in parsed_manifests {
+    for name in parsed_manifests.keys() {
+        if name == "virtual" && !is_virtual {
+            continue;
+        }
         let file_name = format!("{name}.toml");
         let abs_p = album_root.join(&file_name);
         if let Ok(info) = libdale::utils::get_file_info(&abs_p, &file_name, false) {

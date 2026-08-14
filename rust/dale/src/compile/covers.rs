@@ -59,9 +59,9 @@ pub fn resolve_cover_data_cached(
     let mtime = meta
         .modified()
         .unwrap_or(std::time::SystemTime::UNIX_EPOCH)
-        .duration_since(std::time::UNIX_EPOCH)
+        .duration_since(std::time::SystemTime::UNIX_EPOCH)
         .unwrap_or_default()
-        .as_secs();
+        .as_nanos();
     let size = meta.len();
     let canon_path = cp.canonicalize().unwrap_or_else(|_| cp.clone());
 
@@ -72,29 +72,27 @@ pub fn resolve_cover_data_cached(
     let cache_dir = cache_root.join("covers").join("metadata");
     let cache_file = cache_dir.join(format!("{key}.json"));
 
-    if cache_file.exists()
-        && let Ok(content) = std::fs::read_to_string(&cache_file)
-        && let Ok(cached) = serde_json::from_str::<CoverCacheEntry>(&content)
-    {
-        let cover_hash_address = cached
-            .file_info
-            .get("address")
-            .and_then(Value::as_str)
-            .unwrap_or("");
-        let _ = assets::pregenerate_covers(config, main_cover_path.as_deref(), cover_hash_address);
-        return (cached.file_info, cached.metrics);
+    if let Ok(content) = std::fs::read_to_string(&cache_file) {
+        if let Ok(cached) = serde_json::from_str::<CoverCacheEntry>(&content) {
+            let cover_hash_address = cached
+                .file_info
+                .get("address")
+                .and_then(Value::as_str)
+                .unwrap_or("");
+            let _ = assets::pregenerate_covers(config, main_cover_path.as_deref(), cover_hash_address);
+            return (cached.file_info, cached.metrics);
+        }
+        let _ = std::fs::remove_file(&cache_file);
     }
 
     let (file_info, metrics) = resolve_cover_data(album_root, config, lib_hash);
 
-    if std::fs::create_dir_all(&cache_dir).is_ok() {
-        let entry = CoverCacheEntry {
-            file_info: file_info.clone(),
-            metrics: metrics.clone(),
-        };
-        if let Ok(json_str) = serde_json::to_string(&entry) {
-            let _ = std::fs::write(cache_file, json_str);
-        }
+    let entry = CoverCacheEntry {
+        file_info: file_info.clone(),
+        metrics: metrics.clone(),
+    };
+    if let Ok(json_str) = serde_json::to_string(&entry) {
+        let _ = libdale::utils::write_atomic_cache_file(&cache_file, &json_str);
     }
 
     (file_info, metrics)
@@ -112,8 +110,6 @@ pub fn resolve_cover_metrics(
     
     let cache_root = libdale::utils::expand_path(&config.app.storage.cache);
     let metrics_dir = cache_root.join("libraries").join(lib_hash).join("covers_data");
-    std::fs::create_dir_all(&metrics_dir).ok();
-    
     let metrics_path = metrics_dir.join(format!("{c_hash}.json"));
     
     let mut metrics = if metrics_path.exists() {
@@ -141,7 +137,7 @@ pub fn resolve_cover_metrics(
     
     if needs_save
         && let Ok(content) = serde_json::to_string(&metrics) {
-            let _ = std::fs::write(&metrics_path, content);
+            let _ = libdale::utils::write_atomic_cache_file(&metrics_path, &content);
         }
     
     Some(metrics)

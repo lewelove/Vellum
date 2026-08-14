@@ -42,14 +42,10 @@ struct AlbumAssemblyInput<'a> {
 fn load_primary_and_files(
     album_root: &Path,
     config: &libdale::lua::ResolvedConfig,
+    cache_root: &Path,
 ) -> Result<PrimaryBuildData, DaleError> {
-    let manifest_names = config
-        .app
-        .compiler
-        .manifests
-        .as_ref()
-        .map(|v| v.iter().map(|s| Value::String(s.clone())).collect::<Vec<_>>());
-    let parsed_manifests = load_manifests(album_root, manifest_names.as_ref())?;
+    let manifest_names = config.app.compiler.manifests.as_deref();
+    let parsed_manifests = load_manifests(album_root, manifest_names, cache_root)?;
 
     let primary_manifest = parsed_manifests.get("metadata").ok_or_else(|| {
         DaleError::MissingPrimaryManifest {
@@ -147,7 +143,8 @@ pub fn build(
     config: &libdale::lua::ResolvedConfig,
     engine: &libdale::lua::LuaEngine,
 ) -> Result<Value, DaleError> {
-    let build_data = load_primary_and_files(album_root, config)?;
+    let cache_root = libdale::utils::expand_path(&config.app.storage.cache);
+    let build_data = load_primary_and_files(album_root, config, &cache_root)?;
 
     let lib_hash = crate::update::cache::calculate_hash(
         &build_data.prep_ctx.music_directory.to_string_lossy(),
@@ -155,7 +152,7 @@ pub fn build(
     let (cover_file_info, cover_metrics) =
         covers::resolve_cover_data_cached(album_root, config, &lib_hash);
 
-    let is_virtual = album::is_virtual_album(album_root);
+    let is_virtual = album::is_virtual_album(&build_data.parsed_manifests);
     tracks::validate_audio_files(
         is_virtual,
         &build_data.prep_ctx.audio_files,
@@ -163,11 +160,11 @@ pub fn build(
         album_root,
     )?;
 
-    let lock_manifests = album::generate_lock_manifests(&build_data.parsed_manifests, album_root);
+    let lock_manifests =
+        album::generate_lock_manifests(&build_data.parsed_manifests, album_root, is_virtual);
     let total_discs = libdale::resolvers::calculate_total_discs(&build_data.primary_tracks);
     let total_tracks = build_data.primary_tracks.len() as u32;
 
-    let cache_root = libdale::utils::expand_path(&config.app.storage.cache);
     let (ctx_tracks, duration_sum_ms) = tracks::build_ctx_tracks(
         is_virtual,
         &build_data.primary_tracks,

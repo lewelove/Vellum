@@ -12,6 +12,18 @@ pub enum DaleError {
     #[error("Parse Error: Failed to parse TOML in {path}: {source}")]
     ManifestParseError { path: PathBuf, source: toml::de::Error },
 
+    #[error("Parse Error: Failed to parse JSON in {path}: {source}")]
+    JsonParseError { path: PathBuf, source: serde_json::Error },
+
+    #[error("Invalid file extension: Expected '{expected}' in {path}")]
+    InvalidFileExtension { path: PathBuf, expected: String },
+
+    #[error("Invalid manifest name '{name}': {reason}")]
+    InvalidManifestName { name: String, reason: String },
+
+    #[error("Duplicate manifest name '{name}' declared in configuration")]
+    DuplicateManifestName { name: String },
+
     #[error("Serialization Error: {0}")]
     JsonError(#[from] serde_json::Error),
 
