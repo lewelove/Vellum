@@ -2,13 +2,6 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct CoverMetrics {
-    pub hash: String,
-    pub entropy: Option<usize>,
-    pub chroma: Option<f64>,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct HashInfo {
     pub string: String,
     pub address: String,

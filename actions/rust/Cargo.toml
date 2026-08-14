@@ -4,7 +4,8 @@ members = [
   "get_theme",
   "collect",
   "discogs_fetch_master",
-  "musicbrainz_search"
+  "musicbrainz_search",
+  "calculate_cover_metrics"
 ]
 resolver = "2"
 

@@ -1,22 +1,19 @@
 use crate::compile::assets;
-use libdale::models::CoverMetrics;
-use serde_json::{Value, json};
+use base64::{engine::general_purpose::STANDARD, Engine as _};
+use serde_json::{json, Value};
 use std::path::Path;
-use base64::{Engine as _, engine::general_purpose::STANDARD};
 
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct CoverCacheEntry {
     pub file_info: Value,
-    pub metrics: Option<CoverMetrics>,
 }
 
 pub fn resolve_cover_data(
     album_root: &Path,
     config: &libdale::lua::ResolvedConfig,
-    lib_hash: &str,
-) -> (Value, Option<CoverMetrics>) {
+) -> Value {
     let main_cover_path = assets::resolve_cover_info(album_root);
-    
+
     let mut cover_hash_address = String::new();
     let mut cover_file_info = Value::Null;
 
@@ -36,24 +33,22 @@ pub fn resolve_cover_data(
         }
     }
 
-    let loaded_image = assets::pregenerate_covers(config, main_cover_path.as_deref(), &cover_hash_address);
-    let cover_metrics = resolve_cover_metrics(config, lib_hash, &cover_hash_address, loaded_image.as_ref());
+    let _ = assets::pregenerate_covers(config, main_cover_path.as_deref(), &cover_hash_address);
 
-    (cover_file_info, cover_metrics)
+    cover_file_info
 }
 
 pub fn resolve_cover_data_cached(
     album_root: &Path,
     config: &libdale::lua::ResolvedConfig,
-    lib_hash: &str,
-) -> (Value, Option<CoverMetrics>) {
+) -> Value {
     let main_cover_path = assets::resolve_cover_info(album_root);
     let Some(cp) = &main_cover_path else {
-        return (Value::Null, None);
+        return Value::Null;
     };
 
     let Ok(meta) = std::fs::metadata(cp) else {
-        return (Value::Null, None);
+        return Value::Null;
     };
 
     let mtime = meta
@@ -80,65 +75,19 @@ pub fn resolve_cover_data_cached(
                 .and_then(Value::as_str)
                 .unwrap_or("");
             let _ = assets::pregenerate_covers(config, main_cover_path.as_deref(), cover_hash_address);
-            return (cached.file_info, cached.metrics);
+            return cached.file_info;
         }
         let _ = std::fs::remove_file(&cache_file);
     }
 
-    let (file_info, metrics) = resolve_cover_data(album_root, config, lib_hash);
+    let file_info = resolve_cover_data(album_root, config);
 
     let entry = CoverCacheEntry {
         file_info: file_info.clone(),
-        metrics: metrics.clone(),
     };
     if let Ok(json_str) = serde_json::to_string(&entry) {
         let _ = libdale::utils::write_atomic_cache_file(&cache_file, &json_str);
     }
 
-    (file_info, metrics)
-}
-
-pub fn resolve_cover_metrics(
-    config: &libdale::lua::ResolvedConfig,
-    lib_hash: &str,
-    c_hash: &str,
-    loaded_image: Option<&image::DynamicImage>,
-) -> Option<CoverMetrics> {
-    if c_hash.is_empty() {
-        return None;
-    }
-    
-    let cache_root = libdale::utils::expand_path(&config.app.storage.cache);
-    let metrics_dir = cache_root.join("libraries").join(lib_hash).join("covers_data");
-    let metrics_path = metrics_dir.join(format!("{c_hash}.json"));
-    
-    let mut metrics = if metrics_path.exists() {
-        std::fs::read_to_string(&metrics_path).map_or(None, |content| serde_json::from_str::<CoverMetrics>(&content).ok())
-    } else { 
-        None 
-    }.unwrap_or_else(|| CoverMetrics {
-        hash: c_hash.to_string(),
-        entropy: None,
-        chroma: None,
-    });
-    
-    let mut needs_save = false;
-    
-    if let Some(img) = loaded_image {
-        if metrics.chroma.is_none() {
-            metrics.chroma = Some(libdale::images::cover_chroma::calculate_chroma(img));
-            needs_save = true;
-        }
-        if metrics.entropy.is_none() {
-            metrics.entropy = Some(libdale::images::cover_entropy::calculate_entropy(img));
-            needs_save = true;
-        }
-    }
-    
-    if needs_save
-        && let Ok(content) = serde_json::to_string(&metrics) {
-            let _ = libdale::utils::write_atomic_cache_file(&metrics_path, &content);
-        }
-    
-    Some(metrics)
+    file_info
 }

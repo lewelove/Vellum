@@ -131,6 +131,7 @@
               ln -sf "rust/target/release/collect" "$ROOT/actions/collect"
               ln -sf "rust/target/release/discogs_fetch_master" "$ROOT/actions/discogs_fetch_master"
               ln -sf "rust/target/release/musicbrainz_search" "$ROOT/actions/musicbrainz_search"
+              ln -sf "rust/target/release/calculate_cover_metrics" "$ROOT/actions/calculate_cover_metrics"
               ln -sf "python/get_lyrics/result/bin/get_lyrics" "$ROOT/actions/get_lyrics"
               ln -sf "python/search_cover/result/bin/search_cover" "$ROOT/actions/search_cover"
               ln -sf "python/embed/result/bin/embed" "$ROOT/actions/embed"

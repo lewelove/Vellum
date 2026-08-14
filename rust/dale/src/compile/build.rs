@@ -24,7 +24,6 @@ struct DispatcherInput<'a> {
     total_discs: u32,
     total_tracks: u32,
     duration_sum_ms: u64,
-    cover_metrics: Option<&'a libdale::models::CoverMetrics>,
 }
 
 struct AlbumHeader<'a> {
@@ -101,7 +100,6 @@ fn build_dispatcher_context(
         "total_discs": input.total_discs,
         "total_tracks": input.total_tracks,
         "duration_milliseconds": input.duration_sum_ms,
-        "cover_metrics": input.cover_metrics,
         "tracks": ctx_tracks,
     });
 
@@ -183,11 +181,8 @@ pub fn build(
     let cache_root = libdale::utils::expand_path(&config.app.storage.cache);
     let build_data = load_primary_and_files(album_root, config, &cache_root)?;
 
-    let lib_hash = crate::update::cache::calculate_hash(
-        &build_data.prep_ctx.music_directory.to_string_lossy(),
-    );
-    let (cover_file_info, cover_metrics) =
-        covers::resolve_cover_data_cached(album_root, config, &lib_hash);
+    let cover_file_info =
+        covers::resolve_cover_data_cached(album_root, config);
 
     let is_virtual = album::is_virtual_album(&build_data.parsed_manifests);
     tracks::validate_audio_files(
@@ -217,7 +212,6 @@ pub fn build(
         total_discs,
         total_tracks,
         duration_sum_ms,
-        cover_metrics: cover_metrics.as_ref(),
     };
 
     let (ctx, id_str, album_root_str, project_root_str, music_directory_str) =

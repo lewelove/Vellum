@@ -1,6 +1,7 @@
 use image::{DynamicImage, GenericImageView};
+use std::io::Cursor;
 
-#[must_use] 
+#[must_use]
 pub fn calculate_chroma(img: &DynamicImage) -> f64 {
     let (width, height) = img.dimensions();
     let total = f64::from(width * height);
@@ -32,4 +33,13 @@ pub fn calculate_chroma(img: &DynamicImage) -> f64 {
     let std_root = (v_rg.max(0.0) + v_yb.max(0.0)).sqrt();
     let mean_root = m_rg.hypot(m_yb);
     0.3f64.mul_add(mean_root, std_root)
+}
+
+#[must_use]
+pub fn calculate_entropy(img: &DynamicImage) -> usize {
+    let gray = img.grayscale();
+    let mut buf = Vec::new();
+    let mut cursor = Cursor::new(&mut buf);
+    let _ = gray.write_to(&mut cursor, image::ImageFormat::Png);
+    buf.len()
 }
