@@ -320,12 +320,20 @@ pub async fn force_update_album(
         config_guard.music_directory.join(id)
     };
     if tokio::fs::try_exists(&path).await.unwrap_or(false) {
-        let _ = tokio::process::Command::new("dale")
-            .arg("update")
-            .arg("--force")
-            .arg("--silent")
-            .arg(path)
-            .spawn();
+        tokio::spawn(async move {
+            if let Err(e) = crate::update::run_server_update(
+                state,
+                Some(path),
+                true,
+                None,
+                true,
+                None,
+            )
+            .await
+            {
+                log::error!("Failed to force update album: {e}");
+            }
+        });
         return Json(json!({"status": "ok"})).into_response();
     }
     StatusCode::NOT_FOUND.into_response()
