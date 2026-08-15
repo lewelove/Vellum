@@ -19,6 +19,8 @@ pub struct AlbumIngestPayload {
     pub eval_res: Option<serde_json::Value>,
     #[serde(default)]
     pub dependencies: Vec<PathBuf>,
+    #[serde(default)]
+    pub modified: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

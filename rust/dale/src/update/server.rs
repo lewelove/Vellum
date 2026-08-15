@@ -61,7 +61,8 @@ pub fn spawn_server_ingest_handler(
             let mut logs = Vec::new();
 
             for payload in batch {
-                if !payload.lock_json.is_empty()
+                if payload.modified
+                    && !payload.lock_json.is_empty()
                     && (!payload.artist.is_empty() || !payload.album.is_empty())
                 {
                     logs.push(format!("Updated: {} - {}", payload.artist, payload.album));
@@ -305,6 +306,7 @@ async fn process_missing_and_compile(
                 lock_json: String::new(),
                 eval_res: None,
                 dependencies: Vec::new(),
+                modified: false,
             })
             .await;
     }

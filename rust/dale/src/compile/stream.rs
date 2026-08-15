@@ -178,15 +178,20 @@ fn finalize(
             lock_json: content.clone(),
             eval_res,
             dependencies: deps.into_iter().collect(),
+            modified: should_write,
         };
 
         if should_write {
             if let Some(aw) = active_writes
                 && let Ok(mut active) = aw.lock()
             {
-                if let Ok(canon) = lock_path.canonicalize() {
-                    active.insert(canon);
-                }
+                let canon = lock_path.canonicalize().unwrap_or_else(|_| {
+                    album_root.canonicalize().map_or_else(
+                        |_| lock_path.clone(),
+                        |parent_canon| parent_canon.join("album.lock.json"),
+                    )
+                });
+                active.insert(canon);
                 active.insert(lock_path.clone());
             } else if !silent {
                 log::info!("Updated: {artist} - {album}");
@@ -195,7 +200,7 @@ fn finalize(
             return Ok((true, Some(payload)));
         }
 
-        return Ok((false, None));
+        return Ok((false, Some(payload)));
     }
     Ok((false, None))
 }
