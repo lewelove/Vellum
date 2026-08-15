@@ -4,6 +4,7 @@ import { updatePlayerState } from "../modules/player.svelte.ts";
 import { config as globalConfig, updateConfig } from "../config.svelte.ts";
 
 class CollectionStore {
+  activeInterface: string = $state("default");
   dict: Record<string, any> = $state({});
   trackPathMap: Record<string, any> = $state({});
   sidebarShelves: Record<string, string[]> = $state({});
@@ -69,8 +70,13 @@ class CollectionStore {
       }
     } else if (json.type === "LOGIC_UPDATE") {
       if (json.manifest) this.manifest = json.manifest;
-    } else if (json.type === "CONFIG_UPDATE" || json.type === "INTERFACE_CONFIG_UPDATE") {
+    } else if (json.type === "CONFIG_UPDATE") {
       if (json.config) {
+        this.config = { ...this.config, ...json.config };
+        updateConfig(json.config);
+      }
+    } else if (json.type === "INTERFACE_CONFIG_UPDATE") {
+      if (json.config && json.name === this.activeInterface) {
         this.config = { ...this.config, ...json.config };
         updateConfig(json.config);
       }

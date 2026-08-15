@@ -10,8 +10,12 @@ export function initApp() {
   sync.connect();
 
   fetch("/api/interfaces/default/config")
-    .then((res) => res.json())
+    .then((res) => {
+      if (!res.ok) throw new Error("Default interface not found");
+      return res.json();
+    })
     .then((data) => {
+      collection.activeInterface = "default";
       collection.config = { ...collection.config, ...data };
       updateConfig(data);
       applyColors(data);
@@ -20,6 +24,7 @@ export function initApp() {
       fetch("/api/interfaces/web-app/config")
         .then((res) => res.json())
         .then((data) => {
+          collection.activeInterface = "web_app";
           collection.config = { ...collection.config, ...data };
           updateConfig(data);
           applyColors(data);

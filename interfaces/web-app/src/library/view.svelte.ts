@@ -53,49 +53,62 @@ export class ViewState {
     sync.addEventListener("message", (e: Event) => this.handleMessage((e as CustomEvent).detail));
   }
 
+  validateAndNormalizeLibrary() {
+    if (!collection.availableLibraries[this.activeLibrary]) {
+      const fallback =
+        collection.manifest.libraries_order?.[0] ||
+        Object.keys(collection.availableLibraries)[0] ||
+        "library";
+      this.activeLibrary = fallback;
+      this.loadLibraryState(fallback);
+    }
+
+    const libDef = collection.availableLibraries[this.activeLibrary];
+    if (libDef) {
+      if (
+        libDef.allowed_filters &&
+        !libDef.allowed_filters.includes(this.activeLibraryFilter)
+      ) {
+        this.activeLibraryFilter =
+          libDef.allowed_filters.length > 0 ? libDef.allowed_filters[0] : null;
+      } else if (!libDef.allowed_filters || libDef.allowed_filters.length === 0) {
+        this.activeLibraryFilter = null;
+      }
+
+      if (
+        libDef.allowed_groupers &&
+        !libDef.allowed_groupers.includes(this.activeSidebarGrouper)
+      ) {
+        this.activeSidebarGrouper =
+          libDef.allowed_groupers.length > 0 ? libDef.allowed_groupers[0] : null;
+      } else if (!libDef.allowed_groupers || libDef.allowed_groupers.length === 0) {
+        this.activeSidebarGrouper = null;
+      }
+
+      if (
+        this.activeFilter.key &&
+        (!libDef.allowed_groupers || !libDef.allowed_groupers.includes(this.activeFilter.key))
+      ) {
+        this.activeFilter = { key: null, val: null };
+      }
+
+      if (libDef.allowed_orders && !libDef.allowed_orders.includes(this.userSortPreference)) {
+        this.userSortPreference =
+          libDef.allowed_orders.length > 0 ? libDef.allowed_orders[0] : null;
+        this.activeSort = { key: this.userSortPreference, order: this.userSortOrder };
+      } else if (!libDef.allowed_orders || libDef.allowed_orders.length === 0) {
+        this.userSortPreference = null;
+        this.activeSort = { key: null, order: this.userSortOrder };
+      }
+    }
+  }
+
   handleMessage(json: any) {
     if (json.type === "INIT_DICT") {
       if (json.ui_state) {
         applyPersistedState(json.ui_state, this);
-        const libDef = collection.availableLibraries[this.activeLibrary];
-        if (libDef) {
-          if (
-            libDef.allowed_filters &&
-            !libDef.allowed_filters.includes(this.activeLibraryFilter)
-          ) {
-            this.activeLibraryFilter =
-              libDef.allowed_filters.length > 0 ? libDef.allowed_filters[0] : null;
-          } else if (!libDef.allowed_filters || libDef.allowed_filters.length === 0) {
-            this.activeLibraryFilter = null;
-          }
-
-          if (
-            libDef.allowed_groupers &&
-            !libDef.allowed_groupers.includes(this.activeSidebarGrouper)
-          ) {
-            this.activeSidebarGrouper =
-              libDef.allowed_groupers.length > 0 ? libDef.allowed_groupers[0] : null;
-          } else if (!libDef.allowed_groupers || libDef.allowed_groupers.length === 0) {
-            this.activeSidebarGrouper = null;
-          }
-
-          if (
-            this.activeFilter.key &&
-            (!libDef.allowed_groupers || !libDef.allowed_groupers.includes(this.activeFilter.key))
-          ) {
-            this.activeFilter = { key: null, val: null };
-          }
-
-          if (libDef.allowed_orders && !libDef.allowed_orders.includes(this.userSortPreference)) {
-            this.userSortPreference =
-              libDef.allowed_orders.length > 0 ? libDef.allowed_orders[0] : null;
-            this.activeSort = { key: this.userSortPreference, order: this.userSortOrder };
-          } else if (!libDef.allowed_orders || libDef.allowed_orders.length === 0) {
-            this.userSortPreference = null;
-            this.activeSort = { key: null, order: this.userSortOrder };
-          }
-        }
       }
+      this.validateAndNormalizeLibrary();
       this.refreshView(true);
       this.refreshSidebar();
     } else if (json.type === "VIEW_DATA") {
@@ -125,44 +138,7 @@ export class ViewState {
       if (json.manifest) {
         collection.manifest = json.manifest;
       }
-      const libDef = collection.availableLibraries[this.activeLibrary];
-      if (libDef) {
-        if (
-          libDef.allowed_filters &&
-          !libDef.allowed_filters.includes(this.activeLibraryFilter)
-        ) {
-          this.activeLibraryFilter =
-            libDef.allowed_filters.length > 0 ? libDef.allowed_filters[0] : null;
-        } else if (!libDef.allowed_filters || libDef.allowed_filters.length === 0) {
-          this.activeLibraryFilter = null;
-        }
-
-        if (
-          libDef.allowed_groupers &&
-          !libDef.allowed_groupers.includes(this.activeSidebarGrouper)
-        ) {
-          this.activeSidebarGrouper =
-            libDef.allowed_groupers.length > 0 ? libDef.allowed_groupers[0] : null;
-        } else if (!libDef.allowed_groupers || libDef.allowed_groupers.length === 0) {
-          this.activeSidebarGrouper = null;
-        }
-
-        if (
-          this.activeFilter.key &&
-          (!libDef.allowed_groupers || !libDef.allowed_groupers.includes(this.activeFilter.key))
-        ) {
-          this.activeFilter = { key: null, val: null };
-        }
-
-        if (libDef.allowed_orders && !libDef.allowed_orders.includes(this.userSortPreference)) {
-          this.userSortPreference =
-            libDef.allowed_orders.length > 0 ? libDef.allowed_orders[0] : null;
-          this.activeSort = { key: this.userSortPreference, order: this.userSortOrder };
-        } else if (!libDef.allowed_orders || libDef.allowed_orders.length === 0) {
-          this.userSortPreference = null;
-          this.activeSort = { key: null, order: this.userSortOrder };
-        }
-      }
+      this.validateAndNormalizeLibrary();
       this.refreshView(false);
       this.refreshSidebar();
     } else if (
