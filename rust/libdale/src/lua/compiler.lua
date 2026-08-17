@@ -58,15 +58,11 @@ function __DALE_DISPATCHER(ctx, manifests)
         end
         results.id = tostring(res)
     else
-        local rel = ctx.paths and ctx.paths.rel_path or ""
-        if rel ~= "" and rel ~= "." then
-            results.id = rel
-        else
-            local artist = d.fn.coalesce(meta_album.albumartist, meta_album.artist, "Unknown")
-            local date = d.fn.coalesce(meta_album.date, "Unknown")
-            local album = d.fn.coalesce(meta_album.album, "Unknown")
-            results.id = string.format("%s - %s - %s", artist, date, album)
-        end
+        local artist = d.fn.coalesce(meta_album.albumartist, meta_album.artist, "Unknown")
+        local raw_date = tostring(d.fn.coalesce(meta_album.date, ""))
+        local year = raw_date:match("%d%d%d%d") or "Unknown"
+        local album = d.fn.coalesce(meta_album.album, "Unknown")
+        results.id = string.format("%s - %s - %s", artist, year, album)
     end
 
     for key_name, func in pairs(REGISTRY.keys.album) do
