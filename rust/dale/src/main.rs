@@ -191,7 +191,7 @@ async fn main() -> Result<()> {
             let expanded = path.map(|p| expand_path(&p));
             let mode = if album { manifest::ManifestMode::Album } else { manifest::ManifestMode::Library };
             let options = manifest::ManifestOptions { mode, force, stdout };
-            manifest::run(expanded, &options)
+            manifest::run(expanded.as_deref(), &options)
         }
         Commands::X { name, playing, id, query, directory, recursive, library, debug, args } => {
             let target = x::TargetFlags {

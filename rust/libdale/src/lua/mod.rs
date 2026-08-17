@@ -3,6 +3,7 @@ mod tests;
 pub mod utils;
 
 use crate::config::{ActionConfig, AppConfig, CoversConfig, CoversRegistry, InterfaceConfig};
+use crate::error::DaleError;
 use anyhow::{Context, Result};
 use indexmap::IndexMap;
 use mlua::serde::SerializeOptions;
@@ -317,6 +318,23 @@ fn register_native_functions(lua: &Lua) -> mlua::Result<()> {
     Ok(())
 }
 
+fn validate_audio_extensions(
+    exts: &[String],
+    section: &str,
+) -> Result<Vec<String>, DaleError> {
+    let mut result = Vec::with_capacity(exts.len());
+    for ext in exts {
+        if !crate::harvest::SUPPORTED_AUDIO_EXTENSIONS.contains(&ext.as_str()) {
+            return Err(DaleError::UnsupportedAudioExtension {
+                extension: ext.clone(),
+                section: section.to_string(),
+            });
+        }
+        result.push(ext.clone());
+    }
+    Ok(result)
+}
+
 impl LuaEngine {
     pub fn new() -> Result<Self> {
         let lua = Lua::new();
@@ -544,6 +562,16 @@ impl ResolvedConfig {
         if let Some(ref manifests) = evaluated.app.compiler.manifests {
             let validated = crate::compiler::manifest::validate_and_filter_manifest_names(manifests)?;
             evaluated.app.compiler.manifests = Some(validated);
+        }
+
+        if let Some(ref exts) = evaluated.app.manifest.audio_extensions {
+            let validated = validate_audio_extensions(exts, "manifest.audio_extensions")?;
+            evaluated.app.manifest.audio_extensions = Some(validated);
+        }
+
+        if let Some(ref exts) = evaluated.app.compiler.audio_extensions {
+            let validated = validate_audio_extensions(exts, "compiler.audio_extensions")?;
+            evaluated.app.compiler.audio_extensions = Some(validated);
         }
 
         if evaluated.covers.targets.is_empty() {

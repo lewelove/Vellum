@@ -1,19 +1,17 @@
-use anyhow::Result;
+use libdale::harvest::{is_audio_file, SUPPORTED_AUDIO_EXTENSIONS};
 use rayon::prelude::*;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::sync::mpsc;
 use std::thread;
-use walkdir::WalkDir;
 
 pub use libdale::harvest::{harvest_file, harvest_file_cached};
 
 pub fn run(roots: Vec<PathBuf>, pretty: bool) {
-    let extensions = ["flac", "mp3", "m4a", "ogg", "wav", "opus"];
     let mut files = Vec::new();
 
     for root in roots {
-        files.extend(scan_files(&root, &extensions));
+        files.extend(scan_files(&root, SUPPORTED_AUDIO_EXTENSIONS));
     }
 
     if files.is_empty() {
@@ -49,19 +47,11 @@ pub fn run(roots: Vec<PathBuf>, pretty: bool) {
 
 fn scan_files(root: &Path, extensions: &[&str]) -> Vec<PathBuf> {
     if root.is_file() {
-        return vec![root.to_path_buf()];
+        if is_audio_file(root, extensions) {
+            return vec![root.to_path_buf()];
+        }
+        return Vec::new();
     }
 
-    WalkDir::new(root)
-        .follow_links(true)
-        .into_iter()
-        .filter_map(Result::ok)
-        .filter(|e| e.file_type().is_file())
-        .map(|e| e.path().to_path_buf())
-        .filter(|p| {
-            p.extension()
-                .and_then(|ext| ext.to_str())
-                .is_some_and(|ext| extensions.contains(&ext.to_lowercase().as_str()))
-        })
-        .collect()
+    libdale::scanner::scan_audio_files(root, extensions)
 }

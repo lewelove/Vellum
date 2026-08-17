@@ -1,3 +1,4 @@
+use libdale::harvest::is_audio_file;
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
@@ -7,11 +8,7 @@ pub type GroupedTracks = HashMap<Vec<String>, Vec<(PathBuf, serde_json::Map<Stri
 pub fn normalize_tag(value: Option<&Value>) -> String {
     match value {
         Some(Value::String(s)) => s.trim().to_string(),
-        Some(Value::Array(arr)) => arr
-            .iter()
-            .filter_map(Value::as_str)
-            .collect::<Vec<_>>()
-            .join("; "),
+        Some(Value::Array(arr)) => serde_json::to_string(arr).unwrap_or_default(),
         Some(v) => v.to_string().replace('"', "").trim().to_string(),
         None => String::new(),
     }
@@ -41,7 +38,7 @@ pub fn group_tracks(
     buckets
 }
 
-pub fn sort_album_tracks(tracks: &mut[(PathBuf, serde_json::Map<String, Value>)]) {
+pub fn sort_album_tracks(tracks: &mut [(PathBuf, serde_json::Map<String, Value>)]) {
     tracks.sort_by(|(p_a, t_a), (p_b, t_b)| {
         let disc_a = parse_sort_int(t_a.get("discnumber"));
         let disc_b = parse_sort_int(t_b.get("discnumber"));
@@ -59,10 +56,10 @@ pub fn sort_album_tracks(tracks: &mut[(PathBuf, serde_json::Map<String, Value>)]
     });
 }
 
-pub fn resolve_anchor(
+pub fn resolve_anchor<S: AsRef<str>>(
     tracks: &[(PathBuf, serde_json::Map<String, Value>)],
     validate: bool,
-    supported_exts: &[String],
+    supported_exts: &[S],
 ) -> (Option<PathBuf>, bool) {
     if tracks.is_empty() {
         return (None, false);
@@ -97,17 +94,14 @@ pub fn resolve_anchor(
             continue;
         }
         let p = entry.path().to_path_buf();
-        if let Some(ext) = p.extension().and_then(|e| e.to_str()) {
-            let ext_lower = format!(".{}", ext.to_lowercase());
-            if supported_exts.contains(&ext_lower) && !group_paths_set.contains(&p) {
-                log::warn!(
-                    "Exclusivity Violation: {}\nCollision from: {}",
-                    anchor.display(),
-                    p.display()
-                );
-                valid = false;
-                break;
-            }
+        if is_audio_file(&p, supported_exts) && !group_paths_set.contains(&p) {
+            log::warn!(
+                "Exclusivity Violation: {}\nCollision from: {}",
+                anchor.display(),
+                p.display()
+            );
+            valid = false;
+            break;
         }
     }
 

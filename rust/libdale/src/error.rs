@@ -24,6 +24,9 @@ pub enum DaleError {
     #[error("Duplicate manifest name '{name}' declared in configuration")]
     DuplicateManifestName { name: String },
 
+    #[error("Unsupported audio extension '{extension}' declared in '{section}' configuration")]
+    UnsupportedAudioExtension { extension: String, section: String },
+
     #[error("Serialization Error: {0}")]
     JsonError(#[from] serde_json::Error),
 

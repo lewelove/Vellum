@@ -2,9 +2,9 @@ pub mod compressor;
 pub mod engine;
 pub mod grouper;
 
-use libdale::utils::expand_path;
-use libdale::harvest::harvest_file;
 use anyhow::{Context, Result};
+use libdale::harvest::{harvest_file, is_audio_file, SUPPORTED_AUDIO_EXTENSIONS};
+use libdale::utils::expand_path;
 use rayon::prelude::*;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -21,25 +21,37 @@ pub struct ManifestOptions {
     pub stdout: bool,
 }
 
-pub fn run(target_path: Option<PathBuf>, options: &ManifestOptions) -> Result<()> {
+pub fn run(target_path: Option<&Path>, options: &ManifestOptions) -> Result<()> {
     let config = libdale::lua::ResolvedConfig::load().context("Failed to load config")?;
     let music_dir = expand_path(&config.app.storage.music_directory);
 
-    let manifest_cfg = &config.app.manifest;
-    let supported_exts: Vec<String> = manifest_cfg
-        .audio_files
-        .as_ref().map_or_else(|| vec![".flac".to_string()], |exts: &Vec<String>| exts.iter().map(|e| e.to_lowercase()).collect());
+    config.app.manifest.audio_extensions.as_ref().map_or_else(
+        || execute_manifest_run(target_path, options, &music_dir, SUPPORTED_AUDIO_EXTENSIONS),
+        |exts| execute_manifest_run(target_path, options, &music_dir, exts),
+    )
+}
 
+fn execute_manifest_run<S: AsRef<str> + Sync>(
+    target_path: Option<&Path>,
+    options: &ManifestOptions,
+    music_dir: &Path,
+    supported_exts: &[S],
+) -> Result<()> {
     let grouping_keys = vec!["albumartist".to_string(), "album".to_string()];
 
     let scan_root = match options.mode {
-        ManifestMode::Library => target_path.unwrap_or_else(|| music_dir.clone()),
-        ManifestMode::Album => target_path.unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))),
+        ManifestMode::Library => target_path.map_or_else(|| music_dir.to_path_buf(), Path::to_path_buf),
+        ManifestMode::Album => target_path.map_or_else(
+            || std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
+            Path::to_path_buf,
+        ),
     };
 
     let dirs_to_harvest = match options.mode {
         ManifestMode::Album => vec![scan_root],
-        ManifestMode::Library => find_harvestable_directories(&scan_root, options.force, &supported_exts),
+        ManifestMode::Library => {
+            find_harvestable_directories(&scan_root, options.force, supported_exts)
+        }
     };
 
     if dirs_to_harvest.is_empty() {
@@ -49,7 +61,7 @@ pub fn run(target_path: Option<PathBuf>, options: &ManifestOptions) -> Result<()
         return Ok(());
     }
 
-    let harvested = harvest_audio_files(dirs_to_harvest, &supported_exts, options);
+    let harvested = harvest_audio_files(dirs_to_harvest, supported_exts, options);
     if harvested.is_empty() {
         return Ok(());
     }
@@ -57,15 +69,15 @@ pub fn run(target_path: Option<PathBuf>, options: &ManifestOptions) -> Result<()
     let buckets = grouper::group_tracks(harvested, &grouping_keys);
 
     for (_group_id, tracks) in buckets {
-        process_album_group(tracks, &supported_exts, options)?;
+        process_album_group(tracks, supported_exts, options)?;
     }
 
     Ok(())
 }
 
-fn process_album_group(
+fn process_album_group<S: AsRef<str>>(
     mut tracks: Vec<(PathBuf, serde_json::Map<String, serde_json::Value>)>,
-    supported_exts: &[String],
+    supported_exts: &[S],
     options: &ManifestOptions,
 ) -> Result<()> {
     let validate_exclusivity = match options.mode {
@@ -73,12 +85,15 @@ fn process_album_group(
         ManifestMode::Library => true,
     };
 
-    let (anchor_opt, is_valid) = grouper::resolve_anchor(&tracks, validate_exclusivity, supported_exts);
+    let (anchor_opt, is_valid) =
+        grouper::resolve_anchor(&tracks, validate_exclusivity, supported_exts);
     if !is_valid {
         return Ok(());
     }
 
-    let Some(anchor) = anchor_opt else { return Ok(()); };
+    let Some(anchor) = anchor_opt else {
+        return Ok(());
+    };
 
     grouper::sort_album_tracks(&mut tracks);
     let clean_tracks: Vec<_> = tracks
@@ -115,7 +130,11 @@ fn process_album_group(
     Ok(())
 }
 
-fn find_harvestable_directories(scan_root: &Path, force: bool, supported_exts: &[String]) -> Vec<PathBuf> {
+fn find_harvestable_directories<S: AsRef<str>>(
+    scan_root: &Path,
+    force: bool,
+    supported_exts: &[S],
+) -> Vec<PathBuf> {
     let mut dirs_to_harvest = Vec::new();
     let mut it = WalkDir::new(scan_root).follow_links(true).into_iter();
 
@@ -127,18 +146,16 @@ fn find_harvestable_directories(scan_root: &Path, force: bool, supported_exts: &
                 continue;
             }
 
-            let has_audio = fs::read_dir(path)
-                .is_ok_and(|mut d| {
-                    d.any(|e| {
-                        if let Ok(f) = e
-                            && f.path().is_file()
-                                && let Some(ext) = f.path().extension().and_then(|e| e.to_str()) {
-                                    let ext_lower = format!(".{}", ext.to_lowercase());
-                                    return supported_exts.contains(&ext_lower);
-                                }
-                        false
-                    })
-                });
+            let has_audio = fs::read_dir(path).is_ok_and(|mut d| {
+                d.any(|e| {
+                    if let Ok(f) = e
+                        && f.path().is_file()
+                    {
+                        return is_audio_file(&f.path(), supported_exts);
+                    }
+                    false
+                })
+            });
 
             if has_audio {
                 dirs_to_harvest.push(path.to_path_buf());
@@ -148,22 +165,22 @@ fn find_harvestable_directories(scan_root: &Path, force: bool, supported_exts: &
     dirs_to_harvest
 }
 
-fn harvest_audio_files(
+fn harvest_audio_files<S: AsRef<str> + Sync>(
     dirs_to_harvest: Vec<PathBuf>,
-    supported_exts: &[String],
+    supported_exts: &[S],
     options: &ManifestOptions,
 ) -> Vec<(PathBuf, serde_json::Map<String, serde_json::Value>)> {
     let mut audio_files = Vec::new();
     for dir in dirs_to_harvest {
-        for entry in walkdir::WalkDir::new(&dir).follow_links(true).into_iter().filter_map(Result::ok) {
+        for entry in WalkDir::new(&dir)
+            .follow_links(true)
+            .into_iter()
+            .filter_map(Result::ok)
+        {
             let path = entry.path();
-            if path.is_file()
-                && let Some(ext) = path.extension().and_then(|e| e.to_str()) {
-                    let ext_lower = format!(".{}", ext.to_lowercase());
-                    if supported_exts.contains(&ext_lower) {
-                        audio_files.push(path.to_path_buf());
-                    }
-                }
+            if path.is_file() && is_audio_file(path, supported_exts) {
+                audio_files.push(path.to_path_buf());
+            }
         }
     }
 
@@ -177,13 +194,13 @@ fn harvest_audio_files(
             Ok(data) => {
                 let mut map = serde_json::Map::new();
                 for (k, v) in data.tags {
-                    map.insert(k, serde_json::Value::String(v));
+                    map.insert(k, v);
                 }
                 Some((path, map))
             }
             Err(e) => {
                 if !options.stdout {
-                    log::warn!("Failed to harvest {}: {}", path.display(), e);
+                    log::warn!("Failed to harvest {}: {e}", path.display());
                 }
                 None
             }

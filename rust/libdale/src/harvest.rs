@@ -3,16 +3,36 @@ use lofty::config::ParseOptions;
 use lofty::file::AudioFile;
 use lofty::prelude::*;
 use lofty::probe::Probe;
-use lofty::tag::TagType;
+use lofty::tag::{ItemValue, TagType};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+pub const SUPPORTED_AUDIO_EXTENSIONS: &[&str] = &[
+    "flac", "wav", "wave", "aif", "aiff", "aifc", "afc", "alac", "mp3", "mp2", "mp1", "m4a", "m4b",
+    "m4p", "m4r", "m4v", "mp4", "aac", "3gp", "ogg", "oga", "opus", "spx", "ape", "wv", "mpc",
+    "mp+", "mpp",
+];
+
+#[must_use]
+pub fn is_matching_extension<S: AsRef<str>>(ext: &str, candidates: &[S]) -> bool {
+    candidates
+        .iter()
+        .any(|c| c.as_ref().eq_ignore_ascii_case(ext))
+}
+
+#[must_use]
+pub fn is_audio_file<S: AsRef<str>>(path: &Path, candidates: &[S]) -> bool {
+    path.extension()
+        .and_then(|ext| ext.to_str())
+        .is_some_and(|ext| is_matching_extension(ext, candidates))
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct TrackJson {
     pub path: PathBuf,
-    pub tags: HashMap<String, String>,
+    pub tags: HashMap<String, serde_json::Value>,
     pub physics: PhysicsData,
 }
 
@@ -47,17 +67,16 @@ pub fn sanitize_key(key: &str) -> String {
 
 pub fn harvest_file(path: &Path) -> Result<TrackJson> {
     let metadata = fs::metadata(path)?;
-    let mut f = std::fs::File::open(path).context("Open failed")?;
-    let probe = Probe::new(&mut f).guess_file_type().context("Guess failed")?;
-    let file_type = probe.file_type();
-
-    let tagged_file = Probe::open(path)?
+    let tagged_file = Probe::open(path)
+        .context("Failed to open audio file")?
         .options(ParseOptions::new().read_cover_art(false))
+        .guess_file_type()
+        .context("Failed to guess file type")?
         .read()
-        .context("Read failed")?;
+        .context("Failed to read audio metadata")?;
 
-    if file_type == Some(lofty::file::FileType::Flac)
-        && tagged_file.tag(TagType::Id3v2).is_some()
+    if tagged_file.file_type() == lofty::file::FileType::Flac
+        && tagged_file.contains_tag_type(TagType::Id3v2)
     {
         log::warn!(
             "ID3v2 tag encountered in FLAC (incompatible with standards): {}",
@@ -68,11 +87,7 @@ pub fn harvest_file(path: &Path) -> Result<TrackJson> {
     let physics = extract_physics(&metadata, &tagged_file);
 
     let mut tags = HashMap::new();
-    let concrete_parsed = extract_concrete_tags(path, file_type, &mut tags)?;
-
-    if !concrete_parsed {
-        extract_fallback_tags(&tagged_file, &mut tags);
-    }
+    extract_tags(&tagged_file, &mut tags);
 
     Ok(TrackJson {
         path: path.to_path_buf(),
@@ -124,6 +139,7 @@ fn extract_physics(metadata: &std::fs::Metadata, tagged_file: &lofty::file::Tagg
         .as_secs();
 
     let properties = tagged_file.properties();
+    let file_type = tagged_file.file_type();
 
     PhysicsData {
         file_size,
@@ -134,102 +150,59 @@ fn extract_physics(metadata: &std::fs::Metadata, tagged_file: &lofty::file::Tagg
         channels: properties.channels().unwrap_or(0),
         audio_bitrate: properties.audio_bitrate().unwrap_or(0),
         overall_bitrate: properties.overall_bitrate().unwrap_or(0),
-        format: format!("{:?}", tagged_file.file_type()),
+        format: format!("{file_type:?}"),
     }
 }
 
-fn extract_concrete_tags(
-    path: &Path,
-    file_type: Option<lofty::file::FileType>,
-    tags: &mut HashMap<String, String>,
-) -> Result<bool> {
-    let mut file_content = std::fs::File::open(path)?;
-    let mut concrete_parsed = false;
-    match file_type {
-        Some(lofty::file::FileType::Flac) => {
-            if let Ok(flac) = lofty::flac::FlacFile::read_from(
-                &mut file_content,
-                ParseOptions::new().read_cover_art(false),
-            )
-                && let Some(comments) = flac.vorbis_comments()
-            {
-                parse_vorbis_comments(comments.items(), tags);
-                concrete_parsed = true;
-            }
+fn extract_tags(tagged_file: &lofty::file::TaggedFile, tags: &mut HashMap<String, serde_json::Value>) {
+    let Some(tag) = tagged_file.primary_tag().or_else(|| tagged_file.first_tag()) else {
+        return;
+    };
+
+    let source_tag_type = tag.tag_type();
+    for item in tag.items() {
+        let item_key = item.key();
+        let key_raw = item_key.map_key(TagType::VorbisComments).map_or_else(
+            || {
+                item_key
+                    .map_key(source_tag_type)
+                    .map_or_else(|| format!("{item_key:?}"), ToString::to_string)
+            },
+            ToString::to_string,
+        );
+
+        let key = sanitize_key(&key_raw);
+        let value_raw = match item.value() {
+            ItemValue::Text(text) | ItemValue::Locator(text) => text.as_str(),
+            ItemValue::Binary(_) => continue,
+        };
+
+        let value = value_raw.trim();
+        if key.is_empty() || value.is_empty() {
+            continue;
         }
-        Some(lofty::file::FileType::Vorbis) => {
-            if let Ok(ogg) = lofty::ogg::VorbisFile::read_from(
-                &mut file_content,
-                ParseOptions::new().read_cover_art(false),
-            ) {
-                parse_vorbis_comments(ogg.vorbis_comments().items(), tags);
-                concrete_parsed = true;
+
+        match tags.get_mut(&key) {
+            Some(serde_json::Value::String(existing_str)) => {
+                if existing_str != value {
+                    let prev = existing_str.clone();
+                    tags.insert(
+                        key,
+                        serde_json::Value::Array(vec![
+                            serde_json::Value::String(prev),
+                            serde_json::Value::String(value.to_string()),
+                        ]),
+                    );
+                }
             }
-        }
-        Some(lofty::file::FileType::Opus) => {
-            if let Ok(opus) = lofty::ogg::OpusFile::read_from(
-                &mut file_content,
-                ParseOptions::new().read_cover_art(false),
-            ) {
-                parse_vorbis_comments(opus.vorbis_comments().items(), tags);
-                concrete_parsed = true;
+            Some(serde_json::Value::Array(arr)) => {
+                if !arr.iter().any(|v| v.as_str() == Some(value)) {
+                    arr.push(serde_json::Value::String(value.to_string()));
+                }
             }
-        }
-        _ => {}
-    }
-    Ok(concrete_parsed)
-}
-
-fn parse_vorbis_comments<'a, I>(items: I, tags: &mut HashMap<String, String>)
-where
-    I: Iterator<Item = (&'a str, &'a str)>,
-{
-    for (k, v) in items {
-        let key = sanitize_key(k);
-        let value = v.trim();
-        if !key.is_empty() && !value.is_empty() {
-            tags.entry(key)
-                .and_modify(|e: &mut String| {
-                    if !e.contains(value) {
-                        e.push_str("; ");
-                        e.push_str(value);
-                    }
-                })
-                .or_insert_with(|| value.to_string());
-        }
-    }
-}
-
-fn extract_fallback_tags(tagged_file: &lofty::file::TaggedFile, tags: &mut HashMap<String, String>) {
-    if let Some(tag) = tagged_file
-        .primary_tag()
-        .or_else(|| tagged_file.first_tag())
-    {
-        let tag_type = tag.tag_type();
-        for item in tag.items() {
-            let key_raw = item
-                .key()
-                .map_key(tag_type)
-                .map_or_else(|| format!("{:?}", item.key()), ToString::to_string);
-            let key = sanitize_key(&key_raw);
-
-            let Some(value) = item.value().text() else {
-                continue;
-            };
-            let value = value.trim();
-
-            if key.is_empty() || value.is_empty() {
-                continue;
+            _ => {
+                tags.insert(key, serde_json::Value::String(value.to_string()));
             }
-
-            tags.entry(key)
-                .and_modify(|existing: &mut String| {
-                    if !existing.contains(value) {
-                        existing.push_str("; ");
-                        existing.push_str(value);
-                    }
-                })
-                .or_insert_with(|| value.to_string());
         }
     }
 }

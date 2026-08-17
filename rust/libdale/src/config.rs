@@ -52,12 +52,13 @@ impl Default for StorageConfig {
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct ManifestConfig {
-    pub audio_files: Option<Vec<String>>,
+    pub audio_extensions: Option<Vec<String>>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct CompilerConfig {
     pub manifests: Option<Vec<String>>,
+    pub audio_extensions: Option<Vec<String>>,
     pub jobs: Option<usize>,
 }
 
