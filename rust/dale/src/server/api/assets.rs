@@ -1,6 +1,6 @@
 use crate::server::state::AppState;
 use axum::extract::{Path, State};
-use axum::http::{HeaderValue, StatusCode, header};
+use axum::http::{header, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
 use std::path::{Path as StdPath, PathBuf};
 use std::sync::Arc;
@@ -51,7 +51,6 @@ async fn load_image_bmp_fast(path: PathBuf) -> Option<Vec<u8>> {
 
 async fn ensure_master_cover(
     state: &Arc<AppState>,
-    music_directory: &StdPath,
     master_path: PathBuf,
     master_size: u32,
     master_algo_str: &str,
@@ -63,21 +62,16 @@ async fn ensure_master_cover(
 
     let source_info = {
         let logic = state.logic.read().await;
-        logic.dict.values().find(|v| {
-            v.get("cover_hash").and_then(|h| h.as_str()) == Some(hash)
-        }).map(|v| {
-            (
-                v.get("id").and_then(|i| i.as_str()).unwrap_or("").to_string(),
-                v.get("cover_path").and_then(|p| p.as_str()).unwrap_or("cover.jpg").to_string()
-            )
+        logic.cover_lookup.get(hash).and_then(|entries| {
+            entries.iter().next().map(|(dir, file)| (dir.clone(), file.clone()))
         })
     };
 
-    let Some((album_id, cover_path)) = source_info else {
+    let Some((album_dir, cover_path)) = source_info else {
         return Err(StatusCode::NOT_FOUND);
     };
 
-    let original_path = music_directory.join(album_id).join(cover_path);
+    let original_path = album_dir.join(cover_path);
     let blob_path_clone = master_path.clone();
     let master_algo_str_clone = master_algo_str.to_string();
 
@@ -117,7 +111,7 @@ async fn create_resized_dynamic(
             std::fs::create_dir_all(parent).ok();
         }
         resized.save_with_format(&dynamic_path, image::ImageFormat::Qoi).ok();
-        
+
         let bytes = std::fs::read(&dynamic_path).ok()?;
         libdale::images::fast_qoi_to_bmp::convert(&bytes)
     }).await;
@@ -139,15 +133,14 @@ pub async fn get_resized_cover(
         .unwrap_or(200)
         .clamp(16, 2048);
 
-    let (cache_root, music_directory, is_registered, master_size, master_algo_str) = {
+    let (cache_root, is_registered, master_size, master_algo_str) = {
         let guard = state.config.read().await;
         let cache = guard.cache_root.clone();
-        let music_dir = guard.music_directory.clone();
         let registered = guard.covers.targets.iter().any(|c| c.size == width && c.filter == algo);
         let m_size = guard.covers.master.size;
         let m_filter = guard.covers.master.filter.clone();
         drop(guard);
-        (cache, music_dir, registered, m_size, m_filter)
+        (cache, registered, m_size, m_filter)
     };
 
     if let Some(t_path) = find_cached_cover(&cache_root, &algo, width, &hash)
@@ -166,7 +159,7 @@ pub async fn get_resized_cover(
         .join(format!("{master_size}px"))
         .join(format!("{hash}.qoi"));
 
-    if let Err(status) = ensure_master_cover(&state, &music_directory, master_blob_path.clone(), master_size, &master_algo_str, &hash).await {
+    if let Err(status) = ensure_master_cover(&state, master_blob_path.clone(), master_size, &master_algo_str, &hash).await {
         return status.into_response();
     }
 
@@ -175,11 +168,11 @@ pub async fn get_resized_cover(
             let img = image::open(&master_blob_path).ok()?.into_rgb8();
             let filter = crate::compile::assets::parse_interpolation(&algo);
             let resized = crate::compile::assets::resize_image(&img, width, filter)?;
-            
+
             let mut temp_qoi_buf = Vec::new();
             let mut cursor = std::io::Cursor::new(&mut temp_qoi_buf);
             resized.write_to(&mut cursor, image::ImageFormat::Qoi).ok()?;
-            
+
             libdale::images::fast_qoi_to_bmp::convert(&temp_qoi_buf)
         }).await;
 
@@ -214,14 +207,12 @@ pub async fn get_album_metadata(
     Path(id): Path<String>,
     State(state): State<Arc<AppState>>,
 ) -> Response {
-    let json_str = {
+    let json_opt = {
         let logic = state.logic.read().await;
         logic.get_album_json(&id)
     };
-    if let Some(data) = json_str {
-        return ([(header::CONTENT_TYPE, "application/json")],
-            data
-        ).into_response();
+    if let Some(data) = json_opt {
+        return ([(header::CONTENT_TYPE, "application/json")], data).into_response();
     }
     StatusCode::NOT_FOUND.into_response()
 }
@@ -232,11 +223,10 @@ pub async fn get_album_cover(
 ) -> Response {
     let path_opt = {
         let logic = state.logic.read().await;
-        let config_guard = state.config.read().await;
-        
-        logic.dict.get(&id).map(|meta| {
-            let cp = meta.get("cover_path").and_then(|v| v.as_str()).unwrap_or("default_cover.png");
-            config_guard.music_directory.join(&id).join(cp)
+        let album_dir = logic.path_by_id.get(&id).cloned();
+        logic.dict.get(&id).and_then(|meta| {
+            let cp = meta.get("cover_path").and_then(|v| v.as_str()).unwrap_or("cover.jpg");
+            album_dir.map(|dir| dir.join(cp))
         })
     };
 
@@ -255,7 +245,7 @@ async fn serve_image(path: PathBuf, is_immutable: bool) -> Response {
             } else {
                 "image/jpeg"
             };
-            
+
             let cache_header = if is_immutable {
                 HeaderValue::from_static("public, max-age=31536000, immutable")
             } else {

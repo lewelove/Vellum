@@ -11,6 +11,7 @@ _G.REGISTRY = {
         album = {},
         tracks = {}
     },
+    id_fn = nil,
     lyrics = nil,
     interfaces = {},
     actions = {},

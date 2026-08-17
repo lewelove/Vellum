@@ -4,11 +4,11 @@ mod models;
 mod terminal;
 
 use anyhow::Result;
-use libactions::payload::read_stdin_payload;
+use libactions::payload::{read_stdin_payload, ActionPayload};
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let payload: models::ActionPayload = read_stdin_payload()?;
+    let payload: ActionPayload<models::ActionConfig> = read_stdin_payload()?;
     core::execute(&payload).await?;
     Ok(())
 }

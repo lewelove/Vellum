@@ -1,3 +1,4 @@
+use crate::x::{resolve_target_albums, TargetFlags};
 use anyhow::{Context, Result};
 use libdale::utils::expand_path;
 
@@ -5,7 +6,6 @@ pub struct QueryFlags {
     pub playing: bool,
     pub lock: bool,
     pub id: bool,
-    pub uid: bool,
     pub json: bool,
 }
 
@@ -15,59 +15,33 @@ pub async fn run(query_str: Option<String>, flags: QueryFlags) -> Result<()> {
         .canonicalize()
         .unwrap_or_else(|_| expand_path(&config.app.storage.music_directory));
 
-    let mut target_ids = Vec::new();
-
-    if query_str.is_some() {
-        let client = reqwest::Client::new();
-        let res = client
-            .post("http://127.0.0.1:8000/api/internal/query")
-            .json(&serde_json::json!({ 
-                "query": query_str.unwrap_or_default()
-            }))
-            .send()
-            .await
-            .context("Failed to connect to the Dale server. Is it running?")?;
-
-        if !res.status().is_success() {
-            let err_text = res.text().await.unwrap_or_default();
-            anyhow::bail!("Server rejected query: {err_text}");
-        }
-
-        let ids: Vec<String> = res.json().await.context("Invalid response from server")?;
-        target_ids = ids;
-    } else if flags.playing {
-        let playing_path = crate::x::get_playing_album(&config.app.storage.music_directory).await?;
-        let rel_path = playing_path.strip_prefix(&music_dir).map_or_else(|_| playing_path.to_string_lossy().to_string(), |p| p.to_string_lossy().to_string());
-        target_ids.push(rel_path);
-    } else {
+    if query_str.is_none() && !flags.playing {
         anyhow::bail!("No query provided. Use --playing or provide an SQL query.");
     }
 
+    let target_flags = TargetFlags {
+        playing: flags.playing,
+        id: None,
+        query: query_str,
+        directory: None,
+        recursive: None,
+        library: false,
+    };
+
+    let resolved_albums = resolve_target_albums(&music_dir, &target_flags).await?;
+
     if flags.json {
-        let mut albums = Vec::new();
-        for id in &target_ids {
-            let lock_file_path = music_dir.join(id).join("album.lock.json");
-            if let Ok(content) = std::fs::read_to_string(&lock_file_path)
-                && let Ok(json_val) = serde_json::from_str::<serde_json::Value>(&content)
-            {
-                albums.push(json_val);
-            }
-        }
-        println!("{}", serde_json::to_string_pretty(&albums)?);
+        let albums_json: Vec<serde_json::Value> = resolved_albums.into_iter().map(|a| a.lock).collect();
+        println!("{}", serde_json::to_string_pretty(&albums_json)?);
     } else {
-        for id in target_ids {
+        for album in resolved_albums {
             if flags.id {
-                println!("{id}");
-            } else if flags.uid {
-                let base_path = music_dir.join(&id);
-                println!("{}", base_path.display());
+                println!("{}", album.id);
             } else if flags.lock {
-                let base_path = music_dir.join(&id);
-                let final_path = base_path.join("album.lock.json");
-                println!("{}", final_path.display());
+                let lock_file = album.path.join("album.lock.json");
+                println!("{}", lock_file.display());
             } else {
-                let base_path = music_dir.join(&id);
-                println!("{}", base_path.display());
+                println!("{}", album.path.display());
             }
         }
     }

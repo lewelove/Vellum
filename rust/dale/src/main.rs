@@ -100,8 +100,6 @@ enum Commands {
         #[arg(long)]
         id: bool,
         #[arg(long)]
-        uid: bool,
-        #[arg(long)]
         json: bool,
     },
 }
@@ -206,8 +204,8 @@ async fn main() -> Result<()> {
             };
             x::execute(name, target, debug, args).await
         }
-        Commands::Query { query_str, playing, lock, id, uid, json } => {
-            let flags = query::QueryFlags { playing, lock, id, uid, json };
+        Commands::Query { query_str, playing, lock, id, json } => {
+            let flags = query::QueryFlags { playing, lock, id, json };
             query::run(query_str, flags).await
         }
     }

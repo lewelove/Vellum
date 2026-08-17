@@ -58,4 +58,7 @@ pub enum DaleError {
 
     #[error("Invalid Color Format in {path}: Field '{key}' must be a valid hex color string, found '{found}'")]
     InvalidColorFormat { path: PathBuf, key: String, found: String },
+
+    #[error("Duplicate Album ID '{id}': defined in both {path_a} and {path_b}")]
+    DuplicateAlbumId { id: String, path_a: PathBuf, path_b: PathBuf },
 }

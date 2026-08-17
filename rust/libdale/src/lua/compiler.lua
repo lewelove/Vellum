@@ -10,6 +10,11 @@ _G.dale.compile.album = {
                 return m.metadata and m.metadata.album and m.metadata.album[name]
             end
         end
+    end,
+    id = function(v)
+        if type(v) == "function" then
+            REGISTRY.id_fn = v
+        end
     end
 }
 
@@ -40,7 +45,29 @@ _G.dale.compile.track = _G.dale.compile.tracks
 _G.dale.compile.t = _G.dale.compile.tracks
 
 function __DALE_DISPATCHER(ctx, manifests)
-    local results = { album = {}, tracks = {} }
+    local results = { id = nil, album = {}, tracks = {} }
+
+    local meta_album = manifests.metadata and manifests.metadata.album or {}
+    if type(REGISTRY.id_fn) == "function" then
+        local status, res = pcall(REGISTRY.id_fn, ctx, manifests)
+        if not status then
+            error(string.format("Error evaluating album id: %s", res))
+        end
+        if res == nil or res == "" then
+            error("Album id function returned empty or nil value")
+        end
+        results.id = tostring(res)
+    else
+        local rel = ctx.paths and ctx.paths.rel_path or ""
+        if rel ~= "" and rel ~= "." then
+            results.id = rel
+        else
+            local artist = d.fn.coalesce(meta_album.albumartist, meta_album.artist, "Unknown")
+            local date = d.fn.coalesce(meta_album.date, "Unknown")
+            local album = d.fn.coalesce(meta_album.album, "Unknown")
+            results.id = string.format("%s - %s - %s", artist, date, album)
+        end
+    end
 
     for key_name, func in pairs(REGISTRY.keys.album) do
         local status, res = pcall(func, ctx, manifests)

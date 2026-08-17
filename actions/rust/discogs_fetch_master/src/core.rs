@@ -1,31 +1,19 @@
 use crate::discogs::DiscogsFetcher;
-use crate::models::{ActionPayload, UserSelection};
+use crate::models::{ActionConfig, UserSelection};
 use crate::terminal::prompt_selection;
 use anyhow::{Context, Result};
-use libactions::paths::expand_path;
+use libactions::payload::ActionPayload;
 use reqwest::Client;
 use std::fs;
 
-pub async fn execute(payload: &ActionPayload) -> Result<()> {
-    let music_dir_str = if payload.config.dale.storage.music_directory.is_empty() {
-        &payload.config.action.info_dir
-    } else {
-        &payload.config.dale.storage.music_directory
-    };
-
-    if music_dir_str.is_empty() {
-        anyhow::bail!("music_directory not defined in configuration");
-    }
-
-    let music_dir = expand_path(music_dir_str)
-        .canonicalize()
-        .unwrap_or_else(|_| expand_path(music_dir_str));
-
+pub async fn execute(payload: &ActionPayload<ActionConfig>) -> Result<()> {
     let force = payload.options.contains("--force") || payload.options.contains("-f");
     let fetcher = DiscogsFetcher::new()?;
     let http_client = Client::new();
 
-    for album_lock in &payload.albums {
+    for item in &payload.albums {
+        let target_dir = &item.path;
+        let album_lock = &item.lock;
         let album_obj = album_lock.get("album").and_then(serde_json::Value::as_object);
         let Some(album_map) = album_obj else {
             continue;
@@ -36,11 +24,6 @@ pub async fn execute(payload: &ActionPayload) -> Result<()> {
             .and_then(serde_json::Value::as_str)
             .unwrap_or("");
 
-        if album_id.is_empty() {
-            continue;
-        }
-
-        let target_dir = music_dir.join(album_id);
         let info_dir = target_dir.join(&payload.config.action.info_dir);
         let master_file_path = info_dir.join(&payload.config.action.filename);
 
@@ -97,7 +80,9 @@ pub async fn execute(payload: &ActionPayload) -> Result<()> {
                 let path_disp = master_file_path.display();
                 println!("\x1b[32m✔ Saved raw Discogs master to: {path_disp}\x1b[0m");
 
-                trigger_update(&http_client, album_id).await;
+                if !album_id.is_empty() {
+                    trigger_update(&http_client, album_id).await;
+                }
             }
             UserSelection::Skip => {
                 println!("\x1b[33mSkipped {album_id}\x1b[0m");

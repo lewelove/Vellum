@@ -1,8 +1,9 @@
-use crate::models::ActionPayload;
 use anyhow::{Context, Result};
 use libactions::discogs::{
-    TargetUrl, fetch_discogs_master, fetch_discogs_release, format_artist_credits, parse_discogs_url,
+    fetch_discogs_master, fetch_discogs_release, format_artist_credits, parse_discogs_url,
+    TargetUrl,
 };
+use libactions::payload::ActionPayload;
 use std::process::Command;
 
 pub async fn execute(payload: &ActionPayload) -> Result<()> {
@@ -41,7 +42,8 @@ pub async fn execute(payload: &ActionPayload) -> Result<()> {
             search_and_open(&artist, &title)?;
         }
     } else if !payload.albums.is_empty() {
-        for album_lock in &payload.albums {
+        for item in &payload.albums {
+            let album_lock = &item.lock;
             let Some(album_obj) = album_lock.get("album").and_then(serde_json::Value::as_object) else {
                 continue;
             };

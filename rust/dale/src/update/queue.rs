@@ -172,8 +172,12 @@ pub async fn try_get_server_tracked_albums(
     let mut missing_paths = Vec::new();
 
     for item in tracked_arr {
-        if let Some(id) = item.as_str() {
-            let p = music_directory.join(id);
+        if let Some(p_str) = item.as_str() {
+            let p = if Path::new(p_str).is_absolute() {
+                PathBuf::from(p_str)
+            } else {
+                music_directory.join(p_str)
+            };
             if p.exists() {
                 work_queue.push(p);
             } else {

@@ -6,6 +6,14 @@ use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+pub type RecompiledAlbumItem = (
+    PathBuf,
+    String,
+    String,
+    Option<serde_json::Value>,
+    HashSet<PathBuf>,
+);
+
 pub async fn process_events(flags: ChangeFlags, state: &Arc<AppState>) {
     for intf_name in flags.interfaces_asset {
         log::info!("Interface '{intf_name}' asset changed.");
@@ -22,14 +30,17 @@ pub async fn process_events(flags: ChangeFlags, state: &Arc<AppState>) {
         handle_config_change(state).await;
     }
 
-    if !flags.changed_albums.is_empty() {
-        handle_album_changes(flags.changed_albums, state).await;
+    if !flags.vanished_paths.is_empty() || !flags.changed_albums.is_empty() {
+        handle_album_changes(flags.vanished_paths, flags.changed_albums, state).await;
     }
 }
 
-async fn handle_album_changes(changed_albums: HashSet<PathBuf>, state: &Arc<AppState>) {
+async fn handle_album_changes(
+    vanished_paths: HashSet<PathBuf>,
+    changed_albums: HashSet<PathBuf>,
+    state: &Arc<AppState>,
+) {
     let config_path = libdale::lua::resolve_config_path().unwrap_or_default();
-    let music_directory = state.config.read().await.music_directory.clone();
 
     let resolved_lua_config =
         if let Ok(Ok(cfg)) = tokio::task::spawn_blocking(libdale::lua::ResolvedConfig::load).await
@@ -43,12 +54,12 @@ async fn handle_album_changes(changed_albums: HashSet<PathBuf>, state: &Arc<AppS
     let active_writes = Arc::clone(&state.active_writes);
 
     let recompiled_items = tokio::task::spawn_blocking(move || {
-        let music_dir_ref = &music_directory;
         let config_ref = &resolved_lua_config;
         let config_path_ref = &config_path;
 
         changed_albums
             .into_par_iter()
+            .filter(|p| p.exists())
             .map_init(
                 || match libdale::lua::LuaEngine::new() {
                     Ok(engine) => match engine.evaluate_config(config_path_ref) {
@@ -64,36 +75,28 @@ async fn handle_album_changes(changed_albums: HashSet<PathBuf>, state: &Arc<AppS
                     }
                 },
                 |engine_opt, album_path| {
-                    let rel = album_path.strip_prefix(music_dir_ref).unwrap_or(&album_path);
-                    let album_id = rel.to_string_lossy().to_string();
-
-                    if !album_path.exists() {
-                        return Some((album_id, String::new(), None, HashSet::new()));
-                    }
-
                     let lock_file_path = album_path.join("album.lock.json");
 
                     let Some(engine) = engine_opt.as_ref() else {
-                        log::error!("Skipping recompilation of {album_id} due to Lua engine init failure");
+                        log::error!(
+                            "Skipping recompilation of {} due to Lua engine init failure",
+                            album_path.display()
+                        );
                         return None;
                     };
 
                     let Ok(res) =
                         crate::compile::build::build(&album_path, config_ref, engine)
                     else {
-                        log::warn!("Compilation failed for {album_id}");
+                        log::warn!("Compilation failed for {}", album_path.display());
                         return None;
                     };
 
-                    let mut lock_val = res.lock_json;
-                    let _ = lock_val.as_object_mut().and_then(|o| o.remove("ctx"));
-                    crate::compile::utils::strip_empty_values(&mut lock_val);
-
-                    let Ok(lock_json) = serde_json::to_string_pretty(&lock_val) else {
+                    let Ok(lock_json) = serde_json::to_string_pretty(&res.lock_json) else {
                         return None;
                     };
 
-                    let eval_res = engine.evaluate_album_logic(&lock_val).ok();
+                    let eval_res = engine.evaluate_album_logic(&res.lock_json).ok();
 
                     let should_write = std::fs::read_to_string(&lock_file_path)
                         .map_or(true, |existing| existing != lock_json);
@@ -108,7 +111,7 @@ async fn handle_album_changes(changed_albums: HashSet<PathBuf>, state: &Arc<AppS
                         let _ = std::fs::write(&lock_file_path, &lock_json);
                     }
 
-                    Some((album_id, lock_json, eval_res, res.dependencies))
+                    Some((res.album_dir, res.album_id, lock_json, eval_res, res.dependencies))
                 },
             )
             .flatten()
@@ -117,61 +120,106 @@ async fn handle_album_changes(changed_albums: HashSet<PathBuf>, state: &Arc<AppS
     .await
     .unwrap_or_default();
 
-    if !recompiled_items.is_empty() {
-        ingest_and_broadcast_albums(recompiled_items, false, state).await;
-    }
+    ingest_and_broadcast_albums(vanished_paths, recompiled_items, false, state).await;
 }
 
 pub async fn ingest_and_broadcast_albums(
-    recompiled_items: Vec<(String, String, Option<serde_json::Value>, HashSet<PathBuf>)>,
+    vanished_paths: HashSet<PathBuf>,
+    recompiled_items: Vec<RecompiledAlbumItem>,
     is_internal_update: bool,
     state: &Arc<AppState>,
 ) {
     let music_directory = state.config.read().await.music_directory.clone();
 
+    let mut removed_ids = Vec::new();
+    let mut updated_dict_entries = std::collections::HashMap::new();
+
     {
+        let mut logic = state.logic.write().await;
         let mut deps_graph = state.deps_graph.write().await;
-        for (album_id, _, eval_res, dependencies) in &recompiled_items {
-            let album_path = music_directory.join(album_id);
-            let album_path_canon = album_path.canonicalize().unwrap_or(album_path);
-            if eval_res.is_some() {
-                deps_graph.update_album_deps(album_path_canon, dependencies.clone());
-            } else {
-                deps_graph.remove_album(&album_path_canon);
+
+        for vanished in &vanished_paths {
+            let vanished_resolved = vanished.parent().map_or_else(
+                || vanished.clone(),
+                |parent| {
+                    parent.canonicalize().map_or_else(
+                        |_| vanished.clone(),
+                        |parent_canon| parent_canon.join(vanished.file_name().unwrap_or_default()),
+                    )
+                },
+            );
+
+            let dead_paths: Vec<PathBuf> = logic
+                .albums_by_path
+                .keys()
+                .filter(|path| {
+                    path.starts_with(vanished)
+                        || *path == vanished
+                        || path.starts_with(&vanished_resolved)
+                        || *path == &vanished_resolved
+                        || (vanished.starts_with(path) && !path.join("metadata.toml").exists())
+                        || (vanished_resolved.starts_with(path) && !path.join("metadata.toml").exists())
+                })
+                .cloned()
+                .collect();
+
+            for dead_path in dead_paths {
+                if let Some(dead_id) = logic.remove_album_by_path(&dead_path) {
+                    if !is_internal_update {
+                        log::info!("Removed album: {dead_id}");
+                    }
+                    deps_graph.remove_album(&dead_path);
+                    removed_ids.push(dead_id);
+                }
             }
         }
+
+        for (album_path, album_id, lock_json, eval_res, dependencies) in recompiled_items {
+            let album_path_canon = album_path.canonicalize().unwrap_or_else(|_| album_path.clone());
+
+            if let Some(eval) = eval_res {
+                match logic.ingest_pre_evaluated(
+                    &album_path_canon,
+                    &album_id,
+                    &lock_json,
+                    eval,
+                    &music_directory,
+                ) {
+                    Ok(()) => {
+                        if !is_internal_update {
+                            log::info!("Updated album: {album_id}");
+                        }
+                        deps_graph.update_album_deps(album_path_canon, dependencies);
+                        if let Some(entry) = logic.dict.get(&album_id).cloned() {
+                            updated_dict_entries.insert(album_id, entry);
+                        }
+                    }
+                    Err(e) => {
+                        log::error!("Failed to ingest album at {}: {e}", album_path.display());
+                    }
+                }
+            } else if !album_path_canon.exists()
+                && let Some(dead_id) = logic.remove_album_by_path(&album_path_canon)
+            {
+                if !is_internal_update {
+                    log::info!("Removed album: {dead_id}");
+                }
+                deps_graph.remove_album(&album_path_canon);
+                removed_ids.push(dead_id);
+            }
+        }
+
+        drop(deps_graph);
+        logic.build_cache();
     }
 
-    let (updated_dict_entries, removed_ids, shelves) = {
-        let mut logic = state.logic.write().await;
-        let mut entries = std::collections::HashMap::new();
-        let mut removed = Vec::new();
-
-        for (album_id, lock_json, eval_res, _) in recompiled_items {
-            logic.remove_album(&album_id);
-            if let Some(eval) = eval_res {
-                if !is_internal_update {
-                    log::info!("Updated album state: {album_id}");
-                }
-
-                let _ = logic.ingest_pre_evaluated(&album_id, &lock_json, eval);
-                if let Some(entry) = logic.dict.get(&album_id).cloned() {
-                    entries.insert(album_id, entry);
-                }
-            } else {
-                log::info!("Removed album state: {album_id}");
-                removed.push(album_id);
-            }
-        }
-
-        logic.build_cache();
-
+    let shelves = {
+        let logic = state.logic.read().await;
         let mut s = std::collections::HashMap::new();
         for key in logic.manifest.shelves.keys() {
             s.insert(key.clone(), logic.request_shelf_view(key, None, false));
         }
-        drop(logic);
-        (entries, removed, s)
+        s
     };
 
     if !updated_dict_entries.is_empty() || !removed_ids.is_empty() {

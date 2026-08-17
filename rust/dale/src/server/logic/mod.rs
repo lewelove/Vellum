@@ -2,12 +2,13 @@ pub mod cache;
 pub mod query;
 pub mod sort;
 
-pub use sort::{SortKey, value_to_sort_key};
+pub use sort::{value_to_sort_key, SortKey};
 
 use anyhow::Result;
-use libdale::lua::{LogicManifest, with_evaluated_lua_vm};
+use libdale::error::DaleError;
+use libdale::lua::{with_evaluated_lua_vm, LogicManifest};
 use roaring::RoaringBitmap;
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
@@ -22,6 +23,9 @@ pub struct LogicEngine {
     pub(crate) uid_to_id: HashMap<u32, String>,
     pub(crate) id_to_uid: HashMap<String, u32>,
     pub(crate) next_uid: u32,
+    pub albums_by_path: HashMap<PathBuf, String>,
+    pub path_by_id: HashMap<String, PathBuf>,
+    pub cover_lookup: HashMap<String, HashMap<PathBuf, String>>,
     pub dict: HashMap<String, Value>,
     pub track_lookup: HashMap<String, Value>,
     pub path_lookup: HashMap<String, String>,
@@ -45,6 +49,9 @@ impl LogicEngine {
             uid_to_id: HashMap::new(),
             id_to_uid: HashMap::new(),
             next_uid: 1,
+            albums_by_path: HashMap::new(),
+            path_by_id: HashMap::new(),
+            cover_lookup: HashMap::new(),
             dict: HashMap::new(),
             track_lookup: HashMap::new(),
             path_lookup: HashMap::new(),
@@ -81,6 +88,9 @@ impl LogicEngine {
         self.shelves_cache.clear();
         self.uid_to_id.clear();
         self.id_to_uid.clear();
+        self.albums_by_path.clear();
+        self.path_by_id.clear();
+        self.cover_lookup.clear();
         self.next_uid = 1;
         self.dict.clear();
         self.track_lookup.clear();
@@ -89,82 +99,173 @@ impl LogicEngine {
         self.lock_cache.clear();
     }
 
-    pub fn remove_album(&mut self, id: &str) {
+    pub fn remove_album_by_path(&mut self, path: &Path) -> Option<String> {
+        let canon = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
+        self.albums_by_path.remove(&canon).inspect(|id| {
+            self.remove_album_by_id(id);
+        })
+    }
+
+    pub fn remove_album_by_id(&mut self, id: &str) {
         if let Some(uid) = self.id_to_uid.remove(id) {
             self.uid_to_id.remove(&uid);
             self.evaluated_logic.remove(&uid);
         }
-        self.dict.remove(id);
+        if let Some(path) = self.path_by_id.remove(id) {
+            self.albums_by_path.remove(&path);
+            if let Some(dict_entry) = self.dict.remove(id)
+                && let Some(hash) = dict_entry.get("cover_hash").and_then(Value::as_str)
+                && let Some(entries) = self.cover_lookup.get_mut(hash)
+            {
+                entries.remove(&path);
+                if entries.is_empty() {
+                    self.cover_lookup.remove(hash);
+                }
+            }
+        } else if let Some(dict_entry) = self.dict.remove(id)
+            && let Some(hash) = dict_entry.get("cover_hash").and_then(Value::as_str)
+            && let Some(entries) = self.cover_lookup.get_mut(hash)
+        {
+            entries.retain(|_, v| v != id);
+            if entries.is_empty() {
+                self.cover_lookup.remove(hash);
+            }
+        }
         self.lock_cache.remove(id);
         self.path_lookup.retain(|_, v| v != id);
         self.track_lookup
             .retain(|_, v| v.get("albumId").and_then(|a| a.as_str()) != Some(id));
     }
 
-    pub fn ingest_pre_evaluated(&mut self, id: &str, metadata_json: &str, eval_res: Value) -> Result<()> {
+    fn validate_and_cleanup_paths(
+        &mut self,
+        album_dir_canon: &Path,
+        id: &str,
+    ) -> Result<()> {
+        if let Some(existing_path) = self.path_by_id.get(id)
+            && existing_path != album_dir_canon
+        {
+            if existing_path.exists() {
+                return Err(DaleError::DuplicateAlbumId {
+                    id: id.to_string(),
+                    path_a: existing_path.clone(),
+                    path_b: album_dir_canon.to_path_buf(),
+                }.into());
+            }
+            let existing_path_clone = existing_path.clone();
+            self.remove_album_by_path(&existing_path_clone);
+        }
+
+        if let Some(old_id) = self.albums_by_path.get(album_dir_canon)
+            && old_id != id
+        {
+            let old_id_clone = old_id.clone();
+            self.remove_album_by_id(&old_id_clone);
+        }
+
+        self.remove_album_by_id(id);
+
+        Ok(())
+    }
+
+    fn ingest_tracks_and_lookup(
+        &mut self,
+        tracks: &[Value],
+        album_dir_canon: &Path,
+        id: &str,
+        music_directory: &Path,
+    ) {
+        for (track_idx, track) in tracks.iter().enumerate() {
+            if let Some(tinfo) = track.get("info") {
+                let rel = track
+                    .get("file")
+                    .and_then(|f| f.get("path"))
+                    .and_then(Value::as_str)
+                    .unwrap_or("");
+                if !rel.is_empty() {
+                    let abs_track_path = album_dir_canon.join(rel);
+                    let mpd_uri_raw = abs_track_path
+                        .strip_prefix(music_directory)
+                        .map_or_else(
+                            |_| abs_track_path.to_string_lossy().to_string(),
+                            |p| p.to_string_lossy().to_string(),
+                        );
+                    let mpd_uri = mpd_uri_raw.trim_start_matches('/').to_string();
+
+                    let track_no =
+                        track.get("tracknumber").cloned().unwrap_or_else(|| json!(0));
+                    let disc_no =
+                        track.get("discnumber").cloned().unwrap_or_else(|| json!(1));
+                    let title =
+                        track.get("title").cloned().unwrap_or_else(|| json!("Unknown"));
+                    let artist = track
+                        .get("artist")
+                        .cloned()
+                        .unwrap_or_else(|| json!("Unknown"));
+                    let duration = tinfo
+                        .get("duration_formatted")
+                        .cloned()
+                        .unwrap_or_else(|| json!("0:00"));
+                    let duration_ms = tinfo
+                        .get("duration_milliseconds")
+                        .and_then(Value::as_u64)
+                        .unwrap_or(0);
+
+                    let track_light = json!({
+                        "path": mpd_uri,
+                        "trackIndex": track_idx,
+                        "trackNo": track_no,
+                        "discNo": disc_no,
+                        "title": title,
+                        "artist": artist,
+                        "duration": duration,
+                        "durationMs": duration_ms,
+                        "albumId": id
+                    });
+                    self.track_lookup.insert(mpd_uri.clone(), track_light);
+                    self.path_lookup.insert(mpd_uri, id.to_string());
+                }
+            }
+        }
+    }
+
+    pub fn ingest_pre_evaluated(
+        &mut self,
+        album_dir: &Path,
+        id: &str,
+        metadata_json: &str,
+        eval_res: Value,
+        music_directory: &Path,
+    ) -> Result<()> {
+        let album_dir_canon = album_dir.canonicalize().unwrap_or_else(|_| album_dir.to_path_buf());
+        self.validate_and_cleanup_paths(&album_dir_canon, id)?;
+
         let uid = self.next_uid;
         self.next_uid += 1;
 
+        let parsed: Value = serde_json::from_str(metadata_json)?;
+
         self.uid_to_id.insert(uid, id.to_string());
         self.id_to_uid.insert(id.to_string(), uid);
+        self.albums_by_path.insert(album_dir_canon.clone(), id.to_string());
+        self.path_by_id.insert(id.to_string(), album_dir_canon.clone());
         self.lock_cache.insert(id.to_string(), metadata_json.to_string());
 
-        let parsed: Value = serde_json::from_str(metadata_json)?;
         if let Some(album) = parsed.get("album")
             && let Some(info) = album.get("info")
         {
             if let Some(tracks) = parsed.get("tracks").and_then(Value::as_array) {
-                for track in tracks {
-                    if let Some(tinfo) = track.get("info") {
-                        let rel = track
-                            .get("file")
-                            .and_then(|f| f.get("path"))
-                            .and_then(Value::as_str)
-                            .unwrap_or("");
-                        if !rel.is_empty() {
-                            let tp_path = Path::new(id).join(rel);
-                            let tp = tp_path.to_string_lossy().to_string();
+                self.ingest_tracks_and_lookup(tracks, &album_dir_canon, id, music_directory);
+            }
 
-                            let track_no =
-                                track.get("tracknumber").cloned().unwrap_or_else(|| json!(0));
-                            let disc_no =
-                                track.get("discnumber").cloned().unwrap_or_else(|| json!(1));
-                            let title =
-                                track.get("title").cloned().unwrap_or_else(|| json!("Unknown"));
-                            let artist = track
-                                .get("artist")
-                                .cloned()
-                                .unwrap_or_else(|| json!("Unknown"));
-                            let duration = tinfo
-                                .get("duration_formatted")
-                                .cloned()
-                                .unwrap_or_else(|| json!("0:00"));
-                            let duration_ms = tinfo
-                                .get("duration_milliseconds")
-                                .and_then(Value::as_u64)
-                                .unwrap_or(0);
+            let cover_path_val = album.get("covers").and_then(|c| c.get("main")).and_then(|m| m.get("file")).and_then(|f| f.get("path"));
+            let cover_hash_val = album.get("covers").and_then(|c| c.get("main")).and_then(|m| m.get("file")).and_then(|f| f.get("address"));
 
-                            let track_light = json!({
-                                "path": tp,
-                                "trackNo": track_no,
-                                "discNo": disc_no,
-                                "title": title,
-                                "artist": artist,
-                                "duration": duration,
-                                "durationMs": duration_ms,
-                                "albumId": id
-                            });
-                            self.track_lookup.insert(tp.clone(), track_light);
-
-                            let full_rel_path = Path::new(id).join(rel);
-                            let normalized = full_rel_path
-                                .to_string_lossy()
-                                .trim_start_matches('/')
-                                .to_string();
-                            self.path_lookup.insert(normalized, id.to_string());
-                        }
-                    }
-                }
+            if let (Some(ch), Some(cp)) = (cover_hash_val.and_then(Value::as_str), cover_path_val.and_then(Value::as_str)) {
+                self.cover_lookup
+                    .entry(ch.to_string())
+                    .or_default()
+                    .insert(album_dir_canon, cp.to_string());
             }
 
             let entry = json!({
@@ -172,8 +273,8 @@ impl LogicEngine {
                 "album": album.get("album"),
                 "albumartist": album.get("albumartist"),
                 "date": album.get("date"),
-                "cover_path": album.get("covers").and_then(|c| c.get("main")).and_then(|m| m.get("file")).and_then(|f| f.get("path")),
-                "cover_hash": album.get("covers").and_then(|c| c.get("main")).and_then(|m| m.get("file")).and_then(|f| f.get("address")),
+                "cover_path": cover_path_val,
+                "cover_hash": cover_hash_val,
                 "duration_formatted": info.get("duration_formatted"),
                 "total_discs": info.get("total_discs"),
                 "total_tracks": info.get("total_tracks"),
@@ -186,15 +287,6 @@ impl LogicEngine {
 
         self.evaluated_logic.insert(uid, eval_res);
         Ok(())
-    }
-
-    pub fn ingest(&mut self, id: &str, metadata_json: &str) -> Result<()> {
-        let parsed: Value = serde_json::from_str(metadata_json)?;
-        let eval_res = with_evaluated_lua_vm(&self.config_path, |engine, _| {
-            engine.evaluate_album_logic(&parsed)
-        })?;
-
-        self.ingest_pre_evaluated(id, metadata_json, eval_res)
     }
 
     #[must_use]

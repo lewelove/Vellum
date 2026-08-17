@@ -88,36 +88,40 @@ async fn get_tracks_internal(
     let mut paths = Vec::new();
     let target_disc = disc_filter.and_then(|s| s.parse::<u32>().ok());
 
-    let json_str = {
+    let (json_str, album_dir) = {
         let logic = state.logic.read().await;
-        logic.get_album_json(id)
+        let json_opt = logic.get_album_json(id);
+        let path_opt = logic.path_by_id.get(id).cloned();
+        drop(logic);
+        (json_opt, path_opt)
     };
 
     let music_directory = {
         state.config.read().await.music_directory.clone()
     };
 
-    if let Some(raw) = json_str
+    if let (Some(raw), Some(dir)) = (json_str, album_dir)
         && let Ok(parsed) = serde_json::from_str::<Value>(&raw)
-            && let Some(tracks) = parsed.get("tracks").and_then(|t| t.as_array()) {
-                for track in tracks {
-                    if let Some(td) = target_disc {
-                        let current_disc = track.get("discnumber")
-                            .and_then(serde_json::Value::as_u64)
-                            .map_or(1, |v| u32::try_from(v).unwrap_or(1));
-                        if current_disc != td {
-                            continue;
-                        }
-                    }
-
-                    if let Some(tp) = track.get("file").and_then(|f| f.get("path")).and_then(|v| v.as_str()) {
-                        let abs = music_directory.join(id).join(tp);
-                        if let Ok(rel) = abs.strip_prefix(&music_directory)
-                            && let Some(s) = rel.to_str() {
-                                paths.push(s.to_string());
-                            }
-                    }
+        && let Some(tracks) = parsed.get("tracks").and_then(|t| t.as_array())
+    {
+        for track in tracks {
+            if let Some(td) = target_disc {
+                let current_disc = track
+                    .get("discnumber")
+                    .and_then(serde_json::Value::as_u64)
+                    .map_or(1, |v| u32::try_from(v).unwrap_or(1));
+                if current_disc != td {
+                    continue;
                 }
             }
+
+            if let Some(tp) = track.get("file").and_then(|f| f.get("path")).and_then(|v| v.as_str()) {
+                let abs = dir.join(tp);
+                let uri = abs.strip_prefix(&music_directory)
+                    .map_or_else(|_| abs.to_string_lossy().to_string(), |p| p.to_string_lossy().to_string());
+                paths.push(uri);
+            }
+        }
+    }
     paths
 }

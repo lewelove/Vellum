@@ -68,21 +68,9 @@ def clean_genius_lyrics(lyrics, title):
 def sanitize_filename(name):
     return re.sub(r'[<>:"/\\|?*]', '_', name)
 
-def get_album_lyrics(dale_cfg, album_lock, access_token, mpd_file):
-    music_dir_str = dale_cfg.get("storage", {}).get("music_directory", "")
-    if not music_dir_str:
-        print("Error: music_directory not defined in config")
-        return
-
-    music_dir = Path(music_dir_str).expanduser().resolve()
-
+def get_album_lyrics(target_dir, album_lock, access_token, mpd_file):
     album_meta = album_lock.get("album", {})
     album_id = album_meta.get("id", "")
-    if not album_id:
-        print("Error: album_path (id) not found in metadata lock")
-        return
-
-    root = (music_dir / album_id).resolve()
     album_artist = album_meta.get("albumartist")
     total_discs = int(album_meta.get("info", {}).get("total_discs", 1))
     tracks = album_lock.get("tracks", [])
@@ -95,18 +83,19 @@ def get_album_lyrics(dale_cfg, album_lock, access_token, mpd_file):
     genius.verbose = False
     genius.remove_section_headers = False
 
-    lyrics_dir = root / "Lyrics"
+    lyrics_dir = target_dir / "Lyrics"
     lyrics_dir.mkdir(exist_ok=True)
 
     print(f"Fetching lyrics for: {album_artist} - {album_meta.get('album')}")
 
     playing_idx = None
     if mpd_file:
+        mpd_normalized = mpd_file.lstrip("/")
         for i, track in enumerate(tracks):
             t_path = track.get("file", {}).get("path", "")
             if t_path:
-                full_rel = f"{album_id}/{t_path}"
-                if full_rel == mpd_file:
+                track_abs = str((target_dir / t_path).resolve())
+                if track_abs.endswith(f"/{mpd_normalized}") or track_abs == mpd_file:
                     playing_idx = i
                     break
 
@@ -145,14 +134,16 @@ def get_album_lyrics(dale_cfg, album_lock, access_token, mpd_file):
 
     if playing_idx is not None:
         fetch_for_track(tracks[playing_idx])
-        trigger_update(album_id)
+        if album_id:
+            trigger_update(album_id)
 
     for i, track in enumerate(tracks):
         if i == playing_idx:
             continue
         fetch_for_track(track)
 
-    trigger_update(album_id)
+    if album_id:
+        trigger_update(album_id)
 
 def main():
     try:
@@ -177,8 +168,12 @@ def main():
 
     mpd_file = get_playing_file()
 
-    for album_lock in albums:
-        get_album_lyrics(dale_cfg, album_lock, token, mpd_file)
+    for entry in albums:
+        path_str = entry.get("path", "")
+        album_lock = entry.get("lock", {})
+        if path_str and album_lock:
+            target_dir = Path(path_str).resolve()
+            get_album_lyrics(target_dir, album_lock, token, mpd_file)
 
 if __name__ == "__main__":
     main()

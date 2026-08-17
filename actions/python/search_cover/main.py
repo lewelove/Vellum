@@ -10,10 +10,11 @@ def main():
         sys.exit(1)
 
     albums = data.get("albums", [])
-    
-    for album_lock in albums:
+
+    for entry in albums:
+        album_lock = entry.get("lock", {})
         album_meta = album_lock.get("album", {})
-        
+
         album_title = album_meta.get("album", "")
         album_artist = album_meta.get("albumartist", "")
 

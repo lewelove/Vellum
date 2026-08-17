@@ -1,11 +1,9 @@
 use crate::metrics::{calculate_chroma, calculate_entropy};
-use crate::models::{ActionPayload, CoverFileInfo, CoverMetricsDoc, FileStat};
-use anyhow::Result;
+use crate::models::{CoverFileInfo, CoverMetricsDoc};
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine as _;
-use libactions::paths::expand_path;
+use libactions::payload::ActionPayload;
 use rayon::prelude::*;
-use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -25,42 +23,15 @@ struct VerifiedCover {
     is_clean: bool,
 }
 
-pub fn execute(payload: &ActionPayload) -> Result<()> {
-    let music_dir_str = &payload.config.dale.storage.music_directory;
-    if music_dir_str.is_empty() {
-        anyhow::bail!("music_directory not defined in configuration");
-    }
-
-    let music_dir = expand_path(music_dir_str)
-        .canonicalize()
-        .unwrap_or_else(|_| expand_path(music_dir_str));
-
-    let cache_dir_str = &payload.config.dale.storage.cache;
-    let cache_root = if cache_dir_str.is_empty() {
-        expand_path("~/.cache/dale")
-    } else {
-        expand_path(cache_dir_str)
-    };
-
-    let lib_hash = blake3::hash(music_dir.to_string_lossy().as_bytes()).to_hex().to_string();
-    let library_cache_path = cache_root.join("libraries").join(&lib_hash).join("library.json");
-    let library_cache: HashMap<String, FileStat> = fs::read_to_string(&library_cache_path)
-        .ok()
-        .and_then(|content| serde_json::from_str(&content).ok())
-        .unwrap_or_default();
-
-    payload.albums.par_iter().for_each(|album_val| {
+pub fn execute(payload: &ActionPayload) {
+    payload.albums.par_iter().for_each(|item| {
+        let album_dir = &item.path;
+        let album_val = &item.lock;
         let album_id = album_val
             .pointer("/album/id")
-            .or_else(|| album_val.get("id"))
             .and_then(serde_json::Value::as_str)
             .unwrap_or("");
 
-        if album_id.is_empty() {
-            return;
-        }
-
-        let album_dir = music_dir.join(album_id);
         if !album_dir.exists() {
             return;
         }
@@ -68,13 +39,22 @@ pub fn execute(payload: &ActionPayload) -> Result<()> {
         let info_dir = album_dir.join("Info");
         let metrics_file = info_dir.join("cover_metrics.json");
 
-        if let Some(target_cover) = verify_existing_metrics(&metrics_file, &info_dir, &music_dir, &library_cache)
+        if let Some(target_cover) = verify_existing_metrics(&metrics_file, &info_dir)
             && target_cover.is_clean
         {
             return;
         }
 
-        let Some(cover_path) = resolve_cover_candidate(&album_dir) else {
+        let cover_rel_path = album_val
+            .pointer("/album/covers/main/file/path")
+            .and_then(serde_json::Value::as_str);
+
+        let cover_path = cover_rel_path
+            .map(|rel| album_dir.join(rel))
+            .filter(|p| p.is_file())
+            .or_else(|| resolve_cover_candidate(album_dir));
+
+        let Some(cover_path) = cover_path else {
             return;
         };
 
@@ -133,15 +113,11 @@ pub fn execute(payload: &ActionPayload) -> Result<()> {
             println!("\x1b[32m✔\x1b[0m Calculated cover metrics for: {album_id}");
         }
     });
-
-    Ok(())
 }
 
 fn verify_existing_metrics(
     metrics_file: &Path,
     info_dir: &Path,
-    music_dir: &Path,
-    library_cache: &HashMap<String, FileStat>,
 ) -> Option<VerifiedCover> {
     if !metrics_file.exists() {
         return None;
@@ -165,18 +141,6 @@ fn verify_existing_metrics(
 
     if doc.cover.mtime != mtime || doc.cover.byte_size != size {
         return Some(VerifiedCover { is_clean: false });
-    }
-
-    if !library_cache.is_empty()
-        && let Ok(canon_cover) = resolved_cover.canonicalize()
-        && let Ok(rel_lib) = canon_cover.strip_prefix(music_dir)
-    {
-        let key = rel_lib.to_string_lossy().to_string();
-        if let Some(stat) = library_cache.get(&key)
-            && (stat.mtime != mtime || stat.size != size)
-        {
-            return Some(VerifiedCover { is_clean: false });
-        }
     }
 
     Some(VerifiedCover { is_clean: true })

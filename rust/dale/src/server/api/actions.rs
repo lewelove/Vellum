@@ -1,18 +1,22 @@
 use crate::server::state::AppState;
 use axum::Json;
-use axum::extract::{Path, Query, State};
+use axum::extract::{Query, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use serde_json::json;
 use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-async fn resolve_target_ids(
+struct TargetAlbumEntry {
+    path: PathBuf,
+    lock: serde_json::Value,
+}
+
+async fn resolve_target_entries(
     params: &HashMap<String, String>,
     state: &Arc<AppState>,
-    music_directory: &std::path::Path,
-) -> Vec<String> {
-    let mut target_ids = Vec::new();
+) -> Vec<TargetAlbumEntry> {
     let playing = params.get("playing").is_some_and(|v| v == "true");
     let id_arg = params.get("id").cloned();
     let query_arg = params.get("query").cloned();
@@ -20,75 +24,89 @@ async fn resolve_target_ids(
     let recursive_arg = params.get("recursive").cloned();
     let library_arg = params.get("library").is_some_and(|v| v == "true");
 
-    if let Some(q) = query_arg {
-        let logic_guard = state.logic.read().await;
-        target_ids = logic_guard.find_ids(&q);
-    } else if let Some(id) = id_arg {
-        if !id.is_empty() {
-            target_ids.push(id);
-        }
-    } else if playing {
-        if let Ok(path) = crate::x::get_playing_album(&music_directory.to_string_lossy()).await
-            && let Ok(rel) = path.strip_prefix(music_directory)
-        {
-            target_ids.push(rel.to_string_lossy().to_string());
-        }
-    } else if library_arg || recursive_arg.is_some() {
-        let root = recursive_arg
-            .map_or_else(|| music_directory.to_path_buf(), |dir| libdale::utils::expand_path(&dir));
-        target_ids = tokio::task::spawn_blocking(move || {
-            let mut ids = Vec::new();
-            for entry in walkdir::WalkDir::new(&root)
-                .follow_links(true)
-                .into_iter()
-                .filter_map(Result::ok)
+    let mut target_ids = Vec::new();
+
+    if playing {
+        let music_dir = state.config.read().await.music_directory.clone();
+        if let Ok(playing_path) = crate::x::get_playing_track_url().await {
+            let clean_playing = playing_path.trim_start_matches('/');
+            let logic_guard = state.logic.read().await;
+            if let Some(id) = logic_guard
+                .path_lookup
+                .get(clean_playing)
+                .or_else(|| logic_guard.path_lookup.get(&playing_path))
             {
-                if entry.file_name() == "album.lock.json"
-                    && let Ok(content) = std::fs::read_to_string(entry.path())
-                    && let Ok(lock_json) = serde_json::from_str::<serde_json::Value>(&content)
-                    && let Some(id) = lock_json.pointer("/album/id").and_then(|v| v.as_str())
-                {
-                    ids.push(id.to_string());
+                target_ids.push(id.clone());
+            } else if let Ok(dir) = crate::x::get_playing_album(&music_dir.to_string_lossy()).await {
+                let canon = dir.canonicalize().unwrap_or(dir);
+                if let Some(id) = logic_guard.albums_by_path.get(&canon) {
+                    target_ids.push(id.clone());
                 }
             }
-            ids
-        })
-        .await
-        .unwrap_or_default();
-    } else if let Some(dir) = directory_arg {
-        let p = libdale::utils::expand_path(&dir).join("album.lock.json");
-        if let Ok(content) = tokio::fs::read_to_string(&p).await
-            && let Ok(lock_json) = serde_json::from_str::<serde_json::Value>(&content)
-            && let Some(id) = lock_json.pointer("/album/id").and_then(|v| v.as_str())
-        {
-            target_ids.push(id.to_string());
+        }
+    } else {
+        let logic_guard = state.logic.read().await;
+        if let Some(q) = query_arg {
+            target_ids = logic_guard.find_ids(&q);
+        } else if let Some(id) = id_arg {
+            if !id.is_empty() {
+                target_ids.push(id);
+            }
+        } else if library_arg || recursive_arg.is_some() {
+            let music_dir = state.config.read().await.music_directory.clone();
+            let root = recursive_arg
+                .map_or_else(|| music_dir, |dir| libdale::utils::expand_path(&dir));
+            let root_canon = root.canonicalize().unwrap_or(root);
+            for (album_path, id) in &logic_guard.albums_by_path {
+                if album_path.starts_with(&root_canon) {
+                    target_ids.push(id.clone());
+                }
+            }
+        } else if let Some(dir) = directory_arg {
+            let p = libdale::utils::expand_path(&dir);
+            let p_canon = p.canonicalize().unwrap_or(p);
+            if let Some(id) = logic_guard.albums_by_path.get(&p_canon) {
+                target_ids.push(id.clone());
+            }
         }
     }
 
-    target_ids
+    let logic = state.logic.read().await;
+    let mut list = Vec::new();
+    for target_id in target_ids {
+        if let Some(path) = logic.path_by_id.get(&target_id)
+            && let Some(json_str) = logic.get_album_json(&target_id)
+            && let Ok(lock_json) = serde_json::from_str::<serde_json::Value>(&json_str)
+        {
+            list.push(TargetAlbumEntry {
+                path: path.clone(),
+                lock: lock_json,
+            });
+        }
+    }
+    list
 }
 
-async fn run_external_process(
-    action_path: std::path::PathBuf,
-    target_ids: Vec<String>,
-    music_directory: std::path::PathBuf,
-    params: HashMap<String, String>,
-    app_config_json: serde_json::Value,
-    action_config: serde_json::Value,
+fn run_external_process(
+    action_path: &Path,
+    target_entries: Vec<TargetAlbumEntry>,
+    params: &HashMap<String, String>,
+    app_config_json: &serde_json::Value,
+    action_config: &serde_json::Value,
     env_vars: HashMap<String, String>,
 ) -> Response {
-    let mut lock_jsons = Vec::new();
-    for target_id in &target_ids {
-        let lock_file_path = music_directory.join(target_id).join("album.lock.json");
-        if let Ok(json_data) = tokio::fs::read_to_string(&lock_file_path).await
-            && let Ok(lock_json) = serde_json::from_str::<serde_json::Value>(&json_data)
-        {
-            lock_jsons.push(lock_json);
-        }
-    }
+    let album_entries: Vec<serde_json::Value> = target_entries
+        .into_iter()
+        .map(|e| {
+            json!({
+                "path": e.path.to_string_lossy(),
+                "lock": e.lock
+            })
+        })
+        .collect();
 
     let mut options_vec = Vec::new();
-    for (k, v) in &params {
+    for (k, v) in params {
         if k != "playing"
             && k != "id"
             && k != "query"
@@ -106,7 +124,7 @@ async fn run_external_process(
     let options_str = options_vec.join(" ");
 
     let combined_json = json!({
-        "albums": lock_jsons,
+        "albums": album_entries,
         "config": {
             "dale": app_config_json,
             "action": action_config
@@ -125,7 +143,7 @@ async fn run_external_process(
     let mut command = tokio::process::Command::new(cmd);
     command.envs(env_vars);
     if cmd == "python" || cmd == "sh" {
-        command.arg(&action_path);
+        command.arg(action_path);
     }
 
     match command.stdin(std::process::Stdio::piped()).spawn() {
@@ -160,7 +178,7 @@ async fn run_external_process(
 }
 
 pub async fn execute_action(
-    Path(name): Path<String>,
+    axum::extract::Path(name): axum::extract::Path<String>,
     Query(params): Query<HashMap<String, String>>,
     State(state): State<Arc<AppState>>,
 ) -> Response {
@@ -168,29 +186,26 @@ pub async fn execute_action(
 
     let config_guard = state.config.read().await;
     let action_cfg_opt = config_guard.actions.get(&name_key).cloned();
-    let music_directory = config_guard.music_directory.clone();
     let app_config_json = serde_json::to_value(&config_guard.app).unwrap_or_else(|_| json!({}));
     let env_vars =
         crate::x::load_env_vars_from_path(config_guard.app.storage.environment.as_deref());
     drop(config_guard);
 
     let action_cfg = action_cfg_opt.unwrap_or_default();
-    let target_ids = resolve_target_ids(&params, &state, &music_directory).await;
+    let target_entries = resolve_target_entries(&params, &state).await;
 
     if let Some(run_str) = &action_cfg.run {
-        let action_path = std::path::PathBuf::from(run_str);
+        let action_path = PathBuf::from(run_str);
 
         if tokio::fs::try_exists(&action_path).await.unwrap_or(false) {
             return run_external_process(
-                action_path,
-                target_ids,
-                music_directory,
-                params,
-                app_config_json,
-                action_cfg.config,
+                &action_path,
+                target_entries,
+                &params,
+                &app_config_json,
+                &action_cfg.config,
                 env_vars,
-            )
-            .await;
+            );
         }
         return (
             StatusCode::NOT_FOUND,
@@ -210,8 +225,8 @@ pub async fn execute_action(
     }
 
     let mut executed = false;
-    if name_key == "open_config_in_terminal" || target_ids.is_empty() {
-        let dummy_path = std::path::Path::new("");
+    if name_key == "open_config_in_terminal" || target_entries.is_empty() {
+        let dummy_path = Path::new("");
         if matches!(
             crate::x::builtin::execute_builtin(&name_key, dummy_path, &merged_config),
             Ok(true)
@@ -219,10 +234,9 @@ pub async fn execute_action(
             executed = true;
         }
     } else {
-        for target_id in &target_ids {
-            let album_path = music_directory.join(target_id);
+        for entry in &target_entries {
             if matches!(
-                crate::x::builtin::execute_builtin(&name_key, &album_path, &merged_config),
+                crate::x::builtin::execute_builtin(&name_key, &entry.path, &merged_config),
                 Ok(true)
             ) {
                 executed = true;

@@ -73,7 +73,6 @@ pub async fn run(
         scan_root,
         &work_queue,
         &missing_paths,
-        &music_directory,
         &mut deps_graph,
         effective_jobs,
         silent,
@@ -100,7 +99,6 @@ async fn execute_compile_pass(
     scan_root: PathBuf,
     work_queue: &[PathBuf],
     missing_paths: &[PathBuf],
-    music_directory: &Path,
     deps_graph: &mut DependencyGraph,
     jobs: Option<usize>,
     silent: bool,
@@ -134,7 +132,7 @@ async fn execute_compile_pass(
     let written_count = compile::run(compile_options).await?;
     let ingested_payloads = ingest_handle.await.unwrap_or_default();
 
-    apply_ingested_deps(ingested_payloads, missing_paths, music_directory, deps_graph);
+    apply_ingested_deps(ingested_payloads, missing_paths, deps_graph);
 
     Ok(written_count)
 }
@@ -142,12 +140,10 @@ async fn execute_compile_pass(
 fn apply_ingested_deps(
     payloads: Vec<crate::server::api::system::AlbumIngestPayload>,
     missing_paths: &[PathBuf],
-    music_directory: &Path,
     deps_graph: &mut DependencyGraph,
 ) {
     for payload in payloads {
-        let album_path = music_directory.join(&payload.id);
-        let album_path_canon = album_path.canonicalize().unwrap_or(album_path);
+        let album_path_canon = payload.album_dir.canonicalize().unwrap_or(payload.album_dir);
         if payload.eval_res.is_some() {
             deps_graph.update_album_deps(
                 album_path_canon,

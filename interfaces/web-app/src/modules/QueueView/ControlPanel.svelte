@@ -4,11 +4,11 @@ import { collection } from "../../library/collection.svelte.ts";
 
 let currentFile = $derived(player.currentFile);
 let activeId = $derived(player.currentAlbumId);
+let activeTrackIdx = $derived(player.currentTrackIndex);
 
 let fullAlbum = $derived(activeId ? collection.fullAlbumCache[activeId] : null);
 let currentTrackFull = $derived(
-  fullAlbum?.tracks?.find((t: any) => `${fullAlbum.album.id}/${t.file?.path}` === currentFile) ||
-    null
+  activeTrackIdx !== null && fullAlbum?.tracks ? fullAlbum.tracks[activeTrackIdx] ?? null : null
 );
 
 let lyricsText = $state("");

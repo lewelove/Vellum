@@ -5,15 +5,13 @@ mod kmeansnh;
 mod kmeansnv;
 mod mean_shift;
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use image::DynamicImage;
 use image::imageops::FilterType;
 use libactions::color::{calculate_palette_ratios, sort_palette};
-use libactions::paths::expand_path;
-use libactions::payload::read_stdin_json;
+use libactions::payload::{read_stdin_payload, ActionPayload};
 use palette::Srgb;
 use serde::Deserialize;
-use serde_json::Value;
 
 #[derive(Deserialize, Default)]
 struct ScriptConfig {
@@ -27,38 +25,19 @@ struct ScriptConfig {
 }
 
 fn main() -> Result<()> {
-    let payload: Value = read_stdin_json()?;
+    let payload: ActionPayload<ScriptConfig> = read_stdin_payload()?;
+    let script_config = payload.config.action;
+    let force = payload.options.split_whitespace().any(|s| s == "--force");
 
-    let albums = payload
-        .get("albums")
-        .and_then(Value::as_array)
-        .context("Missing albums array")?;
-
-    let music_dir_str = payload
-        .pointer("/config/dale/storage/music_directory")
-        .and_then(Value::as_str)
-        .context("Missing music_directory in payload")?;
-
-    let music_dir = expand_path(music_dir_str);
-
-    let action_cfg_val = payload.pointer("/config/action").cloned().unwrap_or_default();
-    let script_config: ScriptConfig = serde_json::from_value(action_cfg_val).unwrap_or_default();
-
-    let options_str = payload.get("options").and_then(Value::as_str).unwrap_or("");
-    let force = options_str.split_whitespace().any(|s| s == "--force");
-
-    for album_lock in albums {
-        let album_path_str = album_lock
-            .pointer("/album/id")
-            .and_then(Value::as_str)
-            .unwrap_or("");
+    for item in &payload.albums {
+        let album_dir = &item.path;
+        let album_lock = &item.lock;
 
         let cover_path_str = album_lock
             .pointer("/album/covers/main/file/path")
-            .and_then(Value::as_str)
+            .and_then(serde_json::Value::as_str)
             .unwrap_or("cover.jpg");
 
-        let album_dir = music_dir.join(album_path_str);
         let out_path = album_dir.join("theme.toml");
 
         if out_path.exists() && !force {

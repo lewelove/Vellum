@@ -246,7 +246,6 @@ def process_album(album_lock, target_dir, auto_apply):
     lines_printed += 1
     return lines_printed, True
 
-
 def main():
     try:
         data = json.load(sys.stdin)
@@ -255,7 +254,6 @@ def main():
         sys.exit(1)
 
     raw_albums = data.get("albums", [])
-    dale_cfg = data.get("config", {}).get("dale", {})
     action_cfg = data.get("config", {}).get("action", {})
     options_str = data.get("options", "")
 
@@ -282,27 +280,19 @@ def main():
         AUTO_COVER_EMBED = bool(action_cfg["auto_cover_embed"])
 
     albums = []
-    for album_lock in raw_albums:
+    for entry in raw_albums:
+        path_str = entry.get("path", "")
+        album_lock = entry.get("lock", {})
         album_obj = album_lock.get("album", {})
         if album_obj.get("keys", {}).get("virtual") or album_obj.get("info", {}).get("virtual"):
             continue
-        albums.append(album_lock)
+        if path_str and album_lock:
+            albums.append((Path(path_str), album_lock))
 
-    music_dir_str = dale_cfg.get("storage", {}).get("music_directory", "")
-    if not music_dir_str:
-        print("Error: music_directory not defined in config")
-        sys.exit(1)
-
-    music_dir = Path(music_dir_str).expanduser().resolve()
     total_albums = len(albums)
 
-    for idx, album_lock in enumerate(albums, 1):
-        album_id = album_lock.get("album", {}).get("id", "")
-        if not album_id:
-            continue
-
+    for idx, (target_dir, album_lock) in enumerate(albums, 1):
         print(f"\n{render_progress_bar(idx, total_albums)}")
-        target_dir = music_dir / album_id
         lines_printed, was_processed = process_album(album_lock, target_dir, auto_apply)
 
         sys.stdout.write(f"\033[{lines_printed + 2}A\033[J")

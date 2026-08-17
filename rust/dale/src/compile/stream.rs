@@ -1,12 +1,20 @@
-use crate::compile::{build, utils, ExportTarget};
+use crate::compile::{build, ExportTarget};
 use anyhow::Result;
 use libdale::error::DaleError;
 use rayon::prelude::*;
-use serde_json::{json, Value};
+use serde_json::Value;
 use std::collections::HashSet;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
+
+pub struct CompiledItem {
+    pub album_dir: PathBuf,
+    pub album_id: String,
+    pub lock_val: Value,
+    pub eval_res: Option<Value>,
+    pub deps: HashSet<PathBuf>,
+}
 
 pub struct StreamContext {
     pub albums: Vec<PathBuf>,
@@ -19,7 +27,7 @@ pub struct StreamContext {
 }
 
 pub async fn run(ctx: StreamContext) -> Result<usize> {
-    let (dtx, mut drx) = tokio::sync::mpsc::channel::<(Value, Option<Value>, HashSet<PathBuf>)>(512);
+    let (dtx, mut drx) = tokio::sync::mpsc::channel::<CompiledItem>(512);
     let written_count = Arc::new(AtomicUsize::new(0));
 
     let build_handle = spawn_builders(&ctx, dtx);
@@ -31,11 +39,11 @@ pub async fn run(ctx: StreamContext) -> Result<usize> {
     let silent = ctx.silent;
 
     let direct_handle = tokio::spawn(async move {
-        while let Some((v, eval_res, deps)) = drx.recv().await {
+        while let Some(item) = drx.recv().await {
             let written_inner = Arc::clone(&written_ref);
             let active_ref = active_writes.clone();
             let res = tokio::task::spawn_blocking(move || {
-                finalize(v, eval_res, deps, target, active_ref.as_ref(), silent)
+                finalize(item, target, active_ref.as_ref(), silent)
             })
             .await;
             if let Ok(Ok((written, payload))) = res {
@@ -59,7 +67,7 @@ pub async fn run(ctx: StreamContext) -> Result<usize> {
 
 fn spawn_builders(
     ctx: &StreamContext,
-    dtx: tokio::sync::mpsc::Sender<(Value, Option<Value>, HashSet<PathBuf>)>,
+    dtx: tokio::sync::mpsc::Sender<CompiledItem>,
 ) -> tokio::task::JoinHandle<()> {
     let albums = ctx.albums.clone();
     let cfg = Arc::clone(&ctx.config);
@@ -95,7 +103,13 @@ fn spawn_builders(
                     match build::build(ar, &cfg, engine) {
                         Ok(out) => {
                             let eval_res = engine.evaluate_album_logic(&out.lock_json).ok();
-                            let _ = dtx.blocking_send((out.lock_json, eval_res, out.dependencies));
+                            let _ = dtx.blocking_send(CompiledItem {
+                                album_dir: out.album_dir,
+                                album_id: out.album_id,
+                                lock_val: out.lock_json,
+                                eval_res,
+                                deps: out.dependencies,
+                            });
                         }
                         Err(e) => match e {
                             DaleError::ManifestIoError(_)
@@ -119,88 +133,61 @@ fn spawn_builders(
 }
 
 fn finalize(
-    mut v: Value,
-    eval_res: Option<Value>,
-    deps: HashSet<PathBuf>,
+    item: CompiledItem,
     target: ExportTarget,
     active_writes: Option<&Arc<Mutex<HashSet<PathBuf>>>>,
     silent: bool,
 ) -> Result<(bool, Option<crate::server::api::system::AlbumIngestPayload>)> {
-    let artist = v
+    let artist = item
+        .lock_val
         .get("album")
         .and_then(|a| a.get("albumartist"))
         .and_then(Value::as_str)
         .unwrap_or("Unknown")
         .to_string();
-    let album = v
+    let album = item
+        .lock_val
         .get("album")
         .and_then(|a| a.get("album"))
         .and_then(Value::as_str)
         .unwrap_or("Unknown")
         .to_string();
-    let album_id = v
-        .get("album")
-        .and_then(|a| a.get("id"))
-        .and_then(Value::as_str)
-        .unwrap_or("")
-        .to_string();
 
-    let ctx = v
-        .as_object_mut()
-        .and_then(|o| o.remove("ctx"))
-        .unwrap_or_else(|| json!({}));
+    let content = serde_json::to_string_pretty(&item.lock_val)?;
 
-    utils::strip_empty_values(&mut v);
-
-    let album_root_str = ctx
-        .get("paths")
-        .and_then(|p| p.get("album_root"))
-        .and_then(Value::as_str);
-
-    if let Some(path) = album_root_str {
-        let album_root = Path::new(path);
-
-        let content = serde_json::to_string_pretty(&v)?;
-
-        if target == ExportTarget::Stdout {
-            println!("{content}");
-            return Ok((false, None));
-        }
-
-        let lock_path = album_root.join("album.lock.json");
-        let should_write =
-            std::fs::read_to_string(&lock_path).map_or(true, |existing| existing != content);
-
-        let payload = crate::server::api::system::AlbumIngestPayload {
-            id: album_id,
-            artist: artist.clone(),
-            album: album.clone(),
-            lock_json: content.clone(),
-            eval_res,
-            dependencies: deps.into_iter().collect(),
-            modified: should_write,
-        };
-
-        if should_write {
-            if let Some(aw) = active_writes
-                && let Ok(mut active) = aw.lock()
-            {
-                let canon = lock_path.canonicalize().unwrap_or_else(|_| {
-                    album_root.canonicalize().map_or_else(
-                        |_| lock_path.clone(),
-                        |parent_canon| parent_canon.join("album.lock.json"),
-                    )
-                });
-                active.insert(canon);
-                active.insert(lock_path.clone());
-            } else if !silent {
-                log::info!("Updated: {artist} - {album}");
-            }
-            std::fs::write(&lock_path, content)?;
-            return Ok((true, Some(payload)));
-        }
-
-        return Ok((false, Some(payload)));
+    if target == ExportTarget::Stdout {
+        println!("{content}");
+        return Ok((false, None));
     }
-    Ok((false, None))
+
+    let lock_path = item.album_dir.join("album.lock.json");
+    let should_write =
+        std::fs::read_to_string(&lock_path).map_or(true, |existing| existing != content);
+
+    let payload = crate::server::api::system::AlbumIngestPayload {
+        album_dir: item.album_dir,
+        id: item.album_id,
+        artist: artist.clone(),
+        album: album.clone(),
+        lock_json: content.clone(),
+        eval_res: item.eval_res,
+        dependencies: item.deps.into_iter().collect(),
+        modified: should_write,
+    };
+
+    if should_write {
+        if let Some(aw) = active_writes
+            && let Ok(mut active) = aw.lock()
+        {
+            let canon = lock_path.canonicalize().unwrap_or_else(|_| lock_path.clone());
+            active.insert(canon);
+            active.insert(lock_path.clone());
+        } else if !silent {
+            log::info!("Updated: {artist} - {album}");
+        }
+        std::fs::write(&lock_path, content)?;
+        return Ok((true, Some(payload)));
+    }
+
+    Ok((false, Some(payload)))
 }

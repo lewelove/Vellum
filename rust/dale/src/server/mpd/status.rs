@@ -16,21 +16,40 @@ pub async fn broadcast_status(
         .await
         .context("Batched status update failed")?;
 
-    let (file_path, title, artist) = if let Some(s) = current_song {
-        let path = s.song.url.clone();
-        let t = s.song.title().map(ToString::to_string);
-        let a = s.song.artists().first().map(ToString::to_string);
-        (path, t, a)
-    } else {
-        (String::new(), None, None)
-    };
+    let (file_path, title, artist) = current_song.as_ref().map_or_else(
+        || (String::new(), None, None),
+        |s| {
+            (
+                s.song.url.clone(),
+                s.song.title().map(ToString::to_string),
+                s.song.artists().first().map(ToString::to_string),
+            )
+        },
+    );
 
-    let (queue_json, album_id) = {
+    let (queue_json, album_id, track_index) = {
         let l = logic.read().await;
-        let album_id = l.path_lookup.get(&file_path).cloned();
+        let clean_file_path = file_path.trim_start_matches('/');
+        let album_id = l
+            .path_lookup
+            .get(clean_file_path)
+            .or_else(|| l.path_lookup.get(&file_path))
+            .cloned();
+        let track_index = l
+            .track_lookup
+            .get(clean_file_path)
+            .or_else(|| l.track_lookup.get(&file_path))
+            .and_then(|m| m.get("trackIndex"))
+            .and_then(serde_json::Value::as_u64);
         let track_metas: Vec<Option<serde_json::Value>> = queue
             .iter()
-            .map(|s| l.track_lookup.get(&s.song.url).cloned())
+            .map(|s| {
+                let clean_url = s.song.url.trim_start_matches('/');
+                l.track_lookup
+                    .get(clean_url)
+                    .or_else(|| l.track_lookup.get(&s.song.url))
+                    .cloned()
+            })
             .collect();
         drop(l);
 
@@ -47,6 +66,7 @@ pub async fn broadcast_status(
                             "title": s.song.title(),
                             "artist": s.song.artists().first(),
                             "album_id": serde_json::Value::Null,
+                            "track_index": serde_json::Value::Null,
                             "track_no": serde_json::Value::Null,
                             "disc_no": 1,
                             "duration": "",
@@ -57,9 +77,10 @@ pub async fn broadcast_status(
                         serde_json::json!({
                             "id": idx,
                             "file": s.song.url,
-                            "title": s.song.title(),
-                            "artist": s.song.artists().first(),
+                            "title": meta.get("title").cloned().or_else(|| s.song.title().map(|t| serde_json::json!(t))),
+                            "artist": meta.get("artist").cloned().or_else(|| s.song.artists().first().map(|a| serde_json::json!(a))),
                             "album_id": meta.get("albumId"),
+                            "track_index": meta.get("trackIndex"),
                             "track_no": meta.get("trackNo"),
                             "disc_no": meta.get("discNo"),
                             "duration": meta.get("duration"),
@@ -70,7 +91,7 @@ pub async fn broadcast_status(
             })
             .collect();
 
-        (q_json, album_id)
+        (q_json, album_id, track_index)
     };
 
     let state_str = match status.state {
@@ -84,6 +105,7 @@ pub async fn broadcast_status(
         "state": state_str,
         "file": file_path,
         "album_id": album_id,
+        "track_index": track_index,
         "elapsed": status.elapsed.map_or(0.0, |t| t.as_secs_f64()),
         "duration": status.duration.map_or(0.0, |t| t.as_secs_f64()),
         "title": title,

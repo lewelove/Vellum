@@ -1,3 +1,4 @@
+use crate::server::inotify::handler::RecompiledAlbumItem;
 use crate::server::state::AppState;
 use axum::Json;
 use axum::extract::{Path, Query, State};
@@ -10,6 +11,7 @@ use std::sync::Arc;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct AlbumIngestPayload {
+    pub album_dir: PathBuf,
     pub id: String,
     #[serde(default)]
     pub artist: String,
@@ -242,57 +244,22 @@ pub async fn trigger_reload(
     State(state): State<Arc<AppState>>,
     Query(params): Query<std::collections::HashMap<String, String>>,
 ) -> Response {
-    let start_time = std::time::Instant::now();
     if let Some(path) = params.get("path") {
-        let music_directory = state.config.read().await.music_directory.clone();
-        let path_clone = path.clone();
-        let logic_arc = Arc::clone(&state.logic);
-
-        let (update_res, dict_entry, shelves) = tokio::task::spawn_blocking(move || {
-            let mut logic = logic_arc.blocking_write();
-            let scanner = crate::server::library::scanner::Library::new(music_directory);
-            let res = scanner.update_album(&path_clone, &mut logic);
-
-            let entry = match &res {
-                crate::server::library::scanner::UpdateResult::Updated(id) => {
-                    logic.build_cache();
-                    logic.dict.get(id).cloned()
-                }
-                crate::server::library::scanner::UpdateResult::Removed(_) => None,
-            };
-
-            let mut s = std::collections::HashMap::new();
-            for key in logic.manifest.shelves.keys() {
-                s.insert(key.clone(), logic.request_shelf_view(key, None, false));
+        let target_path = PathBuf::from(path);
+        tokio::spawn(async move {
+            if let Err(e) = crate::update::run_server_update(
+                state,
+                Some(target_path),
+                true,
+                None,
+                true,
+                None,
+            )
+            .await
+            {
+                log::error!("Failed to reload album: {e}");
             }
-            drop(logic);
-            (res, entry, s)
-        })
-        .await
-        .unwrap_or_else(|_| (crate::server::library::scanner::UpdateResult::Removed(String::new()), None, std::collections::HashMap::new()));
-
-        let elapsed = start_time.elapsed().as_millis();
-        log::info!("Processed 1 album.");
-        log::info!("Rebuilt Logic Engine in {elapsed}ms.");
-
-        match update_res {
-            crate::server::library::scanner::UpdateResult::Updated(id) => {
-                let _ = state.tx.send(json!({
-                    "type": "ALBUM_UPDATED",
-                    "id": id,
-                    "dictEntry": dict_entry.unwrap_or_else(|| json!({})),
-                    "shelves": shelves
-                }).to_string());
-            }
-            crate::server::library::scanner::UpdateResult::Removed(id) => {
-                let _ = state.tx.send(json!({
-                    "type": "ALBUM_REMOVED",
-                    "id": id,
-                    "shelves": shelves
-                }).to_string());
-            }
-        }
-
+        });
         return Json(json!({"status": "ok"})).into_response();
     }
     StatusCode::NOT_FOUND.into_response()
@@ -302,12 +269,26 @@ pub async fn ingest_reload_payloads(
     State(state): State<Arc<AppState>>,
     Json(payloads): Json<Vec<AlbumIngestPayload>>,
 ) -> Response {
-    let recompiled_items: Vec<(String, String, Option<serde_json::Value>, std::collections::HashSet<PathBuf>)> = payloads
+    let recompiled_items: Vec<RecompiledAlbumItem> = payloads
         .into_iter()
-        .map(|p| (p.id, p.lock_json, p.eval_res, p.dependencies.into_iter().collect()))
+        .map(|p| {
+            (
+                p.album_dir,
+                p.id,
+                p.lock_json,
+                p.eval_res,
+                p.dependencies.into_iter().collect(),
+            )
+        })
         .collect();
 
-    crate::server::inotify::handler::ingest_and_broadcast_albums(recompiled_items, false, &state).await;
+    crate::server::inotify::handler::ingest_and_broadcast_albums(
+        std::collections::HashSet::new(),
+        recompiled_items,
+        false,
+        &state,
+    )
+    .await;
     StatusCode::OK.into_response()
 }
 
@@ -315,11 +296,12 @@ pub async fn force_update_album(
     Path(id): Path<String>,
     State(state): State<Arc<AppState>>,
 ) -> Response {
-    let path = {
-        let config_guard = state.config.read().await;
-        config_guard.music_directory.join(id)
+    let path_opt = {
+        let logic = state.logic.read().await;
+        logic.path_by_id.get(&id).cloned()
     };
-    if tokio::fs::try_exists(&path).await.unwrap_or(false) {
+
+    if let Some(path) = path_opt {
         tokio::spawn(async move {
             if let Err(e) = crate::update::run_server_update(
                 state,
@@ -344,6 +326,20 @@ pub async fn run_query(
     Json(payload): Json<serde_json::Value>,
 ) -> Response {
     let q_str = payload.get("query").and_then(|v| v.as_str()).unwrap_or("").trim();
-    let ids = state.logic.read().await.find_ids(q_str);
-    Json(ids).into_response()
+    let logic = state.logic.read().await;
+    let ids = logic.find_ids(q_str);
+    let mut results = Vec::new();
+    for id in ids {
+        if let Some(path) = logic.path_by_id.get(&id)
+            && let Some(json_str) = logic.get_album_json(&id)
+            && let Ok(lock_json) = serde_json::from_str::<serde_json::Value>(&json_str)
+        {
+            results.push(json!({
+                "id": id,
+                "path": path,
+                "lock": lock_json,
+            }));
+        }
+    }
+    Json(results).into_response()
 }

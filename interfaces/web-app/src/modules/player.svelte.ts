@@ -1,6 +1,7 @@
 export const player = $state<{
   state: string;
   currentAlbumId: string | null;
+  currentTrackIndex: number | null;
   currentFile: string | null;
   title: string;
   artist: string;
@@ -11,6 +12,7 @@ export const player = $state<{
 }>({
   state: "stop",
   currentAlbumId: null,
+  currentTrackIndex: null,
   currentFile: null,
   title: "",
   artist: "",
@@ -22,7 +24,8 @@ export const player = $state<{
 
 export function updatePlayerState(data: any) {
   player.state = data.state;
-  player.currentAlbumId = data.album_id;
+  player.currentAlbumId = data.album_id ?? null;
+  player.currentTrackIndex = data.track_index ?? null;
   player.currentFile = data.file;
   player.title = data.title || "";
   player.artist = data.artist || "";

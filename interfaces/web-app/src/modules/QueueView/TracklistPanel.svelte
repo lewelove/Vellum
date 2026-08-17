@@ -42,18 +42,19 @@ async function handleJump(id: string | number) {
 let mappedTracks = $derived(
   player.queue.map((item) => {
     const fullAlbum = item.album_id ? collection.fullAlbumCache[item.album_id] : null;
-    const meta = fullAlbum?.tracks?.find(
-      (t: any) => `${fullAlbum.album.id}/${t.file?.path}` === item.file
-    );
+    const meta =
+      item.track_index !== null && item.track_index !== undefined && fullAlbum?.tracks
+        ? fullAlbum.tracks[item.track_index] ?? null
+        : null;
 
     return {
       id: item.id,
       file: item.file,
       isPlaying: player.currentFile === item.file,
-      trackNo: meta ? meta.tracknumber : "#",
-      discNo: meta ? meta.discnumber : 1,
-      duration: meta ? meta.info?.duration_formatted : "",
-      durationMs: meta ? meta.info?.duration_milliseconds : 0,
+      trackNo: meta ? meta.tracknumber : item.track_no ?? "#",
+      discNo: meta ? meta.discnumber : item.disc_no ?? 1,
+      duration: meta ? meta.info?.duration_formatted : item.duration ?? "",
+      durationMs: meta ? meta.info?.duration_milliseconds : item.duration_ms ?? 0,
       title: meta ? meta.title : item.title || item.file,
       artist: meta ? meta.artist : item.artist || "",
       albumId: item.album_id || null

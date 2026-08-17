@@ -57,25 +57,37 @@ pub fn spawn_server_ingest_handler(
                 batch.push(payload);
             }
 
+            let mut vanished_paths = HashSet::new();
             let mut items = Vec::with_capacity(batch.len());
             let mut logs = Vec::new();
 
             for payload in batch {
-                if payload.modified
-                    && !payload.lock_json.is_empty()
-                    && (!payload.artist.is_empty() || !payload.album.is_empty())
-                {
-                    logs.push(format!("Updated: {} - {}", payload.artist, payload.album));
+                if payload.eval_res.is_none() && !payload.album_dir.exists() {
+                    vanished_paths.insert(payload.album_dir);
+                } else if let Some(eval) = payload.eval_res {
+                    if payload.modified
+                        && !payload.lock_json.is_empty()
+                        && (!payload.artist.is_empty() || !payload.album.is_empty())
+                    {
+                        logs.push(format!("Updated: {} - {}", payload.artist, payload.album));
+                    }
+                    items.push((
+                        payload.album_dir,
+                        payload.id,
+                        payload.lock_json,
+                        Some(eval),
+                        payload.dependencies.into_iter().collect(),
+                    ));
                 }
-                items.push((
-                    payload.id,
-                    payload.lock_json,
-                    payload.eval_res,
-                    payload.dependencies.into_iter().collect(),
-                ));
             }
 
-            crate::server::inotify::handler::ingest_and_broadcast_albums(items, true, &state).await;
+            crate::server::inotify::handler::ingest_and_broadcast_albums(
+                vanished_paths,
+                items,
+                true,
+                &state,
+            )
+            .await;
 
             for log_msg in &logs {
                 emit_log(log_msg, silent, &log_txs);
@@ -291,7 +303,6 @@ async fn process_missing_and_compile(
         spawn_server_ingest_handler(Arc::clone(state), ctx.silent, log_txs.to_vec());
 
     for missing in ctx.missing_paths {
-        let album_id = libdale::resolvers::rel_path(missing, ctx.music_directory);
         let display_path = missing.strip_prefix(ctx.music_directory).unwrap_or(missing);
         emit_log(
             &format!("Removed: {}", display_path.display()),
@@ -300,7 +311,8 @@ async fn process_missing_and_compile(
         );
         let _ = ingest_tx
             .send(crate::server::api::system::AlbumIngestPayload {
-                id: album_id,
+                album_dir: missing.clone(),
+                id: String::new(),
                 artist: String::new(),
                 album: String::new(),
                 lock_json: String::new(),

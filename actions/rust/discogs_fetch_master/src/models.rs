@@ -1,34 +1,5 @@
 use serde::Deserialize;
 
-#[derive(Deserialize, Debug)]
-pub struct ActionPayload {
-    pub albums: Vec<serde_json::Value>,
-    #[serde(default)]
-    pub config: ConfigBlock,
-    #[serde(default)]
-    pub options: String,
-}
-
-#[derive(Deserialize, Debug, Default)]
-pub struct ConfigBlock {
-    #[serde(default)]
-    pub dale: DaleConfig,
-    #[serde(default)]
-    pub action: ActionConfig,
-}
-
-#[derive(Deserialize, Debug, Default)]
-pub struct DaleConfig {
-    #[serde(default)]
-    pub storage: StorageConfig,
-}
-
-#[derive(Deserialize, Debug, Default)]
-pub struct StorageConfig {
-    #[serde(default)]
-    pub music_directory: String,
-}
-
 #[derive(Deserialize, Debug, Default)]
 pub struct ActionConfig {
     #[serde(default = "default_info_dir")]

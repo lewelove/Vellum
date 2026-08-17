@@ -44,6 +44,10 @@ class CollectionStore {
       delete this.fullAlbumCache[json.id];
     } else if (json.type === "ALBUM_UPDATED") {
       if (json.shelves) this.sidebarShelves = json.shelves;
+      if (json.old_id && json.old_id !== json.id) {
+        delete this.dict[json.old_id];
+        delete this.fullAlbumCache[json.old_id];
+      }
       if (json.dictEntry && Object.keys(json.dictEntry).length > 0) {
         this.dict[json.id] = json.dictEntry;
       } else {
