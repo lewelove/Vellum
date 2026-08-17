@@ -16,10 +16,10 @@
 
 ### Architecture
 
-- **Complete plain-text power.** Store anything that you care about in plain-text alongside the album. Custom date added values, lyrics, your own personal notes, source URLs, ReplayGain values, static album analysis results, *anything*. Edit these files in Neovim, RipGrep/Sed them. Plain-text is *the* universal interface.
-- **Album as a Compiled Data Object.** Take these metadata files, take the audio source, the cover, and *compile* them. Result: machine-readable, standardized `album.lock.json`. Use this object to interface the album in any way imaginable.
+- **Plain-text power.** Store anything that you care about in plain-text alongside the album. Custom date added values, lyrics, your own personal notes, source URLs, ReplayGain values, static album analysis results, *anything*. Edit these files in Neovim, RipGrep/Sed them. Plain-text is *the* universal interface.
+- **Album as a compiled data object.** Take these metadata files, take the audio source, the cover, and *compile* them. Result: machine-readable, standardized `album.lock.json`. Use this object to interface the album in any way imaginable.
 - **Database-less storage.** No opaque SQLite databases somewhere in media player cache. 1 Album = 1 Directory = 1 Source of Truth. Everything in plain sight. Zero lock-in.
-- **Decoupled Backend and Frontend.** Dale is the Rust web server first — the user interface intentionally comes second. The interface choice is yours. You can write interfaces in any language that supports Web API communications with the running backend. You can build TUI apps, Godot based game-interfaces, or you can even straight up use Curl. The project's goal is to provide robust primitives and allow you to build upon them.
+- **Decoupled backend and frontend.** Dale is the Rust web server first — the user interface intentionally comes second. The interface choice is yours. You can write interfaces in any language that supports Web API communications with the running backend. You can build TUI apps, Godot based game-interfaces, or you can even straight up use Curl. The project's goal is to provide robust primitives and allow you to build upon them.
 
 ## Why This Way?
 
@@ -27,7 +27,7 @@ The reasons behind architecture choices are a few cool features they unlock:
 
 - **Version control of your metadata with Git.** Never lose your metadata after a batch edit ever again. *Or ever again, period.* Something went wrong? Just `git reset --hard`. Upload it to a remote repo and then nothing can take it away from you.
 - **Full Lua scriptability at compile/interface time.** Control the data flow from ancillary files to `album.lock.json` before it hits the interface. Control the logic of how albums are separated by virtual libraries, filtered, grouped, and ordered *inside* the interface. All done in a god-tier scripting language — Lua.
-- **Ahead-Of-Time Compilation Guarantees.** Since each album is compiled ahead-of-time you can enforce all cool compile time features AOT programming languages have. Type check your metadata, lint it, standardize its structure, validate it. All can be expressed in Lua as well.
+- **Ahead-of-Time compilation guarantees.** Since each album is compiled ahead-of-time you can enforce all cool compile time features AOT programming languages have. Type check your metadata, lint it, standardize its structure, validate it. All can be expressed in Lua as well.
 - **Actions.** If every album is a JSON file — then every album is scriptable. An **action** is a standalone executable that reads intermediary JSON from stdin provided by Dale at runtime. Infinitely expand your library management functionality in Unix Philosophy style. Each action can be called by an `/api/actions/{action_name}/` endpoint from any current or future interface.
 
 ## Examples of Why This Architecture Is Incredible
@@ -142,6 +142,10 @@ Provide any GLSL shader as the background with custom palettes for each album vi
 <img width="1920" height="1080" alt="Image" src="https://github.com/user-attachments/assets/685b24ea-61a1-4a08-b2de-ea0fb0e8961f" />
 
 <img width="1920" height="1080" alt="Image" src="https://github.com/user-attachments/assets/574e7814-7744-4cc8-898f-df8c617a6650" />
+
+## Development Status
+
+> This project is in alpha and moves as fast as I can pour my energy into it. The API and communication endpoints are functional but currently require deep ergonomic redesign to be universal and stable. Expect breaking changes until 1.0.
 
 ## Getting Started
 
@@ -262,7 +266,7 @@ The `dale` CLI tool is the central driver for managing your library's state.
 This software was developed in part with the assistance of LLMs, which were used as a tool for research and as a code-monkey for Rust syntax implementation. All business logic, architecture, UX — including complete creative vision — were designed and vetted with a great deal of intent and hard work by a human — myself. All text you'll read here was written by me also, as I believe this is an honest way to show you that I care.
 
 ## A Note From The Developer
-**I am the primary and the most active user of this software.** I am building it for myself, in hopes that **you** will find it useful too. This project was born from the unstoppable love for album collecting and archival, respect for Unix Philosophy, and genuine lack of anything close to "album-as-a-compiled-data-object" in the world of media players. Since I daily-drive it — and don't intend to stop any time soon — I'll try to maintain it as long as I am using Linux and listening to albums. Thank you for reading this README.md and (hopefully) using this software. All feedback is always appreciated.
+**I am the most active user of this software.** It means I am the test audience. What's good in this fact, is that this software is not a one-off-already-dead thing. What's bad, I need more feedback. I am building it for myself, in hopes that **you** will find it useful too. This project was born from the unstoppable love for album collecting and archival, respect for Unix Philosophy, and genuine lack of anything close to "album-as-a-compiled-data-object" in the world of media players. Since I daily-drive it on my ~1000 album collection — and don't intend to stop any time soon — I catch and fix bugs in real time. In other words, I'll try to maintain Dale as long as I am using Linux and listening to albums, which is kinda forever. Thank you for reading this README.md and (hopefully) using this software. All feedback is always appreciated. And don't forget, ...I care because you do.
 
 ## License
-Dale is free software and I want it to remain free forever, which is why it is licensed under the [GNU Affero General Public License v3.0](https://www.gnu.org/licenses/agpl-3.0.en.html). Proprietary license exemptions are not offered.
+Dale is free software and I intend it to remain free forever, which is why it is licensed under the [GNU Affero General Public License v3.0](https://www.gnu.org/licenses/agpl-3.0.en.html). Proprietary license exemptions are not offered.
