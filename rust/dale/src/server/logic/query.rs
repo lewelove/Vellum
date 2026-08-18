@@ -1,6 +1,6 @@
 use super::LogicEngine;
 use roaring::RoaringBitmap;
-use serde_json::{Value, json};
+use serde_json::Value;
 
 impl LogicEngine {
     pub fn request_view(
@@ -47,7 +47,7 @@ impl LogicEngine {
                 }
                 final_mask = searched;
             } else if let Some(grouper_vals) = self.groupers_cache.get(fk) {
-                if let Some((_, _, grouper_mask)) = grouper_vals.get(fv) {
+                if let Some(grouper_mask) = grouper_vals.get(fv) {
                     final_mask &= grouper_mask;
                 } else {
                     final_mask.clear();
@@ -114,48 +114,15 @@ impl LogicEngine {
         library_filter: Option<&str>,
         grouper: &str,
     ) -> Vec<Value> {
-        let empty_bitmap = RoaringBitmap::new();
-        let library_mask = self.libraries_cache.get(library).unwrap_or(&empty_bitmap);
-        let mut final_mask = library_mask.clone();
-
-        if let Some(lf) = library_filter
-            && let Some(f_mask) = self.filters_cache.get(lf)
-        {
-            final_mask &= f_mask;
-        }
-
-        let grouper_def = self.manifest.groupers.get(grouper);
-        let reverse = grouper_def.is_some_and(|g| g.reverse);
-
-        let mut items = Vec::new();
-        if let Some(grouper_map) = self.groupers_cache.get(grouper) {
-            for (val, (sort_key, sort_str, mask)) in grouper_map {
-                let count = mask.intersection_len(&final_mask) as usize;
-                if count > 0 {
-                    items.push((
-                        sort_key.clone(),
-                        val.clone(),
-                        json!({
-                            "value": val,
-                            "label": val,
-                            "sort": sort_str,
-                            "count": count
-                        }),
-                    ));
-                }
-            }
-        }
-
-        items.sort_by(|a, b| {
-            a.0.cmp(&b.0)
-                .then_with(|| alphanumeric_sort::compare_str(&a.1, &b.1))
-        });
-
-        if reverse {
-            items.reverse();
-        }
-
-        items.into_iter().map(|(_, _, json_val)| json_val).collect()
+        let key = (
+            library.to_string(),
+            library_filter.map(ToString::to_string),
+            grouper.to_string(),
+        );
+        self.precomputed_groups
+            .get(&key)
+            .cloned()
+            .unwrap_or_default()
     }
 
     pub fn find_ids(&self, query_str: &str) -> Vec<String> {

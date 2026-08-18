@@ -89,27 +89,16 @@ function __DALE_EVALUATE_ALBUM_LOGIC(raw_album)
         if type(v.select) == "function" then
             local ok, sel_res = pcall(v.select, album)
             if ok and sel_res ~= nil then
-                local function build_entry(item)
-                    local sort_key = item
-                    if type(v.sort) == "function" then
-                        local s_ok, s_res = pcall(v.sort, item, album)
-                        if s_ok and s_res ~= nil then
-                            sort_key = s_res
-                        elseif not s_ok then
-                            print(string.format("Error evaluating grouper sort '%s': %s", k, tostring(s_res)))
-                        end
-                    end
-                    return { value = tostring(item), sort = sort_key }
-                end
-
                 if type(sel_res) == "table" then
                     local items = {}
-                    for idx, item in ipairs(sel_res) do
-                        items[idx] = build_entry(item)
+                    for _, item in ipairs(sel_res) do
+                        if item ~= nil and item ~= "" then
+                            table.insert(items, tostring(item))
+                        end
                     end
                     res.groupers[k] = items
-                else
-                    res.groupers[k] = build_entry(sel_res)
+                elseif sel_res ~= "" then
+                    res.groupers[k] = { tostring(sel_res) }
                 end
             elseif not ok then
                 print(string.format("Error evaluating grouper '%s': %s", k, tostring(sel_res)))

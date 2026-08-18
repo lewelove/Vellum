@@ -17,7 +17,8 @@ pub struct LogicEngine {
     pub manifest: LogicManifest,
     pub(crate) libraries_cache: HashMap<String, RoaringBitmap>,
     pub(crate) filters_cache: HashMap<String, RoaringBitmap>,
-    pub(crate) groupers_cache: HashMap<String, HashMap<String, (SortKey, String, RoaringBitmap)>>,
+    pub(crate) groupers_cache: HashMap<String, HashMap<String, RoaringBitmap>>,
+    pub(crate) precomputed_groups: HashMap<(String, Option<String>, String), Vec<Value>>,
     pub(crate) orders_cache: HashMap<String, Vec<u32>>,
     pub(crate) shelves_cache: HashMap<String, Vec<u32>>,
     pub(crate) uid_to_id: HashMap<u32, String>,
@@ -44,6 +45,7 @@ impl LogicEngine {
             libraries_cache: HashMap::new(),
             filters_cache: HashMap::new(),
             groupers_cache: HashMap::new(),
+            precomputed_groups: HashMap::new(),
             orders_cache: HashMap::new(),
             shelves_cache: HashMap::new(),
             uid_to_id: HashMap::new(),
@@ -84,6 +86,7 @@ impl LogicEngine {
         self.libraries_cache.clear();
         self.filters_cache.clear();
         self.groupers_cache.clear();
+        self.precomputed_groups.clear();
         self.orders_cache.clear();
         self.shelves_cache.clear();
         self.uid_to_id.clear();

@@ -508,6 +508,51 @@ impl LuaEngine {
             .map_err(|e| anyhow::anyhow!("{e}"))?;
         Ok(json_res)
     }
+
+    pub fn evaluate_grouper_format(
+        &self,
+        grouper_id: &str,
+        value: &str,
+        count: u64,
+    ) -> (String, serde_json::Value) {
+        let format_fn: Option<mlua::Function> = (|| {
+            let globals = self.lua.globals();
+            let registry = globals.get::<Table>("REGISTRY").ok()?;
+            let groupers = registry.get::<Table>("groupers").ok()?;
+            let grouper_tbl = groupers.get::<Table>(grouper_id).ok()?;
+            grouper_tbl.get::<mlua::Function>("format").ok()
+        })();
+
+        if let Some(f) = format_fn
+            && let Ok(g_tbl) = self.lua.create_table()
+        {
+            let _ = g_tbl.set("value", value);
+            let _ = g_tbl.set("count", count);
+
+            if let Ok(res) = f.call::<mlua::Value>(g_tbl) {
+                match res {
+                    mlua::Value::Table(tbl) => {
+                        let label: String = tbl.get("label").unwrap_or_else(|_| value.to_string());
+                        let sort_val: serde_json::Value = tbl
+                            .get("sort")
+                            .ok()
+                            .and_then(|v| self.lua.from_value::<serde_json::Value>(v).ok())
+                            .unwrap_or_else(|| serde_json::json!(label));
+                        return (label, sort_val);
+                    }
+                    mlua::Value::String(s) => {
+                        if let Ok(str_val) = s.to_str() {
+                            let s_owned = str_val.to_string();
+                            return (s_owned.clone(), serde_json::json!(s_owned));
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        (value.to_string(), serde_json::json!(value))
+    }
 }
 
 pub fn resolve_config_path() -> Option<PathBuf> {
