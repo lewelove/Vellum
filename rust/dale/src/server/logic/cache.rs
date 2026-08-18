@@ -1,6 +1,8 @@
 use super::{value_to_sort_key, LogicEngine, SortKey};
+use libdale::lua::GrouperFormatContext;
 use roaring::RoaringBitmap;
 use serde_json::{json, Value};
+use std::collections::{HashMap, HashSet};
 
 fn value_to_display_string(val: &Value) -> String {
     val.as_str().map_or_else(|| val.to_string(), ToString::to_string)
@@ -26,6 +28,225 @@ fn sort_val_to_string(val: &Value) -> String {
         Value::Bool(b) => b.to_string(),
         Value::Null => String::new(),
     }
+}
+
+struct RawGrouperNode {
+    value: String,
+    label: String,
+    sort_key: SortKey,
+    sort_str: String,
+    count: u64,
+    pct: f64,
+    duration_millis: u64,
+    total_tracks: u64,
+    total_discs: u64,
+    parent: Option<String>,
+}
+
+fn calculate_mask_metrics(
+    mask: &RoaringBitmap,
+    album_metrics: &HashMap<u32, (u64, u64, u64)>,
+) -> (u64, u64, u64) {
+    let (mut dur, mut trk, mut dsc) = (0u64, 0u64, 0u64);
+    for uid in mask {
+        if let Some(&(d, t, dc)) = album_metrics.get(&uid) {
+            dur += d;
+            trk += t;
+            dsc += dc;
+        }
+    }
+    (dur, trk, dsc)
+}
+
+fn calculate_pct(count: u64, view_total: f64) -> f64 {
+    if view_total > 0.0 {
+        (count as f64 / view_total * 1000.0).floor() / 10.0
+    } else {
+        0.0
+    }
+}
+
+fn build_node_json(
+    node: &RawGrouperNode,
+    children_map: &mut HashMap<Option<String>, Vec<RawGrouperNode>>,
+    reverse: bool,
+) -> Value {
+    let mut children_json = Vec::new();
+    if let Some(mut children) = children_map.remove(&Some(node.value.clone())) {
+        children.sort_by(|a, b| {
+            a.sort_key
+                .cmp(&b.sort_key)
+                .then_with(|| alphanumeric_sort::compare_str(&a.value, &b.value))
+        });
+        if reverse {
+            children.reverse();
+        }
+        for child in &children {
+            children_json.push(build_node_json(child, children_map, reverse));
+        }
+    }
+
+    json!({
+        "value": node.value,
+        "label": node.label,
+        "sort": node.sort_str,
+        "count": node.count,
+        "pct": node.pct,
+        "duration_millis": node.duration_millis,
+        "total_tracks": node.total_tracks,
+        "total_discs": node.total_discs,
+        "parent": node.parent,
+        "children": children_json
+    })
+}
+
+fn discover_parent_hierarchy(
+    grouper_id: &str,
+    node_bitmaps: &mut HashMap<String, RoaringBitmap>,
+    view_total: f64,
+    album_metrics: &HashMap<u32, (u64, u64, u64)>,
+    lua_engine: Option<&libdale::lua::LuaEngine>,
+) -> HashMap<String, String> {
+    let mut parent_links: HashMap<String, String> = HashMap::new();
+    let mut queue: Vec<String> = node_bitmaps.keys().cloned().collect();
+    let mut visited: HashSet<String> = HashSet::new();
+
+    while let Some(current_val) = queue.pop() {
+        if !visited.insert(current_val.clone()) {
+            continue;
+        }
+
+        let direct_mask = node_bitmaps.get(&current_val).cloned().unwrap_or_default();
+        let count = direct_mask.len();
+        let pct = calculate_pct(count, view_total);
+        let (dur, trk, dsc) = calculate_mask_metrics(&direct_mask, album_metrics);
+
+        let fmt_ctx = GrouperFormatContext {
+            value: &current_val,
+            count,
+            pct,
+            duration_millis: dur,
+            total_tracks: trk,
+            total_discs: dsc,
+        };
+
+        let (_, _, parent_opt) = lua_engine.map_or_else(
+            || (current_val.clone(), json!(current_val), None),
+            |engine| engine.evaluate_grouper_format(grouper_id, &fmt_ctx),
+        );
+
+        if let Some(parent) = parent_opt
+            && parent != current_val
+        {
+            parent_links.insert(current_val.clone(), parent.clone());
+            if !node_bitmaps.contains_key(&parent) {
+                node_bitmaps.insert(parent.clone(), RoaringBitmap::new());
+                queue.push(parent);
+            }
+        }
+    }
+
+    parent_links
+}
+
+fn propagate_child_bitmaps(
+    parent_links: &HashMap<String, String>,
+    node_bitmaps: &mut HashMap<String, RoaringBitmap>,
+) {
+    let initial_nodes: Vec<(String, RoaringBitmap)> = node_bitmaps
+        .iter()
+        .map(|(k, v)| (k.clone(), v.clone()))
+        .collect();
+
+    for (child_val, child_bm) in initial_nodes {
+        let mut curr = parent_links.get(&child_val);
+        let mut path_seen = HashSet::new();
+        while let Some(parent) = curr {
+            if !path_seen.insert(parent.clone()) {
+                break;
+            }
+            if let Some(parent_bm) = node_bitmaps.get_mut(parent) {
+                *parent_bm |= &child_bm;
+            }
+            curr = parent_links.get(parent);
+        }
+    }
+}
+
+fn build_raw_grouper_nodes(
+    grouper_id: &str,
+    node_bitmaps: &HashMap<String, RoaringBitmap>,
+    view_total: f64,
+    album_metrics: &HashMap<u32, (u64, u64, u64)>,
+    lua_engine: Option<&libdale::lua::LuaEngine>,
+) -> Vec<RawGrouperNode> {
+    let mut raw_nodes: Vec<RawGrouperNode> = Vec::new();
+
+    for (node_val, node_bm) in node_bitmaps {
+        let count = node_bm.len();
+        if count == 0 {
+            continue;
+        }
+
+        let pct = calculate_pct(count, view_total);
+        let (dur, trk, dsc) = calculate_mask_metrics(node_bm, album_metrics);
+
+        let fmt_ctx = GrouperFormatContext {
+            value: node_val,
+            count,
+            pct,
+            duration_millis: dur,
+            total_tracks: trk,
+            total_discs: dsc,
+        };
+
+        let (label, raw_sort, parent_opt) = lua_engine.map_or_else(
+            || (node_val.clone(), json!(node_val), None),
+            |engine| engine.evaluate_grouper_format(grouper_id, &fmt_ctx),
+        );
+
+        let sort_key = value_to_sort_key(&raw_sort);
+        let sort_str = sort_val_to_string(&raw_sort);
+        let valid_parent = parent_opt.filter(|p| p != node_val && node_bitmaps.contains_key(p));
+
+        raw_nodes.push(RawGrouperNode {
+            value: node_val.clone(),
+            label,
+            sort_key,
+            sort_str,
+            count,
+            pct,
+            duration_millis: dur,
+            total_tracks: trk,
+            total_discs: dsc,
+            parent: valid_parent,
+        });
+    }
+
+    raw_nodes
+}
+
+fn assemble_grouper_tree(raw_nodes: Vec<RawGrouperNode>, reverse: bool) -> Vec<Value> {
+    let mut children_map: HashMap<Option<String>, Vec<RawGrouperNode>> = HashMap::new();
+    for node in raw_nodes {
+        children_map.entry(node.parent.clone()).or_default().push(node);
+    }
+
+    let mut roots = children_map.remove(&None).unwrap_or_default();
+    roots.sort_by(|a, b| {
+        a.sort_key
+            .cmp(&b.sort_key)
+            .then_with(|| alphanumeric_sort::compare_str(&a.value, &b.value))
+    });
+
+    if reverse {
+        roots.reverse();
+    }
+
+    roots
+        .iter()
+        .map(|r| build_node_json(r, &mut children_map, reverse))
+        .collect()
 }
 
 impl LogicEngine {
@@ -103,6 +324,64 @@ impl LogicEngine {
         }
     }
 
+    fn propagate_global_parent_unions(&mut self, lua_engine: Option<&libdale::lua::LuaEngine>) {
+        let Some(engine) = lua_engine else {
+            return;
+        };
+
+        for (grouper_id, group_map) in &mut self.groupers_cache {
+            let mut parent_links: HashMap<String, String> = HashMap::new();
+            let mut queue: Vec<String> = group_map.keys().cloned().collect();
+            let mut visited: HashSet<String> = HashSet::new();
+
+            while let Some(current_val) = queue.pop() {
+                if !visited.insert(current_val.clone()) {
+                    continue;
+                }
+
+                let ctx = GrouperFormatContext {
+                    value: &current_val,
+                    count: 0,
+                    pct: 0.0,
+                    duration_millis: 0,
+                    total_tracks: 0,
+                    total_discs: 0,
+                };
+
+                let (_, _, parent_opt) = engine.evaluate_grouper_format(grouper_id, &ctx);
+
+                if let Some(parent) = parent_opt
+                    && parent != current_val
+                {
+                    parent_links.insert(current_val.clone(), parent.clone());
+                    if !group_map.contains_key(&parent) {
+                        group_map.insert(parent.clone(), RoaringBitmap::new());
+                        queue.push(parent);
+                    }
+                }
+            }
+
+            let initial_entries: Vec<(String, RoaringBitmap)> = group_map
+                .iter()
+                .map(|(k, v)| (k.clone(), v.clone()))
+                .collect();
+
+            for (child_val, child_bm) in initial_entries {
+                let mut curr = parent_links.get(&child_val);
+                let mut path_seen = HashSet::new();
+                while let Some(parent) = curr {
+                    if !path_seen.insert(parent.clone()) {
+                        break;
+                    }
+                    if let Some(parent_bm) = group_map.get_mut(parent) {
+                        *parent_bm |= &child_bm;
+                    }
+                    curr = parent_links.get(parent);
+                }
+            }
+        }
+    }
+
     fn collect_library_views(&self) -> Vec<(String, Option<String>, RoaringBitmap)> {
         let mut views = Vec::new();
         let empty_bitmap = RoaringBitmap::new();
@@ -144,51 +423,43 @@ impl LogicEngine {
     ) -> Vec<Value> {
         let grouper_def = self.manifest.groupers.get(grouper_id);
         let reverse = grouper_def.is_some_and(|g| g.reverse);
+        let view_total = view_mask.len() as f64;
 
-        let mut items: Vec<(SortKey, String, Value)> = Vec::new();
+        let Some(groups) = self.groupers_cache.get(grouper_id) else {
+            return Vec::new();
+        };
 
-        if let Some(groups) = self.groupers_cache.get(grouper_id) {
-            for (group_val, group_bitmap) in groups {
-                let count = group_bitmap.intersection_len(view_mask) as usize;
-                if count > 0 {
-                    let (label, raw_sort) = lua_engine.map_or_else(
-                        || (group_val.clone(), json!(group_val)),
-                        |engine| {
-                            engine.evaluate_grouper_format(
-                                grouper_id,
-                                group_val,
-                                count as u64,
-                            )
-                        },
-                    );
-
-                    let sort_key = value_to_sort_key(&raw_sort);
-                    let sort_str = sort_val_to_string(&raw_sort);
-
-                    items.push((
-                        sort_key,
-                        group_val.clone(),
-                        json!({
-                            "value": group_val,
-                            "label": label,
-                            "sort": sort_str,
-                            "count": count
-                        }),
-                    ));
-                }
+        let mut node_bitmaps: HashMap<String, RoaringBitmap> = HashMap::new();
+        for (group_val, group_bitmap) in groups {
+            let intersection = group_bitmap & view_mask;
+            if !intersection.is_empty() {
+                node_bitmaps.insert(group_val.clone(), intersection);
             }
         }
 
-        items.sort_by(|a, b| {
-            a.0.cmp(&b.0)
-                .then_with(|| alphanumeric_sort::compare_str(&a.1, &b.1))
-        });
-
-        if reverse {
-            items.reverse();
+        if node_bitmaps.is_empty() {
+            return Vec::new();
         }
 
-        items.into_iter().map(|(_, _, val)| val).collect()
+        let parent_links = discover_parent_hierarchy(
+            grouper_id,
+            &mut node_bitmaps,
+            view_total,
+            &self.album_metrics,
+            lua_engine,
+        );
+
+        propagate_child_bitmaps(&parent_links, &mut node_bitmaps);
+
+        let raw_nodes = build_raw_grouper_nodes(
+            grouper_id,
+            &node_bitmaps,
+            view_total,
+            &self.album_metrics,
+            lua_engine,
+        );
+
+        assemble_grouper_tree(raw_nodes, reverse)
     }
 
     fn precompute_views_for_target(
@@ -231,6 +502,8 @@ impl LogicEngine {
         {
             let _ = engine.evaluate_config(&self.config_path);
         }
+
+        self.propagate_global_parent_unions(lua_engine.as_ref());
 
         let views = self.collect_library_views();
 

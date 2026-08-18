@@ -1,4 +1,5 @@
 <script lang="ts">
+import { SvelteSet } from "svelte/reactivity";
 import { view } from "../../library/view.svelte.ts";
 import { collection } from "../../library/collection.svelte.ts";
 import SidebarIndex from "./SidebarIndex.svelte";
@@ -10,6 +11,7 @@ let isGroupMenuOpen = $state(false);
 let isCabinetMenuOpen = $state(false);
 let isCabinetOrderMenuOpen = $state(false);
 let scrollContainer: HTMLDivElement | null = $state(null);
+let expandedNodes = new SvelteSet<string>();
 
 let isCabinetsMode = $derived(view.homeSubView === "cabinets");
 
@@ -159,29 +161,86 @@ function toggleDirection() {
 function toggleCabinetDirection() {
   view.toggleShelfOrderDirection();
 }
+
+function toggleExpand(value: string) {
+  if (expandedNodes.has(value)) {
+    expandedNodes.delete(value);
+  } else {
+    expandedNodes.add(value);
+  }
+}
+
+function hasSelectedChild(node: any, selectedVal: string | null): boolean {
+  if (!selectedVal || !node.children || node.children.length === 0) return false;
+  for (const child of node.children) {
+    if (child.value === selectedVal || hasSelectedChild(child, selectedVal)) {
+      return true;
+    }
+  }
+  return false;
+}
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
 
-{#snippet Item({
-  index,
-  label,
-  count,
-  active,
-  onclick
-}: {
-  index: number;
-  label: string;
-  count: number;
-  active: boolean;
-  onclick: () => void;
-})}
-  <button type="button" id="sidebar-item-{index}" class="v-sidebar-item" class:active {onclick}>
-    <span class="v-truncate label" title={label}>{label}</span>
-    {#if showCount}
-      <span class="count">{count}</span>
+{#snippet TreeNode(item: any, idPrefix: string, depth: number)}
+  {@const hasChildren = Boolean(item.children && item.children.length > 0)}
+  {@const isExpanded = expandedNodes.has(item.value)}
+  {@const activeGrouper = view.activeSidebarGrouper}
+  {@const currentFilterVal =
+    Boolean(activeGrouper) && view.activeFilter.key === activeGrouper
+      ? view.activeFilter.val
+      : null}
+  {@const isSelfActive = currentFilterVal !== null && currentFilterVal === item.value}
+  {@const isChildActive = currentFilterVal !== null && hasSelectedChild(item, currentFilterVal)}
+  {@const isActive = isSelfActive || isChildActive}
+
+  <div class="v-tree-node">
+    <div
+      class="v-tree-row"
+      class:active={isActive}
+      class:expanded={isExpanded}
+      style:padding-left="{depth * 8}px"
+    >
+      <button
+        type="button"
+        id="sidebar-item-{idPrefix}"
+        class="v-sidebar-item"
+        class:active={isActive}
+        onclick={() => {
+          if (view.activeSidebarGrouper) {
+            view.applyFilter(view.activeSidebarGrouper, item.value);
+          }
+        }}
+      >
+        <span class="v-truncate label" title={item.label}>{item.label}</span>
+        {#if showCount}
+          <span class="count">{item.count}</span>
+        {/if}
+      </button>
+
+      {#if hasChildren}
+        <button
+          type="button"
+          class="v-tree-toggle"
+          class:active={isActive}
+          class:expanded={isExpanded}
+          onclick={() => toggleExpand(item.value)}
+          title={isExpanded ? "Collapse" : "Expand"}
+        >
+          <span class="icon tree-icon">{isExpanded ? "arrow_drop_up" : "arrow_drop_down"}</span>
+        </button>
+      {/if}
+    </div>
+
+    {#if hasChildren && isExpanded}
+      <div class="v-tree-children">
+        {#each item.children as child, childIdx (child.value || child.label || childIdx)}
+          {@render TreeNode(child, `${idPrefix}-${childIdx}`, depth + 1)}
+        {/each}
+      </div>
     {/if}
-  </button>
+  </div>
 {/snippet}
 
 <div class="v-sidebar-container">
@@ -437,20 +496,7 @@ function toggleCabinetDirection() {
         {/each}
       {:else}
         {#each items as item, i (item.value || item.label || i)}
-          {@render Item({
-            index: i,
-            label: item.label,
-            count: item.count,
-            active:
-              Boolean(view.activeSidebarGrouper) &&
-              view.activeFilter.key === view.activeSidebarGrouper &&
-              view.activeFilter.val === item.value,
-            onclick: () => {
-              if (view.activeSidebarGrouper) {
-                view.applyFilter(view.activeSidebarGrouper, item.value);
-              }
-            }
-          })}
+          {@render TreeNode(item, String(i), 0)}
         {/each}
       {/if}
       <div class="scroll-spacer"></div>

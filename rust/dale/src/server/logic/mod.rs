@@ -23,6 +23,7 @@ pub struct LogicEngine {
     pub(crate) shelves_cache: HashMap<String, Vec<u32>>,
     pub(crate) uid_to_id: HashMap<u32, String>,
     pub(crate) id_to_uid: HashMap<String, u32>,
+    pub(crate) album_metrics: HashMap<u32, (u64, u64, u64)>,
     pub(crate) next_uid: u32,
     pub albums_by_path: HashMap<PathBuf, String>,
     pub path_by_id: HashMap<String, PathBuf>,
@@ -50,6 +51,7 @@ impl LogicEngine {
             shelves_cache: HashMap::new(),
             uid_to_id: HashMap::new(),
             id_to_uid: HashMap::new(),
+            album_metrics: HashMap::new(),
             next_uid: 1,
             albums_by_path: HashMap::new(),
             path_by_id: HashMap::new(),
@@ -91,6 +93,7 @@ impl LogicEngine {
         self.shelves_cache.clear();
         self.uid_to_id.clear();
         self.id_to_uid.clear();
+        self.album_metrics.clear();
         self.albums_by_path.clear();
         self.path_by_id.clear();
         self.cover_lookup.clear();
@@ -113,6 +116,7 @@ impl LogicEngine {
         if let Some(uid) = self.id_to_uid.remove(id) {
             self.uid_to_id.remove(&uid);
             self.evaluated_logic.remove(&uid);
+            self.album_metrics.remove(&uid);
         }
         if let Some(path) = self.path_by_id.remove(id) {
             self.albums_by_path.remove(&path);
@@ -257,6 +261,11 @@ impl LogicEngine {
         if let Some(album) = parsed.get("album")
             && let Some(info) = album.get("info")
         {
+            let duration_ms = info.get("duration_milliseconds").and_then(Value::as_u64).unwrap_or(0);
+            let total_tracks = info.get("total_tracks").and_then(Value::as_u64).unwrap_or(0);
+            let total_discs = info.get("total_discs").and_then(Value::as_u64).unwrap_or(1);
+            self.album_metrics.insert(uid, (duration_ms, total_tracks, total_discs));
+
             if let Some(tracks) = parsed.get("tracks").and_then(Value::as_array) {
                 self.ingest_tracks_and_lookup(tracks, &album_dir_canon, id, music_directory);
             }

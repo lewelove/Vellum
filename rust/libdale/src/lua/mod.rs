@@ -21,6 +21,16 @@ const LUA_COMPILER: &str = include_str!("compiler.lua");
 const LUA_ACTIONS: &str = include_str!("actions.lua");
 const LUA_LOGIC: &str = include_str!("logic.lua");
 
+#[derive(Clone, Copy, Debug, Default)]
+pub struct GrouperFormatContext<'a> {
+    pub value: &'a str,
+    pub count: u64,
+    pub pct: f64,
+    pub duration_millis: u64,
+    pub total_tracks: u64,
+    pub total_discs: u64,
+}
+
 #[derive(Clone, Debug)]
 pub struct EngineContext {
     pub cache_root: PathBuf,
@@ -512,9 +522,8 @@ impl LuaEngine {
     pub fn evaluate_grouper_format(
         &self,
         grouper_id: &str,
-        value: &str,
-        count: u64,
-    ) -> (String, serde_json::Value) {
+        ctx: &GrouperFormatContext<'_>,
+    ) -> (String, serde_json::Value, Option<String>) {
         let format_fn: Option<mlua::Function> = (|| {
             let globals = self.lua.globals();
             let registry = globals.get::<Table>("REGISTRY").ok()?;
@@ -526,24 +535,33 @@ impl LuaEngine {
         if let Some(f) = format_fn
             && let Ok(g_tbl) = self.lua.create_table()
         {
-            let _ = g_tbl.set("value", value);
-            let _ = g_tbl.set("count", count);
+            let _ = g_tbl.set("value", ctx.value);
+            let _ = g_tbl.set("count", ctx.count);
+            let _ = g_tbl.set("pct", ctx.pct);
+            let _ = g_tbl.set("duration_millis", ctx.duration_millis);
+            let _ = g_tbl.set("total_tracks", ctx.total_tracks);
+            let _ = g_tbl.set("total_discs", ctx.total_discs);
 
             if let Ok(res) = f.call::<mlua::Value>(g_tbl) {
                 match res {
                     mlua::Value::Table(tbl) => {
-                        let label: String = tbl.get("label").unwrap_or_else(|_| value.to_string());
+                        let label: String = tbl.get("label").unwrap_or_else(|_| ctx.value.to_string());
                         let sort_val: serde_json::Value = tbl
                             .get("sort")
                             .ok()
                             .and_then(|v| self.lua.from_value::<serde_json::Value>(v).ok())
                             .unwrap_or_else(|| serde_json::json!(label));
-                        return (label, sort_val);
+                        let parent: Option<String> = tbl
+                            .get::<Option<String>>("parent")
+                            .ok()
+                            .flatten()
+                            .filter(|p| !p.is_empty());
+                        return (label, sort_val, parent);
                     }
                     mlua::Value::String(s) => {
                         if let Ok(str_val) = s.to_str() {
                             let s_owned = str_val.to_string();
-                            return (s_owned.clone(), serde_json::json!(s_owned));
+                            return (s_owned.clone(), serde_json::json!(s_owned), None);
                         }
                     }
                     _ => {}
@@ -551,7 +569,7 @@ impl LuaEngine {
             }
         }
 
-        (value.to_string(), serde_json::json!(value))
+        (ctx.value.to_string(), serde_json::json!(ctx.value), None)
     }
 }
 
