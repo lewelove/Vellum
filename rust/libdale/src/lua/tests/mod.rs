@@ -2,12 +2,9 @@
 //!
 //! This module exports shared test fixture helpers and declares test submodules.
 
-use std::fs;
 use std::path::PathBuf;
 
-mod fn_tests;
-mod fs_tests;
-mod serde_tests;
+mod utils;
 
 /// Temporary file structure for test operations.
 ///
@@ -27,7 +24,7 @@ impl TempFile {
         let nanos = chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0);
         let name = format!("dale_test_{}_{}.{ext}", std::process::id(), nanos);
         path.push(name);
-        fs::write(&path, content).expect("Failed to write temp test file");
+        std::fs::write(&path, content).expect("Failed to write temp test file");
         Self(path)
     }
 
@@ -40,6 +37,6 @@ impl TempFile {
 impl Drop for TempFile {
     /// Deletes the temporary file from disk.
     fn drop(&mut self) {
-        let _ = fs::remove_file(&self.0);
+        let _ = std::fs::remove_file(&self.0);
     }
 }
