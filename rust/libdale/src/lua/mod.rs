@@ -31,6 +31,14 @@ pub struct GrouperFormatContext<'a> {
     pub total_discs: u64,
 }
 
+#[derive(Clone, Debug, Default)]
+pub struct FormattedGrouperResult {
+    pub label: String,
+    pub sublabel: Option<String>,
+    pub sort: serde_json::Value,
+    pub parent: Option<String>,
+}
+
 #[derive(Clone, Debug)]
 pub struct EngineContext {
     pub cache_root: PathBuf,
@@ -523,7 +531,7 @@ impl LuaEngine {
         &self,
         grouper_id: &str,
         ctx: &GrouperFormatContext<'_>,
-    ) -> (String, serde_json::Value, Option<String>) {
+    ) -> FormattedGrouperResult {
         let format_fn: Option<mlua::Function> = (|| {
             let globals = self.lua.globals();
             let registry = globals.get::<Table>("REGISTRY").ok()?;
@@ -546,7 +554,13 @@ impl LuaEngine {
                 match res {
                     mlua::Value::Table(tbl) => {
                         let label: String = tbl.get("label").unwrap_or_else(|_| ctx.value.to_string());
-                        let sort_val: serde_json::Value = tbl
+                        let sublabel: Option<String> = match tbl.get::<Option<mlua::Value>>("sublabel").ok().flatten() {
+                            Some(mlua::Value::String(s)) => s.to_str().ok().as_deref().map(ToString::to_string),
+                            Some(mlua::Value::Integer(i)) => Some(i.to_string()),
+                            Some(mlua::Value::Number(n)) => Some(n.to_string()),
+                            _ => None,
+                        };
+                        let sort: serde_json::Value = tbl
                             .get("sort")
                             .ok()
                             .and_then(|v| self.lua.from_value::<serde_json::Value>(v).ok())
@@ -556,12 +570,22 @@ impl LuaEngine {
                             .ok()
                             .flatten()
                             .filter(|p| !p.is_empty());
-                        return (label, sort_val, parent);
+                        return FormattedGrouperResult {
+                            label,
+                            sublabel,
+                            sort,
+                            parent,
+                        };
                     }
                     mlua::Value::String(s) => {
                         if let Ok(str_val) = s.to_str() {
                             let s_owned = str_val.to_string();
-                            return (s_owned.clone(), serde_json::json!(s_owned), None);
+                            return FormattedGrouperResult {
+                                label: s_owned.clone(),
+                                sublabel: None,
+                                sort: serde_json::json!(s_owned),
+                                parent: None,
+                            };
                         }
                     }
                     _ => {}
@@ -569,7 +593,12 @@ impl LuaEngine {
             }
         }
 
-        (ctx.value.to_string(), serde_json::json!(ctx.value), None)
+        FormattedGrouperResult {
+            label: ctx.value.to_string(),
+            sublabel: None,
+            sort: serde_json::json!(ctx.value),
+            parent: None,
+        }
     }
 }
 

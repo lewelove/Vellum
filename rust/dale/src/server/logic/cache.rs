@@ -1,5 +1,5 @@
 use super::{value_to_sort_key, LogicEngine, SortKey};
-use libdale::lua::GrouperFormatContext;
+use libdale::lua::{FormattedGrouperResult, GrouperFormatContext};
 use roaring::RoaringBitmap;
 use serde_json::{json, Value};
 use std::collections::{HashMap, HashSet};
@@ -33,6 +33,7 @@ fn sort_val_to_string(val: &Value) -> String {
 struct RawGrouperNode {
     value: String,
     label: String,
+    sublabel: Option<String>,
     sort_key: SortKey,
     sort_str: String,
     count: u64,
@@ -89,6 +90,7 @@ fn build_node_json(
     json!({
         "value": node.value,
         "label": node.label,
+        "sublabel": node.sublabel,
         "sort": node.sort_str,
         "count": node.count,
         "pct": node.pct,
@@ -130,12 +132,17 @@ fn discover_parent_hierarchy(
             total_discs: dsc,
         };
 
-        let (_, _, parent_opt) = lua_engine.map_or_else(
-            || (current_val.clone(), json!(current_val), None),
+        let fmt_res = lua_engine.map_or_else(
+            || FormattedGrouperResult {
+                label: current_val.clone(),
+                sublabel: None,
+                sort: json!(current_val),
+                parent: None,
+            },
             |engine| engine.evaluate_grouper_format(grouper_id, &fmt_ctx),
         );
 
-        if let Some(parent) = parent_opt
+        if let Some(parent) = fmt_res.parent
             && parent != current_val
         {
             parent_links.insert(current_val.clone(), parent.clone());
@@ -200,18 +207,26 @@ fn build_raw_grouper_nodes(
             total_discs: dsc,
         };
 
-        let (label, raw_sort, parent_opt) = lua_engine.map_or_else(
-            || (node_val.clone(), json!(node_val), None),
+        let fmt_res = lua_engine.map_or_else(
+            || FormattedGrouperResult {
+                label: node_val.clone(),
+                sublabel: None,
+                sort: json!(node_val),
+                parent: None,
+            },
             |engine| engine.evaluate_grouper_format(grouper_id, &fmt_ctx),
         );
 
-        let sort_key = value_to_sort_key(&raw_sort);
-        let sort_str = sort_val_to_string(&raw_sort);
-        let valid_parent = parent_opt.filter(|p| p != node_val && node_bitmaps.contains_key(p));
+        let sort_key = value_to_sort_key(&fmt_res.sort);
+        let sort_str = sort_val_to_string(&fmt_res.sort);
+        let valid_parent = fmt_res
+            .parent
+            .filter(|p| p != node_val && node_bitmaps.contains_key(p));
 
         raw_nodes.push(RawGrouperNode {
             value: node_val.clone(),
-            label,
+            label: fmt_res.label,
+            sublabel: fmt_res.sublabel,
             sort_key,
             sort_str,
             count,
@@ -348,9 +363,9 @@ impl LogicEngine {
                     total_discs: 0,
                 };
 
-                let (_, _, parent_opt) = engine.evaluate_grouper_format(grouper_id, &ctx);
+                let fmt_res = engine.evaluate_grouper_format(grouper_id, &ctx);
 
-                if let Some(parent) = parent_opt
+                if let Some(parent) = fmt_res.parent
                     && parent != current_val
                 {
                     parent_links.insert(current_val.clone(), parent.clone());

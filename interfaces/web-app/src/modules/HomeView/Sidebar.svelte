@@ -68,7 +68,6 @@ let activeGrouperDef = $derived(
   view.activeSidebarGrouper ? collection.availableGroupers[view.activeSidebarGrouper] || {} : {}
 );
 let showIndex = $derived(activeGrouperDef.index === true);
-let showCount = $derived(activeGrouperDef.count === true);
 
 function handleKeydown(e: KeyboardEvent) {
   if (e.key === "Escape") {
@@ -214,8 +213,8 @@ function hasSelectedChild(node: any, selectedVal: string | null): boolean {
         }}
       >
         <span class="v-truncate label" title={item.label}>{item.label}</span>
-        {#if showCount}
-          <span class="count">{item.count}</span>
+        {#if item.sublabel}
+          <span class="sublabel">{item.sublabel}</span>
         {/if}
       </button>
 
