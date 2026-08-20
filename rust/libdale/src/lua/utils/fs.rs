@@ -6,16 +6,19 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 
-fn parse_and_record_path(lua: &Lua, path_str: Option<String>) -> Option<PathBuf> {
+fn parse_path_with_ctx(ctx: &EngineContext, path_str: Option<String>) -> Option<PathBuf> {
     let raw_path = path_str?;
     if raw_path.trim().is_empty() {
         return None;
     }
     let path = crate::utils::expand_path(&raw_path);
-    if let Some(ctx) = lua.app_data_ref::<EngineContext>() {
-        ctx.record_dependency(path.clone());
-    }
+    ctx.record_dependency(&path);
     Some(path)
+}
+
+fn parse_and_record_path(lua: &Lua, path_str: Option<String>) -> Option<PathBuf> {
+    let ctx = lua.app_data_ref::<EngineContext>()?;
+    parse_path_with_ctx(&ctx, path_str)
 }
 
 fn fs_exists(lua: &Lua, path_str: Option<String>) -> bool {
@@ -69,13 +72,14 @@ fn create_fs_reader(
     expected_ext: &'static str,
 ) -> mlua::Result<mlua::Function> {
     lua.create_function(move |lua, path_str: Option<String>| {
-        let Some(p_str) = path_str else {
+        let Some(ctx) = lua.app_data_ref::<EngineContext>() else {
+            return Err(mlua::Error::external(anyhow::anyhow!(
+                "EngineContext is not initialized"
+            )));
+        };
+        let Some(path) = parse_path_with_ctx(&ctx, path_str) else {
             return Ok(mlua::Value::Nil);
         };
-        if p_str.trim().is_empty() {
-            return Ok(mlua::Value::Nil);
-        }
-        let path = crate::utils::expand_path(&p_str);
         let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
         if !ext.eq_ignore_ascii_case(expected_ext) {
             return Err(mlua::Error::external(DaleError::InvalidFileExtension {
@@ -83,13 +87,6 @@ fn create_fs_reader(
                 expected: expected_ext.to_string(),
             }));
         }
-        let context = lua.app_data_ref::<EngineContext>();
-        let Some(ctx) = context else {
-            return Err(mlua::Error::external(anyhow::anyhow!(
-                "EngineContext is not initialized"
-            )));
-        };
-        ctx.record_dependency(path.clone());
         match crate::cache::read_object_cached(&path, &ctx.cache_root) {
             Ok(json_val) => lua.to_value_with(&json_val, opts),
             Err(DaleError::ManifestIoError(err))

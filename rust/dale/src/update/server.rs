@@ -1,11 +1,11 @@
 use crate::compile;
 use crate::server::state::{AppState, PendingUpdateParams, UpdateScope};
 use crate::update::cache::{
-    calculate_hash, load_cache, save_cache, validate_library_root,
+    calculate_path_hash, deps_graph_path, library_cache_dir, load_cache, save_cache, validate_library_root,
 };
 use crate::update::queue::{
     check_lua_config_changed, resolve_work_queue, try_get_server_tracked_albums,
-    update_cache_entries,
+    update_cache_entries, WorkQueueContext,
 };
 use anyhow::Result;
 use std::collections::HashSet;
@@ -214,10 +214,10 @@ async fn run_server_update_pass(
     let effective_jobs = jobs.or(config.compiler.jobs);
     let is_full_library = scope == UpdateScope::All;
 
-    let lib_hash = calculate_hash(&music_directory.to_string_lossy());
-    let base_cache_dir = cache_root.join("libraries").join(&lib_hash);
+    let base_cache_dir = library_cache_dir(&cache_root, &music_directory);
     fs::create_dir_all(&base_cache_dir)?;
 
+    let lib_hash = calculate_path_hash(&music_directory);
     validate_library_root(&base_cache_dir, &lib_hash).await?;
 
     let mut cache = load_cache(&base_cache_dir.join("library.json"));
@@ -232,15 +232,17 @@ async fn run_server_update_pass(
         None
     };
 
-    let (work_queue, missing_paths) = resolve_work_queue(
-        &scope,
-        &music_directory,
-        &cache,
+    let deps_graph = state.deps_graph.read().await.clone();
+    let (work_queue, missing_paths) = resolve_work_queue(WorkQueueContext {
+        scope: &scope,
+        music_directory: &music_directory,
+        cache: &cache,
+        deps_graph: &deps_graph,
         force,
         effective_jobs,
         tracked,
         silent,
-    )?;
+    })?;
 
     if work_queue.is_empty() && missing_paths.is_empty() {
         emit_log("Library is up to date.", silent, &log_txs);
@@ -250,7 +252,7 @@ async fn run_server_update_pass(
             .deps_graph
             .read()
             .await
-            .save_to_file(&base_cache_dir.join("dependencies.json"));
+            .save_to_file(&deps_graph_path(&cache_root, &music_directory));
         return Ok(());
     }
 
@@ -272,7 +274,9 @@ async fn run_server_update_pass(
     )
     .await?;
 
-    update_cache_entries(&mut cache, &work_queue, &missing_paths, &music_directory, silent);
+    let deps_graph_guard = state.deps_graph.read().await;
+    update_cache_entries(&mut cache, &deps_graph_guard, &work_queue, &missing_paths, &music_directory, silent);
+    drop(deps_graph_guard);
 
     let elapsed = start_time.elapsed().as_millis();
     emit_log(
@@ -289,7 +293,7 @@ async fn run_server_update_pass(
         .deps_graph
         .read()
         .await
-        .save_to_file(&base_cache_dir.join("dependencies.json"));
+        .save_to_file(&deps_graph_path(&cache_root, &music_directory));
 
     Ok(())
 }

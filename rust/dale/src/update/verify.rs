@@ -1,3 +1,4 @@
+use crate::server::state::DependencyGraph;
 use crate::update::cache::FileStat;
 use anyhow::Result;
 use rayon::prelude::*;
@@ -37,6 +38,7 @@ pub fn find_missing_paths(
 pub fn verify_albums_parallel(
     albums: Vec<PathBuf>,
     cache: &HashMap<String, FileStat>,
+    deps_graph: &DependencyGraph,
     force: bool,
     jobs: Option<usize>,
     library_root: &Path,
@@ -51,7 +53,7 @@ pub fn verify_albums_parallel(
         albums
             .into_par_iter()
             .map(|album_root| {
-                let is_dirty = force || is_album_dirty(&album_root, cache, library_root);
+                let is_dirty = force || is_album_dirty(&album_root, cache, deps_graph, library_root);
                 (album_root, is_dirty)
             })
             .collect()
@@ -61,26 +63,51 @@ pub fn verify_albums_parallel(
 fn is_album_dirty(
     album_root: &Path,
     cache: &HashMap<String, FileStat>,
+    deps_graph: &DependencyGraph,
     library_root: &Path,
 ) -> bool {
-    let lock_path = album_root.join("album.lock.json");
+    let album_root_canon = album_root
+        .canonicalize()
+        .unwrap_or_else(|_| album_root.to_path_buf());
+
+    let lock_path = album_root_canon.join("album.lock.json");
     if !lock_path.exists() {
         return true;
     }
 
-    let meta_path = album_root.join("metadata.toml");
+    let meta_path = album_root_canon.join("metadata.toml");
     if !meta_path.exists() {
         return true;
     }
 
-    let album_id = libdale::resolvers::rel_path(album_root, library_root);
+    let album_id = libdale::resolvers::rel_path(&album_root_canon, library_root);
     let prefix = if album_id.is_empty() {
         String::new()
     } else {
         format!("{album_id}/")
     };
 
-    deep_verify_dirty(album_root, cache, &prefix, library_root)
+    if deep_verify_dirty(&album_root_canon, cache, &prefix, library_root) {
+        return true;
+    }
+
+    if let Some(external_deps) = deps_graph.album_to_files.get(&album_root_canon) {
+        for dep_path in external_deps {
+            if !dep_path.starts_with(&album_root_canon) {
+                let Ok(m) = dep_path.metadata() else {
+                    return true;
+                };
+                let stat = FileStat::from(&m);
+
+                let rel_dep = libdale::resolvers::rel_path(dep_path, library_root);
+                if cache.get(&rel_dep) != Some(&stat) {
+                    return true;
+                }
+            }
+        }
+    }
+
+    false
 }
 
 fn deep_verify_dirty(
@@ -103,16 +130,9 @@ fn deep_verify_dirty(
             let Ok(m) = entry.metadata() else {
                 return true;
             };
-            let mtime = m
-                .modified()
-                .unwrap_or(std::time::SystemTime::UNIX_EPOCH)
-                .duration_since(std::time::SystemTime::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_secs();
-            let size = m.len();
+            let stat = FileStat::from(&m);
 
-            let cached_stat = cache.get(&rel);
-            if cached_stat != Some(&FileStat { mtime, size }) {
+            if cache.get(&rel) != Some(&stat) {
                 album_files_changed = true;
                 break;
             }
@@ -123,7 +143,7 @@ fn deep_verify_dirty(
     if !album_files_changed {
         for k in cache.keys() {
             let matches_album = if prefix.is_empty() {
-                !k.contains('/')
+                !k.contains('/') && !k.starts_with('/')
             } else {
                 k.starts_with(prefix)
             };

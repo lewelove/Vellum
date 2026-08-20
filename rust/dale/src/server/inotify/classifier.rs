@@ -22,7 +22,7 @@ pub async fn classify_events(paths: &[PathBuf], state: &Arc<AppState>) -> Change
     let guard = state.config.read().await;
     let config_dir = guard.config_dir.clone();
     let music_directory = guard.music_directory.clone();
-    let deps: Vec<PathBuf> = guard.resolved_dependencies.clone();
+    let deps: HashSet<PathBuf> = guard.resolved_dependencies.iter().cloned().collect();
 
     let mut interface_assets: Vec<(String, PathBuf, bool)> = Vec::new();
     for (name, cfg) in &guard.interfaces {
@@ -39,17 +39,7 @@ pub async fn classify_events(paths: &[PathBuf], state: &Arc<AppState>) -> Change
     let mut active = state.active_writes.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
 
     for p in paths {
-        let p_canon = p.canonicalize().unwrap_or_else(|_| {
-            p.parent().map_or_else(
-                || p.clone(),
-                |parent| {
-                    parent.canonicalize().map_or_else(
-                        |_| p.clone(),
-                        |parent_canon| parent_canon.join(p.file_name().unwrap_or_default()),
-                    )
-                },
-            )
-        });
+        let p_canon = p.canonicalize().unwrap_or_else(|_| p.clone());
 
         if active.remove(&p_canon) || active.remove(p) {
             continue;
@@ -62,9 +52,6 @@ pub async fn classify_events(paths: &[PathBuf], state: &Arc<AppState>) -> Change
         if let Some(albums) = deps_graph.file_to_albums.get(&p_canon).or_else(|| deps_graph.file_to_albums.get(p)) {
             for album_path in albums {
                 flags.changed_albums.insert(album_path.clone());
-                if let Ok(mut tracked) = state.tracked_albums.lock() {
-                    tracked.insert(album_path.to_string_lossy().to_string());
-                }
             }
         }
 
@@ -75,26 +62,17 @@ pub async fn classify_events(paths: &[PathBuf], state: &Arc<AppState>) -> Change
             if let Some(parent) = p.parent() {
                 let parent_canon = parent.canonicalize().unwrap_or_else(|_| parent.to_path_buf());
                 if let Some(album_path) = find_enclosing_album_dir(&parent_canon, &music_directory) {
-                    flags.changed_albums.insert(album_path.clone());
-                    if let Ok(mut tracked) = state.tracked_albums.lock() {
-                        tracked.insert(album_path.to_string_lossy().to_string());
-                    }
+                    flags.changed_albums.insert(album_path);
                 }
             }
         } else if p_canon.starts_with(&music_directory) {
             if let Some(album_path) = find_enclosing_album_dir(&p_canon, &music_directory) {
-                flags.changed_albums.insert(album_path.clone());
-                if let Ok(mut tracked) = state.tracked_albums.lock() {
-                    tracked.insert(album_path.to_string_lossy().to_string());
-                }
+                flags.changed_albums.insert(album_path);
             } else if p_canon.is_dir()
                 && let Ok(found) = libdale::scanner::find_target_albums(&p_canon)
             {
                 for album_path in found {
-                    flags.changed_albums.insert(album_path.clone());
-                    if let Ok(mut tracked) = state.tracked_albums.lock() {
-                        tracked.insert(album_path.to_string_lossy().to_string());
-                    }
+                    flags.changed_albums.insert(album_path);
                 }
             }
         }
@@ -111,6 +89,14 @@ pub async fn classify_events(paths: &[PathBuf], state: &Arc<AppState>) -> Change
     }
     drop(deps_graph);
     drop(active);
+
+    if !flags.changed_albums.is_empty()
+        && let Ok(mut tracked) = state.tracked_albums.lock()
+    {
+        for album_path in &flags.changed_albums {
+            tracked.insert(album_path.to_string_lossy().to_string());
+        }
+    }
 
     flags
 }

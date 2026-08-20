@@ -110,8 +110,7 @@ pub async fn run(port: u16) -> Result<()> {
         Arc::new(server_config.clone()),
     );
 
-    let lib_hash = crate::update::cache::calculate_hash(&music_directory.to_string_lossy());
-    let deps_json_path = cache_root.join("libraries").join(&lib_hash).join("dependencies.json");
+    let deps_json_path = crate::update::cache::deps_graph_path(&cache_root, &music_directory);
     let initial_deps_graph = state::DependencyGraph::load_from_file(&deps_json_path);
 
     let app_state = Arc::new(AppState {

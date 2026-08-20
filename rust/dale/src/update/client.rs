@@ -1,10 +1,10 @@
 use crate::compile;
 use crate::server::state::{DependencyGraph, UpdateScope};
 use crate::update::cache::{
-    calculate_hash, load_cache, save_cache, validate_library_root,
+    calculate_path_hash, deps_graph_path, library_cache_dir, load_cache, save_cache, validate_library_root,
 };
 use crate::update::queue::{
-    check_lua_config_changed, resolve_work_queue, update_cache_entries,
+    check_lua_config_changed, resolve_work_queue, update_cache_entries, WorkQueueContext,
 };
 use anyhow::{Context, Result};
 use libdale::utils::expand_path;
@@ -29,15 +29,16 @@ pub async fn run(
 
     let effective_jobs = jobs.or(config.app.compiler.jobs);
 
-    let lib_hash = calculate_hash(&music_directory.to_string_lossy());
     let cache_root = expand_path(&config.app.storage.cache);
-    let base_cache_dir = cache_root.join("libraries").join(&lib_hash);
+    let base_cache_dir = library_cache_dir(&cache_root, &music_directory);
     fs::create_dir_all(&base_cache_dir)?;
 
+    let lib_hash = calculate_path_hash(&music_directory);
     validate_library_root(&base_cache_dir, &lib_hash).await?;
 
     let mut cache = load_cache(&base_cache_dir.join("library.json"));
-    let mut deps_graph = DependencyGraph::load_from_file(&base_cache_dir.join("dependencies.json"));
+    let deps_json_path = deps_graph_path(&cache_root, &music_directory);
+    let mut deps_graph = DependencyGraph::load_from_file(&deps_json_path);
 
     let (config_changed, lua_hash_file, lua_hash) =
         check_lua_config_changed(&config.dependencies, &cache_root, silent);
@@ -45,15 +46,16 @@ pub async fn run(
 
     let (scan_root, scope) = resolve_target_scope(target_path.as_ref(), &music_directory);
 
-    let (work_queue, missing_paths) = resolve_work_queue(
-        &scope,
-        &music_directory,
-        &cache,
+    let (work_queue, missing_paths) = resolve_work_queue(WorkQueueContext {
+        scope: &scope,
+        music_directory: &music_directory,
+        cache: &cache,
+        deps_graph: &deps_graph,
         force,
         effective_jobs,
-        None,
+        tracked: None,
         silent,
-    )?;
+    })?;
 
     if work_queue.is_empty() && missing_paths.is_empty() {
         if !silent {
@@ -61,7 +63,7 @@ pub async fn run(
         }
         let _ = fs::write(&lua_hash_file, &lua_hash);
         save_cache(&cache, &base_cache_dir.join("library.json"))?;
-        let _ = deps_graph.save_to_file(&base_cache_dir.join("dependencies.json"));
+        let _ = deps_graph.save_to_file(&deps_json_path);
         return Ok(());
     }
 
@@ -79,7 +81,7 @@ pub async fn run(
     )
     .await?;
 
-    update_cache_entries(&mut cache, &work_queue, &missing_paths, &music_directory, silent);
+    update_cache_entries(&mut cache, &deps_graph, &work_queue, &missing_paths, &music_directory, silent);
 
     let elapsed = start_time.elapsed().as_millis();
     if !silent {
@@ -90,7 +92,7 @@ pub async fn run(
 
     let _ = fs::write(&lua_hash_file, &lua_hash);
     save_cache(&cache, &base_cache_dir.join("library.json"))?;
-    let _ = deps_graph.save_to_file(&base_cache_dir.join("dependencies.json"));
+    let _ = deps_graph.save_to_file(&deps_json_path);
 
     Ok(())
 }

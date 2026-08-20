@@ -9,9 +9,9 @@ use indexmap::IndexMap;
 use mlua::serde::SerializeOptions;
 use mlua::{Lua, LuaSerdeExt, Table};
 use serde::{Deserialize, Serialize};
+use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 
 const LUA_CORE: &str = include_str!("core.lua");
 const LUA_UTILS_FN: &str = include_str!("utils/fn.lua");
@@ -42,29 +42,25 @@ pub struct FormattedGrouperResult {
 #[derive(Clone, Debug)]
 pub struct EngineContext {
     pub cache_root: PathBuf,
-    pub captured_deps: Arc<std::sync::Mutex<HashSet<PathBuf>>>,
+    pub captured_deps: RefCell<HashSet<PathBuf>>,
 }
 
 impl EngineContext {
     pub fn new(cache_root: PathBuf) -> Self {
         Self {
             cache_root,
-            captured_deps: Arc::new(std::sync::Mutex::new(HashSet::new())),
+            captured_deps: RefCell::new(HashSet::new()),
         }
     }
 
-    pub fn record_dependency(&self, path: PathBuf) {
-        if let Ok(mut deps) = self.captured_deps.lock() {
-            let canon = path.canonicalize().unwrap_or(path);
-            deps.insert(canon);
+    pub fn record_dependency(&self, path: &Path) {
+        if let Ok(canon) = path.canonicalize() {
+            self.captured_deps.borrow_mut().insert(canon);
         }
     }
 
     pub fn take_dependencies(&self) -> HashSet<PathBuf> {
-        self.captured_deps
-            .lock()
-            .map(|mut deps| std::mem::take(&mut *deps))
-            .unwrap_or_default()
+        std::mem::take(&mut *self.captured_deps.borrow_mut())
     }
 }
 

@@ -10,13 +10,37 @@ pub struct FileStat {
     pub size: u64,
 }
 
+impl From<&std::fs::Metadata> for FileStat {
+    fn from(m: &std::fs::Metadata) -> Self {
+        let mtime = m
+            .modified()
+            .unwrap_or(std::time::SystemTime::UNIX_EPOCH)
+            .duration_since(std::time::SystemTime::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        Self {
+            mtime,
+            size: m.len(),
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 struct CurrentState {
     pub hash: String,
 }
 
-pub fn calculate_hash(data: &str) -> String {
-    blake3::hash(data.as_bytes()).to_hex().to_string()
+pub fn calculate_path_hash(path: &Path) -> String {
+    blake3::hash(path.as_os_str().as_encoded_bytes()).to_hex().to_string()
+}
+
+pub fn library_cache_dir(cache_root: &Path, music_directory: &Path) -> PathBuf {
+    let lib_hash = calculate_path_hash(music_directory);
+    cache_root.join("libraries").join(lib_hash)
+}
+
+pub fn deps_graph_path(cache_root: &Path, music_directory: &Path) -> PathBuf {
+    library_cache_dir(cache_root, music_directory).join("dependencies.json")
 }
 
 pub fn get_lua_config_hash(dependencies: &[PathBuf]) -> String {

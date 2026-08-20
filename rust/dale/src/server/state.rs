@@ -15,16 +15,7 @@ pub struct DependencyGraph {
 
 impl DependencyGraph {
     pub fn update_album_deps(&mut self, album_path: PathBuf, new_deps: HashSet<PathBuf>) {
-        if let Some(old_deps) = self.album_to_files.remove(&album_path) {
-            for dep in old_deps {
-                if let Some(albums) = self.file_to_albums.get_mut(&dep) {
-                    albums.remove(&album_path);
-                    if albums.is_empty() {
-                        self.file_to_albums.remove(&dep);
-                    }
-                }
-            }
-        }
+        self.remove_album(&album_path);
 
         for dep in &new_deps {
             self.file_to_albums

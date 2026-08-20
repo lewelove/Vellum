@@ -2,8 +2,8 @@ use crate::server::inotify::classifier::ChangeFlags;
 use crate::server::state::AppState;
 use rayon::prelude::*;
 use serde_json::json;
-use std::collections::HashSet;
-use std::path::PathBuf;
+use std::collections::{HashMap, HashSet};
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 pub type RecompiledAlbumItem = (
@@ -13,6 +13,13 @@ pub type RecompiledAlbumItem = (
     Option<serde_json::Value>,
     HashSet<PathBuf>,
 );
+
+#[derive(Default)]
+struct IngestOutcome {
+    removed_ids: Vec<String>,
+    updated_dict_entries: HashMap<String, serde_json::Value>,
+    deps_modified: bool,
+}
 
 pub async fn process_events(flags: ChangeFlags, state: &Arc<AppState>) {
     for intf_name in flags.interfaces_asset {
@@ -123,111 +130,145 @@ async fn handle_album_changes(
     ingest_and_broadcast_albums(vanished_paths, recompiled_items, false, state).await;
 }
 
+fn remove_vanished_albums(
+    vanished_paths: &HashSet<PathBuf>,
+    logic: &mut crate::server::logic::LogicEngine,
+    deps_graph: &mut crate::server::state::DependencyGraph,
+    is_internal_update: bool,
+    outcome: &mut IngestOutcome,
+) {
+    let dead_paths: Vec<PathBuf> = logic
+        .albums_by_path
+        .keys()
+        .filter(|path| {
+            vanished_paths.iter().any(|vanished| {
+                path.starts_with(vanished)
+                    || (vanished.starts_with(*path) && !path.join("metadata.toml").exists())
+            })
+        })
+        .cloned()
+        .collect();
+
+    for dead_path in dead_paths {
+        if let Some(dead_id) = logic.remove_album_by_path(&dead_path) {
+            if !is_internal_update {
+                log::info!("Removed album: {dead_id}");
+            }
+            deps_graph.remove_album(&dead_path);
+            outcome.deps_modified = true;
+            outcome.removed_ids.push(dead_id);
+        }
+    }
+}
+
+fn ingest_recompiled_items(
+    items: Vec<RecompiledAlbumItem>,
+    music_directory: &Path,
+    logic: &mut crate::server::logic::LogicEngine,
+    deps_graph: &mut crate::server::state::DependencyGraph,
+    is_internal_update: bool,
+    outcome: &mut IngestOutcome,
+) {
+    for (album_path, album_id, lock_json, eval_res, dependencies) in items {
+        if let Some(eval) = eval_res {
+            match logic.ingest_pre_evaluated(
+                &album_path,
+                &album_id,
+                &lock_json,
+                eval,
+                music_directory,
+            ) {
+                Ok(()) => {
+                    if !is_internal_update {
+                        log::info!("Updated album: {album_id}");
+                    }
+                    deps_graph.update_album_deps(album_path, dependencies);
+                    outcome.deps_modified = true;
+                    if let Some(entry) = logic.dict.get(&album_id).cloned() {
+                        outcome.updated_dict_entries.insert(album_id, entry);
+                    }
+                }
+                Err(e) => {
+                    log::error!("Failed to ingest album at {}: {e}", album_path.display());
+                }
+            }
+        } else if !album_path.exists()
+            && let Some(dead_id) = logic.remove_album_by_path(&album_path)
+        {
+            if !is_internal_update {
+                log::info!("Removed album: {dead_id}");
+            }
+            deps_graph.remove_album(&album_path);
+            outcome.deps_modified = true;
+            outcome.removed_ids.push(dead_id);
+        }
+    }
+}
+
 pub async fn ingest_and_broadcast_albums(
     vanished_paths: HashSet<PathBuf>,
     recompiled_items: Vec<RecompiledAlbumItem>,
     is_internal_update: bool,
     state: &Arc<AppState>,
 ) {
-    let music_directory = state.config.read().await.music_directory.clone();
+    let (music_directory, cache_root) = {
+        let guard = state.config.read().await;
+        (guard.music_directory.clone(), guard.cache_root.clone())
+    };
 
-    let mut removed_ids = Vec::new();
-    let mut updated_dict_entries = std::collections::HashMap::new();
+    let logic_arc = Arc::clone(&state.logic);
+    let deps_graph_arc = Arc::clone(&state.deps_graph);
 
-    {
-        let mut logic = state.logic.write().await;
-        let mut deps_graph = state.deps_graph.write().await;
+    let (outcome, shelves) = tokio::task::spawn_blocking(move || {
+        let mut logic = logic_arc.blocking_write();
+        let mut deps_graph = deps_graph_arc.blocking_write();
+        let mut outcome = IngestOutcome::default();
 
-        for vanished in &vanished_paths {
-            let vanished_resolved = vanished.parent().map_or_else(
-                || vanished.clone(),
-                |parent| {
-                    parent.canonicalize().map_or_else(
-                        |_| vanished.clone(),
-                        |parent_canon| parent_canon.join(vanished.file_name().unwrap_or_default()),
-                    )
-                },
-            );
+        remove_vanished_albums(
+            &vanished_paths,
+            &mut logic,
+            &mut deps_graph,
+            is_internal_update,
+            &mut outcome,
+        );
 
-            let dead_paths: Vec<PathBuf> = logic
-                .albums_by_path
-                .keys()
-                .filter(|path| {
-                    path.starts_with(vanished)
-                        || *path == vanished
-                        || path.starts_with(&vanished_resolved)
-                        || *path == &vanished_resolved
-                        || (vanished.starts_with(path) && !path.join("metadata.toml").exists())
-                        || (vanished_resolved.starts_with(path) && !path.join("metadata.toml").exists())
-                })
-                .cloned()
-                .collect();
+        ingest_recompiled_items(
+            recompiled_items,
+            &music_directory,
+            &mut logic,
+            &mut deps_graph,
+            is_internal_update,
+            &mut outcome,
+        );
 
-            for dead_path in dead_paths {
-                if let Some(dead_id) = logic.remove_album_by_path(&dead_path) {
-                    if !is_internal_update {
-                        log::info!("Removed album: {dead_id}");
-                    }
-                    deps_graph.remove_album(&dead_path);
-                    removed_ids.push(dead_id);
-                }
-            }
-        }
-
-        for (album_path, album_id, lock_json, eval_res, dependencies) in recompiled_items {
-            let album_path_canon = album_path.canonicalize().unwrap_or_else(|_| album_path.clone());
-
-            if let Some(eval) = eval_res {
-                match logic.ingest_pre_evaluated(
-                    &album_path_canon,
-                    &album_id,
-                    &lock_json,
-                    eval,
-                    &music_directory,
-                ) {
-                    Ok(()) => {
-                        if !is_internal_update {
-                            log::info!("Updated album: {album_id}");
-                        }
-                        deps_graph.update_album_deps(album_path_canon, dependencies);
-                        if let Some(entry) = logic.dict.get(&album_id).cloned() {
-                            updated_dict_entries.insert(album_id, entry);
-                        }
-                    }
-                    Err(e) => {
-                        log::error!("Failed to ingest album at {}: {e}", album_path.display());
-                    }
-                }
-            } else if !album_path_canon.exists()
-                && let Some(dead_id) = logic.remove_album_by_path(&album_path_canon)
-            {
-                if !is_internal_update {
-                    log::info!("Removed album: {dead_id}");
-                }
-                deps_graph.remove_album(&album_path_canon);
-                removed_ids.push(dead_id);
+        if outcome.deps_modified {
+            let deps_json_path =
+                crate::update::cache::deps_graph_path(&cache_root, &music_directory);
+            if let Err(e) = deps_graph.save_to_file(&deps_json_path) {
+                log::error!("Failed to persist dependency graph: {e}");
             }
         }
 
         drop(deps_graph);
         logic.build_cache();
-    }
 
-    let shelves = {
-        let logic = state.logic.read().await;
-        let mut s = std::collections::HashMap::new();
+        let mut s = HashMap::new();
         for key in logic.manifest.shelves.keys() {
             s.insert(key.clone(), logic.request_shelf_view(key, None, false));
         }
-        s
-    };
+        drop(logic);
 
-    if !updated_dict_entries.is_empty() || !removed_ids.is_empty() {
+        (outcome, s)
+    })
+    .await
+    .unwrap_or_else(|_| (IngestOutcome::default(), HashMap::new()));
+
+    if !outcome.updated_dict_entries.is_empty() || !outcome.removed_ids.is_empty() {
         let _ = state.tx.send(
             json!({
                 "type": "ALBUMS_UPDATED",
-                "updated": updated_dict_entries,
-                "removed": removed_ids,
+                "updated": outcome.updated_dict_entries,
+                "removed": outcome.removed_ids,
                 "shelves": shelves
             })
             .to_string(),
