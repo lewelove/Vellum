@@ -15,6 +15,7 @@ use std::path::{Path, PathBuf};
 
 const LUA_CORE: &str = include_str!("core.lua");
 const LUA_UTILS_FN: &str = include_str!("utils/fn.lua");
+const LUA_UTILS_FS: &str = include_str!("utils/fs.lua");
 const LUA_UTILS_GET: &str = include_str!("utils/get.lua");
 const LUA_CONFIG: &str = include_str!("config.lua");
 const LUA_COMPILER: &str = include_str!("compiler.lua");
@@ -54,7 +55,9 @@ impl EngineContext {
     }
 
     pub fn record_dependency(&self, path: &Path) {
-        if let Ok(canon) = path.canonicalize() {
+        if let Ok(canon) = path.canonicalize()
+            && canon.is_file()
+        {
             self.captured_deps.borrow_mut().insert(canon);
         }
     }
@@ -367,6 +370,10 @@ impl LuaEngine {
             .exec()
             .map_err(|e| anyhow::anyhow!("{e}"))
             .context("Failed to load utils/fn.lua")?;
+        lua.load(LUA_UTILS_FS)
+            .exec()
+            .map_err(|e| anyhow::anyhow!("{e}"))
+            .context("Failed to load utils/fs.lua")?;
         lua.load(LUA_UTILS_GET)
             .exec()
             .map_err(|e| anyhow::anyhow!("{e}"))

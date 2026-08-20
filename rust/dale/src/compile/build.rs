@@ -166,11 +166,7 @@ fn run_dispatcher_phase(
         .app_data_ref::<libdale::lua::EngineContext>()
         .map_or_else(HashSet::new, |c| c.take_dependencies());
 
-    for name in parsed_manifests.keys() {
-        let manifest_path = album_root.join(format!("{name}.toml"));
-        let canon = manifest_path.canonicalize().unwrap_or(manifest_path);
-        dependencies.insert(canon);
-    }
+    dependencies.retain(|p| !p.starts_with(album_root));
 
     Ok((lua_res, dependencies))
 }
