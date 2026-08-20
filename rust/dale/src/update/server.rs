@@ -248,11 +248,16 @@ async fn run_server_update_pass(
         emit_log("Library is up to date.", silent, &log_txs);
         let _ = fs::write(&lua_hash_file, &lua_hash);
         save_cache(&cache, &base_cache_dir.join("library.json"))?;
-        let _ = state
-            .deps_graph
-            .read()
-            .await
-            .save_to_file(&deps_graph_path(&cache_root, &music_directory));
+        let deps_json_path = deps_graph_path(&cache_root, &music_directory);
+        let deps_graph_arc = Arc::clone(&state.deps_graph);
+        tokio::task::spawn_blocking(move || {
+            let mut guard = deps_graph_arc.blocking_write();
+            guard.prune();
+            if let Err(e) = guard.save_to_file(&deps_json_path) {
+                log::error!("Failed to persist dependency graph: {e}");
+            }
+        })
+        .await?;
         return Ok(());
     }
 
@@ -289,11 +294,6 @@ async fn run_server_update_pass(
 
     let _ = fs::write(&lua_hash_file, &lua_hash);
     save_cache(&cache, &base_cache_dir.join("library.json"))?;
-    let _ = state
-        .deps_graph
-        .read()
-        .await
-        .save_to_file(&deps_graph_path(&cache_root, &music_directory));
 
     Ok(())
 }

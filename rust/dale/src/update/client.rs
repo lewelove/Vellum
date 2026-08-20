@@ -63,7 +63,10 @@ pub async fn run(
         }
         let _ = fs::write(&lua_hash_file, &lua_hash);
         save_cache(&cache, &base_cache_dir.join("library.json"))?;
-        let _ = deps_graph.save_to_file(&deps_json_path);
+        deps_graph.prune();
+        if let Err(e) = deps_graph.save_to_file(&deps_json_path) {
+            log::error!("Failed to persist dependency graph: {e}");
+        }
         return Ok(());
     }
 
@@ -92,7 +95,10 @@ pub async fn run(
 
     let _ = fs::write(&lua_hash_file, &lua_hash);
     save_cache(&cache, &base_cache_dir.join("library.json"))?;
-    let _ = deps_graph.save_to_file(&deps_json_path);
+    deps_graph.prune();
+    if let Err(e) = deps_graph.save_to_file(&deps_json_path) {
+        log::error!("Failed to persist dependency graph: {e}");
+    }
 
     Ok(())
 }

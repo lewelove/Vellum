@@ -39,10 +39,35 @@ impl DependencyGraph {
         }
     }
 
+    pub fn prune(&mut self) -> bool {
+        let initial_albums_len = self.album_to_files.len();
+        self.album_to_files.retain(|album, _| album.exists());
+        let albums_removed = self.album_to_files.len() != initial_albums_len;
+
+        if !albums_removed {
+            return false;
+        }
+
+        let mut new_file_to_albums: HashMap<PathBuf, HashSet<PathBuf>> =
+            HashMap::with_capacity(self.file_to_albums.len());
+        for (album, deps) in &self.album_to_files {
+            for dep in deps {
+                new_file_to_albums
+                    .entry(dep.clone())
+                    .or_default()
+                    .insert(album.clone());
+            }
+        }
+
+        self.file_to_albums = new_file_to_albums;
+        true
+    }
+
     pub fn load_from_file(path: &Path) -> Self {
         if let Ok(content) = std::fs::read_to_string(path)
-            && let Ok(graph) = serde_json::from_str::<Self>(&content)
+            && let Ok(mut graph) = serde_json::from_str::<Self>(&content)
         {
+            graph.prune();
             return graph;
         }
         Self::default()

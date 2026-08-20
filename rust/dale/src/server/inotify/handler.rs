@@ -241,7 +241,8 @@ pub async fn ingest_and_broadcast_albums(
             &mut outcome,
         );
 
-        if outcome.deps_modified {
+        let graph_pruned = deps_graph.prune();
+        if outcome.deps_modified || graph_pruned {
             let deps_json_path =
                 crate::update::cache::deps_graph_path(&cache_root, &music_directory);
             if let Err(e) = deps_graph.save_to_file(&deps_json_path) {
