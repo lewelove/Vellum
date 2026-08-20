@@ -1,30 +1,7 @@
-export function connectSocket(
-  onOpen?: () => void,
-  onMessage?: (e: MessageEvent) => void
-): WebSocket {
-  const protocol = "ws:";
+export function getSocketUrl(): string {
+  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
   const host = "127.0.0.1:8000";
-  const url = `${protocol}//${host}/ws`;
-
-  let socket = new WebSocket(url);
-
-  socket.onopen = () => {
-    if (onOpen) onOpen();
-  };
-
-  socket.onmessage = (event: MessageEvent) => {
-    if (onMessage) onMessage(event);
-  };
-
-  socket.onclose = () => {
-    setTimeout(() => {
-      connectSocket(onOpen, onMessage);
-    }, 2000);
-  };
-
-  socket.onerror = (err: Event) => {};
-
-  return socket;
+  return `${protocol}//${host}/ws`;
 }
 
 export async function playAlbum(id: string, offset: number = 0): Promise<any> {

@@ -50,6 +50,9 @@ export class ViewState {
     sync.addEventListener("open", () => {
       this.isConnected = true;
     });
+    sync.addEventListener("close", () => {
+      this.isConnected = false;
+    });
     sync.addEventListener("message", (e: Event) => this.handleMessage((e as CustomEvent).detail));
   }
 
