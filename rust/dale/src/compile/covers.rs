@@ -33,7 +33,7 @@ pub fn resolve_cover_data(
         }
     }
 
-    let _ = assets::pregenerate_covers(config, main_cover_path.as_deref(), &cover_hash_address);
+    assets::pregenerate_covers(config, main_cover_path.as_deref(), &cover_hash_address);
 
     cover_file_info
 }
@@ -74,7 +74,7 @@ pub fn resolve_cover_data_cached(
                 .get("address")
                 .and_then(Value::as_str)
                 .unwrap_or("");
-            let _ = assets::pregenerate_covers(config, main_cover_path.as_deref(), cover_hash_address);
+            assets::pregenerate_covers(config, main_cover_path.as_deref(), cover_hash_address);
             return cached.file_info;
         }
         let _ = std::fs::remove_file(&cache_file);

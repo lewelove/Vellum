@@ -66,14 +66,15 @@ pub fn pregenerate_covers(
     config: &libdale::lua::ResolvedConfig,
     cover_path: Option<&Path>,
     cover_hash_address: &str,
-) -> Option<DynamicImage> {
-    let cache_str = &config.app.storage.cache;
-    let original_path = cover_path?;
+) {
+    let Some(original_path) = cover_path else {
+        return;
+    };
     if cover_hash_address.is_empty() {
-        return None;
+        return;
     }
 
-    let cache_root = expand_path(cache_str);
+    let cache_root = expand_path(&config.app.storage.cache);
 
     let master_size = config.covers.master.size;
     let master_algo_str = &config.covers.master.filter;
@@ -86,10 +87,36 @@ pub fn pregenerate_covers(
         .join(format!("{master_size}px"))
         .join(format!("{cover_hash_address}.qoi"));
 
+    let missing_targets: Vec<_> = config
+        .covers
+        .targets
+        .iter()
+        .filter_map(|cfg| {
+            let static_path = cache_root
+                .join("covers")
+                .join("static")
+                .join(&cfg.filter)
+                .join(format!("{}px", cfg.size))
+                .join(format!("{cover_hash_address}.qoi"));
+
+            if static_path.exists() {
+                None
+            } else {
+                Some((cfg, static_path))
+            }
+        })
+        .collect();
+
+    let master_exists = master_qoi_path.exists();
+
+    if master_exists && missing_targets.is_empty() {
+        return;
+    }
+
     let mut master_img: Option<image::RgbImage> = None;
 
-    if master_qoi_path.exists() {
-        master_img = image::open(&master_qoi_path).ok().map(image::DynamicImage::into_rgb8);
+    if master_exists {
+        master_img = image::open(&master_qoi_path).ok().map(DynamicImage::into_rgb8);
     } else if let Ok(img) = image::open(original_path) {
         let img_rgb = img.into_rgb8();
         if let Some(parent) = master_qoi_path.parent() {
@@ -100,29 +127,19 @@ pub fn pregenerate_covers(
         master_img = Some(m_img);
     }
 
-    let m_img = master_img.as_ref()?;
+    let Some(m_img) = master_img.as_ref() else {
+        return;
+    };
 
-    for cfg in &config.covers.targets {
+    for (cfg, static_path) in missing_targets {
         let target_size = cfg.size;
-        let algo_str = &cfg.filter;
-        let algo = parse_interpolation(algo_str);
+        let algo = parse_interpolation(&cfg.filter);
 
-        let static_path = cache_root
-            .join("covers")
-            .join("static")
-            .join(algo_str)
-            .join(format!("{target_size}px"))
-            .join(format!("{cover_hash_address}.qoi"));
-
-        if !static_path.exists() {
-            if let Some(parent) = static_path.parent() {
-                let _ = std::fs::create_dir_all(parent);
-            }
-            if let Some(resized) = resize_image(m_img, target_size, algo) {
-                let _ = resized.save_with_format(&static_path, image::ImageFormat::Qoi);
-            }
+        if let Some(parent) = static_path.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        if let Some(resized) = resize_image(m_img, target_size, algo) {
+            let _ = resized.save_with_format(&static_path, image::ImageFormat::Qoi);
         }
     }
-
-    Some(DynamicImage::ImageRgb8(master_img?))
 }
