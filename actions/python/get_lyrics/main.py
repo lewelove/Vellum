@@ -142,9 +142,6 @@ def get_album_lyrics(target_dir, album_lock, access_token, mpd_file):
             continue
         fetch_for_track(track)
 
-    if album_id:
-        trigger_update(album_id)
-
 def main():
     try:
         data = json.load(sys.stdin)
