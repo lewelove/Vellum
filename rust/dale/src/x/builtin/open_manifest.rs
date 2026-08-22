@@ -1,6 +1,8 @@
 use anyhow::Result;
+#[cfg(unix)]
+use std::os::unix::process::CommandExt;
 use std::path::Path;
-use std::process::Command;
+use std::process::{Command, Stdio};
 
 pub fn run(album_path: &Path) -> Result<()> {
     let manifest_path = album_path.join("metadata.toml");
@@ -10,7 +12,14 @@ pub fn run(album_path: &Path) -> Result<()> {
         } else {
             "xdg-open"
         };
-        Command::new(launcher).arg(manifest_path).spawn()?;
+        let mut cmd = Command::new(launcher);
+        cmd.arg(manifest_path)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null());
+        #[cfg(unix)]
+        cmd.process_group(0);
+        cmd.spawn()?;
     }
     Ok(())
 }

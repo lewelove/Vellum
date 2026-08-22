@@ -1,6 +1,8 @@
 use anyhow::Result;
+#[cfg(unix)]
+use std::os::unix::process::CommandExt;
 use std::path::Path;
-use std::process::Command;
+use std::process::{Command, Stdio};
 
 pub fn run(album_path: &Path) -> Result<()> {
     let launcher = if cfg!(target_os = "macos") {
@@ -8,6 +10,13 @@ pub fn run(album_path: &Path) -> Result<()> {
     } else {
         "xdg-open"
     };
-    Command::new(launcher).arg(album_path).spawn()?;
+    let mut cmd = Command::new(launcher);
+    cmd.arg(album_path)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null());
+    #[cfg(unix)]
+    cmd.process_group(0);
+    cmd.spawn()?;
     Ok(())
 }

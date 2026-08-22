@@ -1,6 +1,8 @@
 use anyhow::Result;
 use std::env;
-use std::process::Command;
+#[cfg(unix)]
+use std::os::unix::process::CommandExt;
+use std::process::{Command, Stdio};
 
 const COMMON_TERMINALS: &[&str] = &[
     "ghostty",
@@ -30,11 +32,17 @@ pub fn run(config: &serde_json::Value) -> Result<()> {
 
     if let Some(term) = term_bin {
         let mut cmd = Command::new(term);
-        cmd.current_dir(config_dir);
+        cmd.current_dir(config_dir)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null());
 
         if let Some(inner_cmd) = config.get("cmd").and_then(|v| v.as_str()) {
             cmd.arg("-e").arg("sh").arg("-c").arg(inner_cmd);
         }
+
+        #[cfg(unix)]
+        cmd.process_group(0);
 
         cmd.spawn()?;
     }
