@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 
 #[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Debug)]
 pub struct FileStat {
-    pub mtime: u64,
+    pub mtime: u128,
     pub size: u64,
 }
 
@@ -17,7 +17,7 @@ impl From<&std::fs::Metadata> for FileStat {
             .unwrap_or(std::time::SystemTime::UNIX_EPOCH)
             .duration_since(std::time::SystemTime::UNIX_EPOCH)
             .unwrap_or_default()
-            .as_secs();
+            .as_nanos();
         Self {
             mtime,
             size: m.len(),

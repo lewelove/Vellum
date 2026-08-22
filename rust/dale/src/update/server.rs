@@ -65,11 +65,8 @@ pub fn spawn_server_ingest_handler(
                 if payload.eval_res.is_none() && !payload.album_dir.exists() {
                     vanished_paths.insert(payload.album_dir);
                 } else if let Some(eval) = payload.eval_res {
-                    if payload.modified
-                        && !payload.lock_json.is_empty()
-                        && (!payload.artist.is_empty() || !payload.album.is_empty())
-                    {
-                        logs.push(format!("Updated: {} - {}", payload.artist, payload.album));
+                    if payload.modified && !payload.lock_json.is_empty() && !payload.id.is_empty() {
+                        logs.push(format!("Updated lock: {}", payload.id));
                     }
                     items.push((
                         payload.album_dir,
@@ -307,9 +304,9 @@ async fn process_missing_and_compile(
         spawn_server_ingest_handler(Arc::clone(state), ctx.silent, log_txs.to_vec());
 
     for missing in ctx.missing_paths {
-        let display_path = missing.strip_prefix(ctx.music_directory).unwrap_or(missing);
+        let album_id = libdale::resolvers::rel_path(missing, ctx.music_directory);
         emit_log(
-            &format!("Removed: {}", display_path.display()),
+            &format!("Removed album: {album_id}"),
             ctx.silent,
             log_txs,
         );

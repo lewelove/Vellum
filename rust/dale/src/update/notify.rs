@@ -68,14 +68,7 @@ pub fn start_notification_task(args: NotificationTaskArgs) -> tokio::task::JoinH
                     if p.is_file() {
                         let rel = libdale::resolvers::rel_path(p, &lib_root_for_task);
                         if let Ok(m) = entry.metadata() {
-                            let mtime = m
-                                .modified()
-                                .unwrap_or(std::time::SystemTime::UNIX_EPOCH)
-                                .duration_since(std::time::SystemTime::UNIX_EPOCH)
-                                .unwrap_or_default()
-                                .as_secs();
-                            let size = m.len();
-                            c.insert(rel, FileStat { mtime, size });
+                            c.insert(rel, FileStat::from(&m));
                         }
                     }
                 }

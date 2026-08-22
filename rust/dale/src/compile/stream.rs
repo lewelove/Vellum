@@ -1,6 +1,5 @@
 use crate::compile::{build, ExportTarget};
 use anyhow::Result;
-use libdale::error::DaleError;
 use rayon::prelude::*;
 use serde_json::Value;
 use std::collections::HashSet;
@@ -96,35 +95,30 @@ fn spawn_builders(
                     }
                 },
                 |engine_opt, ar| {
+                    let canon = ar.canonicalize().unwrap_or_else(|_| ar.clone());
+                    let canon_display = canon.display();
                     let Some(engine) = engine_opt.as_ref() else {
-                        log::error!("Skipping compilation of {} due to worker Lua engine initialization failure", ar.display());
+                        log::error!("Skipping compilation of {canon_display} due to worker Lua engine initialization failure");
                         return;
                     };
                     match build::build(ar, &cfg, engine) {
-                        Ok(out) => {
-                            let eval_res = engine.evaluate_album_logic(&out.lock_json).ok();
-                            let _ = dtx.blocking_send(CompiledItem {
-                                album_dir: out.album_dir,
-                                album_id: out.album_id,
-                                lock_val: out.lock_json,
-                                eval_res,
-                                deps: out.dependencies,
-                            });
-                        }
-                        Err(e) => match e {
-                            DaleError::ManifestIoError(_)
-                            | DaleError::ManifestParseError { .. }
-                            | DaleError::JsonParseError { .. }
-                            | DaleError::InvalidFileExtension { .. }
-                            | DaleError::InvalidManifestName { .. }
-                            | DaleError::DuplicateManifestName { .. }
-                            | DaleError::JsonError(_) => {
-                                log::error!("SYSTEM FAILURE: {e}");
+                        Ok(out) => match engine.evaluate_album_logic(&out.lock_json) {
+                            Ok(eval_res) => {
+                                let _ = dtx.blocking_send(CompiledItem {
+                                    album_dir: out.album_dir,
+                                    album_id: out.album_id,
+                                    lock_val: out.lock_json,
+                                    eval_res: Some(eval_res),
+                                    deps: out.dependencies,
+                                });
                             }
-                            _ => {
-                                log::warn!("VALIDATION REJECTED: {e}");
+                            Err(e) => {
+                                log::error!("Logic evaluation failed for {canon_display}: {e}");
                             }
                         },
+                        Err(e) => {
+                            log::error!("Compilation failed for {canon_display}: {e}");
+                        }
                     }
                 },
             );
@@ -161,14 +155,15 @@ fn finalize(
     }
 
     let lock_path = item.album_dir.join("album.lock.json");
+    let lock_canon = item.album_dir.join("album.lock.json");
     let should_write =
         std::fs::read_to_string(&lock_path).map_or(true, |existing| existing != content);
 
     let payload = crate::server::api::system::AlbumIngestPayload {
         album_dir: item.album_dir,
         id: item.album_id,
-        artist: artist.clone(),
-        album: album.clone(),
+        artist,
+        album,
         lock_json: content.clone(),
         eval_res: item.eval_res,
         dependencies: item.deps.into_iter().collect(),
@@ -179,11 +174,10 @@ fn finalize(
         if let Some(aw) = active_writes
             && let Ok(mut active) = aw.lock()
         {
-            let canon = lock_path.canonicalize().unwrap_or_else(|_| lock_path.clone());
-            active.insert(canon);
+            active.insert(lock_canon);
             active.insert(lock_path.clone());
         } else if !silent {
-            log::info!("Updated: {artist} - {album}");
+            log::info!("Updated lock: {}", payload.id);
         }
         std::fs::write(&lock_path, content)?;
         return Ok((true, Some(payload)));

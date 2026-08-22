@@ -4,7 +4,7 @@ use rayon::prelude::*;
 use serde_json::json;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 pub type RecompiledAlbumItem = (
     PathBuf,
@@ -47,20 +47,67 @@ async fn handle_album_changes(
     changed_albums: HashSet<PathBuf>,
     state: &Arc<AppState>,
 ) {
-    let config_path = libdale::lua::resolve_config_path().unwrap_or_default();
+    log_detected_events(&vanished_paths, &changed_albums, state).await;
+    let recompiled_items =
+        recompile_changed_albums(changed_albums, Arc::clone(&state.active_writes)).await;
+    ingest_and_broadcast_albums(vanished_paths, recompiled_items, false, state).await;
+}
 
+async fn log_detected_events(
+    vanished_paths: &HashSet<PathBuf>,
+    changed_albums: &HashSet<PathBuf>,
+    state: &Arc<AppState>,
+) {
+    let music_directory = {
+        let guard = state.config.read().await;
+        guard.music_directory.clone()
+    };
+    let logic = state.logic.read().await;
+
+    let resolve_ids = |paths: &HashSet<PathBuf>| -> Vec<String> {
+        paths
+            .iter()
+            .filter_map(|p| {
+                logic
+                    .albums_by_path
+                    .get(p)
+                    .cloned()
+                    .or_else(|| {
+                        let rel = libdale::resolvers::rel_path(p, &music_directory);
+                        if rel.is_empty() {
+                            None
+                        } else {
+                            Some(rel)
+                        }
+                    })
+            })
+            .collect()
+    };
+
+    for id in resolve_ids(vanished_paths) {
+        log::info!("Detected removal of: {id}");
+    }
+
+    for id in resolve_ids(changed_albums) {
+        log::info!("Detected change in: {id}");
+    }
+}
+
+async fn recompile_changed_albums(
+    changed_albums: HashSet<PathBuf>,
+    active_writes: Arc<Mutex<HashSet<PathBuf>>>,
+) -> Vec<RecompiledAlbumItem> {
+    let config_path = libdale::lua::resolve_config_path().unwrap_or_default();
     let resolved_lua_config =
         if let Ok(Ok(cfg)) = tokio::task::spawn_blocking(libdale::lua::ResolvedConfig::load).await
         {
             Arc::new(cfg)
         } else {
             log::error!("Failed to load resolved config for album update");
-            return;
+            return Vec::new();
         };
 
-    let active_writes = Arc::clone(&state.active_writes);
-
-    let recompiled_items = tokio::task::spawn_blocking(move || {
+    tokio::task::spawn_blocking(move || {
         let config_ref = &resolved_lua_config;
         let config_path_ref = &config_path;
 
@@ -82,52 +129,69 @@ async fn handle_album_changes(
                     }
                 },
                 |engine_opt, album_path| {
-                    let lock_file_path = album_path.join("album.lock.json");
-
-                    let Some(engine) = engine_opt.as_ref() else {
-                        log::error!(
-                            "Skipping recompilation of {} due to Lua engine init failure",
-                            album_path.display()
-                        );
-                        return None;
-                    };
-
-                    let Ok(res) =
-                        crate::compile::build::build(&album_path, config_ref, engine)
-                    else {
-                        log::warn!("Compilation failed for {}", album_path.display());
-                        return None;
-                    };
-
-                    let Ok(lock_json) = serde_json::to_string_pretty(&res.lock_json) else {
-                        return None;
-                    };
-
-                    let eval_res = engine.evaluate_album_logic(&res.lock_json).ok();
-
-                    let should_write = std::fs::read_to_string(&lock_file_path)
-                        .map_or(true, |existing| existing != lock_json);
-
-                    if should_write {
-                        if let Ok(mut active) = active_writes.lock() {
-                            if let Ok(canon) = lock_file_path.canonicalize() {
-                                active.insert(canon);
-                            }
-                            active.insert(lock_file_path.clone());
-                        }
-                        let _ = std::fs::write(&lock_file_path, &lock_json);
-                    }
-
-                    Some((res.album_dir, res.album_id, lock_json, eval_res, res.dependencies))
+                    recompile_single_album(&album_path, config_ref, engine_opt.as_ref(), &active_writes)
                 },
             )
             .flatten()
             .collect::<Vec<_>>()
     })
     .await
-    .unwrap_or_default();
+    .unwrap_or_default()
+}
 
-    ingest_and_broadcast_albums(vanished_paths, recompiled_items, false, state).await;
+fn recompile_single_album(
+    album_path: &Path,
+    config: &libdale::lua::ResolvedConfig,
+    engine_opt: Option<&libdale::lua::LuaEngine>,
+    active_writes: &Arc<Mutex<HashSet<PathBuf>>>,
+) -> Option<RecompiledAlbumItem> {
+    let canon = album_path.canonicalize().unwrap_or_else(|_| album_path.to_path_buf());
+    let canon_display = canon.display();
+    let lock_file_path = album_path.join("album.lock.json");
+    let lock_canon = canon.join("album.lock.json");
+
+    let Some(engine) = engine_opt else {
+        log::error!("Skipping recompilation of {canon_display} due to Lua engine init failure");
+        return None;
+    };
+
+    let res = match crate::compile::build::build(album_path, config, engine) {
+        Ok(res) => res,
+        Err(e) => {
+            log::error!("Compilation failed for {canon_display}: {e}");
+            return None;
+        }
+    };
+
+    let eval_res = match engine.evaluate_album_logic(&res.lock_json) {
+        Ok(eval) => eval,
+        Err(e) => {
+            log::error!("Logic evaluation failed for {canon_display}: {e}");
+            return None;
+        }
+    };
+
+    let lock_json = match serde_json::to_string_pretty(&res.lock_json) {
+        Ok(json) => json,
+        Err(e) => {
+            log::error!("Failed to serialize lock JSON for {canon_display}: {e}");
+            return None;
+        }
+    };
+
+    let should_write =
+        std::fs::read_to_string(&lock_file_path).map_or(true, |existing| existing != lock_json);
+
+    if should_write {
+        if let Ok(mut active) = active_writes.lock() {
+            active.insert(lock_canon);
+            active.insert(lock_file_path.clone());
+        }
+        let _ = std::fs::write(&lock_file_path, &lock_json);
+        log::info!("Updated lock: {}", res.album_id);
+    }
+
+    Some((res.album_dir, res.album_id, lock_json, Some(eval_res), res.dependencies))
 }
 
 fn remove_vanished_albums(
@@ -170,6 +234,7 @@ fn ingest_recompiled_items(
     outcome: &mut IngestOutcome,
 ) {
     for (album_path, album_id, lock_json, eval_res, dependencies) in items {
+        let canon = album_path.canonicalize().unwrap_or_else(|_| album_path.clone());
         if let Some(eval) = eval_res {
             match logic.ingest_pre_evaluated(
                 &album_path,
@@ -179,9 +244,6 @@ fn ingest_recompiled_items(
                 music_directory,
             ) {
                 Ok(()) => {
-                    if !is_internal_update {
-                        log::info!("Updated album: {album_id}");
-                    }
                     deps_graph.update_album_deps(album_path, dependencies);
                     outcome.deps_modified = true;
                     if let Some(entry) = logic.dict.get(&album_id).cloned() {
@@ -189,7 +251,8 @@ fn ingest_recompiled_items(
                     }
                 }
                 Err(e) => {
-                    log::error!("Failed to ingest album at {}: {e}", album_path.display());
+                    let canon_display = canon.display();
+                    log::error!("Failed to ingest album at {canon_display}: {e}");
                 }
             }
         } else if !album_path.exists()

@@ -163,8 +163,7 @@ pub fn update_cache_entries(
         let prefix = format!("{album_id}/");
 
         if !silent {
-            let display_path = missing.strip_prefix(music_directory).unwrap_or(missing);
-            log::info!("Removed: {}", display_path.display());
+            log::info!("Removed album: {album_id}");
         }
 
         cache.retain(|k, _| !k.starts_with(&prefix));

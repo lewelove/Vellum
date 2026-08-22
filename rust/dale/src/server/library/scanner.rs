@@ -1,4 +1,3 @@
-use libdale::models::LockFile;
 use rayon::prelude::*;
 use std::path::PathBuf;
 use walkdir::WalkDir;
@@ -28,21 +27,57 @@ impl Library {
         let evaluated_items: Vec<_> = lock_paths
             .into_par_iter()
             .map_init(
-                || {
-                    let engine = libdale::lua::LuaEngine::new().ok()?;
-                    engine.evaluate_config(config_path).ok()?;
-                    Some(engine)
+                || match libdale::lua::LuaEngine::new() {
+                    Ok(engine) => match engine.evaluate_config(config_path) {
+                        Ok(_) => Some(engine),
+                        Err(e) => {
+                            log::error!("Failed to evaluate config for scanner thread: {e}");
+                            None
+                        }
+                    },
+                    Err(e) => {
+                        log::error!("Failed to initialize Lua engine for scanner thread: {e}");
+                        None
+                    }
                 },
                 |engine_opt, lock_path| {
                     let engine = engine_opt.as_ref()?;
-                    let content = std::fs::read_to_string(&lock_path).ok()?;
-                    let lock_data = serde_json::from_str::<LockFile>(&content).ok()?;
+                    let canon = lock_path.canonicalize().unwrap_or_else(|_| lock_path.clone());
+                    let canon_display = canon.display();
+                    let content = match std::fs::read_to_string(&lock_path) {
+                        Ok(c) => c,
+                        Err(e) => {
+                            log::error!("Failed to read {canon_display}: {e}");
+                            return None;
+                        }
+                    };
                     let album_dir = lock_path.parent().unwrap_or(&lock_path).to_path_buf();
-                    let alb_id = lock_data.album.id;
+                    let album_dir_canon = album_dir.canonicalize().unwrap_or_else(|_| album_dir.clone());
+                    let album_dir_display = album_dir_canon.display();
 
-                    let parsed: serde_json::Value =
-                        serde_json::from_str(&content).unwrap_or_default();
-                    let eval_res = engine.evaluate_album_logic(&parsed).ok()?;
+                    let parsed: serde_json::Value = match serde_json::from_str(&content) {
+                        Ok(p) => p,
+                        Err(e) => {
+                            log::error!("Failed to parse JSON content for {canon_display}: {e}");
+                            return None;
+                        }
+                    };
+
+                    let alb_id = match parsed.pointer("/album/id").and_then(serde_json::Value::as_str) {
+                        Some(id) if !id.is_empty() => id.to_string(),
+                        _ => {
+                            log::error!("Missing or invalid album id in {canon_display}");
+                            return None;
+                        }
+                    };
+
+                    let eval_res = match engine.evaluate_album_logic(&parsed) {
+                        Ok(eval) => eval,
+                        Err(e) => {
+                            log::error!("Logic evaluation failed for {album_dir_display}: {e}");
+                            return None;
+                        }
+                    };
 
                     Some((album_dir, alb_id, content, eval_res))
                 },
@@ -53,8 +88,10 @@ impl Library {
         logic_engine.clear();
 
         for (album_dir, alb_id, content, eval_res) in evaluated_items {
+            let album_dir_canon = album_dir.canonicalize().unwrap_or_else(|_| album_dir.clone());
             if let Err(e) = logic_engine.ingest_pre_evaluated(&album_dir, &alb_id, &content, eval_res, &self.root) {
-                log::error!("Dedup validation error during startup scan: {e}");
+                let album_dir_display = album_dir_canon.display();
+                log::error!("Dedup validation error for {album_dir_display}: {e}");
             }
         }
 

@@ -80,7 +80,7 @@ function __DALE_EVALUATE_ALBUM_LOGIC(raw_album)
             if ok and match_res then
                 res.filters[k] = true
             elseif not ok then
-                print(string.format("Error evaluating filter '%s': %s", k, tostring(match_res)))
+                error(string.format("Error evaluating filter '%s': %s", k, tostring(match_res)))
             end
         end
     end
@@ -101,7 +101,7 @@ function __DALE_EVALUATE_ALBUM_LOGIC(raw_album)
                     res.groupers[k] = { tostring(sel_res) }
                 end
             elseif not ok then
-                print(string.format("Error evaluating grouper '%s': %s", k, tostring(sel_res)))
+                error(string.format("Error evaluating grouper '%s': %s", k, tostring(sel_res)))
             end
         end
     end
@@ -112,7 +112,7 @@ function __DALE_EVALUATE_ALBUM_LOGIC(raw_album)
             if ok and sort_res ~= nil then
                 res.orders[k] = sort_res
             elseif not ok then
-                print(string.format("Error evaluating order '%s': %s", k, tostring(sort_res)))
+                error(string.format("Error evaluating order '%s': %s", k, tostring(sort_res)))
             end
         end
     end
@@ -123,7 +123,7 @@ function __DALE_EVALUATE_ALBUM_LOGIC(raw_album)
             if ok and match_res then
                 res.libraries[k] = true
             elseif not ok then
-                print(string.format("Error evaluating library '%s': %s", k, tostring(match_res)))
+                error(string.format("Error evaluating library '%s': %s", k, tostring(match_res)))
             end
         end
     end
@@ -134,7 +134,7 @@ function __DALE_EVALUATE_ALBUM_LOGIC(raw_album)
             if ok and match_res then
                 res.shelves[k] = true
             elseif not ok then
-                print(string.format("Error evaluating shelf match '%s': %s", k, tostring(match_res)))
+                error(string.format("Error evaluating shelf match '%s': %s", k, tostring(match_res)))
             end
         end
         if type(v.sort) == "function" then
@@ -142,7 +142,7 @@ function __DALE_EVALUATE_ALBUM_LOGIC(raw_album)
             if ok and sort_res ~= nil then
                 res.shelf_sorts[k] = sort_res
             elseif not ok then
-                print(string.format("Error evaluating shelf sort '%s': %s", k, tostring(sort_res)))
+                error(string.format("Error evaluating shelf sort '%s': %s", k, tostring(sort_res)))
             end
         end
     end
