@@ -4,6 +4,7 @@ import { view } from "./library/view.svelte.ts";
 import { initApp } from "./library/init.ts";
 import { nav, setTab } from "./navigation.svelte.ts";
 import { executeAction } from "./api.ts";
+import { player } from "./modules/player.svelte.ts";
 
 import HomeView from "./modules/HomeView/HomeView.svelte";
 import QueueView from "./modules/QueueView/QueueView.svelte";
@@ -56,6 +57,36 @@ function handleKeydown(e: KeyboardEvent) {
     e.preventDefault();
     e.stopPropagation();
     executeAction("open_config_in_terminal", "").catch(() => {});
+    return;
+  }
+
+  if ((e.ctrlKey || e.metaKey) && (key === "t" || key === "T" || code === "KeyT")) {
+    e.preventDefault();
+    e.stopPropagation();
+    const targetId = isModalVisible
+      ? view.focusedAlbum?.id
+      : nav.activeTab === "queue"
+        ? player.currentAlbumId
+        : null;
+
+    if (targetId) {
+      executeAction("open_terminal", targetId).catch(() => {});
+    }
+    return;
+  }
+
+  if ((e.ctrlKey || e.metaKey) && (key === "d" || key === "D" || code === "KeyD")) {
+    e.preventDefault();
+    e.stopPropagation();
+    const targetId = isModalVisible
+      ? view.focusedAlbum?.id
+      : nav.activeTab === "queue"
+        ? player.currentAlbumId
+        : null;
+
+    if (targetId) {
+      executeAction("open_folder", targetId).catch(() => {});
+    }
     return;
   }
 
