@@ -1,6 +1,3 @@
-_G.dale = _G.dale or {}
-_G.d = _G.dale
-
 local function is_blank(v)
     if v == nil then return true end
     if type(v) == "string" then
@@ -12,7 +9,7 @@ local function is_blank(v)
     return false
 end
 
-_G.dale.fn = {
+return {
     present = function(v, msg)
         if is_blank(v) then
             error(msg or "Value must be present and non-empty")

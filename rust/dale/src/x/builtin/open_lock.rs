@@ -1,5 +1,4 @@
 use anyhow::Result;
-#[cfg(unix)]
 use std::os::unix::process::CommandExt;
 use std::path::Path;
 use std::process::{Command, Stdio};
@@ -17,7 +16,6 @@ pub fn run(album_path: &Path) -> Result<()> {
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::null());
-        #[cfg(unix)]
         cmd.process_group(0);
         cmd.spawn()?;
     }

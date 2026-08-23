@@ -1,3 +1,6 @@
+#[cfg(test)]
+mod tests;
+
 use crate::error::DaleError;
 use crate::lua::EngineContext;
 use mlua::serde::SerializeOptions;
@@ -5,6 +8,8 @@ use mlua::{Lua, LuaSerdeExt, Table};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
+
+const LUA_FS: &str = include_str!("mod.lua");
 
 fn parse_path_with_ctx(ctx: &EngineContext, path_str: Option<String>) -> Option<PathBuf> {
     let raw_path = path_str?;
@@ -139,7 +144,7 @@ fn create_fs_reader(
     })
 }
 
-pub fn create_fs_table(lua: &Lua, opts: SerializeOptions) -> mlua::Result<Table> {
+pub fn register(lua: &Lua, dale_tbl: &Table, opts: SerializeOptions) -> mlua::Result<()> {
     let fs_table = lua.create_table()?;
     fs_table.set(
         "exists",
@@ -167,5 +172,9 @@ pub fn create_fs_table(lua: &Lua, opts: SerializeOptions) -> mlua::Result<Table>
             fs_scandir_native(lua, (args.0, args.1.unwrap_or(false)))
         })?,
     )?;
-    Ok(fs_table)
+
+    let fs_init: mlua::Function = lua.load(LUA_FS).eval()?;
+    fs_init.call::<()>(fs_table.clone())?;
+
+    dale_tbl.set("fs", fs_table)
 }

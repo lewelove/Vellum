@@ -1,7 +1,4 @@
-_G.dale = _G.dale or {}
-_G.d = _G.dale
-
-local function get(tbl, ...)
+return function(tbl, ...)
     if type(tbl) ~= "table" then
         return nil
     end
@@ -22,7 +19,11 @@ local function get(tbl, ...)
                 end
                 local num = tonumber(part)
                 if num and math.floor(num) == num then
-                    curr = curr[num] ~= nil and curr[num] or curr[part]
+                    if curr[num] ~= nil then
+                        curr = curr[num]
+                    else
+                        curr = curr[part]
+                    end
                 else
                     curr = curr[part]
                 end
@@ -36,6 +37,3 @@ local function get(tbl, ...)
 
     return curr
 end
-
-_G.dale.get = get
-_G.d.get = get

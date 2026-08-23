@@ -1,6 +1,5 @@
 use anyhow::Result;
 use std::env;
-#[cfg(unix)]
 use std::os::unix::process::CommandExt;
 use std::path::Path;
 use std::process::{Command, Stdio};
@@ -41,9 +40,7 @@ pub fn run(album_path: &Path, config: &serde_json::Value) -> Result<()> {
             cmd.arg("-e").arg("sh").arg("-c").arg(inner_cmd);
         }
 
-        #[cfg(unix)]
         cmd.process_group(0);
-
         cmd.spawn()?;
     }
     Ok(())

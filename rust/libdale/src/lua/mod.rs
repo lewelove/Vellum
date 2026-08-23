@@ -1,6 +1,4 @@
-#[cfg(test)]
-mod tests;
-pub mod utils;
+pub mod functions;
 
 use crate::config::{ActionConfig, AppConfig, CoversConfig, CoversRegistry, InterfaceConfig};
 use crate::error::DaleError;
@@ -14,9 +12,6 @@ use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 const LUA_CORE: &str = include_str!("core.lua");
-const LUA_UTILS_FN: &str = include_str!("utils/fn.lua");
-const LUA_UTILS_FS: &str = include_str!("utils/fs.lua");
-const LUA_UTILS_GET: &str = include_str!("utils/get.lua");
 const LUA_CONFIG: &str = include_str!("config.lua");
 const LUA_COMPILER: &str = include_str!("compiler.lua");
 const LUA_ACTIONS: &str = include_str!("actions.lua");
@@ -261,52 +256,6 @@ pub struct EvaluatedLuaData {
     pub manifest: LogicManifest,
 }
 
-fn create_json_table(lua: &Lua, opts: SerializeOptions) -> mlua::Result<Table> {
-    let json_table = lua.create_table()?;
-    json_table.set(
-        "decode",
-        lua.create_function(move |lua, s: String| {
-            let val: serde_json::Value = serde_json::from_str(&s)
-                .map_err(mlua::Error::external)?;
-            lua.to_value_with(&val, opts)
-        })?,
-    )?;
-
-    json_table.set(
-        "encode",
-        lua.create_function(|lua, val: mlua::Value| {
-            let json_val: serde_json::Value = lua.from_value(val)?;
-            serde_json::to_string(&json_val).map_err(mlua::Error::external)
-        })?,
-    )?;
-
-    Ok(json_table)
-}
-
-fn create_toml_table(lua: &Lua, opts: SerializeOptions) -> mlua::Result<Table> {
-    let toml_table = lua.create_table()?;
-    toml_table.set(
-        "decode",
-        lua.create_function(move |lua, s: String| {
-            let toml_val: toml::Value = toml::from_str(&s)
-                .map_err(mlua::Error::external)?;
-            let json_val = crate::types::toml_to_json(toml_val);
-            lua.to_value_with(&json_val, opts)
-        })?,
-    )?;
-
-    toml_table.set(
-        "encode",
-        lua.create_function(|lua, val: mlua::Value| {
-            let json_val: serde_json::Value = lua.from_value(val)?;
-            let toml_val = crate::types::json_to_toml(json_val);
-            toml::to_string_pretty(&toml_val).map_err(mlua::Error::external)
-        })?,
-    )?;
-
-    Ok(toml_table)
-}
-
 fn call_getter<T: serde::de::DeserializeOwned>(lua: &Lua, fn_name: &str) -> Result<T> {
     let func: mlua::Function = lua
         .globals()
@@ -327,9 +276,7 @@ fn register_native_functions(lua: &Lua) -> mlua::Result<()> {
         .serialize_none_to_null(false)
         .serialize_unit_to_null(false);
 
-    dale_table.set("json", create_json_table(lua, opts)?)?;
-    dale_table.set("toml", create_toml_table(lua, opts)?)?;
-    dale_table.set("fs", utils::fs::create_fs_table(lua, opts)?)?;
+    functions::register_all(lua, &dale_table, opts)?;
 
     globals.set("dale", dale_table.clone())?;
     globals.set("d", dale_table)?;
@@ -366,18 +313,6 @@ impl LuaEngine {
             .exec()
             .map_err(|e| anyhow::anyhow!("{e}"))
             .context("Failed to load core.lua")?;
-        lua.load(LUA_UTILS_FN)
-            .exec()
-            .map_err(|e| anyhow::anyhow!("{e}"))
-            .context("Failed to load utils/fn.lua")?;
-        lua.load(LUA_UTILS_FS)
-            .exec()
-            .map_err(|e| anyhow::anyhow!("{e}"))
-            .context("Failed to load utils/fs.lua")?;
-        lua.load(LUA_UTILS_GET)
-            .exec()
-            .map_err(|e| anyhow::anyhow!("{e}"))
-            .context("Failed to load utils/get.lua")?;
         lua.load(LUA_CONFIG)
             .exec()
             .map_err(|e| anyhow::anyhow!("{e}"))
@@ -403,10 +338,7 @@ impl LuaEngine {
 
         if let Some(parent) = path.parent() {
             let parent_str = parent.to_string_lossy();
-            let code = format!(
-                "package.path = package.path .. ';{}/?.lua'",
-                parent_str.replace('\\', "/")
-            );
+            let code = format!("package.path = package.path .. ';{parent_str}/?.lua'");
             let _: () = self
                 .lua
                 .load(&code)
