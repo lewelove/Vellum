@@ -5,36 +5,45 @@ local function is_continuation(b)
 end
 
 function M.startswith(s, prefix)
-    if type(s) ~= "string" or type(prefix) ~= "string" then
-        error("expected strings for startswith")
+    if type(s) ~= "string" then
+        error(string.format("s: expected string, got %s", type(s)))
+    end
+    if type(prefix) ~= "string" then
+        error(string.format("prefix: expected string, got %s", type(prefix)))
     end
     return s:sub(1, #prefix) == prefix
 end
 
 function M.endswith(s, suffix)
-    if type(s) ~= "string" or type(suffix) ~= "string" then
-        error("expected strings for endswith")
+    if type(s) ~= "string" then
+        error(string.format("s: expected string, got %s", type(s)))
+    end
+    if type(suffix) ~= "string" then
+        error(string.format("suffix: expected string, got %s", type(suffix)))
     end
     return suffix == "" or s:sub(-#suffix) == suffix
 end
 
 function M.trim(s)
     if type(s) ~= "string" then
-        error(string.format("expected string, got %s", type(s)))
+        error(string.format("s: expected string, got %s", type(s)))
     end
     return s:gsub("^%s+", ""):match("^.*%S") or ""
 end
 
 function M.pesc(s)
     if type(s) ~= "string" then
-        error(string.format("expected string, got %s", type(s)))
+        error(string.format("s: expected string, got %s", type(s)))
     end
     return (s:gsub("[%^%$%(%)%%%.%[%]%*%+%-%?]", "%%%1"))
 end
 
 function M.stricmp(a, b)
-    if type(a) ~= "string" or type(b) ~= "string" then
-        error("expected strings for stricmp")
+    if type(a) ~= "string" then
+        error(string.format("a: expected string, got %s", type(a)))
+    end
+    if type(b) ~= "string" then
+        error(string.format("b: expected string, got %s", type(b)))
     end
     local la, lb = a:lower(), b:lower()
     if la < lb then
@@ -48,10 +57,10 @@ end
 
 function M.gsplit(s, sep, opts)
     if type(s) ~= "string" then
-        error(string.format("expected string for s, got %s", type(s)))
+        error(string.format("s: expected string, got %s", type(s)))
     end
     if type(sep) ~= "string" then
-        error(string.format("expected string for sep, got %s", type(sep)))
+        error(string.format("sep: expected string, got %s", type(sep)))
     end
     local plain = false
     local trimempty = false
@@ -60,6 +69,8 @@ function M.gsplit(s, sep, opts)
     elseif type(opts) == "table" then
         plain = opts.plain or false
         trimempty = opts.trimempty or false
+    elseif opts ~= nil then
+        error(string.format("opts: expected table, got %s", type(opts)))
     end
 
     local start = 1

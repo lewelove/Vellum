@@ -1,8 +1,30 @@
 local M = {}
 
+local empty_dict_mt = {
+    __is_empty_dict = true,
+    __newindex = function(t, k, v)
+        setmetatable(t, nil)
+        rawset(t, k, v)
+    end
+}
+
+local function is_nil(v)
+    if v == nil then return true end
+    if type(v) == "table" then
+        local mt = getmetatable(v)
+        if type(mt) == "table" and mt.__is_nil then return true end
+        if v == _G.NIL or (type(_G.vim) == "table" and v == _G.vim.NIL) then return true end
+    end
+    return false
+end
+
 local function islist(t)
     if type(t) ~= "table" then
         return false
+    end
+    if next(t) == nil then
+        local mt = getmetatable(t)
+        return not (mt and (mt == empty_dict_mt or mt.__is_empty_dict))
     end
     local j = 1
     for _ in pairs(t) do
@@ -31,6 +53,16 @@ local function tbl_extend(behavior, deep, ...)
 
     local ret = {}
     local nargs = select("#", ...)
+    if nargs > 0 then
+        local first = select(1, ...)
+        if type(first) == "table" then
+            local mt = getmetatable(first)
+            if mt and (mt == empty_dict_mt or mt.__is_empty_dict) then
+                setmetatable(ret, empty_dict_mt)
+            end
+        end
+    end
+
     for i = 1, nargs do
         local t = select(i, ...)
         if t ~= nil then
@@ -162,11 +194,35 @@ function M.isempty(t)
 end
 
 function M.isarray(t)
-    return islist(t)
+    if type(t) ~= "table" then
+        return false
+    end
+    local count = 0
+    for k in pairs(t) do
+        if type(k) == "number" and k == math.floor(k) then
+            count = count + 1
+        else
+            return false
+        end
+    end
+    if count > 0 then
+        return true
+    else
+        local mt = getmetatable(t)
+        return not (mt and (mt == empty_dict_mt or mt.__is_empty_dict))
+    end
 end
 
 function M.islist(t)
     return islist(t)
+end
+
+function M.isnil(v)
+    return is_nil(v)
+end
+
+function M.empty_dict()
+    return setmetatable({}, empty_dict_mt)
 end
 
 function M.flatten(t)
@@ -224,7 +280,11 @@ function M.add_reverse_lookup(o)
 end
 
 local function _deepcopy(orig, cache)
-    if type(orig) ~= "table" then
+    if is_nil(orig) then
+        return orig
+    elseif type(orig) == "userdata" or type(orig) == "thread" then
+        error("Cannot deepcopy object of type " .. type(orig))
+    elseif type(orig) ~= "table" then
         return orig
     end
     if cache and cache[orig] then
@@ -248,67 +308,44 @@ function M.deepcopy(orig, noref)
     return _deepcopy(orig, not noref and {} or nil)
 end
 
-function M.deep_equal(a, b)
+local function _deep_equal(a, b, visited)
     if a == b then
+        return true
+    end
+    if is_nil(a) and is_nil(b) then
         return true
     end
     if type(a) ~= type(b) then
         return false
     end
-    if type(a) == "table" then
-        for k, v in pairs(a) do
-            if not M.deep_equal(v, b[k]) then
-                return false
-            end
-        end
-        for k, _ in pairs(b) do
-            if a[k] == nil then
-                return false
-            end
-        end
-        return true
-    end
-    return false
-end
-
-function M.list_extend(dst, src, start, finish)
-    if type(dst) ~= "table" then
-        error(string.format("expected table, got %s", type(dst)))
-    end
-    if type(src) ~= "table" then
-        error(string.format("expected table, got %s", type(src)))
-    end
-    local s = start or 1
-    local f = finish or #src
-    for i = s, f do
-        table.insert(dst, src[i])
-    end
-    return dst
-end
-
-function M.list_slice(list, start, finish)
-    if type(list) ~= "table" then
-        error(string.format("expected table, got %s", type(list)))
-    end
-    local new_list = {}
-    local s = start or 1
-    local f = finish or #list
-    for i = s, f do
-        new_list[#new_list + 1] = list[i]
-    end
-    return new_list
-end
-
-function M.list_contains(list, value)
-    if type(list) ~= "table" then
+    if type(a) ~= "table" then
         return false
     end
-    for _, v in ipairs(list) do
-        if v == value then
-            return true
+    visited = visited or {}
+    if visited[a] and visited[a][b] then
+        return true
+    end
+    if not visited[a] then visited[a] = {} end
+    visited[a][b] = true
+
+    for k, v in pairs(a) do
+        if b[k] == nil and v ~= nil then
+            return false
+        end
+        if not _deep_equal(v, b[k], visited) then
+            return false
         end
     end
-    return false
+    for k, v in pairs(b) do
+        if a[k] == nil and v ~= nil then
+            return false
+        end
+    end
+    return true
+end
+
+function M.deep_equal(a, b)
+    return _deep_equal(a, b, {})
 end
 
 return M

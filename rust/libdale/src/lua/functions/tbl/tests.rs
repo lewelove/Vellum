@@ -116,7 +116,7 @@ fn test_d_tbl_deep_extend() {
     assert!(deep_err.is_err());
 }
 
-/// Verify that `d.tbl.contains` and `d.tbl.list_contains` find elements and support predicate checks.
+/// Verify that `d.tbl.contains` checks values and predicate functions.
 #[test]
 fn test_d_tbl_contains() {
     let engine = LuaEngine::new().expect("Failed to create LuaEngine");
@@ -176,40 +176,12 @@ fn test_d_tbl_contains() {
         .eval::<bool>();
     assert!(pred_type_err.is_err());
 
-    let list_found: bool = engine
-        .lua
-        .load("return d.tbl.list_contains({ 'a', 'b', 'c' }, 'b')")
-        .eval()
-        .expect("Execution failed");
-    assert!(list_found);
-
-    let list_not_found: bool = engine
-        .lua
-        .load("return d.tbl.list_contains({ 'a', 'b' }, 'z')")
-        .eval()
-        .expect("Execution failed");
-    assert!(!list_not_found);
-
-    let list_dict_ignored: bool = engine
-        .lua
-        .load("return d.tbl.list_contains({ key = 'value' }, 'value')")
-        .eval()
-        .expect("Execution failed");
-    assert!(!list_dict_ignored);
-
     let non_table_contains: bool = engine
         .lua
         .load("return d.tbl.contains('not_table', 'a')")
         .eval()
         .expect("Execution failed");
     assert!(!non_table_contains);
-
-    let non_table_list: bool = engine
-        .lua
-        .load("return d.tbl.list_contains(nil, 'a')")
-        .eval()
-        .expect("Execution failed");
-    assert!(!non_table_list);
 }
 
 /// Verify that `d.tbl.filter` and `d.tbl.map` transform and filter tables correctly.
@@ -365,12 +337,19 @@ fn test_d_tbl_isarray_and_islist() {
         .expect("Execution failed");
     assert!(single_item);
 
+    let list_gap: bool = engine
+        .lua
+        .load("return d.tbl.islist({ [1] = 'a', [3] = 'c' })")
+        .eval()
+        .expect("Execution failed");
+    assert!(!list_gap);
+
     let array_gap: bool = engine
         .lua
         .load("return d.tbl.isarray({ [1] = 'a', [3] = 'c' })")
         .eval()
         .expect("Execution failed");
-    assert!(!array_gap);
+    assert!(array_gap);
 
     let array_zero_index: bool = engine
         .lua
@@ -568,65 +547,4 @@ fn test_d_tbl_deepcopy_and_deep_equal() {
     "#;
     let copy_a: i64 = engine.lua.load(protected_mt_code).eval().expect("Execution failed");
     assert_eq!(copy_a, 10);
-}
-
-/// Verify that `d.tbl.list_extend` and `d.tbl.list_slice` handle list operations and bounds.
-#[test]
-fn test_d_tbl_list_extend_and_slice() {
-    let engine = LuaEngine::new().expect("Failed to create LuaEngine");
-
-    let extended: Table = engine
-        .lua
-        .load("local dst = { 1, 2 }; return d.tbl.list_extend(dst, { 3, 4, 5 }, 2, 3)")
-        .eval()
-        .expect("Execution failed");
-    assert_eq!(extended.raw_len(), 4);
-    assert_eq!(extended.get::<i64>(1).unwrap(), 1);
-    assert_eq!(extended.get::<i64>(2).unwrap(), 2);
-    assert_eq!(extended.get::<i64>(3).unwrap(), 4);
-    assert_eq!(extended.get::<i64>(4).unwrap(), 5);
-
-    let default_extend: Table = engine
-        .lua
-        .load("local dst = { 'a' }; return d.tbl.list_extend(dst, { 'b', 'c' })")
-        .eval()
-        .expect("Execution failed");
-    assert_eq!(default_extend.raw_len(), 3);
-    assert_eq!(default_extend.get::<String>(2).unwrap(), "b");
-    assert_eq!(default_extend.get::<String>(3).unwrap(), "c");
-
-    let sliced: Table = engine
-        .lua
-        .load("return d.tbl.list_slice({ 'a', 'b', 'c', 'd', 'e' }, 2, 4)")
-        .eval()
-        .expect("Execution failed");
-    assert_eq!(sliced.raw_len(), 3);
-    assert_eq!(sliced.get::<String>(1).unwrap(), "b");
-    assert_eq!(sliced.get::<String>(2).unwrap(), "c");
-    assert_eq!(sliced.get::<String>(3).unwrap(), "d");
-
-    let slice_out_of_bounds: Table = engine
-        .lua
-        .load("return d.tbl.list_slice({ 'a', 'b' }, 10, 20)")
-        .eval()
-        .expect("Execution failed");
-    assert_eq!(slice_out_of_bounds.raw_len(), 0);
-
-    let extend_dst_err = engine
-        .lua
-        .load("return d.tbl.list_extend('not_dst', { 1 })")
-        .eval::<Table>();
-    assert!(extend_dst_err.is_err());
-
-    let extend_src_err = engine
-        .lua
-        .load("return d.tbl.list_extend({ 1 }, 123)")
-        .eval::<Table>();
-    assert!(extend_src_err.is_err());
-
-    let slice_err = engine
-        .lua
-        .load("return d.tbl.list_slice('not_list', 1, 2)")
-        .eval::<Table>();
-    assert!(slice_err.is_err());
 }

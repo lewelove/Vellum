@@ -1,5 +1,8 @@
 pub mod functions;
 
+#[cfg(test)]
+mod tests;
+
 use crate::config::{ActionConfig, AppConfig, CoversConfig, CoversRegistry, InterfaceConfig};
 use crate::error::DaleError;
 use anyhow::{Context, Result};

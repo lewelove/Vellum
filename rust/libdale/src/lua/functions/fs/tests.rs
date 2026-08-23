@@ -69,14 +69,14 @@ fn test_d_fs_basename() {
         .load("return d.fs.basename('/path/to/directory/')")
         .eval()
         .expect("Execution failed");
-    assert_eq!(dir_res, "directory");
+    assert_eq!(dir_res, "");
 
     let multi_slash_res: String = engine
         .lua
         .load("return d.fs.basename('/path/to/nested///')")
         .eval()
         .expect("Execution failed");
-    assert_eq!(multi_slash_res, "nested");
+    assert_eq!(multi_slash_res, "");
 
     let root_res: String = engine
         .lua
@@ -124,7 +124,7 @@ fn test_d_fs_dirname() {
         .load("return d.fs.dirname('/path/to/directory/')")
         .eval()
         .expect("Execution failed");
-    assert_eq!(trailing_res, "/path/to");
+    assert_eq!(trailing_res, "/path/to/directory");
 
     let root_elem_res: String = engine
         .lua

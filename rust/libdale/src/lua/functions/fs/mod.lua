@@ -5,11 +5,13 @@ function M.basename(file)
     if type(file) ~= "string" then
         error(string.format("expected string, got %s", type(file)))
     end
-    local clean = file:gsub("/+$", "")
-    if clean == "" then
-        return file:match("^/") and "" or file
+    if file == "" or file == "/" then
+        return ""
     end
-    return clean:match("[^/]+$") or ""
+    if file:sub(-1) == "/" then
+        return ""
+    end
+    return file:match("[^/]+$") or ""
 end
 
 function M.dirname(file)
@@ -17,13 +19,23 @@ function M.dirname(file)
     if type(file) ~= "string" then
         error(string.format("expected string, got %s", type(file)))
     end
-    local clean = file:gsub("/+$", "")
-    if clean == "" then
-        return file:sub(1, 1) == "/" and "/" or "."
+    if file == "" then
+        return "."
     end
-    local dir = clean:match("^(.*)/[^/]*$")
-    if not dir or dir == "" then
-        return clean:sub(1, 1) == "/" and "/" or "."
+    if file == "/" or file:match("^/+$") then
+        return "/"
+    end
+    if file:sub(-1) == "/" then
+        local trimmed = file:gsub("/+$", "")
+        return trimmed == "" and "/" or trimmed
+    end
+    local dir = file:match("^(.*)/[^/]*$")
+    if not dir then
+        return "."
+    end
+    dir = dir:gsub("/+$", "")
+    if dir == "" then
+        return file:sub(1, 1) == "/" and "/" or "."
     end
     return dir
 end
