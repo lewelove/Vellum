@@ -2,7 +2,9 @@ pub mod fs;
 pub mod get;
 pub mod json;
 pub mod r#fn;
+pub mod str;
 pub mod system;
+pub mod tbl;
 pub mod toml;
 
 use mlua::serde::SerializeOptions;
@@ -14,6 +16,8 @@ pub fn register_all(lua: &Lua, dale_tbl: &Table, opts: SerializeOptions) -> mlua
     get::register(lua, dale_tbl)?;
     system::register(lua, dale_tbl)?;
     json::register(lua, dale_tbl, opts)?;
+    str::register(lua, dale_tbl)?;
+    tbl::register(lua, dale_tbl)?;
     toml::register(lua, dale_tbl, opts)?;
     Ok(())
 }

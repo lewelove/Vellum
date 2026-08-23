@@ -92,12 +92,12 @@ fn test_d_fs_basename() {
         .expect("Execution failed");
     assert!(nil_res.is_none());
 
-    let empty_res: Option<String> = engine
+    let empty_res: String = engine
         .lua
         .load("return d.fs.basename('')")
         .eval()
         .expect("Execution failed");
-    assert!(empty_res.is_none());
+    assert_eq!(empty_res, "");
 
     let hidden_res: String = engine
         .lua
@@ -147,12 +147,12 @@ fn test_d_fs_dirname() {
         .expect("Execution failed");
     assert_eq!(multi_root_res, "/");
 
-    let rel_single: Option<String> = engine
+    let rel_single: String = engine
         .lua
         .load("return d.fs.dirname('file.txt')")
         .eval()
         .expect("Execution failed");
-    assert!(rel_single.is_none());
+    assert_eq!(rel_single, ".");
 
     let nil_res: Option<String> = engine
         .lua
@@ -161,12 +161,12 @@ fn test_d_fs_dirname() {
         .expect("Execution failed");
     assert!(nil_res.is_none());
 
-    let empty_res: Option<String> = engine
+    let empty_res: String = engine
         .lua
         .load("return d.fs.dirname('')")
         .eval()
         .expect("Execution failed");
-    assert!(empty_res.is_none());
+    assert_eq!(empty_res, ".");
 }
 
 /// Verify that `d.fs.joinpath` joins path segments, removes extra separators, and ignores empty items.
@@ -195,6 +195,13 @@ fn test_d_fs_joinpath() {
         .expect("Execution failed");
     assert_eq!(with_empty, "/music/Artist/02.flac");
 
+    let unc_path: String = engine
+        .lua
+        .load("return d.fs.joinpath('//server', 'share', 'music')")
+        .eval()
+        .expect("Execution failed");
+    assert_eq!(unc_path, "//server/share/music");
+
     let all_empty: String = engine
         .lua
         .load("return d.fs.joinpath('', nil, '')")
@@ -221,6 +228,20 @@ fn test_d_fs_normalize() {
         .eval()
         .expect("Execution failed");
     assert_eq!(root_boundary, "/a");
+
+    let unc_res: String = engine
+        .lua
+        .load("return d.fs.normalize('//server/share/folder/../file.txt')")
+        .eval()
+        .expect("Execution failed");
+    assert_eq!(unc_res, "//server/share/file.txt");
+
+    let no_expand_res: String = engine
+        .lua
+        .load("return d.fs.normalize('~/dir', { expand_env = false })")
+        .eval()
+        .expect("Execution failed");
+    assert_eq!(no_expand_res, "~/dir");
 
     let empty_res: String = engine
         .lua
@@ -251,6 +272,16 @@ fn test_d_fs_parents() {
     "#;
     let parents: Vec<String> = engine.lua.load(code).eval().expect("Execution failed");
     assert_eq!(parents, vec!["/a/b/c", "/a/b", "/a", "/"]);
+
+    let rel_code = r#"
+        local parents = {}
+        for p in d.fs.parents('a/b/c/file.txt') do
+            table.insert(parents, p)
+        end
+        return parents
+    "#;
+    let rel_parents: Vec<String> = engine.lua.load(rel_code).eval().expect("Execution failed");
+    assert_eq!(rel_parents, vec!["a/b/c", "a/b", "a"]);
 
     let empty_code = r#"
         local count = 0
@@ -315,7 +346,7 @@ fn test_d_fs_dir() {
         for rel, _ in d.fs.dir('{root_path}', {{
             depth = 3,
             skip = function(dir_rel)
-                return dir_rel == 'sub_a'
+                return dir_rel ~= 'sub_a'
             end
         }}) do
             table.insert(visited, rel)
@@ -327,6 +358,24 @@ fn test_d_fs_dir() {
     assert!(visited.iter().any(|p| p == "sub_a"));
     assert!(!visited.iter().any(|p| p.starts_with("sub_a/")));
     assert!(visited.iter().any(|p| p == "root_file.txt"));
+
+    let code_skip_calls = format!(
+        r#"
+        local skip_calls = {{}}
+        for rel, _ in d.fs.dir('{root_path}', {{
+            depth = 3,
+            skip = function(dir_rel)
+                table.insert(skip_calls, dir_rel)
+                return true
+            end
+        }}) do end
+        return skip_calls
+    "#
+    );
+    let skip_calls: Vec<String> = engine.lua.load(&code_skip_calls).eval().expect("Execution failed");
+    assert!(skip_calls.contains(&"sub_a".to_string()));
+    assert!(skip_calls.contains(&"sub_b".to_string()));
+    assert_eq!(skip_calls.iter().filter(|p| *p == "sub_a").count(), 1);
 
     let non_existent_code = r#"
         local count = 0
@@ -353,14 +402,14 @@ fn test_d_fs_find() {
     let target_file_str = target_file.to_string_lossy().to_string();
 
     let code_exact = format!(
-        r#"return d.fs.find('track.lrc', {{ path = '{root_path}', type = 'file' }})"#
+        r#"return d.fs.find('track.lrc', {{ path = '{root_path}', type = 'file', limit = math.huge }})"#
     );
     let exact_res: Vec<String> = engine.lua.load(&code_exact).eval().expect("Execution failed");
     assert_eq!(exact_res.len(), 1);
     assert_eq!(exact_res[0], target_file_str);
 
     let code_table = format!(
-        r#"return d.fs.find({{ 'track.lrc', 'nonexistent.txt' }}, {{ path = '{root_path}', type = 'file' }})"#
+        r#"return d.fs.find({{ 'track.lrc', 'nonexistent.txt' }}, {{ path = '{root_path}', type = 'file', limit = math.huge }})"#
     );
     let table_res: Vec<String> = engine.lua.load(&code_table).eval().expect("Execution failed");
     assert_eq!(table_res.len(), 1);
@@ -379,8 +428,8 @@ fn test_d_fs_find() {
     assert_eq!(pred_up_res[0], target_file_str);
 
     let code_invalid = "return d.fs.find(12345)";
-    let invalid_res: Vec<String> = engine.lua.load(code_invalid).eval().expect("Execution failed");
-    assert_eq!(invalid_res.len(), 0);
+    let invalid_res = engine.lua.load(code_invalid).eval::<Vec<String>>();
+    assert!(invalid_res.is_err());
 }
 
 /// Verify that `d.fs.root` finds the root directory by searching upward for a marker file and returns nil if missing.

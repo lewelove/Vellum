@@ -1,205 +1,246 @@
-return function(M)
-    function M.basename(file)
-        if not file or file == "" then return nil end
-        local clean = file:gsub("/+$", "")
-        if clean == "" then return "" end
-        return clean:match("[^/]+$")
-    end
+local M = {}
 
-    function M.dirname(file)
-        if not file or file == "" then return nil end
-        local clean = file:gsub("/+$", "")
-        if clean == "" then
-            if file:sub(1, 1) == "/" then
-                return "/"
-            end
-            return nil
-        end
-        local dir = clean:match("^(.*)/[^/]*$")
-        if not dir or dir == "" then
-            if clean:sub(1, 1) == "/" then
-                return "/"
-            end
-            return nil
-        end
-        return dir
+function M.basename(file)
+    if file == nil then return nil end
+    if type(file) ~= "string" then
+        error(string.format("expected string, got %s", type(file)))
     end
+    local clean = file:gsub("/+$", "")
+    if clean == "" then
+        return file:match("^/") and "" or file
+    end
+    return clean:match("[^/]+$") or ""
+end
 
-    function M.normalize(path, opts)
-        if not path or path == "" then return "" end
-        opts = opts or {}
-        local p = path
+function M.dirname(file)
+    if file == nil then return nil end
+    if type(file) ~= "string" then
+        error(string.format("expected string, got %s", type(file)))
+    end
+    local clean = file:gsub("/+$", "")
+    if clean == "" then
+        return file:sub(1, 1) == "/" and "/" or "."
+    end
+    local dir = clean:match("^(.*)/[^/]*$")
+    if not dir or dir == "" then
+        return clean:sub(1, 1) == "/" and "/" or "."
+    end
+    return dir
+end
+
+function M.normalize(path, opts)
+    if path == nil then return nil end
+    if type(path) ~= "string" then
+        error(string.format("expected string, got %s", type(path)))
+    end
+    if path == "" then return "" end
+
+    opts = opts or {}
+    local expand_env = opts.expand_env ~= false
+    local p = path
+
+    if expand_env then
+        p = p:gsub("%$([%w_]+)", os.getenv)
+        p = p:gsub("%${([%w_]+)}", os.getenv)
         if p:sub(1, 1) == "~" then
             local home = os.getenv("HOME") or ""
             p = home .. p:sub(2)
         end
-        p = p:gsub("//+", "/")
-        local is_abs = p:sub(1, 1) == "/"
-        local parts = {}
-        for part in p:gmatch("[^/]+") do
-            if part == ".." then
-                if #parts > 0 and parts[#parts] ~= ".." then
-                    table.remove(parts)
-                elseif not is_abs then
-                    table.insert(parts, "..")
-                end
-            elseif part ~= "." then
-                table.insert(parts, part)
-            end
-        end
-        local res = (is_abs and "/" or "") .. table.concat(parts, "/")
-        if res == "" then
-            return is_abs and "/" or "."
-        end
-        return res
     end
 
-    function M.joinpath(...)
-        local n = select("#", ...)
-        local parts = {}
-        for i = 1, n do
-            local item = select(i, ...)
-            if item and item ~= "" then
-                table.insert(parts, item)
+    local is_unc = p:match("^//[^/]") ~= nil
+    p = p:gsub("//+", "/")
+
+    local is_abs = p:sub(1, 1) == "/"
+    local parts = {}
+    for part in p:gmatch("[^/]+") do
+        if part == ".." then
+            if #parts > 0 and parts[#parts] ~= ".." then
+                table.remove(parts)
+            elseif not is_abs then
+                table.insert(parts, "..")
             end
+        elseif part ~= "." then
+            table.insert(parts, part)
         end
-        if #parts == 0 then return "" end
-        return M.normalize(table.concat(parts, "/"))
     end
 
-    function M.parents(start)
-        local cur = M.normalize(start)
-        return function()
-            if not cur or cur == "" or cur == "/" or cur == "." then
-                return nil
-            end
-            local parent = M.dirname(cur)
-            if not parent or parent == cur then
-                cur = nil
-                return nil
-            end
-            cur = parent
+    local prefix = is_unc and "//" or (is_abs and "/" or "")
+    local res = prefix .. table.concat(parts, "/")
+    if res == "" then
+        return is_abs and "/" or "."
+    end
+    return res
+end
+
+function M.joinpath(...)
+    local n = select("#", ...)
+    local parts = {}
+    for i = 1, n do
+        local item = select(i, ...)
+        if item ~= nil and item ~= "" then
+            table.insert(parts, tostring(item))
+        end
+    end
+    if #parts == 0 then return "" end
+    local path = table.concat(parts, "/")
+    local is_unc = path:match("^//[^/]") ~= nil
+    local clean = path:gsub("//+", "/")
+    if is_unc then
+        return "/" .. clean
+    end
+    return clean
+end
+
+function M.parents(start)
+    if type(start) ~= "string" then
+        error(string.format("expected string, got %s", type(start)))
+    end
+    return function(_, dir)
+        local parent = M.dirname(dir)
+        if parent and parent ~= dir and parent ~= "." then
             return parent
         end
+        return nil
+    end, nil, start
+end
+
+function M.dir(path, opts)
+    opts = opts or {}
+    local norm = M.normalize(path)
+    local depth = opts.depth or 1
+    local skip = opts.skip
+    local follow = opts.follow or false
+
+    if depth == 1 then
+        return M._scandir_native(norm, follow)
     end
 
-    function M.dir(path, opts)
-        opts = opts or {}
-        local norm = M.normalize(path)
-        local depth = opts.depth or 1
-        local skip = opts.skip
-        local follow = opts.follow or false
+    local queue = { { path = norm, rel = "", depth = 1 } }
+    local queue_idx = 1
+    local cur_iter = nil
+    local cur_node = nil
 
-        if depth == 1 then
-            return M._scandir_native(norm, follow)
-        end
-
-        local stack = { { path = norm, rel = "", depth = 1 } }
-        local cur_iter = nil
-        local cur_node = nil
-
-        return function()
-            while true do
-                if not cur_iter then
-                    if #stack == 0 then
-                        return nil
-                    end
-                    cur_node = table.remove(stack)
-                    cur_iter = M._scandir_native(cur_node.path, follow)
+    return function()
+        while true do
+            if not cur_iter then
+                if queue_idx > #queue then
+                    return nil
                 end
+                cur_node = queue[queue_idx]
+                queue_idx = queue_idx + 1
+                cur_iter = M._scandir_native(cur_node.path, follow)
+            end
 
-                local name, type_ = cur_iter()
-                if name then
-                    local rel = (cur_node.rel == "") and name or (cur_node.rel .. "/" .. name)
-                    if type_ == "directory" and cur_node.depth < depth then
-                        local should_skip = skip and skip(rel)
-                        if not should_skip then
-                            table.insert(stack, {
-                                path = M.joinpath(cur_node.path, name),
-                                rel = rel,
-                                depth = cur_node.depth + 1,
-                            })
-                        end
+            local name, type_ = cur_iter()
+            if name then
+                local rel = (cur_node.rel == "") and name or (cur_node.rel .. "/" .. name)
+                if type_ == "directory" and cur_node.depth < depth then
+                    local should_traverse = true
+                    if skip and skip(rel) == false then
+                        should_traverse = false
                     end
-                    return rel, type_
-                else
-                    cur_iter = nil
+                    if should_traverse then
+                        table.insert(queue, {
+                            path = cur_node.path .. "/" .. name,
+                            rel = rel,
+                            depth = cur_node.depth + 1,
+                        })
+                    end
                 end
+                return rel, type_
+            else
+                cur_iter = nil
             end
         end
     end
+end
 
-    function M.find(names, opts)
-        opts = opts or {}
-        local start = M.normalize(opts.path or ".")
-        local upward = opts.upward or false
-        local stop = opts.stop and M.normalize(opts.stop) or nil
-        local limit = opts.limit or (upward and 1 or math.huge)
-        local match_type = opts.type
+function M.find(names, opts)
+    opts = opts or {}
+    if type(names) ~= "string" and type(names) ~= "table" and type(names) ~= "function" then
+        error(string.format("expected string, table, or function for names, got %s", type(names)))
+    end
 
-        local matches = {}
-        local match_fn
-        if type(names) == "function" then
-            match_fn = names
-        elseif type(names) == "table" then
+    local start = opts.path and M.normalize(opts.path) or "."
+    local upward = opts.upward or false
+    local stop = opts.stop and M.normalize(opts.stop) or nil
+    local limit = opts.limit or (upward and 1 or math.huge)
+    local match_type = opts.type
+
+    local matches = {}
+    local function make_matcher(target)
+        if type(target) == "function" then
+            return target
+        elseif type(target) == "table" then
             local set = {}
-            for _, n in ipairs(names) do
+            for _, n in ipairs(target) do
                 set[n] = true
             end
-            match_fn = function(name)
+            return function(name)
                 return set[name] == true
             end
-        elseif type(names) == "string" then
-            match_fn = function(name)
-                return name == names
-            end
         else
-            return matches
-        end
-
-        if upward then
-            local cur = start
-            while cur and #matches < limit do
-                for name, type_ in M.dir(cur, { depth = 1 }) do
-                    local type_ok = (match_type == nil) or (match_type == type_)
-                    local full = M.joinpath(cur, name)
-                    if type_ok and match_fn(name, full) then
-                        table.insert(matches, full)
-                        if #matches >= limit then
-                            break
-                        end
-                    end
-                end
-                if stop and cur == stop then
-                    break
-                end
-                local parent = M.dirname(cur)
-                if not parent or parent == cur then
-                    break
-                end
-                cur = parent
-            end
-        else
-            for rel, type_ in M.dir(start, { depth = opts.depth or math.huge, skip = opts.skip }) do
-                local type_ok = (match_type == nil) or (match_type == type_)
-                local bname = M.basename(rel)
-                local full = M.joinpath(start, rel)
-                if type_ok and match_fn(bname, full) then
-                    table.insert(matches, full)
-                    if #matches >= limit then
-                        break
-                    end
-                end
+            return function(name)
+                return name == target
             end
         end
-
-        return matches
     end
 
-    function M.root(source, marker)
-        local start = type(source) == "string" and source or "."
-        start = M.normalize(start)
-        local res = M.find(marker, {
+    local match_fn = make_matcher(names)
+
+    if upward then
+        local cur = start
+        while cur and #matches < limit do
+            if stop and cur == stop then
+                break
+            end
+            for name, type_ in M.dir(cur, { depth = 1 }) do
+                local type_ok = (match_type == nil) or (match_type == type_)
+                local full = M.joinpath(cur, name)
+                if type_ok and match_fn(name, full) then
+                    table.insert(matches, full)
+                    if #matches >= limit then
+                        return matches
+                    end
+                end
+            end
+            local parent = M.dirname(cur)
+            if not parent or parent == cur or parent == "." then
+                break
+            end
+            cur = parent
+        end
+    else
+        for rel, type_ in M.dir(start, { depth = opts.depth or math.huge, skip = opts.skip }) do
+            local full = M.joinpath(start, rel)
+            if stop and (full == stop or rel == stop) then
+                break
+            end
+            local type_ok = (match_type == nil) or (match_type == type_)
+            local bname = M.basename(rel)
+            if type_ok and match_fn(bname, full) then
+                table.insert(matches, full)
+                if #matches >= limit then
+                    break
+                end
+            end
+        end
+    end
+
+    return matches
+end
+
+function M.root(source, marker)
+    if source == nil or marker == nil then
+        error("missing required arguments: source and marker")
+    end
+    local start = type(source) == "string" and source or "."
+    start = M.normalize(start)
+
+    local marker_list = type(marker) == "table" and marker or { marker }
+    for _, item in ipairs(marker_list) do
+        local res = M.find(item, {
             path = start,
             upward = true,
             limit = 1,
@@ -207,6 +248,8 @@ return function(M)
         if #res > 0 then
             return M.dirname(res[1])
         end
-        return nil
     end
+    return nil
 end
+
+return M

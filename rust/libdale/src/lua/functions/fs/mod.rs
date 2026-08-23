@@ -145,7 +145,7 @@ fn create_fs_reader(
 }
 
 pub fn register(lua: &Lua, dale_tbl: &Table, opts: SerializeOptions) -> mlua::Result<()> {
-    let fs_table = lua.create_table()?;
+    let fs_table: Table = lua.load(LUA_FS).eval()?;
     fs_table.set(
         "exists",
         lua.create_function(|lua, path_str: Option<String>| Ok(fs_exists(lua, path_str)))?,
@@ -172,9 +172,6 @@ pub fn register(lua: &Lua, dale_tbl: &Table, opts: SerializeOptions) -> mlua::Re
             fs_scandir_native(lua, (args.0, args.1.unwrap_or(false)))
         })?,
     )?;
-
-    let fs_init: mlua::Function = lua.load(LUA_FS).eval()?;
-    fs_init.call::<()>(fs_table.clone())?;
 
     dale_tbl.set("fs", fs_table)
 }
