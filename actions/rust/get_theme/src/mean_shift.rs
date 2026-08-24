@@ -62,11 +62,11 @@ pub fn extract(img: &DynamicImage, args: &str) -> Vec<Srgb> {
                 let dist_sq = (current.b - p.b).mul_add(current.b - p.b, (current.a - p.a).mul_add(current.a - p.a, (current.l - p.l).powi(2)));
                 if dist_sq < bw_sq {
                     let chroma = p.a.hypot(p.b);
-                    let weight = 1.0 + (chroma_gravity * chroma);
+                    let weight = chroma_gravity.mul_add(chroma, 1.0);
                     
-                    sum_l += p.l * weight;
-                    sum_a += p.a * weight;
-                    sum_b += p.b * weight;
+                    sum_l = p.l.mul_add(weight, sum_l);
+                    sum_a = p.a.mul_add(weight, sum_a);
+                    sum_b = p.b.mul_add(weight, sum_b);
                     total_weight += weight;
                 }
             }

@@ -80,8 +80,8 @@
 
             for arg in "$@"; do
               case "$arg" in
-                libdale)  TARGET="libdale" ;;
-                dale)     TARGET="dale" ;;
+                libdale)    TARGET="libdale" ;;
+                dale)       TARGET="dale" ;;
                 actions)    TARGET="actions" ;;
                 interface)  TARGET="interface" ;;
                 web-app)    TARGET="interface" ;;
@@ -93,8 +93,8 @@
               echo ""
               echo "Checking and linting code..."
               echo ""
-              cd "$ROOT/rust"
-              cargo clippy --workspace -- -D warnings
+              cd "$ROOT"
+              cargo clippy -p dale -p libdale -- -D warnings
               echo ""
               echo "Running tests..."
               echo ""
@@ -106,9 +106,9 @@
             }
 
             build_libdale() {
-              cd "$ROOT/rust"
-              cargo clippy --workspace -- -D warnings
-              cargo test --workspace
+              cd "$ROOT"
+              cargo clippy -p libdale -- -D warnings
+              cargo test -p libdale
               cargo build -p libdale --release "''${ARGS[@]}"
             }
 
@@ -117,21 +117,20 @@
               echo "Building Actions..."
               echo ""
 
-              cd "$ROOT/actions/rust"
-              cargo clippy --workspace -- -D warnings
-              cargo build --workspace --release "''${ARGS[@]}"
-              
               cd "$ROOT"
+              cargo clippy -p libactions -p get_theme -p collect -p discogs_fetch_master -p musicbrainz_search -p calculate_cover_metrics -- -D warnings
+              cargo build -p get_theme -p collect -p discogs_fetch_master -p musicbrainz_search -p calculate_cover_metrics --release "''${ARGS[@]}"
+              
               nix build .#get_lyrics --out-link actions/python/get_lyrics/result
               nix build .#search_cover --out-link actions/python/search_cover/result
               nix build .#embed --out-link actions/python/embed/result
               nix build .#rename --out-link actions/python/rename/result
               
-              ln -sf "rust/target/release/get_theme" "$ROOT/actions/get_theme"
-              ln -sf "rust/target/release/collect" "$ROOT/actions/collect"
-              ln -sf "rust/target/release/discogs_fetch_master" "$ROOT/actions/discogs_fetch_master"
-              ln -sf "rust/target/release/musicbrainz_search" "$ROOT/actions/musicbrainz_search"
-              ln -sf "rust/target/release/calculate_cover_metrics" "$ROOT/actions/calculate_cover_metrics"
+              ln -sf "../target/release/get_theme" "$ROOT/actions/get_theme"
+              ln -sf "../target/release/collect" "$ROOT/actions/collect"
+              ln -sf "../target/release/discogs_fetch_master" "$ROOT/actions/discogs_fetch_master"
+              ln -sf "../target/release/musicbrainz_search" "$ROOT/actions/musicbrainz_search"
+              ln -sf "../target/release/calculate_cover_metrics" "$ROOT/actions/calculate_cover_metrics"
               ln -sf "python/get_lyrics/result/bin/get_lyrics" "$ROOT/actions/get_lyrics"
               ln -sf "python/search_cover/result/bin/search_cover" "$ROOT/actions/search_cover"
               ln -sf "python/embed/result/bin/embed" "$ROOT/actions/embed"
@@ -139,7 +138,6 @@
             }
 
             build_interface() {
-
               echo ""
               echo "Building Web App Interface..."
               echo ""
@@ -179,18 +177,11 @@
               esac
             done
 
-            cd "$ROOT/rust"
+            cd "$ROOT"
             if [ "$LINT" = true ]; then
               cargo clippy --workspace -- "''${ARGS[@]}" -D warnings
             else
-              cargo check "''${ARGS[@]}"
-            fi
-
-            cd "$ROOT/actions/rust"
-            if [ "$LINT" = true ]; then
-              cargo clippy --workspace -- "''${ARGS[@]}" -D warnings
-            else
-              cargo check "''${ARGS[@]}"
+              cargo check --workspace "''${ARGS[@]}"
             fi
           '';
         };
@@ -211,7 +202,7 @@
           ];
           text = ''
             ROOT=$(git rev-parse --show-toplevel)
-            BIN="$ROOT/rust/target/release/dale"
+            BIN="$ROOT/target/release/dale"
             COMMAND=''${1:-"help"}
             if [ "$#" -gt 0 ]; then shift; fi
 
@@ -227,18 +218,15 @@
                 TEST_ARGS=()
                 for arg in "$@"; do
                   case "$arg" in
-                    --lint) cargo clippy --all-targets --all-features -- -D warnings ;;
+                    --lint) cargo clippy --workspace --all-targets --all-features -- -D warnings ;;
                     --fmt)  cargo fmt --all -- --check ;;
                     --deny) cargo deny check ;;
                     *)      TEST_ARGS+=("$arg") ;;
                   esac
                 done
 
-                cd "$ROOT/rust"
-                cargo test "''${TEST_ARGS[@]}"
-                
-                cd "$ROOT/actions/rust"
-                cargo test "''${TEST_ARGS[@]}"
+                cd "$ROOT"
+                cargo test --workspace "''${TEST_ARGS[@]}"
                 ;;
               help|--help|-h)
                 echo "Dale CLI Commands:"
