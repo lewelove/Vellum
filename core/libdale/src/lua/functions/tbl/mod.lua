@@ -308,6 +308,21 @@ function M.deepcopy(orig, noref)
     return _deepcopy(orig, not noref and {} or nil)
 end
 
+function M.copy(t)
+    if type(t) ~= "table" then
+        return t
+    end
+    local res = {}
+    for k, v in pairs(t) do
+        res[k] = v
+    end
+    local mt = getmetatable(t)
+    if type(mt) == "table" then
+        setmetatable(res, mt)
+    end
+    return res
+end
+
 local function _deep_equal(a, b, visited)
     if a == b then
         return true
@@ -346,6 +361,22 @@ end
 
 function M.deep_equal(a, b)
     return _deep_equal(a, b, {})
+end
+
+function M.spairs(t)
+    if type(t) ~= "table" then
+        error(string.format("expected table, got %s", type(t)))
+    end
+    local keys = M.keys(t)
+    table.sort(keys)
+    local i = 0
+    return function()
+        i = i + 1
+        local k = keys[i]
+        if k ~= nil then
+            return k, t[k]
+        end
+    end
 end
 
 return M

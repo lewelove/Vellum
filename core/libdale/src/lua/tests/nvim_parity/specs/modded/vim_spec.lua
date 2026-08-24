@@ -10,6 +10,7 @@ local ok = t.ok
 local pcall_err = t.pcall_err
 local exec_lua = n.exec_lua
 local matches = t.matches
+local NIL = vim.NIL
 
 describe('lua stdlib', function()
   before_each(clear)
@@ -143,6 +144,134 @@ describe('lua stdlib', function()
       pcall_err(exec_lua, 'return vim.endswith("123", nil)')
     )
     matches('s: expected string, got nil', pcall_err(exec_lua, 'return vim.endswith(nil, "123")'))
+  end)
+
+  it('vim.str_utf_start', function()
+    exec_lua([[_G.test_text = "xy åäö ɧ 汉语 ↥ 🤦x🦄 å بِيَّ"]])
+    local expected_positions = {
+      0,
+      0,
+      0,
+      0,
+      -1,
+      0,
+      -1,
+      0,
+      -1,
+      0,
+      0,
+      -1,
+      0,
+      0,
+      -1,
+      -2,
+      0,
+      -1,
+      -2,
+      0,
+      0,
+      -1,
+      -2,
+      0,
+      0,
+      -1,
+      -2,
+      -3,
+      0,
+      0,
+      -1,
+      -2,
+      -3,
+      0,
+      0,
+      0,
+      -1,
+      0,
+      0,
+      -1,
+      0,
+      -1,
+      0,
+      -1,
+      0,
+      -1,
+      0,
+      -1,
+    }
+    eq(
+      expected_positions,
+      exec_lua([[
+      local start_codepoint_positions = {}
+      for idx = 1, #_G.test_text do
+        table.insert(start_codepoint_positions, vim.str_utf_start(_G.test_text, idx))
+      end
+      return start_codepoint_positions
+    ]])
+    )
+  end)
+
+  it('vim.str_utf_end', function()
+    exec_lua([[_G.test_text = "xy åäö ɧ 汉语 ↥ 🤦x🦄 å بِيَّ"]])
+    local expected_positions = {
+      0,
+      0,
+      0,
+      1,
+      0,
+      1,
+      0,
+      1,
+      0,
+      0,
+      1,
+      0,
+      0,
+      2,
+      1,
+      0,
+      2,
+      1,
+      0,
+      0,
+      2,
+      1,
+      0,
+      0,
+      3,
+      2,
+      1,
+      0,
+      0,
+      3,
+      2,
+      1,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      1,
+      0,
+      1,
+      0,
+      1,
+      0,
+      1,
+      0,
+      1,
+      0,
+    }
+    eq(
+      expected_positions,
+      exec_lua([[
+      local end_codepoint_positions = {}
+      for idx = 1, #_G.test_text do
+        table.insert(end_codepoint_positions, vim.str_utf_end(_G.test_text, idx))
+      end
+      return end_codepoint_positions
+    ]])
+    )
   end)
 
   it('vim.str_utf_pos', function()
@@ -464,11 +593,11 @@ describe('lua stdlib', function()
       true,
       exec_lua("return vim.tbl_get({ test = { nested_test = true }}, 'test', 'nested_test')")
     )
-    eq(nil, exec_lua("return vim.tbl_get({ unindexable = true }, 'unindexable', 'missing_key')"))
-    eq(nil, exec_lua("return vim.tbl_get({ unindexable = 1 }, 'unindexable', 'missing_key')"))
-    eq(nil, exec_lua("return vim.tbl_get({}, 'missing_key')"))
-    eq(nil, exec_lua('return vim.tbl_get({})'))
-    eq(nil, exec_lua("return vim.tbl_get({}, nil, 'key')"))
+    eq(NIL, exec_lua("return vim.tbl_get({ unindexable = true }, 'unindexable', 'missing_key')"))
+    eq(NIL, exec_lua("return vim.tbl_get({ unindexable = 1 }, 'unindexable', 'missing_key')"))
+    eq(NIL, exec_lua("return vim.tbl_get({}, 'missing_key')"))
+    eq(NIL, exec_lua('return vim.tbl_get({})'))
+    eq(NIL, exec_lua("return vim.tbl_get({}, nil, 'key')"))
   end)
 
   it('vim.tbl_extend', function()

@@ -7,6 +7,7 @@ local clear = n.clear
 local exec_lua = n.exec_lua
 local eq = t.eq
 local eq_paths = t.eq_paths
+local mkdir_p = n.mkdir_p
 local rmdir = n.rmdir
 local nvim_dir = n.nvim_dir
 local test_build_dir = t.paths.test_build_dir
@@ -41,7 +42,7 @@ describe('vim.fs', function()
   describe('parents()', function()
     it('works', function()
       local test_dir = nvim_dir .. '/test'
-      t.mkdir(test_dir)
+      mkdir_p(test_dir)
       local dirs = {} --- @type string[]
       for dir in vim.fs.parents(test_dir .. '/foo.txt') do
         dirs[#dirs + 1] = dir
@@ -59,11 +60,16 @@ describe('vim.fs', function()
       eq(test_build_dir, vim.fs.dirname(nvim_dir))
 
       ---@param paths string[]
-      local function test_paths(paths)
-        local code = [[
+      ---@param is_win? boolean
+      local function test_paths(paths, is_win)
+        local gsub = is_win and [[:gsub('\\', '/')]] or ''
+        local code = string.format(
+          [[
           local path = ...
-          return vim.fn.fnamemodify(path,':h')
-        ]]
+          return vim.fn.fnamemodify(path,':h')%s
+        ]],
+          gsub
+        )
 
         for _, path in ipairs(paths) do
           eq(exec_lua(code, path), vim.fs.dirname(path), path)
@@ -83,11 +89,16 @@ describe('vim.fs', function()
       eq(nvim_prog_basename, vim.fs.basename(nvim_prog))
 
       ---@param paths string[]
-      local function test_paths(paths)
-        local code = [[
+      ---@param is_win? boolean
+      local function test_paths(paths, is_win)
+        local gsub = is_win and [[:gsub('\\', '/')]] or ''
+        local code = string.format(
+          [[
           local path = ...
-          return vim.fn.fnamemodify(path,':t')
-        ]]
+          return vim.fn.fnamemodify(path,':t')%s
+        ]],
+          gsub
+        )
 
         for _, path in ipairs(paths) do
           eq(exec_lua(code, path), vim.fs.basename(path), path)
@@ -98,40 +109,40 @@ describe('vim.fs', function()
     end)
 
     it('trims redundant slashes #37698', function()
-      -- XXX: for better or worse, this matches python's `os.path.basename`.
-      -- https://github.com/neovim/neovim/issues/37698#issuecomment-3847866806
       eq('', vim.fs.basename('/name//////////'))
     end)
   end)
 
   describe('dir()', function()
+    local testd = test_build_dir .. '/testd'
+
     before_each(function()
-      mkdir('testd')
-      mkdir('testd/a')
-      mkdir('testd/a/b')
-      mkdir('testd/a/b/c')
+      mkdir(testd)
+      mkdir(testd .. '/a')
+      mkdir(testd .. '/a/b')
+      mkdir(testd .. '/a/b/c')
     end)
 
     after_each(function()
-      rmdir('testd')
+      rmdir(testd)
     end)
 
     it('works with opts.depth and opts.skip', function()
-      io.open('testd/a1', 'w'):close()
-      io.open('testd/b1', 'w'):close()
-      io.open('testd/c1', 'w'):close()
-      io.open('testd/a/a2', 'w'):close()
-      io.open('testd/a/b2', 'w'):close()
-      io.open('testd/a/c2', 'w'):close()
-      io.open('testd/a/b/a3', 'w'):close()
-      io.open('testd/a/b/b3', 'w'):close()
-      io.open('testd/a/b/c3', 'w'):close()
-      io.open('testd/a/b/c/a4', 'w'):close()
-      io.open('testd/a/b/c/b4', 'w'):close()
-      io.open('testd/a/b/c/c4', 'w'):close()
+      io.open(testd .. '/a1', 'w'):close()
+      io.open(testd .. '/b1', 'w'):close()
+      io.open(testd .. '/c1', 'w'):close()
+      io.open(testd .. '/a/a2', 'w'):close()
+      io.open(testd .. '/a/b2', 'w'):close()
+      io.open(testd .. '/a/c2', 'w'):close()
+      io.open(testd .. '/a/b/a3', 'w'):close()
+      io.open(testd .. '/a/b/b3', 'w'):close()
+      io.open(testd .. '/a/b/c3', 'w'):close()
+      io.open(testd .. '/a/b/c/a4', 'w'):close()
+      io.open(testd .. '/a/b/c/b4', 'w'):close()
+      io.open(testd .. '/a/b/c/c4', 'w'):close()
 
-      local function run(dir, depth, skip)
-        return exec_lua(function()
+      local function run(dir, depth, skip, follow)
+        return exec_lua(function(follow_)
           local r = {} --- @type table<string, string>
           local skip_f --- @type function
           if skip then
@@ -141,11 +152,11 @@ describe('vim.fs', function()
               end
             end
           end
-          for name, type_ in vim.fs.dir(dir, { depth = depth, skip = skip_f }) do
+          for name, type_ in vim.fs.dir(dir, { depth = depth, skip = skip_f, follow = follow_ }) do
             r[name] = type_
           end
           return r
-        end)
+        end, follow)
       end
 
       local exp = {}
@@ -155,28 +166,28 @@ describe('vim.fs', function()
       exp['c1'] = 'file'
       exp['a'] = 'directory'
 
-      eq(exp, run('testd', 1))
+      eq(exp, run(testd, 1))
 
       exp['a/a2'] = 'file'
       exp['a/b2'] = 'file'
       exp['a/c2'] = 'file'
       exp['a/b'] = 'directory'
 
-      eq(exp, run('testd', 2))
+      eq(exp, run(testd, 2))
 
       exp['a/b/a3'] = 'file'
       exp['a/b/b3'] = 'file'
       exp['a/b/c3'] = 'file'
       exp['a/b/c'] = 'directory'
 
-      eq(exp, run('testd', 3))
-      eq(exp, run('testd', 999, { 'a/b/c' }))
+      eq(exp, run(testd, 3))
+      eq(exp, run(testd, 999, { 'a/b/c' }))
 
       exp['a/b/c/a4'] = 'file'
       exp['a/b/c/b4'] = 'file'
       exp['a/b/c/c4'] = 'file'
 
-      eq(exp, run('testd', 999))
+      eq(exp, run(testd, 999))
     end)
   end)
 

@@ -5,6 +5,7 @@ local describe, it, before_each = t.describe, t.it, t.before_each
 local clear = n.clear
 local exec_lua = n.exec_lua
 local eq = t.eq
+local pcall_err = t.pcall_err
 
 describe('vim.json.decode()', function()
   before_each(function()
@@ -32,15 +33,38 @@ describe('vim.json.decode()', function()
     eq('100000', exec_lua([[return tostring(vim.json.decode('100000.0'))]]))
     eq(100000.5, exec_lua([[return vim.json.decode('100000.5')]]))
     eq(-100000.5, exec_lua([[return vim.json.decode('-100000.5')]]))
+    eq(-100000.5e50, exec_lua([[return vim.json.decode('-100000.5e50')]]))
+    eq(100000.5e50, exec_lua([[return vim.json.decode('100000.5e50')]]))
+    eq(100000.5e50, exec_lua([[return vim.json.decode('100000.5e+50')]]))
+    eq(-100000.5e-50, exec_lua([[return vim.json.decode('-100000.5e-50')]]))
+    eq(100000.5e-50, exec_lua([[return vim.json.decode('100000.5e-50')]]))
+    eq(100000e-50, exec_lua([[return vim.json.decode('100000e-50')]]))
     eq(0.5, exec_lua([[return vim.json.decode('0.5')]]))
     eq(0.005, exec_lua([[return vim.json.decode('0.005')]]))
     eq(0.005, exec_lua([[return vim.json.decode('0.00500')]]))
     eq(0.5, exec_lua([[return vim.json.decode('0.00500e+002')]]))
     eq(0.00005, exec_lua([[return vim.json.decode('0.00500e-002')]]))
+
+    eq(-0.0, exec_lua([[return vim.json.decode('-0.0')]]))
+    eq(-0.0, exec_lua([[return vim.json.decode('-0.0e0')]]))
+    eq(-0.0, exec_lua([[return vim.json.decode('-0.0e+0')]]))
+    eq(-0.0, exec_lua([[return vim.json.decode('-0.0e-0')]]))
+    eq(-0.0, exec_lua([[return vim.json.decode('-0e-0')]]))
+    eq(-0.0, exec_lua([[return vim.json.decode('-0e-2')]]))
+    eq(-0.0, exec_lua([[return vim.json.decode('-0e+2')]]))
+
+    eq(0.0, exec_lua([[return vim.json.decode('0.0')]]))
+    eq(0.0, exec_lua([[return vim.json.decode('0.0e0')]]))
+    eq(0.0, exec_lua([[return vim.json.decode('0.0e+0')]]))
+    eq(0.0, exec_lua([[return vim.json.decode('0.0e-0')]]))
+    eq(0.0, exec_lua([[return vim.json.decode('0e-0')]]))
+    eq(0.0, exec_lua([[return vim.json.decode('0e-2')]]))
+    eq(0.0, exec_lua([[return vim.json.decode('0e+2')]]))
   end)
 
   it('parses containers', function()
     eq({ 1 }, exec_lua([[return vim.json.decode('[1]')]]))
+    eq({ vim.NIL, 1 }, exec_lua([[return vim.json.decode('[null, 1]')]]))
     eq({ ['1'] = 2 }, exec_lua([[return vim.json.decode('{"1": 2}')]]))
     eq(
       { ['1'] = 2, ['3'] = { { ['4'] = { ['5'] = { {}, 1 } } } } },
@@ -57,7 +81,7 @@ describe('vim.json.decode()', function()
     eq('/a', exec_lua([=[return vim.json.decode([["\/a"]])]=]))
     -- Unicode characters: 2-byte, 3-byte
     eq('«', exec_lua([=[return vim.json.decode([["«"]])]=]))
-    eq('Test', exec_lua([=[return vim.json.decode([["Test"]])]=]))
+    eq('ફ', exec_lua([=[return vim.json.decode([["ફ"]])]=]))
   end)
 
   it('accepts all spaces in every position where space may be put', function()

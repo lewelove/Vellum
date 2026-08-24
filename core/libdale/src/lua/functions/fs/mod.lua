@@ -1,5 +1,9 @@
 local M = {}
 
+local function is_absolute(p)
+    return p:sub(1, 1) == "/" or p:match("^//") ~= nil or p:match("^%a:[/\\]") ~= nil
+end
+
 function M.basename(file)
     if file == nil then return nil end
     if type(file) ~= "string" then
@@ -102,6 +106,62 @@ function M.joinpath(...)
         return "/" .. clean
     end
     return clean
+end
+
+function M.abspath(path, opts)
+    if path == nil then return nil end
+    if type(path) ~= "string" then
+        error(string.format("expected string, got %s", type(path)))
+    end
+    opts = opts or {}
+    local cwd = opts.cwd and M.normalize(opts.cwd, { expand_env = opts.plain ~= true }) or os.getenv("PWD") or "."
+    if path == "." or path == "" then
+        return cwd
+    end
+    local plain = opts.plain or false
+    local p = path
+    if not plain and p:sub(1, 1) == "~" then
+        local home = os.getenv("HOME") or "/root"
+        p = home .. p:sub(2)
+    end
+    if is_absolute(p) then
+        return p
+    end
+    return cwd .. "/" .. p
+end
+
+function M.relpath(base, target)
+    if type(base) ~= "string" or type(target) ~= "string" then
+        return nil
+    end
+    local is_base_abs = is_absolute(base)
+    local is_target_abs = is_absolute(target)
+    local b_path = base
+    local t_path = target
+    if is_base_abs ~= is_target_abs then
+        if not is_base_abs then
+            b_path = M.abspath(base)
+        end
+        if not is_target_abs then
+            t_path = M.abspath(target)
+        end
+    end
+    local b = M.normalize(b_path)
+    local t = M.normalize(t_path)
+    if b == t then
+        return "."
+    end
+    if b == "/" then
+        if t:sub(1, 1) == "/" then
+            return t:sub(2)
+        end
+        return nil
+    end
+    local prefix = b .. "/"
+    if t:sub(1, #prefix) == prefix then
+        return t:sub(#prefix + 1)
+    end
+    return nil
 end
 
 function M.parents(start)

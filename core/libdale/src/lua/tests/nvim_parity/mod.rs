@@ -1,8 +1,6 @@
 use crate::lua::LuaEngine;
 use mlua::LuaSerdeExt;
 use serde::Deserialize;
-use std::fs;
-use std::path::Path;
 
 const SHIM: &str = include_str!("shim.lua");
 
@@ -79,22 +77,4 @@ fn test_nvim_json_spec() {
 fn test_nvim_vim_spec() {
     let code = include_str!("specs/modded/vim_spec.lua");
     run_spec("vim_spec.lua", code);
-}
-
-#[test]
-fn test_all_custom_specs_in_directory() {
-    let manifest_dir = env!("CARGO_MANIFEST_DIR");
-    let specs_dir =
-        Path::new(manifest_dir).join("src/lua/tests/nvim_parity/specs/modded");
-    if let Ok(entries) = fs::read_dir(specs_dir) {
-        for entry in entries.flatten() {
-            let path = entry.path();
-            if path.extension().is_some_and(|e| e == "lua") {
-                let file_name = path.file_name().unwrap().to_string_lossy().to_string();
-                if let Ok(content) = fs::read_to_string(&path) {
-                    run_spec(&file_name, &content);
-                }
-            }
-        }
-    }
 }

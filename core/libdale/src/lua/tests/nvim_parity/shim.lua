@@ -238,6 +238,22 @@ local function testnvim()
     n.mkdir_p = testutil.mkdir
     n.mkdir = testutil.mkdir
 
+    n.fn = {
+        luaeval = function(code)
+            local chunk, err = loadstring("return " .. code)
+            if not chunk then error(err, 2) end
+            return chunk()
+        end,
+        fnamemodify = function(path, mod)
+            if mod == ":h" then
+                return d.fs.dirname(path)
+            elseif mod == ":t" then
+                return d.fs.basename(path)
+            end
+            return path
+        end,
+    }
+
     n.exec_lua = function(code, ...)
         if type(code) == "function" then
             return code(...)
@@ -254,41 +270,11 @@ local function testnvim()
         return nil
     end
 
-    n.fn = {
-        luaeval = function(code, arg)
-            _G._A = arg
-            local chunk = loadstring("return " .. code)
-            if not chunk then chunk = loadstring(code) end
-            if not chunk then error("invalid luaeval: " .. tostring(code), 2) end
-            return chunk()
-        end,
-        fnamemodify = function(path, mod)
-            if mod == ":h" then return d.fs.dirname(path) end
-            if mod == ":t" then return d.fs.basename(path) end
-            if mod == ":p" then return d.fs.normalize(path) end
-            return path
-        end,
-        glob = function() return {} end,
-        readfile = function(p)
-            local lines = {}
-            local f = io.open(p, "r")
-            if f then
-                for line in f:lines() do table.insert(lines, line) end
-                f:close()
-            end
-            return lines
-        end,
-        isabsolutepath = function(p) return (p:sub(1,1) == "/" or p:match("^%a:")) and 1 or 0 end,
-    }
-
-    n.api = {}
     return n
 end
 
 package.preload["test.testutil"] = function() return testutil end
 package.preload["test.functional.testnvim"] = function() return testnvim end
-
-local n_inst = testnvim()
 
 _G.jit = _G.jit or jit
 
@@ -301,20 +287,25 @@ _G.vim = {
     json = d.json,
     iter = d.iter,
     system = d.system,
+    fn = {
+        fnamemodify = function(path, mod)
+            if mod == ":h" then
+                return d.fs.dirname(path)
+            elseif mod == ":t" then
+                return d.fs.basename(path)
+            end
+            return path
+        end,
+    },
     empty_dict = d.tbl.empty_dict,
     isnil = d.tbl.isnil,
     islist = d.tbl.islist,
     isarray = d.tbl.isarray,
     deepcopy = d.tbl.deepcopy,
     deep_equal = d.tbl.deep_equal,
-    _copy = function(t)
-        if type(t) ~= "table" then return t end
-        local res = {}
-        for k, v in pairs(t) do res[k] = v end
-        local mt = getmetatable(t)
-        if mt then setmetatable(res, mt) end
-        return res
-    end,
+    copy = d.tbl.copy,
+    _copy = d.tbl.copy,
+    spairs = d.tbl.spairs,
     startswith = d.str.startswith,
     endswith = d.str.endswith,
     trim = d.str.trim,
@@ -342,23 +333,4 @@ _G.vim = {
     list_extend = d.list.extend,
     list_slice = d.list.slice,
     list_contains = d.list.contains,
-    fn = n_inst.fn,
-    spairs = function(t)
-        local keys = d.tbl.keys(t)
-        table.sort(keys)
-        local i = 0
-        return function()
-            i = i + 1
-            if keys[i] then return keys[i], t[keys[i]] end
-        end
-    end,
-    uv = {
-        os_homedir = function() return os.getenv("HOME") or "/root" end,
-        cwd = function() return testutil.paths.test_source_path end,
-        fs_realpath = function(p) return d.fs.normalize(p) end,
-        fs_symlink = function(target, link) os.execute(string.format("ln -sf %q %q", target, link)) end,
-        fs_unlink = function(p) os.remove(p) end,
-        fs_rmdir = function(p) os.execute("rm -rf " .. p) end,
-        fs_stat = function(p) if d.fs.exists(p) then return { type = "file" } end return nil end,
-    },
 }
