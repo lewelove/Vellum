@@ -23,6 +23,23 @@ let
     ps.mutagen
     ps.xxhash
   ]);
+
+  mkPyAction = name: scriptPath: pkgs.writeScriptBin name ''
+    #!${pythonEnv}/bin/python3
+    ${builtins.readFile scriptPath}
+  '';
+
+  pyEmbed = mkPyAction "embed" ./actions/python/embed/main.py;
+  pyGetLyrics = mkPyAction "get_lyrics" ./actions/python/get_lyrics/main.py;
+  pyRename = mkPyAction "rename" ./actions/python/rename/main.py;
+  pySearchCover = mkPyAction "search_cover" ./actions/python/search_cover/main.py;
+
+  pythonActions = [
+    pyEmbed
+    pyGetLyrics
+    pyRename
+    pySearchCover
+  ];
 in
 {
   languages.rust = {
@@ -46,7 +63,7 @@ in
     openssl
     cargo-deny
     git
-  ];
+  ] ++ pythonActions;
 
   enterShell = ''
     export PATH="$PWD/interfaces/web-app/node_modules/.bin:$PATH"
@@ -54,113 +71,25 @@ in
 
   scripts.build.exec = ''
     ROOT=$(git rev-parse --show-toplevel)
-    TARGET=""
-    ARGS=()
+    cd "$ROOT"
 
-    for arg in "$@"; do
-      case "$arg" in
-        libdale)    TARGET="libdale" ;;
-        dale)       TARGET="dale" ;;
-        actions)    TARGET="actions" ;;
-        interface)  TARGET="interface" ;;
-        web-app)    TARGET="interface" ;;
-        *)          ARGS+=("$arg") ;;
-      esac
-    done
+    cargo fmt --all
+    cargo clippy --workspace
+    cargo test --workspace
+    cargo build --workspace --release
 
-    format_code() {
-      cd "$ROOT"
-      cargo fmt --all
-    }
+    ln -sf "${pyGetLyrics}/bin/get_lyrics" "$ROOT/actions/get_lyrics"
+    ln -sf "${pySearchCover}/bin/search_cover" "$ROOT/actions/search_cover"
+    ln -sf "${pyEmbed}/bin/embed" "$ROOT/actions/embed"
+    ln -sf "${pyRename}/bin/rename" "$ROOT/actions/rename"
 
-    build_dale() {
-      echo ""
-      echo "Checking and linting code..."
-      echo ""
-      cd "$ROOT"
-      cargo clippy -p dale -p libdale -- -D warnings
-      echo ""
-      echo "Running tests..."
-      echo ""
-      cargo test -p libdale
-      echo ""
-      echo "Building \`dale\` Binary..."
-      echo ""
-      cargo build -p dale --release "''${ARGS[@]}"
-    }
-
-    build_libdale() {
-      cd "$ROOT"
-      cargo clippy -p libdale -- -D warnings
-      cargo test -p libdale
-      cargo build -p libdale --release "''${ARGS[@]}"
-    }
-
-    build_actions() {
-      echo ""
-      echo "Building Actions..."
-      echo ""
-
-      cd "$ROOT"
-      cargo clippy -p libactions -p get_theme -p collect -p discogs_fetch_master -p musicbrainz_search -p calculate_cover_metrics -- -D warnings
-      cargo build -p get_theme -p collect -p discogs_fetch_master -p musicbrainz_search -p calculate_cover_metrics --release "''${ARGS[@]}"
-
-      ln -sf "../target/release/get_theme" "$ROOT/actions/get_theme"
-      ln -sf "../target/release/collect" "$ROOT/actions/collect"
-      ln -sf "../target/release/discogs_fetch_master" "$ROOT/actions/discogs_fetch_master"
-      ln -sf "../target/release/musicbrainz_search" "$ROOT/actions/musicbrainz_search"
-      ln -sf "../target/release/calculate_cover_metrics" "$ROOT/actions/calculate_cover_metrics"
-      ln -sf "python/get_lyrics/main.py" "$ROOT/actions/get_lyrics"
-      ln -sf "python/search_cover/main.py" "$ROOT/actions/search_cover"
-      ln -sf "python/embed/main.py" "$ROOT/actions/embed"
-      ln -sf "python/rename/main.py" "$ROOT/actions/rename"
-    }
-
-    build_interface() {
-      echo ""
-      echo "Building Web App Interface..."
-      echo ""
-
-      cd "$ROOT/interfaces/web-app"
-      bun run build
-    }
-
-    if [ "$TARGET" != "interface" ]; then
-      format_code
-    fi
-
-    if [ "$TARGET" = "dale" ]; then
-      build_dale
-    elif [ "$TARGET" = "libdale" ]; then
-      build_libdale
-    elif [ "$TARGET" = "actions" ]; then
-      build_actions
-    elif [ "$TARGET" = "interface" ]; then
-      build_interface
-    else
-      build_dale
-      build_actions
-      build_interface
-    fi
+    (cd "$ROOT/interfaces/web-app" && bun run build)
   '';
 
   scripts.check.exec = ''
     ROOT=$(git rev-parse --show-toplevel)
-    ARGS=()
-    LINT=false
-
-    for arg in "$@"; do
-      case "$arg" in
-        --lint) LINT=true ;;
-        *)      ARGS+=("$arg") ;;
-      esac
-    done
-
     cd "$ROOT"
-    if [ "$LINT" = true ]; then
-      cargo clippy --workspace -- "''${ARGS[@]}" -D warnings
-    else
-      cargo check --workspace "''${ARGS[@]}"
-    fi
+
+    cargo check --workspace "$@"
   '';
 }

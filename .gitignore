@@ -2,6 +2,7 @@
 **/dist/
 **/result
 **/node_modules/
+**/__pycache__/
 
 .repomixignore
 .sync.sh
