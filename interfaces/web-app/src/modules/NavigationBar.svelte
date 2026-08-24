@@ -25,7 +25,6 @@ async function handleOpenConfig() {
 
 <nav
   class="nav-bar"
-  class:v-glass={variant === "glass"}
   class:transparent={variant === "transparent"}
 >
   <div class="nav-top-section">
@@ -61,7 +60,7 @@ async function handleOpenConfig() {
   flex-shrink: 0;
 }
 
-.nav-bar:not(:global(.v-glass), .transparent) {
+.nav-bar:not(.transparent) {
   background-color: var(--bg-panel);
 }
 

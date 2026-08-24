@@ -27,70 +27,50 @@ const floatRatios = new Float32Array(24);
 let activeColorCount = 0;
 
 let shaderSource = $state(internalFragmentShader);
+let probeEl = null;
+
+function getProbeElement() {
+  if (!probeEl && typeof document !== "undefined") {
+    probeEl = document.createElement("span");
+    probeEl.style.display = "none";
+    document.head.appendChild(probeEl);
+  }
+  return probeEl;
+}
 
 function parseColorToOklab(colorStr) {
   if (!colorStr) return [0.26, 0, 0];
-  if (colorStr.startsWith("oklch(")) {
-    const m =
-      colorStr.match(/oklch\(([\d.]+)%\s+([\d.]+)\s+([\d.]+)\)/) ||
-      colorStr.match(/oklch\(([\d.]+)\s+([\d.]+)\s+([\d.]+)\)/);
-    if (m) {
-      let L = parseFloat(m[1]);
-      if (colorStr.includes("%")) L /= 100;
-      const C = parseFloat(m[2]);
-      const H = parseFloat(m[3]) * (Math.PI / 180);
-      return [L, C * Math.cos(H), C * Math.sin(H)];
-    }
-    return [0.26, 0, 0];
+  const el = getProbeElement();
+  if (!el) return [0.26, 0, 0];
+  el.style.color = "";
+  el.style.color = `oklab(from ${colorStr} l a b)`;
+  const match = getComputedStyle(el).color.match(/-?[\d.]+(?:e-?\d+)?/gi);
+  if (match && match.length >= 3) {
+    return [parseFloat(match[0]), parseFloat(match[1]), parseFloat(match[2])];
   }
-  let hex = colorStr;
-  if (hex.startsWith("#")) hex = hex.slice(1);
-  if (hex.length === 3)
-    hex = hex
-      .split("")
-      .map((c) => c + c)
-      .join("");
-
-  const r = parseInt(hex.slice(0, 2), 16) / 255.0;
-  const g = parseInt(hex.slice(2, 4), 16) / 255.0;
-  const b = parseInt(hex.slice(4, 6), 16) / 255.0;
-
-  const lin = (c) => (c >= 0.04045 ? Math.pow((c + 0.055) / 1.055, 2.4) : c / 12.92);
-  const lr = lin(r);
-  const lg = lin(g);
-  const lb = lin(b);
-
-  const l = 0.4122214708 * lr + 0.5363325363 * lg + 0.0514459929 * lb;
-  const m = 0.2119034982 * lr + 0.6806995451 * lg + 0.1073969566 * lb;
-  const s = 0.0883024619 * lr + 0.2817188376 * lg + 0.6299787005 * lb;
-
-  const l_ = Math.cbrt(l);
-  const m_ = Math.cbrt(m);
-  const s_ = Math.cbrt(s);
-
-  const L = 0.2104542553 * l_ + 0.793617785 * m_ - 0.0040720468 * s_;
-  const A = 1.9779984951 * l_ - 2.428592205 * m_ + 0.4505937099 * s_;
-  const B = 0.0259040371 * l_ + 0.7827717662 * m_ - 0.808675766 * s_;
-
-  return [L, A, B];
+  return [0.26, 0, 0];
 }
 
-function parseOklch(str) {
-  const m = str.match(/oklch\(([\d.]+)%\s+([\d.]+)\s+([\d.]+)\)/);
-  if (m) return { L: parseFloat(m[1]), C: parseFloat(m[2]), H: parseFloat(m[3]) };
-  const m2 = str.match(/oklch\(([\d.]+)\s+([\d.]+)\s+([\d.]+)\)/);
-  return m2
-    ? { L: parseFloat(m2[1]), C: parseFloat(m2[2]), H: parseFloat(m2[3]) }
-    : { L: 0, C: 0, H: 0 };
+function parseColorToOklch(colorStr) {
+  if (!colorStr) return { L: 0.26, C: 0, H: 0 };
+  const el = getProbeElement();
+  if (!el) return { L: 0.26, C: 0, H: 0 };
+  el.style.color = "";
+  el.style.color = `oklch(from ${colorStr} l c h)`;
+  const match = getComputedStyle(el).color.match(/-?[\d.]+(?:e-?\d+)?/gi);
+  if (match && match.length >= 3) {
+    return {
+      L: parseFloat(match[0]),
+      C: parseFloat(match[1]),
+      H: parseFloat(match[2])
+    };
+  }
+  return { L: 0.26, C: 0, H: 0 };
 }
 
 function getChroma(c) {
   const val = Array.isArray(c) ? c[0] : c.hex || c;
-  if (typeof val === "string" && val.startsWith("oklch(")) {
-    return parseOklch(val).C;
-  }
-  const [L, a, b] = parseColorToOklab(val);
-  return Math.sqrt(a * a + b * b);
+  return parseColorToOklch(val).C;
 }
 
 function shuffle(array) {
@@ -142,19 +122,10 @@ $effect(() => {
     palette.sort((a, b) => {
       const valA = Array.isArray(a) ? a[0] : a.hex || a;
       const valB = Array.isArray(b) ? b[0] : b.hex || b;
-      let cA = 0;
-      let cB = 0;
-
-      if (typeof valA === "string" && valA.startsWith("oklch(")) cA = parseOklch(valA)[comp] || 0;
-      else if (comp === "L") cA = parseColorToOklab(valA)[0];
-      else if (comp === "C")
-        cA = Math.sqrt(parseColorToOklab(valA)[1] ** 2 + parseColorToOklab(valA)[2] ** 2);
-
-      if (typeof valB === "string" && valB.startsWith("oklch(")) cB = parseOklch(valB)[comp] || 0;
-      else if (comp === "L") cB = parseColorToOklab(valB)[0];
-      else if (comp === "C")
-        cB = Math.sqrt(parseColorToOklab(valB)[1] ** 2 + parseColorToOklab(valB)[2] ** 2);
-
+      const oklchA = parseColorToOklch(valA);
+      const oklchB = parseColorToOklch(valB);
+      const cA = oklchA[comp] ?? 0;
+      const cB = oklchB[comp] ?? 0;
       return cA - cB;
     });
   }
@@ -367,6 +338,10 @@ onDestroy(() => {
   if (animationFrame) cancelAnimationFrame(animationFrame);
   window.removeEventListener("resize", handleResize);
   document.removeEventListener("visibilitychange", handleVisibilityChange);
+  if (probeEl) {
+    probeEl.remove();
+    probeEl = null;
+  }
 });
 </script>
 

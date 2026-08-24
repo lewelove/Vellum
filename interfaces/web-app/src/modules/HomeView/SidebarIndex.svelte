@@ -105,7 +105,7 @@ function onPointerUp(e: PointerEvent) {
 
   {#if isScrubbing}
     <div
-      class="scrub-callout v-glass"
+      class="scrub-callout"
       style:top="{bubbleY}px"
       transition:fade={{ duration: 100 }}
     >

@@ -3,6 +3,7 @@ import { player } from "../player.svelte.ts";
 import { collection } from "../../library/collection.svelte.ts";
 import { view } from "../../library/view.svelte.ts";
 import { nav } from "../../navigation.svelte.ts";
+import { deriveColorTokens } from "../../colors.svelte.ts";
 
 import TracklistPanel from "./TracklistPanel.svelte";
 import ControlPanel from "./ControlPanel.svelte";
@@ -27,6 +28,14 @@ let foregroundColor = $derived(
 let isShaderOn = $derived(view.isShaderActive && hasPalette);
 let activeForeground = $derived(isShaderOn && foregroundColor ? foregroundColor : null);
 
+let queueContainerStyle = $derived.by(() => {
+  if (!activeForeground) return "";
+  const tokens = deriveColorTokens(activeForeground);
+  return Object.entries(tokens)
+    .map(([k, v]) => `${k}: ${v};`)
+    .join(" ");
+});
+
 let isViewVisible = $derived(nav.activeTab === "queue");
 let isPlaying = $derived(player.state === "play");
 
@@ -44,7 +53,7 @@ $effect(() => {
 <div
   class="queue-view-container"
   class:shader-off={!isShaderOn}
-  style={activeForeground ? `--color-ok100: ${activeForeground};` : ""}
+  style={queueContainerStyle}
 >
   <BackgroundShader colors={palette} coverSize={moduleWidth} visible={isViewVisible} {isPlaying} />
 
@@ -54,8 +63,8 @@ $effect(() => {
       <ControlPanel />
     </div>
 
-    <div class="center-wing">
-      <CoverPanel {coverHash} bind:width={moduleWidth} />
+    <div class="center-wing" bind:clientWidth={moduleWidth}>
+      <CoverPanel {coverHash} width={moduleWidth} />
     </div>
 
     <div class="right-wing">

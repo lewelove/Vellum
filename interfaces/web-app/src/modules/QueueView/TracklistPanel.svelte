@@ -80,7 +80,7 @@ let groupedQueue = $derived.by(() => {
 });
 </script>
 
-<div class="module-panel v-glass">
+<div class="module-panel">
   <div class="panel-inner">
     <div class="tracks-list-container">
       <div class="tracks-list">
@@ -90,11 +90,11 @@ let groupedQueue = $derived.by(() => {
               <div class="header-content">
                 <div class="header-row">
                   <span class="v-truncate header-album">{group.albumMeta.album}</span>
-                  <span class="v-mono header-meta">{group.albumMeta.date?.substring(0, 4)}</span>
                 </div>
                 <div class="header-row">
                   <span class="v-truncate header-artist">{group.albumMeta.albumartist}</span>
-                  <span class="v-mono header-meta">{group.albumMeta.duration_formatted}</span>
+                  <span class="v-mono header-meta">{group.albumMeta.date?.substring(0, 4)}</span>
+                  <!-- <span class="v-mono header-meta">{group.albumMeta.duration_formatted}</span> -->
                 </div>
               </div>
             </div>

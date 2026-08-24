@@ -2,7 +2,7 @@
 import { player } from "../player.svelte.ts";
 import ClearCover from "../ClearCover.svelte";
 
-let { coverHash = "", width = $bindable(0) }: { coverHash?: string; width?: number } = $props();
+let { coverHash = "", width = 0 }: { coverHash?: string; width?: number } = $props();
 
 let persistentHash = $state("");
 
@@ -13,8 +13,8 @@ $effect(() => {
 });
 </script>
 
-<div class="cover-wrapper v-glass">
-  <div class="cover-panel" bind:clientWidth={width}>
+<div class="cover-wrapper">
+  <div class="cover-panel">
     <div class="cover-absolute-wrapper">
       {#if width > 0}
         <ClearCover hash={persistentHash} {width} height={width} />
@@ -41,6 +41,7 @@ $effect(() => {
 
 .cover-panel {
   height: 100%;
+  max-width: 100%;
   aspect-ratio: 1 / 1;
   position: relative;
   box-sizing: border-box;

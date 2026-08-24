@@ -69,88 +69,41 @@ let activeGrouperDef = $derived(
 );
 let showIndex = $derived(activeGrouperDef.index === true);
 
-function handleKeydown(e: KeyboardEvent) {
-  if (e.key === "Escape") {
-    closeAllMenus();
-  }
-}
-
-function closeAllMenus() {
-  isLibraryMenuOpen = false;
-  isLibraryFilterMenuOpen = false;
-  isSortMenuOpen = false;
-  isGroupMenuOpen = false;
-  isCabinetMenuOpen = false;
-  isCabinetOrderMenuOpen = false;
-}
-
 function toggleSubView() {
-  closeAllMenus();
   view.homeSubView = view.homeSubView === "libraries" ? "cabinets" : "libraries";
   view.focusedAlbum = null;
   view.refreshView(true);
   view.persistState();
 }
 
-function toggleLibraryMenu() {
-  const target = !isLibraryMenuOpen;
-  closeAllMenus();
-  isLibraryMenuOpen = target;
-}
-
-function toggleLibraryFilterMenu() {
-  const target = !isLibraryFilterMenuOpen;
-  closeAllMenus();
-  isLibraryFilterMenuOpen = target;
-}
-
-function toggleSortMenu() {
-  const target = !isSortMenuOpen;
-  closeAllMenus();
-  isSortMenuOpen = target;
-}
-
-function toggleGroupMenu() {
-  const target = !isGroupMenuOpen;
-  closeAllMenus();
-  isGroupMenuOpen = target;
-}
-
-function toggleCabinetMenu() {
-  const target = !isCabinetMenuOpen;
-  closeAllMenus();
-  isCabinetMenuOpen = target;
-}
-
-function toggleCabinetOrderMenu() {
-  const target = !isCabinetOrderMenuOpen;
-  closeAllMenus();
-  isCabinetOrderMenuOpen = target;
-}
-
 function selectLibrary(key: string) {
   view.setLibrary(key);
-  isLibraryMenuOpen = false;
+  document.getElementById("library-menu")?.hidePopover();
 }
 
 function selectCabinet(key: string) {
   view.setCabinet(key);
-  isCabinetMenuOpen = false;
+  document.getElementById("cabinet-menu")?.hidePopover();
 }
 
 function selectOrder(key: string) {
   view.setUserSort(key);
-  isSortMenuOpen = false;
+  document.getElementById("sort-menu")?.hidePopover();
 }
 
 function selectCabinetOrder(key: string) {
   view.setShelfOrder(key);
-  isCabinetOrderMenuOpen = false;
+  document.getElementById("cabinet-order-menu")?.hidePopover();
 }
 
 function selectGrouper(key: string) {
   view.setSidebarGrouper(key);
-  isGroupMenuOpen = false;
+  document.getElementById("group-menu")?.hidePopover();
+}
+
+function selectFilter(key: string) {
+  view.setLibraryFilter(key);
+  document.getElementById("library-filter-menu")?.hidePopover();
 }
 
 function toggleDirection() {
@@ -168,19 +121,7 @@ function toggleExpand(value: string) {
     expandedNodes.add(value);
   }
 }
-
-function hasSelectedChild(node: any, selectedVal: string | null): boolean {
-  if (!selectedVal || !node.children || node.children.length === 0) return false;
-  for (const child of node.children) {
-    if (child.value === selectedVal || hasSelectedChild(child, selectedVal)) {
-      return true;
-    }
-  }
-  return false;
-}
 </script>
-
-<svelte:window onkeydown={handleKeydown} />
 
 {#snippet TreeNode(item: any, idPrefix: string, depth: number)}
   {@const hasChildren = Boolean(item.children && item.children.length > 0)}
@@ -190,15 +131,12 @@ function hasSelectedChild(node: any, selectedVal: string | null): boolean {
     Boolean(activeGrouper) && view.activeFilter.key === activeGrouper
       ? view.activeFilter.val
       : null}
-  {@const isSelfActive = currentFilterVal !== null && currentFilterVal === item.value}
-  {@const isChildActive = currentFilterVal !== null && hasSelectedChild(item, currentFilterVal)}
-  {@const isActive = isSelfActive || isChildActive}
+  {@const isActive = currentFilterVal !== null && currentFilterVal === item.value}
 
   <div class="v-tree-node">
     <div
       class="v-tree-row"
       class:active={isActive}
-      class:expanded={isExpanded}
       style:padding-left="{depth * 8}px"
     >
       <button
@@ -223,7 +161,6 @@ function hasSelectedChild(node: any, selectedVal: string | null): boolean {
           type="button"
           class="v-tree-toggle"
           class:active={isActive}
-          class:expanded={isExpanded}
           onclick={() => toggleExpand(item.value)}
           title={isExpanded ? "Collapse" : "Expand"}
         >
@@ -260,28 +197,33 @@ function hasSelectedChild(node: any, selectedVal: string | null): boolean {
             <button
               type="button"
               class="v-btn-icon v-sidebar-button v-btn-menu"
-              onclick={toggleCabinetMenu}
-              class:active={isCabinetMenuOpen}
+              popovertarget="cabinet-menu"
               title="Cabinet"
+              class:active={isCabinetMenuOpen}
             >
               <span class="v-truncate btn-label iconless">{cabinetLabel}</span>
               <span class="icon end-icon">{isCabinetMenuOpen ? "arrow_drop_up" : "arrow_drop_down"}</span>
             </button>
 
-            {#if isCabinetMenuOpen}
-              <div class="v-menu">
-                {#each collection.cabinetsList as cab (cab.key)}
-                  <button
-                    type="button"
-                    class="v-menu-item"
-                    class:selected={activeCabinet === cab.key}
-                    onclick={() => selectCabinet(cab.key)}
-                  >
-                    {cab.label}
-                  </button>
-                {/each}
-              </div>
-            {/if}
+            <div
+              id="cabinet-menu"
+              class="v-menu"
+              popover="auto"
+              ontoggle={(e) => {
+                isCabinetMenuOpen = e.newState === "open";
+              }}
+            >
+              {#each collection.cabinetsList as cab (cab.key)}
+                <button
+                  type="button"
+                  class="v-menu-item"
+                  class:selected={activeCabinet === cab.key}
+                  onclick={() => selectCabinet(cab.key)}
+                >
+                  {cab.label}
+                </button>
+              {/each}
+            </div>
           </div>
         {/if}
       {:else}
@@ -289,28 +231,33 @@ function hasSelectedChild(node: any, selectedVal: string | null): boolean {
           <button
             type="button"
             class="v-btn-icon v-sidebar-button v-btn-menu"
-            onclick={toggleLibraryMenu}
-            class:active={isLibraryMenuOpen}
+            popovertarget="library-menu"
             title="Library"
+            class:active={isLibraryMenuOpen}
           >
             <span class="v-truncate btn-label iconless">{libraryLabel}</span>
             <span class="icon end-icon">{isLibraryMenuOpen ? "arrow_drop_up" : "arrow_drop_down"}</span>
           </button>
 
-          {#if isLibraryMenuOpen}
-            <div class="v-menu">
-              {#each collection.librariesList as lib (lib.key)}
-                <button
-                  type="button"
-                  class="v-menu-item"
-                  class:selected={view.activeLibrary === lib.key}
-                  onclick={() => selectLibrary(lib.key)}
-                >
-                  {lib.label}
-                </button>
-              {/each}
-            </div>
-          {/if}
+          <div
+            id="library-menu"
+            class="v-menu"
+            popover="auto"
+            ontoggle={(e) => {
+              isLibraryMenuOpen = e.newState === "open";
+            }}
+          >
+            {#each collection.librariesList as lib (lib.key)}
+              <button
+                type="button"
+                class="v-menu-item"
+                class:selected={view.activeLibrary === lib.key}
+                onclick={() => selectLibrary(lib.key)}
+              >
+                {lib.label}
+              </button>
+            {/each}
+          </div>
         </div>
       {/if}
     </div>
@@ -322,37 +269,42 @@ function hasSelectedChild(node: any, selectedVal: string | null): boolean {
             <button
               type="button"
               class="v-btn-icon v-sidebar-button v-btn-menu"
-              onclick={toggleCabinetOrderMenu}
-              class:active={isCabinetOrderMenuOpen}
+              popovertarget="cabinet-order-menu"
               title="Sort By"
+              class:active={isCabinetOrderMenuOpen}
             >
               <span class="icon start-icon">swap_vert</span>
               <span class="v-truncate btn-label">{cabinetOrderLabel}</span>
               <span class="icon end-icon">{isCabinetOrderMenuOpen ? "arrow_drop_up" : "arrow_drop_down"}</span>
             </button>
 
-            {#if isCabinetOrderMenuOpen}
-              <div class="v-menu">
+            <div
+              id="cabinet-order-menu"
+              class="v-menu"
+              popover="auto"
+              ontoggle={(e) => {
+                isCabinetOrderMenuOpen = e.newState === "open";
+              }}
+            >
+              <button
+                type="button"
+                class="v-menu-item"
+                class:selected={view.activeShelfOrder === "original"}
+                onclick={() => selectCabinetOrder("original")}
+              >
+                Original
+              </button>
+              {#each visibleCabinetOrders as { key, label } (key)}
                 <button
                   type="button"
                   class="v-menu-item"
-                  class:selected={view.activeShelfOrder === "original"}
-                  onclick={() => selectCabinetOrder("original")}
+                  class:selected={view.activeShelfOrder === key}
+                  onclick={() => selectCabinetOrder(key)}
                 >
-                  Original
+                  {label}
                 </button>
-                {#each visibleCabinetOrders as { key, label } (key)}
-                  <button
-                    type="button"
-                    class="v-menu-item"
-                    class:selected={view.activeShelfOrder === key}
-                    onclick={() => selectCabinetOrder(key)}
-                  >
-                    {label}
-                  </button>
-                {/each}
-              </div>
-            {/if}
+              {/each}
+            </div>
           </div>
 
           <button
@@ -372,32 +324,34 @@ function hasSelectedChild(node: any, selectedVal: string | null): boolean {
             <button
               type="button"
               class="v-btn-icon v-sidebar-button v-btn-menu"
-              onclick={toggleLibraryFilterMenu}
-              class:active={isLibraryFilterMenuOpen}
+              popovertarget="library-filter-menu"
               title="Filter"
+              class:active={isLibraryFilterMenuOpen}
             >
               <span class="icon start-icon">texture</span>
               <span class="v-truncate btn-label">{filterLabel}</span>
               <span class="icon end-icon">{isLibraryFilterMenuOpen ? "arrow_drop_up" : "arrow_drop_down"}</span>
             </button>
 
-            {#if isLibraryFilterMenuOpen}
-              <div class="v-menu">
-                {#each visibleFilters as { key, label } (key)}
-                  <button
-                    type="button"
-                    class="v-menu-item"
-                    class:selected={view.activeLibraryFilter === key}
-                    onclick={() => {
-                      view.setLibraryFilter(key);
-                      isLibraryFilterMenuOpen = false;
-                    }}
-                  >
-                    {label}
-                  </button>
-                {/each}
-              </div>
-            {/if}
+            <div
+              id="library-filter-menu"
+              class="v-menu"
+              popover="auto"
+              ontoggle={(e) => {
+                isLibraryFilterMenuOpen = e.newState === "open";
+              }}
+            >
+              {#each visibleFilters as { key, label } (key)}
+                <button
+                  type="button"
+                  class="v-menu-item"
+                  class:selected={view.activeLibraryFilter === key}
+                  onclick={() => selectFilter(key)}
+                >
+                  {label}
+                </button>
+              {/each}
+            </div>
           </div>
         </div>
       {/if}
@@ -408,29 +362,34 @@ function hasSelectedChild(node: any, selectedVal: string | null): boolean {
             <button
               type="button"
               class="v-btn-icon v-sidebar-button v-btn-menu"
-              onclick={toggleGroupMenu}
-              class:active={isGroupMenuOpen}
+              popovertarget="group-menu"
               title="Group By"
+              class:active={isGroupMenuOpen}
             >
               <span class="icon start-icon">stack_group</span>
               <span class="v-truncate btn-label">{groupLabel}</span>
               <span class="icon end-icon">{isGroupMenuOpen ? "arrow_drop_up" : "arrow_drop_down"}</span>
             </button>
 
-            {#if isGroupMenuOpen}
-              <div class="v-menu">
-                {#each visibleGroupers as { key, label } (key)}
-                  <button
-                    type="button"
-                    class="v-menu-item"
-                    class:selected={view.activeSidebarGrouper === key}
-                    onclick={() => selectGrouper(key)}
-                  >
-                    {label}
-                  </button>
-                {/each}
-              </div>
-            {/if}
+            <div
+              id="group-menu"
+              class="v-menu"
+              popover="auto"
+              ontoggle={(e) => {
+                isGroupMenuOpen = e.newState === "open";
+              }}
+            >
+              {#each visibleGroupers as { key, label } (key)}
+                <button
+                  type="button"
+                  class="v-menu-item"
+                  class:selected={view.activeSidebarGrouper === key}
+                  onclick={() => selectGrouper(key)}
+                >
+                  {label}
+                </button>
+              {/each}
+            </div>
           </div>
         </div>
       {/if}
@@ -441,29 +400,34 @@ function hasSelectedChild(node: any, selectedVal: string | null): boolean {
             <button
               type="button"
               class="v-btn-icon v-sidebar-button v-btn-menu"
-              onclick={toggleSortMenu}
-              class:active={isSortMenuOpen}
+              popovertarget="sort-menu"
               title="Sort By"
+              class:active={isSortMenuOpen}
             >
               <span class="icon start-icon">swap_vert</span>
               <span class="v-truncate btn-label">{sortLabel}</span>
               <span class="icon end-icon">{isSortMenuOpen ? "arrow_drop_up" : "arrow_drop_down"}</span>
             </button>
 
-            {#if isSortMenuOpen}
-              <div class="v-menu">
-                {#each visibleOrders as { key, label } (key)}
-                  <button
-                    type="button"
-                    class="v-menu-item"
-                    class:selected={view.userSortPreference === key}
-                    onclick={() => selectOrder(key)}
-                  >
-                    {label}
-                  </button>
-                {/each}
-              </div>
-            {/if}
+            <div
+              id="sort-menu"
+              class="v-menu"
+              popover="auto"
+              ontoggle={(e) => {
+                isSortMenuOpen = e.newState === "open";
+              }}
+            >
+              {#each visibleOrders as { key, label } (key)}
+                <button
+                  type="button"
+                  class="v-menu-item"
+                  class:selected={view.userSortPreference === key}
+                  onclick={() => selectOrder(key)}
+                >
+                  {label}
+                </button>
+              {/each}
+            </div>
           </div>
 
           <button

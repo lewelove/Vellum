@@ -79,7 +79,7 @@ $effect(() => {
 });
 </script>
 
-<div class="module-panel v-glass">
+<div class="module-panel">
   <div class="panel-inner">
     <div class="control-panel-container">
       <div class="panel-header">

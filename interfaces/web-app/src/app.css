@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Noto+Music&family=Noto+Sans+Arabic:wght@400;700&family=Noto+Sans+JP:wght@400;700&family=Noto+Sans+KR:wght@400;700&family=Noto+Sans+SC:wght@400;700&family=Noto+Sans+TC:wght@400;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Noto+Music&family=Noto+Sans+Arabic:wght@400;700&family=Noto+Sans+JP:wght@400;700&family=Noto+Sans+SC:wght@400;700&family=Noto+Sans+TC:wght@400;700&display=swap");
 @import url("https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-25..200");
 
 @font-face {
@@ -11,12 +11,6 @@
   src: url("/fonts/InterTnumRegular.woff2") format("woff2");
 }
 
-@property --color-ok100 {
-  syntax: "<color>";
-  inherits: true;
-  initial-value: oklch(1 0 0);
-}
-
 :root {
   --color-ok100: oklch(1 0 0);
   --color-ok200: oklch(0.31 0 0);
@@ -27,14 +21,23 @@
   --color-foreground: var(--color-ok100);
   --color-background: var(--color-ok300);
 
-  --a1: 1;
-  --a2: 0.66;
-  --a3: 0.5;
-  --a4: 0.2;
-  --a5: 0.1;
-  --a6: 0.07;
-  --a7: 0.04;
-  --a8: 0.02;
+  --text-main: oklch(1 0 0 / 1);
+  --text-muted: oklch(1 0 0 / 0.66);
+  --text-subtle: oklch(1 0 0 / 0.50);
+
+  --border-muted: oklch(1 0 0 / 0.04);
+  --border-subtle: oklch(1 0 0 / 0.02);
+
+  --bg-surface-hover: oklch(1 0 0 / 0.05);
+  --bg-surface-active: oklch(1 0 0 / 0.08);
+
+  --bg-item-inactive: oklch(1 0 0 / 0);
+  --bg-item-hover: oklch(1 0 0 / 0.08);
+  --bg-item-active: oklch(1 0 0 / 0.08);
+
+  --bg-button-inactive: oklch(1 0 0 / 0.08);
+  --bg-button-hover: oklch(1 0 0 / 0.16);
+  --bg-button-active: oklch(1 0 0 / 0.16);
 
   --bg-main: var(--color-ok300);
   --bg-queue: var(--color-ok200);
@@ -45,8 +48,6 @@
   --bg-modal-backdrop: oklch(0 0 0 / 0.6);
   --bg-modal-left: var(--color-ok400);
   --bg-modal-right: var(--color-ok300);
-
-  --glass-bg: transparent;
 
   --album-cover-shadow-thumbnail:
     0px 0px 10px 0px oklch(0 0 0 / 0.4), 0px 0px 8px 0px oklch(0 0 0 / 0.7);
@@ -74,34 +75,9 @@
     "Noto Sans TC", "Noto Sans KR", "system-ui", sans-serif, monospace;
 }
 
-:root,
-.queue-view-container {
-  --text-main: oklch(from var(--color-ok100) l c h / var(--a1));
-  --text-muted: oklch(from var(--color-ok100) l c h / var(--a2));
-  --text-subtle: oklch(from var(--color-ok100) l c h / var(--a3));
-
-  --border-muted: oklch(from var(--color-ok100) l c h / 0.04);
-  --border-subtle: oklch(from var(--color-ok100) l c h / var(--a8));
-
-  --bg-surface-hover: oklch(from var(--color-ok100) l c h / 0.05);
-  --bg-surface-active: oklch(from var(--color-ok100) l c h / 0.08);
-
-  --bg-item-inactive: oklch(from var(--color-ok100) l c h / 0);
-  --bg-item-hover: oklch(from var(--color-ok100) l c h / 0.08);
-  --bg-item-active: oklch(from var(--color-ok100) l c h / 0.08);
-
-  --bg-button-inactive: oklch(from var(--color-ok100) l c h / 0.08);
-  --bg-button-hover: oklch(from var(--color-ok100) l c h / 0.16);
-  --bg-button-active: oklch(from var(--color-ok100) l c h / 0.16);
-}
-
-.queue-view-container {
-  transition: --color-ok100 0.3s ease;
-}
-
 .queue-view-container:not(.shader-off) {
   --button-shadow: none;
-  --panel-text-shadow: 0 1px 3px oklch(from var(--color-ok100) l c h / 0.15);
+  --panel-text-shadow: 0 1px 3px oklch(0 0 0 / 0.20);
 }
 
 .nav-bar,
@@ -169,29 +145,20 @@ main {
   overflow: hidden;
 }
 
-.v-glass {
-  backdrop-filter: blur(0);
-  background-color: transparent;
-  box-shadow: var(--panel-shadow);
-}
-
-.shader-off .v-glass {
-  --glass-bg: var(--bg-panel);
-}
-
 .v-menu {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  width: 100%;
-  margin-top: 6px;
-  z-index: 50;
+  position-anchor: auto;
+  position-area: bottom span-right;
+  width: anchor-size(width);
+  margin: 6px 0 0 0;
+  inset: auto;
   border: none;
   border-radius: 12px;
   padding: 8px;
   box-sizing: border-box;
   background-color: var(--bg-menu);
   box-shadow: var(--panel-shadow);
+  contain: layout paint;
+  isolation: isolate;
 }
 
 .v-menu-item {
@@ -201,38 +168,23 @@ main {
   text-align: left;
   padding: 6px 10px;
   margin-bottom: 4px;
-  background: none;
+  background-color: var(--bg-item-inactive);
   border: none;
   color: var(--text-muted);
   font-size: 15px;
   font-family: var(--font-stack);
   cursor: pointer;
-  border-radius: 8px;
+  border-radius: 12px;
   box-sizing: border-box;
   transition: none;
 }
 
-.v-menu-item::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background-color: var(--color-ok100);
-  opacity: 0;
-  pointer-events: none;
-  z-index: 0;
-}
-
-.v-menu-item:hover::before,
-.v-menu-item.selected::before {
-  opacity: 0.08;
-}
-
 .v-menu-item:hover {
+  background-color: var(--bg-item-hover);
   color: var(--text-main);
 }
-
 .v-menu-item.selected {
+  background-color: var(--bg-item-active);
   color: var(--text-main);
 }
 
@@ -273,7 +225,7 @@ main {
 
 .v-btn-icon {
   position: relative;
-  background-color: transparent;
+  background-color: var(--bg-button-inactive);
   border: none;
   display: flex;
   align-items: center;
@@ -284,34 +236,25 @@ main {
   transition: box-shadow 0.3s ease;
 }
 
-.v-btn-icon::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background-color: var(--color-ok100);
-  opacity: 0.08;
-  pointer-events: none;
-  z-index: 0;
+.v-btn-icon:hover {
+  background-color: var(--bg-button-hover);
 }
-
-.v-btn-icon:hover::before,
-.v-btn-icon.active::before {
-  opacity: 0.16;
+.v-btn-icon.active {
+  background-color: var(--bg-button-active);
 }
 
 .v-btn-icon img,
 .v-btn-icon .icon {
   position: relative;
   z-index: 1;
-  opacity: var(--a2);
+  opacity: 0.66;
   pointer-events: none;
 }
 
 .v-sidebar-button {
   width: 32px;
   height: 32px;
-  border-radius: 10px;
+  border-radius: 12px;
   flex-shrink: 0;
   pointer-events: auto;
 }
@@ -331,18 +274,18 @@ main {
 }
 
 .v-btn-icon:hover {
-  opacity: var(--a1);
+  opacity: 1;
 }
 
 .v-btn-icon.active {
-  opacity: var(--a1);
+  opacity: 1;
 }
 
 .v-btn-icon:hover img,
 .v-btn-icon.active img,
 .v-btn-icon:hover .icon,
 .v-btn-icon.active .icon {
-  opacity: var(--a1);
+  opacity: 1;
 }
 
 .v-btn-menu {
@@ -482,50 +425,29 @@ main {
   color: var(--text-muted);
   width: 28px;
   height: 28px;
-  border-radius: 8px;
+  border-radius: 12px;
   flex-shrink: 0;
   box-sizing: border-box;
   transition: none;
 }
 
-.v-tree-toggle::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background-color: var(--color-ok100);
-  opacity: 0;
-  pointer-events: none;
-  z-index: 0;
-}
-
-.v-tree-toggle:hover::before,
-.v-tree-toggle.active::before,
-.v-tree-toggle.expanded::before,
-.v-tree-row:hover .v-tree-toggle::before,
-.v-tree-row.active .v-tree-toggle::before,
-.v-tree-row.expanded .v-tree-toggle::before {
-  opacity: 0.08;
-}
-
 .v-tree-toggle:hover,
+.v-tree-row:hover .v-tree-toggle {
+  background-color: var(--bg-item-hover);
+  color: var(--text-main);
+}
 .v-tree-toggle.active,
-.v-tree-toggle.expanded,
-.v-tree-row:hover .v-tree-toggle,
-.v-tree-row.active .v-tree-toggle,
-.v-tree-row.expanded .v-tree-toggle {
+.v-tree-row.active .v-tree-toggle {
+  background-color: var(--bg-item-active);
   color: var(--text-main);
 }
 
-.v-tree-row:hover .v-sidebar-item::before,
-.v-tree-row.active .v-sidebar-item::before,
-.v-tree-row.expanded .v-sidebar-item::before {
-  opacity: 0.08;
+.v-tree-row:hover .v-sidebar-item {
+  background-color: var(--bg-item-hover);
+  color: var(--text-main);
 }
-
-.v-tree-row:hover .v-sidebar-item,
-.v-tree-row.active .v-sidebar-item,
-.v-tree-row.expanded .v-sidebar-item {
+.v-tree-row.active .v-sidebar-item {
+  background-color: var(--bg-item-active);
   color: var(--text-main);
 }
 
@@ -541,7 +463,7 @@ main {
   justify-content: space-between;
   align-items: center;
   width: 100%;
-  background-color: transparent;
+  background-color: var(--bg-item-inactive);
   border: none;
   padding: 6px 10px;
   margin-bottom: 4px;
@@ -550,33 +472,18 @@ main {
   font-size: 14px;
   font-family: var(--font-stack);
   text-align: left;
-  border-radius: 8px;
+  border-radius: 12px;
   box-sizing: border-box;
   user-select: none;
   transition: none;
 }
 
-.v-sidebar-item::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background-color: var(--color-ok100);
-  opacity: 0;
-  pointer-events: none;
-  z-index: 0;
-}
-
-.v-sidebar-item:hover::before,
-.v-sidebar-item.active::before {
-  opacity: 0.08;
-}
-
 .v-sidebar-item:hover {
+  background-color: var(--bg-item-hover);
   color: var(--text-main);
 }
-
 .v-sidebar-item.active {
+  background-color: var(--bg-item-active);
   color: var(--text-main);
 }
 
@@ -623,34 +530,25 @@ main {
 
 .v-track-row {
   position: relative;
-  background-color: transparent;
+  background-color: var(--bg-item-inactive);
   display: flex;
   align-items: flex-start;
   color: var(--text-main);
-  cursor: default;
+  cursor: pointer;
   outline: none;
   user-select: none;
   contain: layout;
   box-sizing: border-box;
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 6px 0;
   transition: none;
 }
 
-.v-track-row::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background-color: var(--color-ok100);
-  opacity: 0;
-  pointer-events: none;
-  z-index: 0;
+.v-track-row:hover {
+  background-color: var(--bg-item-hover);
 }
-
-.v-track-row:hover::before,
-.v-track-row.active::before {
-  opacity: 0.08;
+.v-track-row.active {
+  background-color: var(--bg-item-active);
 }
 
 .v-track-body {
