@@ -41,7 +41,10 @@ pub async fn play_disc(
     Json(json!({"status": "ok"})).into_response()
 }
 
-pub async fn queue_album(Path(id): Path<String>, State(state): State<Arc<AppState>>) -> Response {
+pub async fn queue_album(
+    Path(id): Path<String>,
+    State(state): State<Arc<AppState>>,
+) -> Response {
     let tracks = get_tracks_internal(&id, &state, None).await;
     state.mpd_engine.send(MpdCommand::Queue { tracks }).await;
     Json(json!({"status": "ok"})).into_response()
@@ -96,9 +99,7 @@ async fn get_tracks_internal(
         (json_opt, path_opt)
     };
 
-    let music_directory = {
-        state.config.read().await.music_directory.clone()
-    };
+    let music_directory = { state.config.read().await.music_directory.clone() };
 
     if let (Some(raw), Some(dir)) = (json_str, album_dir)
         && let Ok(parsed) = serde_json::from_str::<Value>(&raw)
@@ -115,10 +116,16 @@ async fn get_tracks_internal(
                 }
             }
 
-            if let Some(tp) = track.get("file").and_then(|f| f.get("path")).and_then(|v| v.as_str()) {
+            if let Some(tp) = track
+                .get("file")
+                .and_then(|f| f.get("path"))
+                .and_then(|v| v.as_str())
+            {
                 let abs = dir.join(tp);
-                let uri = abs.strip_prefix(&music_directory)
-                    .map_or_else(|_| abs.to_string_lossy().to_string(), |p| p.to_string_lossy().to_string());
+                let uri = abs.strip_prefix(&music_directory).map_or_else(
+                    |_| abs.to_string_lossy().to_string(),
+                    |p| p.to_string_lossy().to_string(),
+                );
                 paths.push(uri);
             }
         }

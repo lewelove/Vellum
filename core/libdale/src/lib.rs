@@ -1,6 +1,6 @@
 pub mod cache;
-pub mod config;
 pub mod compiler;
+pub mod config;
 pub mod error;
 pub mod harvest;
 pub mod images;

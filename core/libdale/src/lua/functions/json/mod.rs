@@ -81,7 +81,11 @@ fn lua_value_to_json(val: Value) -> mlua::Result<serde_json::Value> {
                         Value::Integer(i) => i.to_string(),
                         Value::Number(n) => n.to_string(),
                         Value::Boolean(b) => b.to_string(),
-                        _ => return Err(mlua::Error::runtime("invalid table key for json serialization")),
+                        _ => {
+                            return Err(mlua::Error::runtime(
+                                "invalid table key for json serialization",
+                            ));
+                        }
                     };
                     let json_val = lua_value_to_json(v)?;
                     map.insert(key_str, json_val);
@@ -98,8 +102,8 @@ pub fn register(lua: &Lua, dale_tbl: &Table, opts: SerializeOptions) -> mlua::Re
     json_table.set(
         "decode",
         lua.create_function(move |lua, s: String| {
-            let val: serde_json::Value = serde_json::from_str(&s)
-                .map_err(mlua::Error::external)?;
+            let val: serde_json::Value =
+                serde_json::from_str(&s).map_err(mlua::Error::external)?;
             lua.to_value_with(&val, opts)
         })?,
     )?;

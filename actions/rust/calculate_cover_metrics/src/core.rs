@@ -1,7 +1,7 @@
 use crate::metrics::{calculate_chroma, calculate_entropy};
 use crate::models::{CoverFileInfo, CoverMetricsDoc};
-use base64::engine::general_purpose::STANDARD;
 use base64::Engine as _;
+use base64::engine::general_purpose::STANDARD;
 use libactions::payload::ActionPayload;
 use rayon::prelude::*;
 use std::fs;

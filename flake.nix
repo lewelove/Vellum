@@ -72,7 +72,7 @@
 
         build-cli = pkgs.writeShellApplication {
           name = "build";
-          runtimeInputs = [ pkgs.cargo pkgs.rustc pkgs.git pkgs.clippy pkgs.nix pkgs.bun ];
+          runtimeInputs = [ pkgs.cargo pkgs.rustc pkgs.rustfmt pkgs.git pkgs.clippy pkgs.nix pkgs.bun ];
           text = ''
             ROOT=$(git rev-parse --show-toplevel)
             TARGET=""
@@ -88,6 +88,14 @@
                 *)          ARGS+=("$arg") ;;
               esac
             done
+
+            format_code() {
+              echo ""
+              echo "Formatting code..."
+              echo ""
+              cd "$ROOT"
+              cargo fmt --all
+            }
 
             build_dale() {
               echo ""
@@ -145,6 +153,10 @@
               cd "$ROOT/interfaces/web-app"
               bun run build
             }
+
+            if [ "$TARGET" != "interface" ]; then
+              format_code
+            fi
 
             if [ "$TARGET" = "dale" ]; then
               build_dale

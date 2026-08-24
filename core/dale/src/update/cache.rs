@@ -31,7 +31,9 @@ struct CurrentState {
 }
 
 pub fn calculate_path_hash(path: &Path) -> String {
-    blake3::hash(path.as_os_str().as_encoded_bytes()).to_hex().to_string()
+    blake3::hash(path.as_os_str().as_encoded_bytes())
+        .to_hex()
+        .to_string()
 }
 
 pub fn library_cache_dir(cache_root: &Path, music_directory: &Path) -> PathBuf {
@@ -75,7 +77,9 @@ pub async fn validate_library_root(cache_dir: &Path, current_hash: &str) -> Resu
     if current_json_path.exists() {
         let content = fs::read_to_string(&current_json_path).unwrap_or_default();
         let saved_state: Result<CurrentState, _> = serde_json::from_str(&content);
-        if let Ok(state) = saved_state && state.hash == current_hash {
+        if let Ok(state) = saved_state
+            && state.hash == current_hash
+        {
             return Ok(());
         }
     }

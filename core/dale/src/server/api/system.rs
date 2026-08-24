@@ -67,7 +67,10 @@ pub async fn trigger_update(
     });
 
     Response::builder()
-        .header(axum::http::header::CONTENT_TYPE, "text/plain; charset=utf-8")
+        .header(
+            axum::http::header::CONTENT_TYPE,
+            "text/plain; charset=utf-8",
+        )
         .body(axum::body::Body::from_stream(stream))
         .unwrap_or_else(|_| StatusCode::INTERNAL_SERVER_ERROR.into_response())
 }
@@ -109,7 +112,10 @@ pub async fn serve_interface_asset(
     let name = name.replace('-', "_");
     let (intf_cfg, config_dir) = {
         let guard = state.config.read().await;
-        (guard.interfaces.get(&name).cloned(), guard.config_dir.clone())
+        (
+            guard.interfaces.get(&name).cloned(),
+            guard.config_dir.clone(),
+        )
     };
 
     let Some(cfg) = intf_cfg else {
@@ -125,7 +131,11 @@ pub async fn serve_interface_asset(
     };
 
     let p = libdale::utils::expand_path(asset_val);
-    let resolved = if p.is_absolute() { p } else { config_dir.join(p) };
+    let resolved = if p.is_absolute() {
+        p
+    } else {
+        config_dir.join(p)
+    };
     let Ok(resolved_canon) = tokio::fs::canonicalize(&resolved).await else {
         return StatusCode::NOT_FOUND.into_response();
     };
@@ -157,7 +167,10 @@ pub async fn serve_interface_asset(
 
     if let Ok(mut file) = tokio::fs::File::open(&target_path).await {
         let mut buf = Vec::new();
-        if tokio::io::AsyncReadExt::read_to_end(&mut file, &mut buf).await.is_ok() {
+        if tokio::io::AsyncReadExt::read_to_end(&mut file, &mut buf)
+            .await
+            .is_ok()
+        {
             let mime = match target_path.extension().and_then(|e| e.to_str()) {
                 Some("css") => "text/css",
                 Some("frag" | "glsl" | "vert") => "text/plain",
@@ -169,10 +182,7 @@ pub async fn serve_interface_asset(
                 Some("woff2") => "font/woff2",
                 _ => "application/octet-stream",
             };
-            return (
-                [(axum::http::header::CONTENT_TYPE, mime)],
-                buf
-            ).into_response();
+            return ([(axum::http::header::CONTENT_TYPE, mime)], buf).into_response();
         }
     }
     StatusCode::NOT_FOUND.into_response()
@@ -325,7 +335,11 @@ pub async fn run_query(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<serde_json::Value>,
 ) -> Response {
-    let q_str = payload.get("query").and_then(|v| v.as_str()).unwrap_or("").trim();
+    let q_str = payload
+        .get("query")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim();
     let logic = state.logic.read().await;
     let ids = logic.find_ids(q_str);
     let mut results = Vec::new();

@@ -39,7 +39,8 @@ impl DiscogsFetcher {
 
         let resp = req.send().await.context("Search request failed")?;
         if resp.status().is_success() {
-            let parsed: DiscogsSearchResponse = resp.json().await.context("Search JSON parse error")?;
+            let parsed: DiscogsSearchResponse =
+                resp.json().await.context("Search JSON parse error")?;
             if !parsed.results.is_empty() {
                 return Ok(parsed.results);
             }
@@ -49,7 +50,11 @@ impl DiscogsFetcher {
         let mut fallback_req = self
             .client
             .get("https://api.discogs.com/database/search")
-            .query(&[("type", "master"), ("q", &query_fallback), ("per_page", "5")]);
+            .query(&[
+                ("type", "master"),
+                ("q", &query_fallback),
+                ("per_page", "5"),
+            ]);
 
         if !self.token.is_empty() {
             let token = &self.token;
@@ -87,8 +92,10 @@ impl DiscogsFetcher {
             anyhow::bail!("Discogs API returned status {status}");
         }
 
-        let json_val: serde_json::Value =
-            resp.json().await.context("Master details JSON parse error")?;
+        let json_val: serde_json::Value = resp
+            .json()
+            .await
+            .context("Master details JSON parse error")?;
         Ok(json_val)
     }
 }

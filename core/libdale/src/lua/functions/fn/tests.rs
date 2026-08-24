@@ -28,7 +28,10 @@ fn test_d_fn_present_invalid() {
     let empty_str_res = engine.lua.load("return d.fn.present('')").eval::<String>();
     assert!(empty_str_res.is_err());
 
-    let ws_res = engine.lua.load("return d.fn.present('   ')").eval::<String>();
+    let ws_res = engine
+        .lua
+        .load("return d.fn.present('   ')")
+        .eval::<String>();
     assert!(ws_res.is_err());
 
     let nil_res = engine.lua.load("return d.fn.present(nil)").eval::<String>();

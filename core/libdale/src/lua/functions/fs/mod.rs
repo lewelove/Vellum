@@ -71,7 +71,10 @@ fn fs_read_lines(lua: &Lua, path_str: Option<String>) -> mlua::Result<Table> {
     Ok(table)
 }
 
-fn fs_scandir_native(lua: &Lua, (path_str, follow): (String, bool)) -> mlua::Result<mlua::Function> {
+fn fs_scandir_native(
+    lua: &Lua,
+    (path_str, follow): (String, bool),
+) -> mlua::Result<mlua::Function> {
     let expanded = crate::utils::expand_path(&path_str);
 
     let Ok(mut read_dir) = std::fs::read_dir(&expanded) else {
@@ -95,7 +98,8 @@ fn fs_scandir_native(lua: &Lua, (path_str, follow): (String, bool)) -> mlua::Res
                 ft
             };
 
-            let type_str = if resolved_ft.as_ref().is_some_and(std::fs::FileType::is_file) {
+            let type_str = if resolved_ft.as_ref().is_some_and(std::fs::FileType::is_file)
+            {
                 "file"
             } else if resolved_ft.as_ref().is_some_and(std::fs::FileType::is_dir) {
                 "directory"
@@ -148,7 +152,9 @@ pub fn register(lua: &Lua, dale_tbl: &Table, opts: SerializeOptions) -> mlua::Re
     let fs_table: Table = lua.load(LUA_FS).eval()?;
     fs_table.set(
         "exists",
-        lua.create_function(|lua, path_str: Option<String>| Ok(fs_exists(lua, path_str)))?,
+        lua.create_function(|lua, path_str: Option<String>| {
+            Ok(fs_exists(lua, path_str))
+        })?,
     )?;
     fs_table.set(
         "read",
@@ -156,16 +162,12 @@ pub fn register(lua: &Lua, dale_tbl: &Table, opts: SerializeOptions) -> mlua::Re
     )?;
     fs_table.set(
         "read_lines",
-        lua.create_function(|lua, path_str: Option<String>| fs_read_lines(lua, path_str))?,
+        lua.create_function(|lua, path_str: Option<String>| {
+            fs_read_lines(lua, path_str)
+        })?,
     )?;
-    fs_table.set(
-        "read_json",
-        create_fs_reader(lua, opts, "json")?,
-    )?;
-    fs_table.set(
-        "read_toml",
-        create_fs_reader(lua, opts, "toml")?,
-    )?;
+    fs_table.set("read_json", create_fs_reader(lua, opts, "json")?)?;
+    fs_table.set("read_toml", create_fs_reader(lua, opts, "toml")?)?;
     fs_table.set(
         "_scandir_native",
         lua.create_function(|lua, args: (String, Option<bool>)| {

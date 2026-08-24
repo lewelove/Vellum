@@ -49,7 +49,8 @@ pub fn prompt_selection(
     }
 
     let count = results.len();
-    let prompt = format!("\nSelect Master Release [1-{count}] (Default: 1, s: Skip, q: Quit): ");
+    let prompt =
+        format!("\nSelect Master Release [1-{count}] (Default: 1, s: Skip, q: Quit): ");
 
     let input = prompt_tty(&prompt)?;
     let trimmed = input.trim().to_lowercase();

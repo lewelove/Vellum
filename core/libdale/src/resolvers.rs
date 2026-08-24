@@ -5,7 +5,9 @@ pub fn calculate_total_discs(tracks: &[serde_json::Value]) -> u32 {
     let mut discs = std::collections::HashSet::new();
     for t in tracks {
         let val = match t.get("discnumber") {
-            Some(serde_json::Value::Number(n)) => n.as_u64().and_then(|i| u32::try_from(i).ok()).unwrap_or(0),
+            Some(serde_json::Value::Number(n)) => {
+                n.as_u64().and_then(|i| u32::try_from(i).ok()).unwrap_or(0)
+            }
             Some(serde_json::Value::String(s)) => s
                 .split('/')
                 .next()

@@ -213,7 +213,8 @@ fn test_d_system_cwd_tilde() {
 #[test]
 fn test_d_system_cwd_invalid() {
     let engine = LuaEngine::new().expect("Failed to create LuaEngine");
-    let code = r#"return d.system({ "pwd" }, { cwd = "/non_existent_dale_dir_test_xyz" })"#;
+    let code =
+        r#"return d.system({ "pwd" }, { cwd = "/non_existent_dale_dir_test_xyz" })"#;
     let res = engine.lua.load(code).eval::<Table>();
     assert!(res.is_err());
 }
@@ -259,7 +260,11 @@ fn test_d_system_signal_and_timeout_code() {
         local res = d.system({ "sleep", "1" }, { timeout = 20 })
         return { code = res.code, signal = res.signal, ok = res.ok }
     "#;
-    let timeout_tbl: Table = engine.lua.load(timeout_code).eval().expect("Execution failed");
+    let timeout_tbl: Table = engine
+        .lua
+        .load(timeout_code)
+        .eval()
+        .expect("Execution failed");
     let timeout_code_val: Option<i32> = timeout_tbl.get("code").unwrap();
     let timeout_sig_val: i32 = timeout_tbl.get("signal").unwrap();
     let timeout_ok_val: bool = timeout_tbl.get("ok").unwrap();
@@ -271,7 +276,11 @@ fn test_d_system_signal_and_timeout_code() {
         local res = d.system({ "sh", "-c", "kill -9 $$" })
         return { code = res.code, signal = res.signal, ok = res.ok }
     "#;
-    let signal_tbl: Table = engine.lua.load(signal_code).eval().expect("Execution failed");
+    let signal_tbl: Table = engine
+        .lua
+        .load(signal_code)
+        .eval()
+        .expect("Execution failed");
     let signal_code_val: Option<i32> = signal_tbl.get("code").unwrap();
     let signal_sig_val: i32 = signal_tbl.get("signal").unwrap();
     let signal_ok_val: bool = signal_tbl.get("ok").unwrap();
@@ -312,7 +321,10 @@ fn test_d_system_invalid_cmd() {
     let invalid_type_res = engine.lua.load("return d.system(12345)").eval::<Table>();
     assert!(invalid_type_res.is_err());
 
-    let nested_tbl_res = engine.lua.load("return d.system({ {'nested'} })").eval::<Table>();
+    let nested_tbl_res = engine
+        .lua
+        .load("return d.system({ {'nested'} })")
+        .eval::<Table>();
     assert!(nested_tbl_res.is_err());
 }
 

@@ -1,4 +1,4 @@
-use crate::compile::{build, ExportTarget};
+use crate::compile::{ExportTarget, build};
 use anyhow::Result;
 use rayon::prelude::*;
 use serde_json::Value;
@@ -20,7 +20,8 @@ pub struct StreamContext {
     pub config: Arc<libdale::lua::ResolvedConfig>,
     pub target: ExportTarget,
     pub jobs: Option<usize>,
-    pub ingest_tx: Option<tokio::sync::mpsc::Sender<crate::server::api::system::AlbumIngestPayload>>,
+    pub ingest_tx:
+        Option<tokio::sync::mpsc::Sender<crate::server::api::system::AlbumIngestPayload>>,
     pub active_writes: Option<Arc<Mutex<HashSet<PathBuf>>>>,
     pub silent: bool,
 }

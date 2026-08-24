@@ -1,6 +1,6 @@
 use crate::compile::assets;
-use base64::{engine::general_purpose::STANDARD, Engine as _};
-use serde_json::{json, Value};
+use base64::{Engine as _, engine::general_purpose::STANDARD};
+use serde_json::{Value, json};
 use std::path::Path;
 
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -74,7 +74,11 @@ pub fn resolve_cover_data_cached(
                 .get("address")
                 .and_then(Value::as_str)
                 .unwrap_or("");
-            assets::pregenerate_covers(config, main_cover_path.as_deref(), cover_hash_address);
+            assets::pregenerate_covers(
+                config,
+                main_cover_path.as_deref(),
+                cover_hash_address,
+            );
             return cached.file_info;
         }
         let _ = std::fs::remove_file(&cache_file);

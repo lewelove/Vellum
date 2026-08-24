@@ -12,7 +12,11 @@ pub mod toml;
 use mlua::serde::SerializeOptions;
 use mlua::{Lua, Table};
 
-pub fn register_all(lua: &Lua, dale_tbl: &Table, opts: SerializeOptions) -> mlua::Result<()> {
+pub fn register_all(
+    lua: &Lua,
+    dale_tbl: &Table,
+    opts: SerializeOptions,
+) -> mlua::Result<()> {
     r#fn::register(lua, dale_tbl)?;
     fs::register(lua, dale_tbl, opts)?;
     get::register(lua, dale_tbl)?;

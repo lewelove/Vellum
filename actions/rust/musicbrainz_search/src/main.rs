@@ -1,7 +1,7 @@
 mod core;
 
 use anyhow::Result;
-use libactions::payload::{read_stdin_payload, ActionPayload};
+use libactions::payload::{ActionPayload, read_stdin_payload};
 
 #[tokio::main]
 async fn main() -> Result<()> {

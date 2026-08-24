@@ -41,7 +41,10 @@ fn extract_mbid(s: &str) -> Option<String> {
     }
 }
 
-pub async fn execute_musicbrainz(target: MbTargetUrl, data: &mut AlbumData) -> Result<()> {
+pub async fn execute_musicbrainz(
+    target: MbTargetUrl,
+    data: &mut AlbumData,
+) -> Result<()> {
     let client = Client::builder()
         .user_agent("Dale/0.1.0 https://github.com/lewelove/dale")
         .build()
@@ -86,7 +89,8 @@ async fn fetch_and_fill_release(
         );
         if let Ok(rg_val) = fetch_json(client, &rg_url).await {
             if data.date.is_empty()
-                && let Some(first_date) = rg_val.get("first-release-date").and_then(Value::as_str)
+                && let Some(first_date) =
+                    rg_val.get("first-release-date").and_then(Value::as_str)
             {
                 data.date = first_date.to_string();
             }
@@ -134,7 +138,8 @@ async fn fetch_and_fill_release_group(
     if let Some(releases_arr) = all_releases.as_array()
         && let Some(best_release) = select_best_release(releases_arr)
     {
-        data.tracks = extract_tracks_from_media(best_release.get("media"), &data.albumartist);
+        data.tracks =
+            extract_tracks_from_media(best_release.get("media"), &data.albumartist);
         if data.date.is_empty()
             && let Some(d) = best_release.get("date").and_then(Value::as_str)
         {
@@ -189,16 +194,14 @@ fn select_best_release(releases: &[Value]) -> Option<&Value> {
     let with_tracks: Vec<&Value> = releases
         .iter()
         .filter(|r| {
-            r.get("media")
-                .and_then(Value::as_array)
-                .is_some_and(|m| {
-                    m.iter().any(|medium| {
-                        medium
-                            .get("tracks")
-                            .and_then(Value::as_array)
-                            .is_some_and(|t| !t.is_empty())
-                    })
+            r.get("media").and_then(Value::as_array).is_some_and(|m| {
+                m.iter().any(|medium| {
+                    medium
+                        .get("tracks")
+                        .and_then(Value::as_array)
+                        .is_some_and(|t| !t.is_empty())
                 })
+            })
         })
         .collect();
 
@@ -257,11 +260,12 @@ fn extract_tracks_from_media(media_val: Option<&Value>, albumartist: &str) -> Ve
                 .to_string();
 
             let artist_credit = format_mb_artist_credits(track.get("artist-credit"));
-            let track_artist = if !artist_credit.is_empty() && artist_credit != albumartist {
-                Some(artist_credit)
-            } else {
-                None
-            };
+            let track_artist =
+                if !artist_credit.is_empty() && artist_credit != albumartist {
+                    Some(artist_credit)
+                } else {
+                    None
+                };
 
             tracks.push(Track {
                 discnumber: disc_no,
@@ -287,10 +291,7 @@ pub fn format_mb_artist_credits(val: Option<&Value>) -> String {
             .or_else(|| item.get("artist").and_then(|a| a.get("name")))
             .and_then(Value::as_str)
             .unwrap_or("");
-        let join = item
-            .get("joinphrase")
-            .and_then(Value::as_str)
-            .unwrap_or("");
+        let join = item.get("joinphrase").and_then(Value::as_str).unwrap_or("");
         out.push_str(name);
         out.push_str(join);
     }

@@ -11,7 +11,9 @@ pub fn setup_watcher(tx: UnboundedSender<Vec<PathBuf>>) -> RecommendedWatcher {
     RecommendedWatcher::new(
         move |res: notify::Result<Event>| {
             if let Ok(event) = res
-                && (event.kind.is_modify() || event.kind.is_create() || event.kind.is_remove())
+                && (event.kind.is_modify()
+                    || event.kind.is_create()
+                    || event.kind.is_remove())
             {
                 let _ = tx.send(event.paths);
             }
@@ -68,7 +70,11 @@ async fn sync_watches(
     for cfg in guard.interfaces.values() {
         for asset_str in cfg.assets.values() {
             let p = libdale::utils::expand_path(asset_str);
-            let p = if p.is_absolute() { p } else { config_dir.join(p) };
+            let p = if p.is_absolute() {
+                p
+            } else {
+                config_dir.join(p)
+            };
             if let Ok(canon) = p.canonicalize() {
                 if canon.is_dir() {
                     needed_recursive.insert(canon);

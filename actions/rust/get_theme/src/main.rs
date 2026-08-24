@@ -9,7 +9,7 @@ use anyhow::Result;
 use image::DynamicImage;
 use image::imageops::FilterType;
 use libactions::color::{calculate_palette_ratios, sort_palette};
-use libactions::payload::{read_stdin_payload, ActionPayload};
+use libactions::payload::{ActionPayload, read_stdin_payload};
 use palette::Srgb;
 use serde::Deserialize;
 
@@ -76,7 +76,8 @@ fn main() -> Result<()> {
                 )
             };
 
-            let toml_content = format!("[album.colors]\n\nbackground = [{formatted_bg}]\n");
+            let toml_content =
+                format!("[album.colors]\n\nbackground = [{formatted_bg}]\n");
 
             if std::fs::write(&out_path, toml_content).is_ok() {
                 let abs_path = out_path.canonicalize().unwrap_or(out_path);
@@ -107,7 +108,8 @@ fn process_image_to_palette(
     let sort_type = cfg.sort.as_deref().unwrap_or("gradient");
     let args = &cfg.args;
 
-    let sample_dim = args.split(',')
+    let sample_dim = args
+        .split(',')
         .find(|s| s.trim().starts_with("dim="))
         .and_then(|s| s.trim().strip_prefix("dim="))
         .and_then(|val| val.parse::<u32>().ok())
@@ -133,7 +135,8 @@ fn process_image_to_palette(
     }
 
     let threshold_val = cfg.threshold.unwrap_or(0.001);
-    let mut palette = calculate_palette_ratios(&img_to_process, candidate_colors, threshold_val);
+    let mut palette =
+        calculate_palette_ratios(&img_to_process, candidate_colors, threshold_val);
     sort_palette(&mut palette, sort_type);
 
     Some(palette)

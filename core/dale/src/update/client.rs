@@ -1,10 +1,11 @@
 use crate::compile;
 use crate::server::state::{DependencyGraph, UpdateScope};
 use crate::update::cache::{
-    calculate_path_hash, deps_graph_path, library_cache_dir, load_cache, save_cache, validate_library_root,
+    calculate_path_hash, deps_graph_path, library_cache_dir, load_cache, save_cache,
+    validate_library_root,
 };
 use crate::update::queue::{
-    check_lua_config_changed, resolve_work_queue, update_cache_entries, WorkQueueContext,
+    WorkQueueContext, check_lua_config_changed, resolve_work_queue, update_cache_entries,
 };
 use anyhow::{Context, Result};
 use libdale::utils::expand_path;
@@ -84,7 +85,14 @@ pub async fn run(
     )
     .await?;
 
-    update_cache_entries(&mut cache, &deps_graph, &work_queue, &missing_paths, &music_directory, silent);
+    update_cache_entries(
+        &mut cache,
+        &deps_graph,
+        &work_queue,
+        &missing_paths,
+        &music_directory,
+        silent,
+    );
 
     let elapsed = start_time.elapsed().as_millis();
     if !silent {
@@ -151,7 +159,10 @@ fn apply_ingested_deps(
     deps_graph: &mut DependencyGraph,
 ) {
     for payload in payloads {
-        let album_path_canon = payload.album_dir.canonicalize().unwrap_or(payload.album_dir);
+        let album_path_canon = payload
+            .album_dir
+            .canonicalize()
+            .unwrap_or(payload.album_dir);
         if payload.eval_res.is_some() {
             deps_graph.update_album_deps(
                 album_path_canon,
@@ -205,7 +216,9 @@ async fn run_delegated_update(
     });
 
     let mut res = client
-        .post(format!("http://127.0.0.1:{port}/api/internal/trigger_update"))
+        .post(format!(
+            "http://127.0.0.1:{port}/api/internal/trigger_update"
+        ))
         .json(&body)
         .send()
         .await
@@ -240,7 +253,9 @@ async fn run_delegated_update(
 pub async fn is_server_up(port: u16) -> bool {
     let client = reqwest::Client::new();
     client
-        .get(format!("http://127.0.0.1:{port}/api/internal/tracked_albums"))
+        .get(format!(
+            "http://127.0.0.1:{port}/api/internal/tracked_albums"
+        ))
         .timeout(std::time::Duration::from_millis(300))
         .send()
         .await

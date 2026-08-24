@@ -7,7 +7,10 @@ use axum::response::Response;
 use serde_json::json;
 use std::sync::Arc;
 
-pub async fn ws_handler(ws: WebSocketUpgrade, State(state): State<Arc<AppState>>) -> Response {
+pub async fn ws_handler(
+    ws: WebSocketUpgrade,
+    State(state): State<Arc<AppState>>,
+) -> Response {
     ws.on_upgrade(|socket| handle_socket(socket, state))
 }
 
@@ -21,14 +24,19 @@ async fn handle_socket(mut socket: WebSocket, state: Arc<AppState>) {
             for key in l.manifest.shelves.keys() {
                 s.insert(key.clone(), l.request_shelf_view(key, None, false));
             }
-            (l.dict.clone(), l.track_lookup.clone(), l.manifest.clone(), s)
+            (
+                l.dict.clone(),
+                l.track_lookup.clone(),
+                l.manifest.clone(),
+                s,
+            )
         };
         let ui_data = state.ui_state.read().await.clone();
         let covers = {
             let c = state.config.read().await;
             c.covers.clone()
         };
-        
+
         json!({
             "type": "INIT_DICT",
             "dict": dict,
@@ -68,7 +76,7 @@ async fn handle_socket(mut socket: WebSocket, state: Arc<AppState>) {
                                 let reverse = req.get("reverse").and_then(serde_json::Value::as_bool).unwrap_or(false);
                                 let filter_key = req.get("filter").and_then(|v| v.get("key")).and_then(|v| v.as_str());
                                 let filter_val = req.get("filter").and_then(|v| v.get("val")).and_then(|v| v.as_str());
-                                
+
                                 let ids = state.logic.read().await.request_view(library, library_filter, sort, filter_key, filter_val, reverse);
                                 let _ = socket.send(ax_ws::Message::Text(json!({ "type": "VIEW_DATA", "ids": ids }).to_string().into())).await;
                             } else if req_type == "SHELF_REQUEST" {
@@ -82,7 +90,7 @@ async fn handle_socket(mut socket: WebSocket, state: Arc<AppState>) {
                                 let library = req.get("library").and_then(|v| v.as_str()).unwrap_or("library");
                                 let library_filter = req.get("library_filter").and_then(|v| v.as_str());
                                 let key = req.get("key").and_then(|v| v.as_str()).unwrap_or("");
-                                
+
                                 let result = state.logic.read().await.request_group(library, library_filter, key);
                                 let _ = socket.send(ax_ws::Message::Text(json!({ "type": "GROUP_RESULT", "key": key, "result": result }).to_string().into())).await;
                             }

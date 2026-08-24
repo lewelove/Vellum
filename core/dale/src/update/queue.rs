@@ -1,5 +1,5 @@
 use crate::server::state::{DependencyGraph, UpdateScope};
-use crate::update::cache::{get_lua_config_hash, FileStat};
+use crate::update::cache::{FileStat, get_lua_config_hash};
 use crate::update::verify::{find_missing_paths, verify_albums_parallel};
 use anyhow::Result;
 use std::collections::{HashMap, HashSet};
@@ -20,7 +20,9 @@ pub struct WorkQueueContext<'a> {
 pub fn resolve_work_queue(
     ctx: WorkQueueContext<'_>,
 ) -> Result<(Vec<PathBuf>, Vec<PathBuf>)> {
-    if !ctx.force && let Some((wq, mp)) = ctx.tracked {
+    if !ctx.force
+        && let Some((wq, mp)) = ctx.tracked
+    {
         if !ctx.silent && !wq.is_empty() {
             log::info!("Verifying {} tracked albums...", wq.len());
         }
@@ -44,7 +46,12 @@ pub fn resolve_work_queue(
         let (all_albums, mp) = match ctx.scope {
             UpdateScope::All => {
                 let albums = libdale::scanner::find_target_albums(ctx.music_directory)?;
-                let missing = find_missing_paths(&albums, ctx.music_directory, ctx.music_directory, ctx.cache);
+                let missing = find_missing_paths(
+                    &albums,
+                    ctx.music_directory,
+                    ctx.music_directory,
+                    ctx.cache,
+                );
                 (albums, missing)
             }
             UpdateScope::Paths(paths) => {
@@ -69,7 +76,12 @@ pub fn resolve_work_queue(
                     } else {
                         &[][..]
                     };
-                    let missing = find_missing_paths(target_albums, ctx.music_directory, &p_canon, ctx.cache);
+                    let missing = find_missing_paths(
+                        target_albums,
+                        ctx.music_directory,
+                        &p_canon,
+                        ctx.cache,
+                    );
                     for m in missing {
                         missing_set.insert(m);
                     }
@@ -185,11 +197,7 @@ pub async fn try_get_server_tracked_albums(
     }
 
     let data: serde_json::Value = resp.json().await.ok()?;
-    if data
-        .get("full_rescan")
-        .and_then(serde_json::Value::as_bool)
-        != Some(false)
-    {
+    if data.get("full_rescan").and_then(serde_json::Value::as_bool) != Some(false) {
         return None;
     }
 

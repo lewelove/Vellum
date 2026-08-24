@@ -151,7 +151,9 @@ fn test_d_tbl_contains() {
 
     let table_ref_found: bool = engine
         .lua
-        .load("local item = { id = 1 }; return d.tbl.contains({ item, { id = 2 } }, item)")
+        .load(
+            "local item = { id = 1 }; return d.tbl.contains({ item, { id = 2 } }, item)",
+        )
         .eval()
         .expect("Execution failed");
     assert!(table_ref_found);
@@ -220,7 +222,12 @@ fn test_d_tbl_filter_and_map() {
         .eval()
         .expect("Execution failed");
     assert_eq!(mapped_nil_removes.get::<String>("a").unwrap(), "keep");
-    assert!(mapped_nil_removes.get::<Option<String>>("b").unwrap().is_none());
+    assert!(
+        mapped_nil_removes
+            .get::<Option<String>>("b")
+            .unwrap()
+            .is_none()
+    );
 
     let invalid_filter_fn = engine
         .lua
@@ -301,7 +308,10 @@ fn test_d_tbl_inspection() {
         .expect("Execution failed");
     assert_eq!(values.raw_len(), 2);
 
-    let count_err = engine.lua.load("return d.tbl.count('not_a_table')").eval::<i64>();
+    let count_err = engine
+        .lua
+        .load("return d.tbl.count('not_a_table')")
+        .eval::<i64>();
     assert!(count_err.is_err());
 
     let keys_err = engine.lua.load("return d.tbl.keys(12345)").eval::<Table>();
@@ -521,7 +531,11 @@ fn test_d_tbl_deepcopy_and_deep_equal() {
         local b = d.tbl.deepcopy(a)
         return b.self == b
     "#;
-    let cycle_preserved: bool = engine.lua.load(cycle_code).eval().expect("Execution failed");
+    let cycle_preserved: bool = engine
+        .lua
+        .load(cycle_code)
+        .eval()
+        .expect("Execution failed");
     assert!(cycle_preserved);
 
     let primitive_copy: i64 = engine
@@ -545,6 +559,10 @@ fn test_d_tbl_deepcopy_and_deep_equal() {
         local copy = d.tbl.deepcopy(t)
         return copy.a
     "#;
-    let copy_a: i64 = engine.lua.load(protected_mt_code).eval().expect("Execution failed");
+    let copy_a: i64 = engine
+        .lua
+        .load(protected_mt_code)
+        .eval()
+        .expect("Execution failed");
     assert_eq!(copy_a, 10);
 }

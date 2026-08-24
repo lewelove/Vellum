@@ -21,7 +21,8 @@ pub fn compress(
     let mut album_pool = serde_json::Map::new();
     let mut keys_to_promote = Vec::new();
 
-    let forced_track_keys: HashSet<&str> = ["tracknumber", "discnumber", "title"].into_iter().collect();
+    let forced_track_keys: HashSet<&str> =
+        ["tracknumber", "discnumber", "title"].into_iter().collect();
 
     for key in candidate_keys {
         let is_identical = raw_tracks

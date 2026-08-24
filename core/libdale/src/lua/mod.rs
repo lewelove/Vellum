@@ -3,7 +3,9 @@ pub mod functions;
 #[cfg(test)]
 mod tests;
 
-use crate::config::{ActionConfig, AppConfig, CoversConfig, CoversRegistry, InterfaceConfig};
+use crate::config::{
+    ActionConfig, AppConfig, CoversConfig, CoversRegistry, InterfaceConfig,
+};
 use crate::error::DaleError;
 use anyhow::{Context, Result};
 use indexmap::IndexMap;
@@ -147,65 +149,44 @@ pub struct LogicManifest {
     pub cabinets_order: Vec<String>,
 }
 
+fn sort_ordered_map<V>(map: &mut IndexMap<String, V>, order: &mut Vec<String>) {
+    if order.is_empty() {
+        *order = map.keys().cloned().collect();
+    } else {
+        map.sort_by_cached_key(|k, _| {
+            order.iter().position(|x| x == k).unwrap_or(usize::MAX)
+        });
+    }
+}
+
 impl LogicManifest {
     pub fn normalize(&mut self) {
-        if !self.filters_order.is_empty() {
-            self.filters.sort_by_cached_key(|k, _| {
-                self.filters_order.iter().position(|x| x == k).unwrap_or(usize::MAX)
-            });
-        } else {
-            self.filters_order = self.filters.keys().cloned().collect();
-        }
+        self.normalize_ordering();
+        self.normalize_grouper_defaults();
+        self.resolve_allowed_targets();
+    }
 
-        if !self.groupers_order.is_empty() {
-            self.groupers.sort_by_cached_key(|k, _| {
-                self.groupers_order.iter().position(|x| x == k).unwrap_or(usize::MAX)
-            });
-        } else {
-            self.groupers_order = self.groupers.keys().cloned().collect();
-        }
+    fn normalize_ordering(&mut self) {
+        sort_ordered_map(&mut self.filters, &mut self.filters_order);
+        sort_ordered_map(&mut self.groupers, &mut self.groupers_order);
+        sort_ordered_map(&mut self.orders, &mut self.orders_order);
+        sort_ordered_map(&mut self.libraries, &mut self.libraries_order);
+        sort_ordered_map(&mut self.shelves, &mut self.shelves_order);
+        sort_ordered_map(&mut self.cabinets, &mut self.cabinets_order);
+    }
 
-        if !self.orders_order.is_empty() {
-            self.orders.sort_by_cached_key(|k, _| {
-                self.orders_order.iter().position(|x| x == k).unwrap_or(usize::MAX)
-            });
-        } else {
-            self.orders_order = self.orders.keys().cloned().collect();
-        }
-
-        if !self.libraries_order.is_empty() {
-            self.libraries.sort_by_cached_key(|k, _| {
-                self.libraries_order.iter().position(|x| x == k).unwrap_or(usize::MAX)
-            });
-        } else {
-            self.libraries_order = self.libraries.keys().cloned().collect();
-        }
-
-        if !self.shelves_order.is_empty() {
-            self.shelves.sort_by_cached_key(|k, _| {
-                self.shelves_order.iter().position(|x| x == k).unwrap_or(usize::MAX)
-            });
-        } else {
-            self.shelves_order = self.shelves.keys().cloned().collect();
-        }
-
-        if !self.cabinets_order.is_empty() {
-            self.cabinets.sort_by_cached_key(|k, _| {
-                self.cabinets_order.iter().position(|x| x == k).unwrap_or(usize::MAX)
-            });
-        } else {
-            self.cabinets_order = self.cabinets.keys().cloned().collect();
-        }
-
-        for (_, g) in &mut self.groupers {
+    fn normalize_grouper_defaults(&mut self) {
+        for g in self.groupers.values_mut() {
             let idx = g.index.unwrap_or(false);
             g.index = Some(idx);
             if g.count.is_none() {
                 g.count = Some(!idx);
             }
         }
+    }
 
-        for (_, library) in &mut self.libraries {
+    fn resolve_allowed_targets(&mut self) {
+        for library in self.libraries.values_mut() {
             library.allowed_filters = library
                 .filters
                 .iter()
@@ -228,7 +209,7 @@ impl LogicManifest {
                 .collect();
         }
 
-        for (_, cabinet) in &mut self.cabinets {
+        for cabinet in self.cabinets.values_mut() {
             cabinet.allowed_shelves = cabinet
                 .shelves
                 .iter()
@@ -378,9 +359,11 @@ impl LuaEngine {
         let covers: CoversRegistry = call_getter(&self.lua, "__DALE_GET_COVERS")?;
         let interfaces: HashMap<String, InterfaceConfig> =
             call_getter(&self.lua, "__DALE_GET_INTERFACES")?;
-        let actions: HashMap<String, ActionConfig> = call_getter(&self.lua, "__DALE_GET_ACTIONS")?;
+        let actions: HashMap<String, ActionConfig> =
+            call_getter(&self.lua, "__DALE_GET_ACTIONS")?;
         let deps_str: Vec<String> = call_getter(&self.lua, "__DALE_GET_DEPENDENCIES")?;
-        let mut manifest: LogicManifest = call_getter(&self.lua, "__DALE_GET_LOGIC_MANIFEST")?;
+        let mut manifest: LogicManifest =
+            call_getter(&self.lua, "__DALE_GET_LOGIC_MANIFEST")?;
         manifest.normalize();
 
         let mut dependencies = Vec::new();
@@ -422,7 +405,9 @@ impl LuaEngine {
             .lua
             .to_value_with(album_val, opts)
             .map_err(|e| anyhow::anyhow!("{e}"))?;
-        let res: mlua::Table = eval_fn.call(lua_album).map_err(|e| anyhow::anyhow!("{e}"))?;
+        let res: mlua::Table = eval_fn
+            .call(lua_album)
+            .map_err(|e| anyhow::anyhow!("{e}"))?;
         let json_res: serde_json::Value = self
             .lua
             .from_value(mlua::Value::Table(res))
@@ -491,9 +476,16 @@ impl LuaEngine {
             if let Ok(res) = f.call::<mlua::Value>(g_tbl) {
                 match res {
                     mlua::Value::Table(tbl) => {
-                        let label: String = tbl.get("label").unwrap_or_else(|_| ctx.value.to_string());
-                        let sublabel: Option<String> = match tbl.get::<Option<mlua::Value>>("sublabel").ok().flatten() {
-                            Some(mlua::Value::String(s)) => s.to_str().ok().as_deref().map(ToString::to_string),
+                        let label: String =
+                            tbl.get("label").unwrap_or_else(|_| ctx.value.to_string());
+                        let sublabel: Option<String> = match tbl
+                            .get::<Option<mlua::Value>>("sublabel")
+                            .ok()
+                            .flatten()
+                        {
+                            Some(mlua::Value::String(s)) => {
+                                s.to_str().ok().as_deref().map(ToString::to_string)
+                            }
                             Some(mlua::Value::Integer(i)) => Some(i.to_string()),
                             Some(mlua::Value::Number(n)) => Some(n.to_string()),
                             _ => None,
@@ -501,7 +493,9 @@ impl LuaEngine {
                         let sort: serde_json::Value = tbl
                             .get("sort")
                             .ok()
-                            .and_then(|v| self.lua.from_value::<serde_json::Value>(v).ok())
+                            .and_then(|v| {
+                                self.lua.from_value::<serde_json::Value>(v).ok()
+                            })
                             .unwrap_or_else(|| serde_json::json!(label));
                         let parent: Option<String> = tbl
                             .get::<Option<String>>("parent")
@@ -595,7 +589,8 @@ impl ResolvedConfig {
         let mut evaluated = engine.evaluate_config(&path)?;
 
         if let Some(ref manifests) = evaluated.app.compiler.manifests {
-            let validated = crate::compiler::manifest::validate_and_filter_manifest_names(manifests)?;
+            let validated =
+                crate::compiler::manifest::validate_and_filter_manifest_names(manifests)?;
             evaluated.app.compiler.manifests = Some(validated);
         }
 
@@ -617,33 +612,62 @@ impl ResolvedConfig {
         }
 
         if !evaluated.app.storage.music_directory.is_empty() {
-            evaluated.app.storage.music_directory = crate::utils::resolve_path(&evaluated.app.storage.music_directory, config_dir).to_string_lossy().to_string();
+            evaluated.app.storage.music_directory = crate::utils::resolve_path(
+                &evaluated.app.storage.music_directory,
+                config_dir,
+            )
+            .to_string_lossy()
+            .to_string();
         }
         if let Some(ref env_path) = evaluated.app.storage.environment {
-            evaluated.app.storage.environment = Some(crate::utils::resolve_path(env_path, config_dir).to_string_lossy().to_string());
+            evaluated.app.storage.environment = Some(
+                crate::utils::resolve_path(env_path, config_dir)
+                    .to_string_lossy()
+                    .to_string(),
+            );
         }
         if !evaluated.app.storage.cache.is_empty() {
-            evaluated.app.storage.cache = crate::utils::resolve_path(&evaluated.app.storage.cache, config_dir).to_string_lossy().to_string();
+            evaluated.app.storage.cache =
+                crate::utils::resolve_path(&evaluated.app.storage.cache, config_dir)
+                    .to_string_lossy()
+                    .to_string();
         }
         if !evaluated.app.storage.state.is_empty() {
-            evaluated.app.storage.state = crate::utils::resolve_path(&evaluated.app.storage.state, config_dir).to_string_lossy().to_string();
+            evaluated.app.storage.state =
+                crate::utils::resolve_path(&evaluated.app.storage.state, config_dir)
+                    .to_string_lossy()
+                    .to_string();
         }
 
         for intf in evaluated.interfaces.values_mut() {
             if let Some(ref dir) = intf.directory {
-                intf.directory = Some(crate::utils::resolve_path(dir, config_dir).to_string_lossy().to_string());
+                intf.directory = Some(
+                    crate::utils::resolve_path(dir, config_dir)
+                        .to_string_lossy()
+                        .to_string(),
+                );
             }
             if let Some(ref run_script) = intf.run {
-                intf.run = Some(crate::utils::resolve_path(run_script, config_dir).to_string_lossy().to_string());
+                intf.run = Some(
+                    crate::utils::resolve_path(run_script, config_dir)
+                        .to_string_lossy()
+                        .to_string(),
+                );
             }
             for asset_path in intf.assets.values_mut() {
-                *asset_path = crate::utils::resolve_path(asset_path, config_dir).to_string_lossy().to_string();
+                *asset_path = crate::utils::resolve_path(asset_path, config_dir)
+                    .to_string_lossy()
+                    .to_string();
             }
         }
 
         for action in evaluated.actions.values_mut() {
             if let Some(ref run_script) = action.run {
-                action.run = Some(crate::utils::resolve_path(run_script, config_dir).to_string_lossy().to_string());
+                action.run = Some(
+                    crate::utils::resolve_path(run_script, config_dir)
+                        .to_string_lossy()
+                        .to_string(),
+                );
             }
         }
 

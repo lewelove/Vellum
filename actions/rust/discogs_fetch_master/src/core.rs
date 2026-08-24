@@ -14,7 +14,9 @@ pub async fn execute(payload: &ActionPayload<ActionConfig>) -> Result<()> {
     for item in &payload.albums {
         let target_dir = &item.path;
         let album_lock = &item.lock;
-        let album_obj = album_lock.get("album").and_then(serde_json::Value::as_object);
+        let album_obj = album_lock
+            .get("album")
+            .and_then(serde_json::Value::as_object);
         let Some(album_map) = album_obj else {
             continue;
         };
@@ -45,16 +47,22 @@ pub async fn execute(payload: &ActionPayload<ActionConfig>) -> Result<()> {
             .unwrap_or("");
 
         if album_title.is_empty() || album_artist.is_empty() {
-            println!("\x1b[33mSkipping {album_id}: missing album or albumartist metadata\x1b[0m");
+            println!(
+                "\x1b[33mSkipping {album_id}: missing album or albumartist metadata\x1b[0m"
+            );
             continue;
         }
 
-        println!("\x1b[1;34mSearching Discogs for:\x1b[0m artist=\"{album_artist}\" album=\"{album_title}\"");
+        println!(
+            "\x1b[1;34mSearching Discogs for:\x1b[0m artist=\"{album_artist}\" album=\"{album_title}\""
+        );
 
         let results = fetcher.search_masters(album_artist, album_title).await?;
 
         if results.is_empty() {
-            println!("\x1b[31mNo Discogs master releases found for {album_artist} - {album_title}\x1b[0m");
+            println!(
+                "\x1b[31mNo Discogs master releases found for {album_artist} - {album_title}\x1b[0m"
+            );
             continue;
         }
 
@@ -69,7 +77,8 @@ pub async fn execute(payload: &ActionPayload<ActionConfig>) -> Result<()> {
 
                 let master_data = fetcher.fetch_master_detail(master_id).await?;
 
-                fs::create_dir_all(&info_dir).context("Failed to create Info directory")?;
+                fs::create_dir_all(&info_dir)
+                    .context("Failed to create Info directory")?;
 
                 let pretty_json = serde_json::to_string_pretty(&master_data)
                     .context("Failed to serialize master JSON")?;

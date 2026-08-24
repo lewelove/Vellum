@@ -69,7 +69,12 @@ pub fn value_to_sort_key(val: &Value) -> SortKey {
                     _ => k1.cmp(k2),
                 }
             });
-            SortKey::Tuple(entries.into_iter().map(|(_, v)| value_to_sort_key(v)).collect())
+            SortKey::Tuple(
+                entries
+                    .into_iter()
+                    .map(|(_, v)| value_to_sort_key(v))
+                    .collect(),
+            )
         }
         Value::Bool(b) => SortKey::Number(i64::from(*b)),
         Value::Null => SortKey::String(String::new()),

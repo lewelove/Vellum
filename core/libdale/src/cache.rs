@@ -5,10 +5,7 @@ use std::fs;
 use std::path::Path;
 use std::time::SystemTime;
 
-pub fn read_object_cached(
-    path: &Path,
-    cache_root: &Path,
-) -> Result<Value, DaleError> {
+pub fn read_object_cached(path: &Path, cache_root: &Path) -> Result<Value, DaleError> {
     let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
 
     let parse_as_json = if ext.eq_ignore_ascii_case("json") {
@@ -50,9 +47,11 @@ pub fn read_object_cached(
     let json_val = if raw.trim().is_empty() {
         Value::Null
     } else if parse_as_json {
-        serde_json::from_str::<Value>(&raw).map_err(|source| DaleError::JsonParseError {
-            path: path.to_path_buf(),
-            source,
+        serde_json::from_str::<Value>(&raw).map_err(|source| {
+            DaleError::JsonParseError {
+                path: path.to_path_buf(),
+                source,
+            }
         })?
     } else {
         let toml_val = toml::from_str::<toml::Value>(&raw).map_err(|source| {

@@ -280,7 +280,8 @@ fn test_d_fs_parents() {
         end
         return parents
     "#;
-    let rel_parents: Vec<String> = engine.lua.load(rel_code).eval().expect("Execution failed");
+    let rel_parents: Vec<String> =
+        engine.lua.load(rel_code).eval().expect("Execution failed");
     assert_eq!(rel_parents, vec!["a/b/c", "a/b", "a"]);
 
     let empty_code = r#"
@@ -290,7 +291,11 @@ fn test_d_fs_parents() {
         end
         return count
     "#;
-    let count: u32 = engine.lua.load(empty_code).eval().expect("Execution failed");
+    let count: u32 = engine
+        .lua
+        .load(empty_code)
+        .eval()
+        .expect("Execution failed");
     assert_eq!(count, 0);
 }
 
@@ -307,7 +312,8 @@ fn test_d_fs_dir() {
     std::fs::create_dir_all(&sub_nested).expect("Failed to create nested dir");
     std::fs::create_dir_all(&sub_b).expect("Failed to create sub_b dir");
 
-    std::fs::write(temp_dir.0.join("root_file.txt"), "root").expect("Failed to write file");
+    std::fs::write(temp_dir.0.join("root_file.txt"), "root")
+        .expect("Failed to write file");
     std::fs::write(sub_a.join("a_file.lrc"), "lyrics").expect("Failed to write file");
     std::fs::write(sub_nested.join("deep.flac"), "audio").expect("Failed to write file");
 
@@ -320,11 +326,20 @@ fn test_d_fs_dir() {
         return names
     "#
     );
-    let names_depth1: Table = engine.lua.load(&code_depth1).eval().expect("Execution failed");
+    let names_depth1: Table = engine
+        .lua
+        .load(&code_depth1)
+        .eval()
+        .expect("Execution failed");
     assert_eq!(names_depth1.get::<String>("root_file.txt").unwrap(), "file");
     assert_eq!(names_depth1.get::<String>("sub_a").unwrap(), "directory");
     assert_eq!(names_depth1.get::<String>("sub_b").unwrap(), "directory");
-    assert!(names_depth1.get::<Option<String>>("a_file.lrc").unwrap().is_none());
+    assert!(
+        names_depth1
+            .get::<Option<String>>("a_file.lrc")
+            .unwrap()
+            .is_none()
+    );
 
     let code_recursive = format!(
         r#"
@@ -335,10 +350,17 @@ fn test_d_fs_dir() {
         return rel_paths
     "#
     );
-    let rel_paths: Table = engine.lua.load(&code_recursive).eval().expect("Execution failed");
+    let rel_paths: Table = engine
+        .lua
+        .load(&code_recursive)
+        .eval()
+        .expect("Execution failed");
     assert_eq!(rel_paths.get::<String>("root_file.txt").unwrap(), "file");
     assert_eq!(rel_paths.get::<String>("sub_a/a_file.lrc").unwrap(), "file");
-    assert_eq!(rel_paths.get::<String>("sub_a/nested/deep.flac").unwrap(), "file");
+    assert_eq!(
+        rel_paths.get::<String>("sub_a/nested/deep.flac").unwrap(),
+        "file"
+    );
 
     let code_skip = format!(
         r#"
@@ -354,7 +376,11 @@ fn test_d_fs_dir() {
         return visited
     "#
     );
-    let visited: Vec<String> = engine.lua.load(&code_skip).eval().expect("Execution failed");
+    let visited: Vec<String> = engine
+        .lua
+        .load(&code_skip)
+        .eval()
+        .expect("Execution failed");
     assert!(visited.iter().any(|p| p == "sub_a"));
     assert!(!visited.iter().any(|p| p.starts_with("sub_a/")));
     assert!(visited.iter().any(|p| p == "root_file.txt"));
@@ -372,7 +398,11 @@ fn test_d_fs_dir() {
         return skip_calls
     "#
     );
-    let skip_calls: Vec<String> = engine.lua.load(&code_skip_calls).eval().expect("Execution failed");
+    let skip_calls: Vec<String> = engine
+        .lua
+        .load(&code_skip_calls)
+        .eval()
+        .expect("Execution failed");
     assert!(skip_calls.contains(&"sub_a".to_string()));
     assert!(skip_calls.contains(&"sub_b".to_string()));
     assert_eq!(skip_calls.iter().filter(|p| *p == "sub_a").count(), 1);
@@ -384,7 +414,11 @@ fn test_d_fs_dir() {
         end
         return count
     "#;
-    let non_existent_count: u32 = engine.lua.load(non_existent_code).eval().expect("Execution failed");
+    let non_existent_count: u32 = engine
+        .lua
+        .load(non_existent_code)
+        .eval()
+        .expect("Execution failed");
     assert_eq!(non_existent_count, 0);
 }
 
@@ -404,14 +438,22 @@ fn test_d_fs_find() {
     let code_exact = format!(
         r#"return d.fs.find('track.lrc', {{ path = '{root_path}', type = 'file', limit = math.huge }})"#
     );
-    let exact_res: Vec<String> = engine.lua.load(&code_exact).eval().expect("Execution failed");
+    let exact_res: Vec<String> = engine
+        .lua
+        .load(&code_exact)
+        .eval()
+        .expect("Execution failed");
     assert_eq!(exact_res.len(), 1);
     assert_eq!(exact_res[0], target_file_str);
 
     let code_table = format!(
         r#"return d.fs.find({{ 'track.lrc', 'nonexistent.txt' }}, {{ path = '{root_path}', type = 'file', limit = math.huge }})"#
     );
-    let table_res: Vec<String> = engine.lua.load(&code_table).eval().expect("Execution failed");
+    let table_res: Vec<String> = engine
+        .lua
+        .load(&code_table)
+        .eval()
+        .expect("Execution failed");
     assert_eq!(table_res.len(), 1);
     assert_eq!(table_res[0], target_file_str);
 
@@ -423,7 +465,11 @@ fn test_d_fs_find() {
         end, {{ path = '{nested_str}', upward = true, limit = 1 }})
     "#
     );
-    let pred_up_res: Vec<String> = engine.lua.load(&code_pred_up).eval().expect("Execution failed");
+    let pred_up_res: Vec<String> = engine
+        .lua
+        .load(&code_pred_up)
+        .eval()
+        .expect("Execution failed");
     assert_eq!(pred_up_res.len(), 1);
     assert_eq!(pred_up_res[0], target_file_str);
 
@@ -447,12 +493,18 @@ fn test_d_fs_root() {
     let deep_str = deep_dir.to_string_lossy().to_string();
 
     let code = format!(r#"return d.fs.root('{deep_str}', 'project_marker.toml')"#);
-    let root_dir: Option<String> = engine.lua.load(&code).eval().expect("Execution failed");
+    let root_dir: Option<String> =
+        engine.lua.load(&code).eval().expect("Execution failed");
     assert!(root_dir.is_some());
     assert_eq!(root_dir.unwrap(), root_path);
 
-    let missing_code = format!(r#"return d.fs.root('{deep_str}', 'non_existent_marker.toml')"#);
-    let missing_root: Option<String> = engine.lua.load(&missing_code).eval().expect("Execution failed");
+    let missing_code =
+        format!(r#"return d.fs.root('{deep_str}', 'non_existent_marker.toml')"#);
+    let missing_root: Option<String> = engine
+        .lua
+        .load(&missing_code)
+        .eval()
+        .expect("Execution failed");
     assert!(missing_root.is_none());
 }
 
@@ -474,10 +526,18 @@ fn test_d_fs_exists() {
         .expect("Execution failed");
     assert!(!not_exists);
 
-    let nil_arg: bool = engine.lua.load("return d.fs.exists(nil)").eval().expect("Execution failed");
+    let nil_arg: bool = engine
+        .lua
+        .load("return d.fs.exists(nil)")
+        .eval()
+        .expect("Execution failed");
     assert!(!nil_arg);
 
-    let empty_arg: bool = engine.lua.load("return d.fs.exists('')").eval().expect("Execution failed");
+    let empty_arg: bool = engine
+        .lua
+        .load("return d.fs.exists('')")
+        .eval()
+        .expect("Execution failed");
     assert!(!empty_arg);
 }
 
@@ -500,10 +560,18 @@ fn test_d_fs_read() {
     assert!(deps.iter().any(|d| d.to_string_lossy().contains(&path_str)));
 
     let missing_code = "return d.fs.read('/tmp/non_existent_dale_test_file.tmp')";
-    let missing_res: Option<String> = engine.lua.load(missing_code).eval().expect("Execution failed");
+    let missing_res: Option<String> = engine
+        .lua
+        .load(missing_code)
+        .eval()
+        .expect("Execution failed");
     assert!(missing_res.is_none());
 
-    let nil_res: Option<String> = engine.lua.load("return d.fs.read(nil)").eval().expect("Execution failed");
+    let nil_res: Option<String> = engine
+        .lua
+        .load("return d.fs.read(nil)")
+        .eval()
+        .expect("Execution failed");
     assert!(nil_res.is_none());
 }
 
@@ -526,17 +594,29 @@ fn test_d_fs_read_lines() {
         return {{ t[1], t['first'], t[2], t['second'] }}
     "#
     );
-    let lookup: Vec<mlua::Value> = engine.lua.load(&lookup_code).eval().expect("Execution failed");
+    let lookup: Vec<mlua::Value> = engine
+        .lua
+        .load(&lookup_code)
+        .eval()
+        .expect("Execution failed");
     assert_eq!(lookup.len(), 4);
 
     let comments_only_file = TempFile::new("# first comment\n# second comment\n");
     let comments_path = comments_only_file.path_str();
     let comments_code = format!("return d.fs.read_lines('{comments_path}')");
-    let comments_table: Table = engine.lua.load(&comments_code).eval().expect("Execution failed");
+    let comments_table: Table = engine
+        .lua
+        .load(&comments_code)
+        .eval()
+        .expect("Execution failed");
     assert_eq!(comments_table.raw_len(), 0);
 
     let missing_code = "return d.fs.read_lines('/tmp/non_existent_dale_test_file.tmp')";
-    let missing_lines: Table = engine.lua.load(missing_code).eval().expect("Execution failed");
+    let missing_lines: Table = engine
+        .lua
+        .load(missing_code)
+        .eval()
+        .expect("Execution failed");
     assert_eq!(missing_lines.raw_len(), 0);
 }
 
@@ -556,7 +636,11 @@ fn test_d_fs_read_json() {
     assert_eq!(count, 12);
 
     let missing_code = "return d.fs.read_json('/tmp/non_existent_dale_test_file.json')";
-    let missing_res: Option<Table> = engine.lua.load(missing_code).eval().expect("Execution failed");
+    let missing_res: Option<Table> = engine
+        .lua
+        .load(missing_code)
+        .eval()
+        .expect("Execution failed");
     assert!(missing_res.is_none());
 
     let bad_file = TempFile::with_extension("{invalid_json", "json");
@@ -591,7 +675,11 @@ year = 2024"#;
     assert_eq!(year, 2024);
 
     let missing_code = "return d.fs.read_toml('/tmp/non_existent_dale_test_file.toml')";
-    let missing_res: Option<Table> = engine.lua.load(missing_code).eval().expect("Execution failed");
+    let missing_res: Option<Table> = engine
+        .lua
+        .load(missing_code)
+        .eval()
+        .expect("Execution failed");
     assert!(missing_res.is_none());
 
     let bad_file = TempFile::with_extension("[album", "toml");

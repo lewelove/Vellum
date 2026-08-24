@@ -1,11 +1,12 @@
 use crate::compile;
 use crate::server::state::{AppState, PendingUpdateParams, UpdateScope};
 use crate::update::cache::{
-    calculate_path_hash, deps_graph_path, library_cache_dir, load_cache, save_cache, validate_library_root,
+    calculate_path_hash, deps_graph_path, library_cache_dir, load_cache, save_cache,
+    validate_library_root,
 };
 use crate::update::queue::{
-    check_lua_config_changed, resolve_work_queue, try_get_server_tracked_albums,
-    update_cache_entries, WorkQueueContext,
+    WorkQueueContext, check_lua_config_changed, resolve_work_queue,
+    try_get_server_tracked_albums, update_cache_entries,
 };
 use anyhow::Result;
 use std::collections::HashSet;
@@ -27,8 +28,12 @@ pub fn emit_log(msg: &str, silent: bool, log_txs: &[tokio::sync::mpsc::Sender<St
         log::info!("{msg}");
     }
     for tx in log_txs {
-        if let Err(tokio::sync::mpsc::error::TrySendError::Full(_)) = tx.try_send(msg.to_string()) {
-            log::warn!("Update log receiver queue full; dropping message for stream subscriber.");
+        if let Err(tokio::sync::mpsc::error::TrySendError::Full(_)) =
+            tx.try_send(msg.to_string())
+        {
+            log::warn!(
+                "Update log receiver queue full; dropping message for stream subscriber."
+            );
         }
     }
 }
@@ -65,7 +70,10 @@ pub fn spawn_server_ingest_handler(
                 if payload.eval_res.is_none() && !payload.album_dir.exists() {
                     vanished_paths.insert(payload.album_dir);
                 } else if let Some(eval) = payload.eval_res {
-                    if payload.modified && !payload.lock_json.is_empty() && !payload.id.is_empty() {
+                    if payload.modified
+                        && !payload.lock_json.is_empty()
+                        && !payload.id.is_empty()
+                    {
                         logs.push(format!("Updated lock: {}", payload.id));
                     }
                     items.push((
@@ -277,7 +285,14 @@ async fn run_server_update_pass(
     .await?;
 
     let deps_graph_guard = state.deps_graph.read().await;
-    update_cache_entries(&mut cache, &deps_graph_guard, &work_queue, &missing_paths, &music_directory, silent);
+    update_cache_entries(
+        &mut cache,
+        &deps_graph_guard,
+        &work_queue,
+        &missing_paths,
+        &music_directory,
+        silent,
+    );
     drop(deps_graph_guard);
 
     let elapsed = start_time.elapsed().as_millis();
@@ -305,11 +320,7 @@ async fn process_missing_and_compile(
 
     for missing in ctx.missing_paths {
         let album_id = libdale::resolvers::rel_path(missing, ctx.music_directory);
-        emit_log(
-            &format!("Removed album: {album_id}"),
-            ctx.silent,
-            log_txs,
-        );
+        emit_log(&format!("Removed album: {album_id}"), ctx.silent, log_txs);
         let _ = ingest_tx
             .send(crate::server::api::system::AlbumIngestPayload {
                 album_dir: missing.clone(),

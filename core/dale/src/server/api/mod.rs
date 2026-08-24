@@ -15,14 +15,23 @@ pub fn router(state: Arc<AppState>) -> Router {
     Router::new()
         .route("/ws", get(websocket::ws_handler))
         .route("/api/state", post(system::update_state))
-        .route("/api/internal/notify_force_update", post(system::notify_force_update))
+        .route(
+            "/api/internal/notify_force_update",
+            post(system::notify_force_update),
+        )
         .route("/api/internal/reset", post(system::trigger_full_reset))
         .route("/api/internal/reload", post(system::trigger_reload))
         .route("/api/internal/ingest", post(system::ingest_reload_payloads))
         .route("/api/internal/trigger_update", post(system::trigger_update))
         .route("/api/internal/query", post(system::run_query))
-        .route("/api/internal/tracked_albums", get(system::get_tracked_albums))
-        .route("/api/covers/{algo}/{size}/{hash}", get(assets::get_resized_cover))
+        .route(
+            "/api/internal/tracked_albums",
+            get(system::get_tracked_albums),
+        )
+        .route(
+            "/api/covers/{algo}/{size}/{hash}",
+            get(assets::get_resized_cover),
+        )
         .route("/api/album/{*id}", get(assets::get_album_metadata))
         .route("/api/assets/cover/{*id}", get(assets::get_album_cover))
         .route("/api/play/{*id}", post(playback::play_album))
@@ -35,8 +44,14 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/api/clear", post(playback::clear_queue))
         .route("/api/toggle-pause", post(playback::toggle_pause))
         .route("/api/update-album/{*id}", post(system::force_update_album))
-        .route("/api/interfaces/{name}/config", get(system::get_interface_config))
-        .route("/api/interfaces/{name}/assets/{*path}", get(system::serve_interface_asset))
+        .route(
+            "/api/interfaces/{name}/config",
+            get(system::get_interface_config),
+        )
+        .route(
+            "/api/interfaces/{name}/assets/{*path}",
+            get(system::serve_interface_asset),
+        )
         .route("/api/actions/{name}", any(actions::execute_action))
         .with_state(state)
 }

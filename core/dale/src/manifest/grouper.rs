@@ -3,7 +3,8 @@ use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
-pub type GroupedTracks = HashMap<Vec<String>, Vec<(PathBuf, serde_json::Map<String, Value>)>>;
+pub type GroupedTracks =
+    HashMap<Vec<String>, Vec<(PathBuf, serde_json::Map<String, Value>)>>;
 
 pub fn normalize_tag(value: Option<&Value>) -> String {
     match value {
@@ -27,7 +28,8 @@ pub fn group_tracks(
     let mut buckets: GroupedTracks = HashMap::new();
 
     for (path, mut track) in tracks {
-        let group_key: Vec<String> = keys.iter().map(|k| normalize_tag(track.get(k))).collect();
+        let group_key: Vec<String> =
+            keys.iter().map(|k| normalize_tag(track.get(k))).collect();
         track.insert(
             "track_path_absolute".to_string(),
             Value::String(path.to_string_lossy().to_string()),
@@ -89,7 +91,11 @@ pub fn resolve_anchor<S: AsRef<str>>(
     }
 
     let mut valid = true;
-    for entry in walkdir::WalkDir::new(&anchor).follow_links(true).into_iter().filter_map(Result::ok) {
+    for entry in walkdir::WalkDir::new(&anchor)
+        .follow_links(true)
+        .into_iter()
+        .filter_map(Result::ok)
+    {
         if !entry.file_type().is_file() {
             continue;
         }

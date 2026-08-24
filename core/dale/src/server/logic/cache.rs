@@ -1,18 +1,23 @@
-use super::{value_to_sort_key, LogicEngine, SortKey};
+use super::{LogicEngine, SortKey, value_to_sort_key};
 use libdale::lua::{FormattedGrouperResult, GrouperFormatContext};
 use roaring::RoaringBitmap;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::collections::{HashMap, HashSet};
 
 fn value_to_display_string(val: &Value) -> String {
-    val.as_str().map_or_else(|| val.to_string(), ToString::to_string)
+    val.as_str()
+        .map_or_else(|| val.to_string(), ToString::to_string)
 }
 
 fn sort_val_to_string(val: &Value) -> String {
     match val {
         Value::String(s) => s.clone(),
         Value::Number(n) => n.to_string(),
-        Value::Array(arr) => arr.iter().map(sort_val_to_string).collect::<Vec<_>>().join(" "),
+        Value::Array(arr) => arr
+            .iter()
+            .map(sort_val_to_string)
+            .collect::<Vec<_>>()
+            .join(" "),
         Value::Object(map) => {
             let mut entries: Vec<_> = map.iter().collect();
             entries.sort_by(|(k1, _), (k2, _)| {
@@ -23,7 +28,11 @@ fn sort_val_to_string(val: &Value) -> String {
                     _ => k1.cmp(k2),
                 }
             });
-            entries.into_iter().map(|(_, v)| sort_val_to_string(v)).collect::<Vec<_>>().join(" ")
+            entries
+                .into_iter()
+                .map(|(_, v)| sort_val_to_string(v))
+                .collect::<Vec<_>>()
+                .join(" ")
         }
         Value::Bool(b) => b.to_string(),
         Value::Null => String::new(),
@@ -244,7 +253,10 @@ fn build_raw_grouper_nodes(
 fn assemble_grouper_tree(raw_nodes: Vec<RawGrouperNode>, reverse: bool) -> Vec<Value> {
     let mut children_map: HashMap<Option<String>, Vec<RawGrouperNode>> = HashMap::new();
     for node in raw_nodes {
-        children_map.entry(node.parent.clone()).or_default().push(node);
+        children_map
+            .entry(node.parent.clone())
+            .or_default()
+            .push(node);
     }
 
     let mut roots = children_map.remove(&None).unwrap_or_default();
@@ -320,7 +332,8 @@ impl LogicEngine {
         for (&uid, eval_res) in &self.evaluated_logic {
             if let Some(groupers) = eval_res.get("groupers").and_then(Value::as_object) {
                 for (grouper_id, val) in groupers {
-                    let grouper_entry = self.groupers_cache.entry(grouper_id.clone()).or_default();
+                    let grouper_entry =
+                        self.groupers_cache.entry(grouper_id.clone()).or_default();
                     if let Some(arr) = val.as_array() {
                         for item in arr {
                             let group_name = value_to_display_string(item);
@@ -339,7 +352,10 @@ impl LogicEngine {
         }
     }
 
-    fn propagate_global_parent_unions(&mut self, lua_engine: Option<&libdale::lua::LuaEngine>) {
+    fn propagate_global_parent_unions(
+        &mut self,
+        lua_engine: Option<&libdale::lua::LuaEngine>,
+    ) {
         let Some(engine) = lua_engine else {
             return;
         };
@@ -484,25 +500,30 @@ impl LogicEngine {
         filter_opt: Option<&str>,
         view_mask: &RoaringBitmap,
     ) {
-        let allowed_groupers: Vec<String> = self.manifest.libraries.get(lib_id).map_or_else(
-            || self.manifest.groupers.keys().cloned().collect(),
-            |l| {
-                if l.allowed_groupers.is_empty() {
-                    if l.groupers.is_empty() {
-                        self.manifest.groupers.keys().cloned().collect()
+        let allowed_groupers: Vec<String> =
+            self.manifest.libraries.get(lib_id).map_or_else(
+                || self.manifest.groupers.keys().cloned().collect(),
+                |l| {
+                    if l.allowed_groupers.is_empty() {
+                        if l.groupers.is_empty() {
+                            self.manifest.groupers.keys().cloned().collect()
+                        } else {
+                            l.groupers.clone()
+                        }
                     } else {
-                        l.groupers.clone()
+                        l.allowed_groupers.clone()
                     }
-                } else {
-                    l.allowed_groupers.clone()
-                }
-            },
-        );
+                },
+            );
 
         for grouper_id in allowed_groupers {
             let final_list = self.build_grouper_items(lua_engine, &grouper_id, view_mask);
             self.precomputed_groups.insert(
-                (lib_id.to_string(), filter_opt.map(ToString::to_string), grouper_id),
+                (
+                    lib_id.to_string(),
+                    filter_opt.map(ToString::to_string),
+                    grouper_id,
+                ),
                 final_list,
             );
         }
@@ -582,7 +603,8 @@ impl LogicEngine {
                 order_pairs.reverse();
             }
 
-            let sorted_uids: Vec<u32> = order_pairs.into_iter().map(|(uid, _)| uid).collect();
+            let sorted_uids: Vec<u32> =
+                order_pairs.into_iter().map(|(uid, _)| uid).collect();
             self.orders_cache.insert(order_id.clone(), sorted_uids);
         }
     }

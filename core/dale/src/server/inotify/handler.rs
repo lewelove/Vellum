@@ -68,18 +68,10 @@ async fn log_detected_events(
         paths
             .iter()
             .filter_map(|p| {
-                logic
-                    .albums_by_path
-                    .get(p)
-                    .cloned()
-                    .or_else(|| {
-                        let rel = libdale::resolvers::rel_path(p, &music_directory);
-                        if rel.is_empty() {
-                            None
-                        } else {
-                            Some(rel)
-                        }
-                    })
+                logic.albums_by_path.get(p).cloned().or_else(|| {
+                    let rel = libdale::resolvers::rel_path(p, &music_directory);
+                    if rel.is_empty() { None } else { Some(rel) }
+                })
             })
             .collect()
     };
@@ -98,14 +90,14 @@ async fn recompile_changed_albums(
     active_writes: Arc<Mutex<HashSet<PathBuf>>>,
 ) -> Vec<RecompiledAlbumItem> {
     let config_path = libdale::lua::resolve_config_path().unwrap_or_default();
-    let resolved_lua_config =
-        if let Ok(Ok(cfg)) = tokio::task::spawn_blocking(libdale::lua::ResolvedConfig::load).await
-        {
-            Arc::new(cfg)
-        } else {
-            log::error!("Failed to load resolved config for album update");
-            return Vec::new();
-        };
+    let resolved_lua_config = if let Ok(Ok(cfg)) =
+        tokio::task::spawn_blocking(libdale::lua::ResolvedConfig::load).await
+    {
+        Arc::new(cfg)
+    } else {
+        log::error!("Failed to load resolved config for album update");
+        return Vec::new();
+    };
 
     tokio::task::spawn_blocking(move || {
         let config_ref = &resolved_lua_config;
@@ -119,17 +111,26 @@ async fn recompile_changed_albums(
                     Ok(engine) => match engine.evaluate_config(config_path_ref) {
                         Ok(_) => Some(engine),
                         Err(e) => {
-                            log::error!("Failed to evaluate config in inotify handler: {e}");
+                            log::error!(
+                                "Failed to evaluate config in inotify handler: {e}"
+                            );
                             None
                         }
                     },
                     Err(e) => {
-                        log::error!("Failed to initialize Lua engine in inotify handler: {e}");
+                        log::error!(
+                            "Failed to initialize Lua engine in inotify handler: {e}"
+                        );
                         None
                     }
                 },
                 |engine_opt, album_path| {
-                    recompile_single_album(&album_path, config_ref, engine_opt.as_ref(), &active_writes)
+                    recompile_single_album(
+                        &album_path,
+                        config_ref,
+                        engine_opt.as_ref(),
+                        &active_writes,
+                    )
                 },
             )
             .flatten()
@@ -145,13 +146,17 @@ fn recompile_single_album(
     engine_opt: Option<&libdale::lua::LuaEngine>,
     active_writes: &Arc<Mutex<HashSet<PathBuf>>>,
 ) -> Option<RecompiledAlbumItem> {
-    let canon = album_path.canonicalize().unwrap_or_else(|_| album_path.to_path_buf());
+    let canon = album_path
+        .canonicalize()
+        .unwrap_or_else(|_| album_path.to_path_buf());
     let canon_display = canon.display();
     let lock_file_path = album_path.join("album.lock.json");
     let lock_canon = canon.join("album.lock.json");
 
     let Some(engine) = engine_opt else {
-        log::error!("Skipping recompilation of {canon_display} due to Lua engine init failure");
+        log::error!(
+            "Skipping recompilation of {canon_display} due to Lua engine init failure"
+        );
         return None;
     };
 
@@ -179,8 +184,8 @@ fn recompile_single_album(
         }
     };
 
-    let should_write =
-        std::fs::read_to_string(&lock_file_path).map_or(true, |existing| existing != lock_json);
+    let should_write = std::fs::read_to_string(&lock_file_path)
+        .map_or(true, |existing| existing != lock_json);
 
     if should_write {
         if let Ok(mut active) = active_writes.lock() {
@@ -191,7 +196,13 @@ fn recompile_single_album(
         log::info!("Updated lock: {}", res.album_id);
     }
 
-    Some((res.album_dir, res.album_id, lock_json, Some(eval_res), res.dependencies))
+    Some((
+        res.album_dir,
+        res.album_id,
+        lock_json,
+        Some(eval_res),
+        res.dependencies,
+    ))
 }
 
 fn remove_vanished_albums(
@@ -207,7 +218,8 @@ fn remove_vanished_albums(
         .filter(|path| {
             vanished_paths.iter().any(|vanished| {
                 path.starts_with(vanished)
-                    || (vanished.starts_with(*path) && !path.join("metadata.toml").exists())
+                    || (vanished.starts_with(*path)
+                        && !path.join("metadata.toml").exists())
             })
         })
         .cloned()
@@ -234,7 +246,9 @@ fn ingest_recompiled_items(
     outcome: &mut IngestOutcome,
 ) {
     for (album_path, album_id, lock_json, eval_res, dependencies) in items {
-        let canon = album_path.canonicalize().unwrap_or_else(|_| album_path.clone());
+        let canon = album_path
+            .canonicalize()
+            .unwrap_or_else(|_| album_path.clone());
         if let Some(eval) = eval_res {
             match logic.ingest_pre_evaluated(
                 &album_path,
@@ -356,9 +370,7 @@ async fn handle_config_change(state: &Arc<AppState>) {
                 config_guard.covers.clone_from(&covers);
                 config_guard.interfaces.clone_from(&new_interfaces);
                 config_guard.actions.clone_from(&new_actions);
-                config_guard
-                    .resolved_dependencies
-                    .clone_from(&dependencies);
+                config_guard.resolved_dependencies.clone_from(&dependencies);
             }
 
             let manifest = {

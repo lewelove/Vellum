@@ -2,13 +2,13 @@ pub mod cache;
 pub mod query;
 pub mod sort;
 
-pub use sort::{value_to_sort_key, SortKey};
+pub use sort::{SortKey, value_to_sort_key};
 
 use anyhow::Result;
 use libdale::error::DaleError;
-use libdale::lua::{with_evaluated_lua_vm, LogicManifest};
+use libdale::lua::{LogicManifest, with_evaluated_lua_vm};
 use roaring::RoaringBitmap;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
@@ -157,7 +157,8 @@ impl LogicEngine {
                     id: id.to_string(),
                     path_a: existing_path.clone(),
                     path_b: album_dir_canon.to_path_buf(),
-                }.into());
+                }
+                .into());
             }
             let existing_path_clone = existing_path.clone();
             self.remove_album_by_path(&existing_path_clone);
@@ -191,20 +192,23 @@ impl LogicEngine {
                     .unwrap_or("");
                 if !rel.is_empty() {
                     let abs_track_path = album_dir_canon.join(rel);
-                    let mpd_uri_raw = abs_track_path
-                        .strip_prefix(music_directory)
-                        .map_or_else(
+                    let mpd_uri_raw =
+                        abs_track_path.strip_prefix(music_directory).map_or_else(
                             |_| abs_track_path.to_string_lossy().to_string(),
                             |p| p.to_string_lossy().to_string(),
                         );
                     let mpd_uri = mpd_uri_raw.trim_start_matches('/').to_string();
 
-                    let track_no =
-                        track.get("tracknumber").cloned().unwrap_or_else(|| json!(0));
+                    let track_no = track
+                        .get("tracknumber")
+                        .cloned()
+                        .unwrap_or_else(|| json!(0));
                     let disc_no =
                         track.get("discnumber").cloned().unwrap_or_else(|| json!(1));
-                    let title =
-                        track.get("title").cloned().unwrap_or_else(|| json!("Unknown"));
+                    let title = track
+                        .get("title")
+                        .cloned()
+                        .unwrap_or_else(|| json!("Unknown"));
                     let artist = track
                         .get("artist")
                         .cloned()
@@ -244,7 +248,9 @@ impl LogicEngine {
         eval_res: Value,
         music_directory: &Path,
     ) -> Result<()> {
-        let album_dir_canon = album_dir.canonicalize().unwrap_or_else(|_| album_dir.to_path_buf());
+        let album_dir_canon = album_dir
+            .canonicalize()
+            .unwrap_or_else(|_| album_dir.to_path_buf());
         self.validate_and_cleanup_paths(&album_dir_canon, id)?;
 
         let uid = self.next_uid;
@@ -254,26 +260,53 @@ impl LogicEngine {
 
         self.uid_to_id.insert(uid, id.to_string());
         self.id_to_uid.insert(id.to_string(), uid);
-        self.albums_by_path.insert(album_dir_canon.clone(), id.to_string());
-        self.path_by_id.insert(id.to_string(), album_dir_canon.clone());
-        self.lock_cache.insert(id.to_string(), metadata_json.to_string());
+        self.albums_by_path
+            .insert(album_dir_canon.clone(), id.to_string());
+        self.path_by_id
+            .insert(id.to_string(), album_dir_canon.clone());
+        self.lock_cache
+            .insert(id.to_string(), metadata_json.to_string());
 
         if let Some(album) = parsed.get("album")
             && let Some(info) = album.get("info")
         {
-            let duration_ms = info.get("duration_milliseconds").and_then(Value::as_u64).unwrap_or(0);
-            let total_tracks = info.get("total_tracks").and_then(Value::as_u64).unwrap_or(0);
-            let total_discs = info.get("total_discs").and_then(Value::as_u64).unwrap_or(1);
-            self.album_metrics.insert(uid, (duration_ms, total_tracks, total_discs));
+            let duration_ms = info
+                .get("duration_milliseconds")
+                .and_then(Value::as_u64)
+                .unwrap_or(0);
+            let total_tracks = info
+                .get("total_tracks")
+                .and_then(Value::as_u64)
+                .unwrap_or(0);
+            let total_discs =
+                info.get("total_discs").and_then(Value::as_u64).unwrap_or(1);
+            self.album_metrics
+                .insert(uid, (duration_ms, total_tracks, total_discs));
 
             if let Some(tracks) = parsed.get("tracks").and_then(Value::as_array) {
-                self.ingest_tracks_and_lookup(tracks, &album_dir_canon, id, music_directory);
+                self.ingest_tracks_and_lookup(
+                    tracks,
+                    &album_dir_canon,
+                    id,
+                    music_directory,
+                );
             }
 
-            let cover_path_val = album.get("covers").and_then(|c| c.get("main")).and_then(|m| m.get("file")).and_then(|f| f.get("path"));
-            let cover_hash_val = album.get("covers").and_then(|c| c.get("main")).and_then(|m| m.get("file")).and_then(|f| f.get("address"));
+            let cover_path_val = album
+                .get("covers")
+                .and_then(|c| c.get("main"))
+                .and_then(|m| m.get("file"))
+                .and_then(|f| f.get("path"));
+            let cover_hash_val = album
+                .get("covers")
+                .and_then(|c| c.get("main"))
+                .and_then(|m| m.get("file"))
+                .and_then(|f| f.get("address"));
 
-            if let (Some(ch), Some(cp)) = (cover_hash_val.and_then(Value::as_str), cover_path_val.and_then(Value::as_str)) {
+            if let (Some(ch), Some(cp)) = (
+                cover_hash_val.and_then(Value::as_str),
+                cover_path_val.and_then(Value::as_str),
+            ) {
                 self.cover_lookup
                     .entry(ch.to_string())
                     .or_default()

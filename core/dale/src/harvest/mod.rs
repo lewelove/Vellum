@@ -1,4 +1,4 @@
-use libdale::harvest::{is_audio_file, SUPPORTED_AUDIO_EXTENSIONS};
+use libdale::harvest::{SUPPORTED_AUDIO_EXTENSIONS, is_audio_file};
 use rayon::prelude::*;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};

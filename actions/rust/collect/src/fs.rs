@@ -67,7 +67,10 @@ fn write_metadata_toml(data: &AlbumData, path: &Path) -> Result<()> {
     let mut lines = vec![
         "[album]".to_string(),
         String::new(),
-        format!("albumartist = \"{}\"", escape_toml_string(&data.albumartist)),
+        format!(
+            "albumartist = \"{}\"",
+            escape_toml_string(&data.albumartist)
+        ),
         format!("album = \"{}\"", escape_toml_string(&data.album)),
         format!("date = \"{}\"", escape_toml_string(&data.date)),
         "genre = \"\"".to_string(),

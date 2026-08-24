@@ -10,9 +10,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 pub const SUPPORTED_AUDIO_EXTENSIONS: &[&str] = &[
-    "flac", "wav", "wave", "aif", "aiff", "aifc", "afc", "alac", "mp3", "mp2", "mp1", "m4a", "m4b",
-    "m4p", "m4r", "m4v", "mp4", "aac", "3gp", "ogg", "oga", "opus", "spx", "ape", "wv", "mpc",
-    "mp+", "mpp",
+    "flac", "wav", "wave", "aif", "aiff", "aifc", "afc", "alac", "mp3", "mp2", "mp1",
+    "m4a", "m4b", "m4p", "m4r", "m4v", "mp4", "aac", "3gp", "ogg", "oga", "opus", "spx",
+    "ape", "wv", "mpc", "mp+", "mpp",
 ];
 
 #[must_use]
@@ -129,7 +129,10 @@ pub fn harvest_file_cached(path: &Path, cache_root: &Path) -> Result<TrackJson> 
     Ok(harvested)
 }
 
-fn extract_physics(metadata: &std::fs::Metadata, tagged_file: &lofty::file::TaggedFile) -> PhysicsData {
+fn extract_physics(
+    metadata: &std::fs::Metadata,
+    tagged_file: &lofty::file::TaggedFile,
+) -> PhysicsData {
     let file_size = metadata.len();
     let mtime = metadata
         .modified()
@@ -154,8 +157,14 @@ fn extract_physics(metadata: &std::fs::Metadata, tagged_file: &lofty::file::Tagg
     }
 }
 
-fn extract_tags(tagged_file: &lofty::file::TaggedFile, tags: &mut HashMap<String, serde_json::Value>) {
-    let Some(tag) = tagged_file.primary_tag().or_else(|| tagged_file.first_tag()) else {
+fn extract_tags(
+    tagged_file: &lofty::file::TaggedFile,
+    tags: &mut HashMap<String, serde_json::Value>,
+) {
+    let Some(tag) = tagged_file
+        .primary_tag()
+        .or_else(|| tagged_file.first_tag())
+    else {
         return;
     };
 

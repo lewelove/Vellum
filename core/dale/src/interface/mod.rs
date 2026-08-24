@@ -7,10 +7,7 @@ pub async fn execute(name: Option<String>) -> Result<()> {
     let name = raw_name.replace('-', "_");
     let config = libdale::lua::ResolvedConfig::load().context("Failed to load config")?;
 
-    let mut intf_cfg = config.interfaces
-        .get(&name)
-        .cloned()
-        .unwrap_or_default();
+    let mut intf_cfg = config.interfaces.get(&name).cloned().unwrap_or_default();
 
     if name == "default" {
         intf_cfg.enable = true;
@@ -20,10 +17,14 @@ pub async fn execute(name: Option<String>) -> Result<()> {
         anyhow::bail!("Interface '{raw_name}' is not enabled in config.");
     }
 
-    let dir_str = intf_cfg.directory.unwrap_or_else(|| format!("~/.local/share/dale/interfaces/{raw_name}"));
+    let dir_str = intf_cfg
+        .directory
+        .unwrap_or_else(|| format!("~/.local/share/dale/interfaces/{raw_name}"));
     let dir_path = expand_path(&dir_str);
 
-    let run_str = intf_cfg.run.unwrap_or_else(|| format!("{}/run.sh", dir_path.display()));
+    let run_str = intf_cfg
+        .run
+        .unwrap_or_else(|| format!("{}/run.sh", dir_path.display()));
     let run_path = expand_path(&run_str);
 
     if !run_path.exists() {
@@ -37,7 +38,10 @@ pub async fn execute(name: Option<String>) -> Result<()> {
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())
         .spawn()
-        .context(format!("Failed to spawn interface script at {}", run_path.display()))?;
+        .context(format!(
+            "Failed to spawn interface script at {}",
+            run_path.display()
+        ))?;
 
     tokio::select! {
         res = child.wait() => {

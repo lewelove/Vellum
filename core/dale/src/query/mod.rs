@@ -1,4 +1,4 @@
-use crate::x::{resolve_target_albums, TargetFlags};
+use crate::x::{TargetFlags, resolve_target_albums};
 use anyhow::{Context, Result};
 use libdale::utils::expand_path;
 
@@ -31,7 +31,8 @@ pub async fn run(query_str: Option<String>, flags: QueryFlags) -> Result<()> {
     let resolved_albums = resolve_target_albums(&music_dir, &target_flags).await?;
 
     if flags.json {
-        let albums_json: Vec<serde_json::Value> = resolved_albums.into_iter().map(|a| a.lock).collect();
+        let albums_json: Vec<serde_json::Value> =
+            resolved_albums.into_iter().map(|a| a.lock).collect();
         println!("{}", serde_json::to_string_pretty(&albums_json)?);
     } else {
         for album in resolved_albums {

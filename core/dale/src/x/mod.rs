@@ -25,7 +25,9 @@ pub struct ResolvedAlbumTarget {
     pub lock: serde_json::Value,
 }
 
-pub fn load_env_vars_from_path(env_path: Option<&str>) -> std::collections::HashMap<String, String> {
+pub fn load_env_vars_from_path(
+    env_path: Option<&str>,
+) -> std::collections::HashMap<String, String> {
     let mut env_vars = std::collections::HashMap::new();
     if let Some(path_str) = env_path {
         let expanded = expand_path(path_str);
@@ -61,11 +63,15 @@ async fn resolve_by_query(query_str: &str) -> Result<Vec<ResolvedAlbumTarget>> {
         anyhow::bail!("Server rejected query: {err_text}");
     }
 
-    let items: Vec<ResolvedAlbumTarget> = res.json().await.context("Invalid response from server")?;
+    let items: Vec<ResolvedAlbumTarget> =
+        res.json().await.context("Invalid response from server")?;
     Ok(items)
 }
 
-async fn resolve_by_id(id: &str, music_directory: &Path) -> Result<Vec<ResolvedAlbumTarget>> {
+async fn resolve_by_id(
+    id: &str,
+    music_directory: &Path,
+) -> Result<Vec<ResolvedAlbumTarget>> {
     let client = reqwest::Client::new();
     let q_resp = client
         .post("http://127.0.0.1:8000/api/internal/query")
@@ -82,7 +88,11 @@ async fn resolve_by_id(id: &str, music_directory: &Path) -> Result<Vec<ResolvedA
     }
 
     let mut results = Vec::new();
-    for entry in WalkDir::new(music_directory).follow_links(true).into_iter().filter_map(Result::ok) {
+    for entry in WalkDir::new(music_directory)
+        .follow_links(true)
+        .into_iter()
+        .filter_map(Result::ok)
+    {
         if entry.file_name() == "album.lock.json"
             && let Ok(content) = std::fs::read_to_string(entry.path())
             && let Ok(lock_json) = serde_json::from_str::<serde_json::Value>(&content)
@@ -91,7 +101,9 @@ async fn resolve_by_id(id: &str, music_directory: &Path) -> Result<Vec<ResolvedA
         {
             results.push(ResolvedAlbumTarget {
                 id: id.to_string(),
-                path: parent.canonicalize().unwrap_or_else(|_| parent.to_path_buf()),
+                path: parent
+                    .canonicalize()
+                    .unwrap_or_else(|_| parent.to_path_buf()),
                 lock: lock_json,
             });
             break;
@@ -114,7 +126,9 @@ async fn resolve_by_playing(music_directory: &Path) -> Result<Vec<ResolvedAlbumT
             .to_string();
         Ok(vec![ResolvedAlbumTarget {
             id,
-            path: playing_album_dir.canonicalize().unwrap_or(playing_album_dir),
+            path: playing_album_dir
+                .canonicalize()
+                .unwrap_or(playing_album_dir),
             lock: lock_json,
         }])
     } else {
@@ -124,7 +138,11 @@ async fn resolve_by_playing(music_directory: &Path) -> Result<Vec<ResolvedAlbumT
 
 fn resolve_by_scan(root: &Path) -> Vec<ResolvedAlbumTarget> {
     let mut results = Vec::new();
-    for entry in WalkDir::new(root).follow_links(true).into_iter().filter_map(Result::ok) {
+    for entry in WalkDir::new(root)
+        .follow_links(true)
+        .into_iter()
+        .filter_map(Result::ok)
+    {
         if entry.file_name() == "album.lock.json"
             && let Ok(content) = std::fs::read_to_string(entry.path())
             && let Ok(lock_json) = serde_json::from_str::<serde_json::Value>(&content)
@@ -137,7 +155,9 @@ fn resolve_by_scan(root: &Path) -> Vec<ResolvedAlbumTarget> {
                 .to_string();
             results.push(ResolvedAlbumTarget {
                 id,
-                path: parent.canonicalize().unwrap_or_else(|_| parent.to_path_buf()),
+                path: parent
+                    .canonicalize()
+                    .unwrap_or_else(|_| parent.to_path_buf()),
                 lock: lock_json,
             });
         }
@@ -211,7 +231,10 @@ async fn run_external_action(
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())
         .spawn()
-        .context(format!("Failed to spawn action at {}", action_path.display()))?;
+        .context(format!(
+            "Failed to spawn action at {}",
+            action_path.display()
+        ))?;
 
     if let Some(mut stdin) = child.stdin.take() {
         let payload = serde_json::to_string(payload_json)?;
@@ -262,7 +285,10 @@ pub async fn execute(
 
     let action_cfg_opt = config.actions.get(&name_key).cloned();
     let config_json = serde_json::to_value(&config.app)?;
-    let action_config = action_cfg_opt.as_ref().map(|c| c.config.clone()).unwrap_or_default();
+    let action_config = action_cfg_opt
+        .as_ref()
+        .map(|c| c.config.clone())
+        .unwrap_or_default();
 
     let combined_json = serde_json::json!({
         "albums": albums_payload,
@@ -283,11 +309,15 @@ pub async fn execute(
         let action_path = PathBuf::from(&r_str);
 
         if action_path.exists() {
-            let env_vars = load_env_vars_from_path(config.app.storage.environment.as_deref());
+            let env_vars =
+                load_env_vars_from_path(config.app.storage.environment.as_deref());
             run_external_action(&action_path, &env_vars, &combined_json).await?;
             return Ok(());
         }
-        anyhow::bail!("Action '{name}' script not found at path: {}", action_path.display());
+        anyhow::bail!(
+            "Action '{name}' script not found at path: {}",
+            action_path.display()
+        );
     }
 
     let mut executed_builtin = false;
@@ -305,7 +335,9 @@ pub async fn execute(
     }
 
     if !executed_builtin {
-        anyhow::bail!("Action '{name}' is not declared in configuration and no built-in exists.");
+        anyhow::bail!(
+            "Action '{name}' is not declared in configuration and no built-in exists."
+        );
     }
 
     Ok(())

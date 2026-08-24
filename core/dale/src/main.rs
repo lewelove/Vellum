@@ -104,6 +104,82 @@ enum Commands {
     },
 }
 
+fn handle_harvest(paths: Vec<String>, pretty: bool, jobs: Option<usize>) -> Result<()> {
+    if let Some(j) = jobs {
+        rayon::ThreadPoolBuilder::new()
+            .num_threads(j)
+            .build_global()
+            .context("Failed to build thread pool")?;
+    }
+
+    let mut targets = Vec::new();
+    for p in paths {
+        let expanded = expand_path(&p);
+        if let Ok(canon) = expanded.canonicalize() {
+            targets.push(canon);
+        } else {
+            targets.push(expanded);
+        }
+    }
+
+    harvest::run(targets, pretty);
+    Ok(())
+}
+
+async fn handle_compile(
+    path: String,
+    stdout: bool,
+    intermediary: bool,
+    pretty: bool,
+    flags: Vec<String>,
+) -> Result<()> {
+    let expanded = expand_path(&path);
+    let options = compile::CompileOptions {
+        target_path: expanded,
+        flags,
+        specific_albums: None,
+        jobs: None,
+        compile_flags: compile::CompileFlags {
+            mode: if intermediary {
+                compile::CompileMode::Intermediary
+            } else {
+                compile::CompileMode::Standard
+            },
+            target: if stdout {
+                compile::ExportTarget::Stdout
+            } else {
+                compile::ExportTarget::File
+            },
+            pretty,
+        },
+        ingest_tx: None,
+        active_writes: None,
+        silent: false,
+    };
+    let _ = compile::run(options).await?;
+    Ok(())
+}
+
+fn handle_manifest(
+    path: Option<String>,
+    force: bool,
+    album: bool,
+    stdout: bool,
+) -> Result<()> {
+    let expanded = path.map(|p| expand_path(&p));
+    let mode = if album {
+        manifest::ManifestMode::Album
+    } else {
+        manifest::ManifestMode::Library
+    };
+    let options = manifest::ManifestOptions {
+        mode,
+        force,
+        stdout,
+    };
+    manifest::run(expanded.as_deref(), &options)
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     simple_logger::SimpleLogger::new()
@@ -122,27 +198,7 @@ async fn main() -> Result<()> {
             paths,
             pretty,
             jobs,
-        } => {
-            if let Some(j) = jobs {
-                rayon::ThreadPoolBuilder::new()
-                    .num_threads(j)
-                    .build_global()
-                    .context("Failed to build thread pool")?;
-            }
-
-            let mut targets = Vec::new();
-            for p in paths {
-                let expanded = expand_path(&p);
-                if let Ok(canon) = expanded.canonicalize() {
-                    targets.push(canon);
-                } else {
-                    targets.push(expanded);
-                }
-            }
-
-            harvest::run(targets, pretty);
-            Ok(())
-        }
+        } => handle_harvest(paths, pretty, jobs),
         Commands::Server { port } => server::run(port).await,
         Commands::Interface { name } => interface::execute(name).await,
         Commands::Compile {
@@ -151,33 +207,7 @@ async fn main() -> Result<()> {
             intermediary,
             pretty,
             flags,
-        } => {
-            let expanded = expand_path(&path);
-            let options = compile::CompileOptions {
-                target_path: expanded,
-                flags,
-                specific_albums: None,
-                jobs: None,
-                compile_flags: compile::CompileFlags {
-                    mode: if intermediary {
-                        compile::CompileMode::Intermediary
-                    } else {
-                        compile::CompileMode::Standard
-                    },
-                    target: if stdout {
-                        compile::ExportTarget::Stdout
-                    } else {
-                        compile::ExportTarget::File
-                    },
-                    pretty,
-                },
-                ingest_tx: None,
-                active_writes: None,
-                silent: false,
-            };
-            let _ = compile::run(options).await?;
-            Ok(())
-        }
+        } => handle_compile(path, stdout, intermediary, pretty, flags).await,
         Commands::Update {
             path,
             force,
@@ -187,13 +217,24 @@ async fn main() -> Result<()> {
             let expanded = path.map(|p| expand_path(&p));
             update::run(expanded, force, jobs, silent).await
         }
-        Commands::Manifest { force, path, album, library: _, stdout } => {
-            let expanded = path.map(|p| expand_path(&p));
-            let mode = if album { manifest::ManifestMode::Album } else { manifest::ManifestMode::Library };
-            let options = manifest::ManifestOptions { mode, force, stdout };
-            manifest::run(expanded.as_deref(), &options)
-        }
-        Commands::X { name, playing, id, query, directory, recursive, library, debug, args } => {
+        Commands::Manifest {
+            force,
+            path,
+            album,
+            library: _,
+            stdout,
+        } => handle_manifest(path, force, album, stdout),
+        Commands::X {
+            name,
+            playing,
+            id,
+            query,
+            directory,
+            recursive,
+            library,
+            debug,
+            args,
+        } => {
             let target = x::TargetFlags {
                 playing,
                 id,
@@ -204,8 +245,19 @@ async fn main() -> Result<()> {
             };
             x::execute(name, target, debug, args).await
         }
-        Commands::Query { query_str, playing, lock, id, json } => {
-            let flags = query::QueryFlags { playing, lock, id, json };
+        Commands::Query {
+            query_str,
+            playing,
+            lock,
+            id,
+            json,
+        } => {
+            let flags = query::QueryFlags {
+                playing,
+                lock,
+                id,
+                json,
+            };
             query::run(query_str, flags).await
         }
     }

@@ -3,7 +3,7 @@ mod metrics;
 mod models;
 
 use anyhow::Result;
-use libactions::payload::{read_stdin_payload, ActionPayload};
+use libactions::payload::{ActionPayload, read_stdin_payload};
 
 fn main() -> Result<()> {
     let payload: ActionPayload = read_stdin_payload()?;

@@ -1,9 +1,10 @@
 use crate::models::{AlbumData, Track};
 use anyhow::Result;
-use libactions::discogs::{
-    fetch_discogs_master, fetch_discogs_release, format_artist_credits, parse_discogs_position,
-};
 pub use libactions::discogs::{TargetUrl, parse_discogs_url};
+use libactions::discogs::{
+    fetch_discogs_master, fetch_discogs_release, format_artist_credits,
+    parse_discogs_position,
+};
 
 pub async fn execute_discogs(target: TargetUrl, data: &mut AlbumData) -> Result<()> {
     match target {
@@ -42,12 +43,13 @@ async fn fetch_and_fill_discogs_master(id: u64, data: &mut AlbumData) -> Result<
                 if pos.is_empty() {
                     continue;
                 }
-                let (disc, track) = parse_discogs_position(&pos, &mut d_counter, &mut t_counter);
+                let (disc, track) =
+                    parse_discogs_position(&pos, &mut d_counter, &mut t_counter);
                 let mut track_artist = None;
                 if let Some(artists_val) = t.extra.get("artists")
-                    && let Ok(artists) = serde_json::from_value::<Vec<discogs_rs::ArtistCredit>>(
-                        artists_val.clone(),
-                    )
+                    && let Ok(artists) = serde_json::from_value::<
+                        Vec<discogs_rs::ArtistCredit>,
+                    >(artists_val.clone())
                 {
                     let parsed_art = format_artist_credits(&artists);
                     if !parsed_art.is_empty() {
@@ -85,12 +87,13 @@ fn fill_from_discogs_release(release: discogs_rs::Release, data: &mut AlbumData)
                 if pos.is_empty() {
                     continue;
                 }
-                let (disc, track) = parse_discogs_position(&pos, &mut d_counter, &mut t_counter);
+                let (disc, track) =
+                    parse_discogs_position(&pos, &mut d_counter, &mut t_counter);
                 let mut track_artist = None;
                 if let Some(artists_val) = t.extra.get("artists")
-                    && let Ok(artists) = serde_json::from_value::<Vec<discogs_rs::ArtistCredit>>(
-                        artists_val.clone(),
-                    )
+                    && let Ok(artists) = serde_json::from_value::<
+                        Vec<discogs_rs::ArtistCredit>,
+                    >(artists_val.clone())
                 {
                     let parsed_art = format_artist_credits(&artists);
                     if !parsed_art.is_empty() {

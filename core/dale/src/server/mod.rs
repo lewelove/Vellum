@@ -9,7 +9,7 @@ use anyhow::{Context, Result};
 use std::net::SocketAddr;
 use std::path::Path;
 use std::sync::Arc;
-use tokio::sync::{broadcast, RwLock};
+use tokio::sync::{RwLock, broadcast};
 use tower_http::cors::{Any, CorsLayer};
 
 use self::state::{AppConfig as ServerConfig, AppState};
@@ -110,7 +110,8 @@ pub async fn run(port: u16) -> Result<()> {
         Arc::new(server_config.clone()),
     );
 
-    let deps_json_path = crate::update::cache::deps_graph_path(&cache_root, &music_directory);
+    let deps_json_path =
+        crate::update::cache::deps_graph_path(&cache_root, &music_directory);
     let initial_deps_graph = state::DependencyGraph::load_from_file(&deps_json_path);
 
     let app_state = Arc::new(AppState {
@@ -130,7 +131,16 @@ pub async fn run(port: u16) -> Result<()> {
 
     let app_state_clone = Arc::clone(&app_state);
     tokio::spawn(async move {
-        if let Err(e) = crate::update::run_server_update(app_state_clone, None, false, None, true, None).await {
+        if let Err(e) = crate::update::run_server_update(
+            app_state_clone,
+            None,
+            false,
+            None,
+            true,
+            None,
+        )
+        .await
+        {
             log::error!("Startup auto-update error: {e}");
         }
     });

@@ -28,7 +28,9 @@ pub fn find_missing_paths(
 
     for cached_id in cached_album_ids {
         let full_cached_path = library_root.join(&cached_id);
-        if full_cached_path.starts_with(scan_root) && !current_album_ids.contains(&cached_id) {
+        if full_cached_path.starts_with(scan_root)
+            && !current_album_ids.contains(&cached_id)
+        {
             missing_paths.push(full_cached_path);
         }
     }
@@ -43,8 +45,8 @@ pub fn verify_albums_parallel(
     jobs: Option<usize>,
     library_root: &Path,
 ) -> Result<Vec<(PathBuf, bool)>> {
-    let default_parallelism = std::thread::available_parallelism()
-        .map_or(1, std::num::NonZero::get);
+    let default_parallelism =
+        std::thread::available_parallelism().map_or(1, std::num::NonZero::get);
     let pool = rayon::ThreadPoolBuilder::new()
         .num_threads(jobs.unwrap_or(default_parallelism))
         .build()?;
@@ -53,7 +55,8 @@ pub fn verify_albums_parallel(
         albums
             .into_par_iter()
             .map(|album_root| {
-                let is_dirty = force || is_album_dirty(&album_root, cache, deps_graph, library_root);
+                let is_dirty =
+                    force || is_album_dirty(&album_root, cache, deps_graph, library_root);
                 (album_root, is_dirty)
             })
             .collect()

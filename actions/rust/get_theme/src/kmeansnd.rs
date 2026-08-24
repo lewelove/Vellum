@@ -4,40 +4,48 @@ use libactions::color::get_oklab_dist;
 use palette::{FromColor, Lab, Oklab, Oklch, Srgb};
 
 pub fn extract(img: &DynamicImage, args: &str) -> Vec<Srgb> {
-    let k = args.split(',')
+    let k = args
+        .split(',')
         .find(|s| s.trim().starts_with("k="))
         .and_then(|s| s.trim().strip_prefix("k="))
         .and_then(|val| val.parse::<usize>().ok())
         .unwrap_or(24)
         .clamp(1, 64);
 
-    let n = args.split(',')
+    let n = args
+        .split(',')
         .find(|s| s.trim().starts_with("n="))
         .and_then(|s| s.trim().strip_prefix("n="))
         .and_then(|val| val.parse::<usize>().ok())
         .unwrap_or(8)
         .clamp(2, 24);
 
-    let d_min = args.split(',')
+    let d_min = args
+        .split(',')
         .find(|s| s.trim().starts_with("d="))
         .and_then(|s| s.trim().strip_prefix("d="))
         .and_then(|val| val.parse::<f32>().ok())
         .unwrap_or(0.12)
         .clamp(0.0, 1.0);
 
-    let conv = args.split(',')
+    let conv = args
+        .split(',')
         .find(|s| s.trim().starts_with("conv="))
         .and_then(|s| s.trim().strip_prefix("conv="))
         .and_then(|val| val.parse::<f32>().ok())
         .unwrap_or(0.001);
 
-    let pixels: Vec<Lab> = img.to_rgb8().pixels().map(|p| {
-        Lab::from_color(Srgb::new(
-            f32::from(p[0]) / 255.0,
-            f32::from(p[1]) / 255.0,
-            f32::from(p[2]) / 255.0,
-        ))
-    }).collect();
+    let pixels: Vec<Lab> = img
+        .to_rgb8()
+        .pixels()
+        .map(|p| {
+            Lab::from_color(Srgb::new(
+                f32::from(p[0]) / 255.0,
+                f32::from(p[1]) / 255.0,
+                f32::from(p[2]) / 255.0,
+            ))
+        })
+        .collect();
 
     let result = get_kmeans_hamerly(k, 20, conv, false, &pixels, 42);
     let pool: Vec<Srgb> = result.centroids.into_iter().map(Srgb::from_color).collect();
@@ -46,21 +54,32 @@ pub fn extract(img: &DynamicImage, args: &str) -> Vec<Srgb> {
         return pool;
     }
 
-    let mut data: Vec<(Srgb, Oklab, Oklch)> = pool.into_iter()
+    let mut data: Vec<(Srgb, Oklab, Oklch)> = pool
+        .into_iter()
         .map(|s| (s, Oklab::from_color(s), Oklch::from_color(s)))
         .collect();
 
-    data.sort_by(|a, b| a.2.l.partial_cmp(&b.2.l).unwrap_or(std::cmp::Ordering::Equal));
+    data.sort_by(|a, b| {
+        a.2.l
+            .partial_cmp(&b.2.l)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
     let darkest = data.remove(0);
     let lightest = data.pop().unwrap();
 
-    data.sort_by(|a, b| b.2.chroma.partial_cmp(&a.2.chroma).unwrap_or(std::cmp::Ordering::Equal));
-    
+    data.sort_by(|a, b| {
+        b.2.chroma
+            .partial_cmp(&a.2.chroma)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+
     let mut selected = vec![lightest, darkest];
-    
+
     for candidate in &data {
-        if selected.len() >= n { break; }
-        
+        if selected.len() >= n {
+            break;
+        }
+
         let mut too_close = false;
         for (_, existing_ok, _) in &selected {
             if get_oklab_dist(&candidate.1, existing_ok) < d_min {
@@ -68,7 +87,7 @@ pub fn extract(img: &DynamicImage, args: &str) -> Vec<Srgb> {
                 break;
             }
         }
-        
+
         if !too_close {
             selected.push(*candidate);
         }
@@ -76,7 +95,9 @@ pub fn extract(img: &DynamicImage, args: &str) -> Vec<Srgb> {
 
     if selected.len() < n {
         for candidate in data {
-            if selected.len() >= n { break; }
+            if selected.len() >= n {
+                break;
+            }
             if !selected.iter().any(|s| s.0 == candidate.0) {
                 selected.push(candidate);
             }

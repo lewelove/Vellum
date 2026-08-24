@@ -1,5 +1,5 @@
-use crate::error::DaleError;
 use crate::compiler::manifest::extract_strict_u32;
+use crate::error::DaleError;
 use serde_json::Value;
 use std::collections::HashSet;
 use std::path::Path;

@@ -2,7 +2,7 @@ use crate::compile::{album, context, covers, tracks, utils};
 use libdale::compiler::manifest::load_manifests;
 use libdale::error::DaleError;
 use serde::de::Error as _;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::collections::{BTreeMap, HashSet};
 use std::path::{Path, PathBuf};
 
@@ -78,7 +78,8 @@ fn build_dispatcher_context(
     input: &DispatcherInput<'_>,
     ctx_tracks: &[Value],
 ) -> (Value, String, String, String) {
-    let config_json = serde_json::to_value(&input.config.app).unwrap_or_else(|_| json!({}));
+    let config_json =
+        serde_json::to_value(&input.config.app).unwrap_or_else(|_| json!({}));
 
     let project_root_str = input
         .config
@@ -94,7 +95,8 @@ fn build_dispatcher_context(
         .unwrap_or_else(|_| input.album_root.to_path_buf());
     let album_root_str = album_root_canon.to_string_lossy().into_owned();
     let music_directory_str = input.music_directory.to_string_lossy().into_owned();
-    let rel_path_str = libdale::resolvers::rel_path(&album_root_canon, input.music_directory);
+    let rel_path_str =
+        libdale::resolvers::rel_path(&album_root_canon, input.music_directory);
 
     let ctx = json!({
         "config": config_json,
@@ -110,12 +112,7 @@ fn build_dispatcher_context(
         "tracks": ctx_tracks,
     });
 
-    (
-        ctx,
-        album_root_str,
-        project_root_str,
-        music_directory_str,
-    )
+    (ctx, album_root_str, project_root_str, music_directory_str)
 }
 
 fn assemble_album_object(
@@ -140,7 +137,8 @@ fn assemble_album_object(
     if let Some(theme) = input.parsed_manifests.get("theme")
         && let Some(colors) = theme.get("album").and_then(|a| a.get("colors"))
     {
-        let colors_validated = utils::validate_and_format_colors(colors, input.album_root)?;
+        let colors_validated =
+            utils::validate_and_format_colors(colors, input.album_root)?;
         album_obj.insert("colors".to_string(), colors_validated);
     }
 
@@ -210,9 +208,13 @@ pub fn build(
         &album_root_canon,
     )?;
 
-    let lock_manifests =
-        album::generate_lock_manifests(&build_data.parsed_manifests, &album_root_canon, is_virtual);
-    let total_discs = libdale::resolvers::calculate_total_discs(&build_data.primary_tracks);
+    let lock_manifests = album::generate_lock_manifests(
+        &build_data.parsed_manifests,
+        &album_root_canon,
+        is_virtual,
+    );
+    let total_discs =
+        libdale::resolvers::calculate_total_discs(&build_data.primary_tracks);
     let total_tracks = build_data.primary_tracks.len() as u32;
 
     let (ctx_tracks, duration_sum_ms) = tracks::build_ctx_tracks(
@@ -235,19 +237,24 @@ pub fn build(
     let (ctx, _album_root_str, _project_root_str, _music_directory_str) =
         build_dispatcher_context(&disp_input, &ctx_tracks);
 
-    let (lua_res, dependencies) =
-        run_dispatcher_phase(engine, &album_root_canon, &build_data.parsed_manifests, &ctx)?;
+    let (lua_res, dependencies) = run_dispatcher_phase(
+        engine,
+        &album_root_canon,
+        &build_data.parsed_manifests,
+        &ctx,
+    )?;
 
     let album_id = extract_album_id(&lua_res, &album_root_canon)?;
     let mut album_keys = lua_res.get("album").cloned().unwrap_or_else(|| json!({}));
     utils::sort_json_keys(&mut album_keys);
 
     let empty_album = json!({});
-    let primary_manifest = build_data.parsed_manifests.get("metadata").ok_or_else(|| {
-        DaleError::MissingPrimaryManifest {
-            path: album_root_canon.clone(),
-        }
-    })?;
+    let primary_manifest =
+        build_data.parsed_manifests.get("metadata").ok_or_else(|| {
+            DaleError::MissingPrimaryManifest {
+                path: album_root_canon.clone(),
+            }
+        })?;
     let primary_album = primary_manifest.get("album").unwrap_or(&empty_album);
     let (albumartist, album_title, date) =
         album::parse_mandatory_album_fields(primary_album, &album_root_canon)?;

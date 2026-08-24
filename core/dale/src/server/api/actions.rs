@@ -37,7 +37,9 @@ async fn resolve_target_entries(
                 .or_else(|| logic_guard.path_lookup.get(&playing_path))
             {
                 target_ids.push(id.clone());
-            } else if let Ok(dir) = crate::x::get_playing_album(&music_dir.to_string_lossy()).await {
+            } else if let Ok(dir) =
+                crate::x::get_playing_album(&music_dir.to_string_lossy()).await
+            {
                 let canon = dir.canonicalize().unwrap_or(dir);
                 if let Some(id) = logic_guard.albums_by_path.get(&canon) {
                     target_ids.push(id.clone());
@@ -151,8 +153,11 @@ fn run_external_process(
             if let Some(mut stdin) = child.stdin.take() {
                 let payload = serde_json::to_string(&combined_json).unwrap_or_default();
                 tokio::spawn(async move {
-                    let _ =
-                        tokio::io::AsyncWriteExt::write_all(&mut stdin, payload.as_bytes()).await;
+                    let _ = tokio::io::AsyncWriteExt::write_all(
+                        &mut stdin,
+                        payload.as_bytes(),
+                    )
+                    .await;
                 });
             }
             tokio::spawn(async move {
@@ -186,9 +191,11 @@ pub async fn execute_action(
 
     let config_guard = state.config.read().await;
     let action_cfg_opt = config_guard.actions.get(&name_key).cloned();
-    let app_config_json = serde_json::to_value(&config_guard.app).unwrap_or_else(|_| json!({}));
-    let env_vars =
-        crate::x::load_env_vars_from_path(config_guard.app.storage.environment.as_deref());
+    let app_config_json =
+        serde_json::to_value(&config_guard.app).unwrap_or_else(|_| json!({}));
+    let env_vars = crate::x::load_env_vars_from_path(
+        config_guard.app.storage.environment.as_deref(),
+    );
     drop(config_guard);
 
     let action_cfg = action_cfg_opt.unwrap_or_default();
@@ -217,7 +224,15 @@ pub async fn execute_action(
     let mut merged_config = action_cfg.config.clone();
     if let serde_json::Value::Object(ref mut map) = merged_config {
         for (k, v) in &params {
-            if !["id", "playing", "query", "directory", "recursive", "library"].contains(&k.as_str())
+            if ![
+                "id",
+                "playing",
+                "query",
+                "directory",
+                "recursive",
+                "library",
+            ]
+            .contains(&k.as_str())
             {
                 map.insert(k.clone(), serde_json::Value::String(v.clone()));
             }
@@ -236,7 +251,11 @@ pub async fn execute_action(
     } else {
         for entry in &target_entries {
             if matches!(
-                crate::x::builtin::execute_builtin(&name_key, &entry.path, &merged_config),
+                crate::x::builtin::execute_builtin(
+                    &name_key,
+                    &entry.path,
+                    &merged_config
+                ),
                 Ok(true)
             ) {
                 executed = true;

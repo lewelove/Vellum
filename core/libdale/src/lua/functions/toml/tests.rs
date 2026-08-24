@@ -27,7 +27,10 @@ title = "Demo""#;
 #[test]
 fn test_d_toml_decode_invalid() {
     let engine = LuaEngine::new().expect("Failed to create LuaEngine");
-    let result = engine.lua.load("return d.toml.decode('[album')").eval::<Table>();
+    let result = engine
+        .lua
+        .load("return d.toml.decode('[album')")
+        .eval::<Table>();
     assert!(result.is_err());
 }
 
@@ -35,6 +38,9 @@ fn test_d_toml_decode_invalid() {
 #[test]
 fn test_d_toml_encode_invalid() {
     let engine = LuaEngine::new().expect("Failed to create LuaEngine");
-    let result = engine.lua.load("return d.toml.encode({ func = function() end })").eval::<String>();
+    let result = engine
+        .lua
+        .load("return d.toml.encode({ func = function() end })")
+        .eval::<String>();
     assert!(result.is_err());
 }

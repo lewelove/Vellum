@@ -15,18 +15,17 @@ fn format_toml_value(val: &Value) -> String {
 
 fn format_toml_value_with_cast(val: &Value, key: &str) -> String {
     if (key == "tracknumber" || key == "discnumber")
-        && let Some(s) = val.as_str() {
-            let clean = s.split('/').next().unwrap_or("").trim();
-            if clean.parse::<u32>().is_ok() {
-                return clean.to_string();
-            }
+        && let Some(s) = val.as_str()
+    {
+        let clean = s.split('/').next().unwrap_or("").trim();
+        if clean.parse::<u32>().is_ok() {
+            return clean.to_string();
         }
+    }
     format_toml_value(val)
 }
 
-pub fn render_toml_block(
-    pool: &serde_json::Map<String, Value>,
-) -> Vec<String> {
+pub fn render_toml_block(pool: &serde_json::Map<String, Value>) -> Vec<String> {
     let mut lines = Vec::new();
     let mut keys: Vec<String> = pool.keys().cloned().collect();
     keys.sort();

@@ -1,12 +1,13 @@
-use libdale::utils::expand_path;
 pub use fast_image_resize::FilterType;
-use fast_image_resize::{ResizeAlg, ResizeOptions, Resizer};
 use fast_image_resize::PixelType;
 use fast_image_resize::images::Image;
+use fast_image_resize::{ResizeAlg, ResizeOptions, Resizer};
 use image::DynamicImage;
+use libdale::utils::expand_path;
 use std::path::{Path, PathBuf};
 
-pub const COVER_CANDIDATES: [&str; 4] = ["cover.jpg", "cover.png", "folder.jpg", "front.jpg"];
+pub const COVER_CANDIDATES: [&str; 4] =
+    ["cover.jpg", "cover.png", "folder.jpg", "front.jpg"];
 
 pub fn resolve_cover_info(root: &Path) -> Option<PathBuf> {
     for c in COVER_CANDIDATES {
@@ -29,7 +30,11 @@ pub fn parse_interpolation(algo: &str) -> FilterType {
     }
 }
 
-pub fn resize_image(src: &image::RgbImage, target_size: u32, filter: FilterType) -> Option<image::RgbImage> {
+pub fn resize_image(
+    src: &image::RgbImage,
+    target_size: u32,
+    filter: FilterType,
+) -> Option<image::RgbImage> {
     let src_width = src.width();
     let src_height = src.height();
     let min_dim = std::cmp::min(src_width, src_height);
@@ -39,13 +44,10 @@ pub fn resize_image(src: &image::RgbImage, target_size: u32, filter: FilterType)
         src_height,
         src.clone().into_raw(),
         PixelType::U8x3,
-    ).ok()?;
+    )
+    .ok()?;
 
-    let mut dst_image = Image::new(
-        target_size,
-        target_size,
-        PixelType::U8x3,
-    );
+    let mut dst_image = Image::new(target_size, target_size, PixelType::U8x3);
 
     let mut resizer = Resizer::new();
     let options = ResizeOptions::new()
@@ -116,7 +118,9 @@ pub fn pregenerate_covers(
     let mut master_img: Option<image::RgbImage> = None;
 
     if master_exists {
-        master_img = image::open(&master_qoi_path).ok().map(DynamicImage::into_rgb8);
+        master_img = image::open(&master_qoi_path)
+            .ok()
+            .map(DynamicImage::into_rgb8);
     } else if let Ok(img) = image::open(original_path) {
         let img_rgb = img.into_rgb8();
         if let Some(parent) = master_qoi_path.parent() {

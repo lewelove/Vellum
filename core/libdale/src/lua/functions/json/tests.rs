@@ -27,7 +27,10 @@ fn test_d_json_encode_decode() {
 #[test]
 fn test_d_json_decode_invalid() {
     let engine = LuaEngine::new().expect("Failed to create LuaEngine");
-    let result = engine.lua.load("return d.json.decode('{bad_json:')").eval::<Table>();
+    let result = engine
+        .lua
+        .load("return d.json.decode('{bad_json:')")
+        .eval::<Table>();
     assert!(result.is_err());
 }
 
@@ -35,6 +38,9 @@ fn test_d_json_decode_invalid() {
 #[test]
 fn test_d_json_encode_invalid() {
     let engine = LuaEngine::new().expect("Failed to create LuaEngine");
-    let result = engine.lua.load("return d.json.encode({ func = function() end })").eval::<String>();
+    let result = engine
+        .lua
+        .load("return d.json.encode({ func = function() end })")
+        .eval::<String>();
     assert!(result.is_err());
 }

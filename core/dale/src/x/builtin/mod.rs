@@ -7,7 +7,11 @@ pub mod open_terminal;
 use anyhow::Result;
 use std::path::Path;
 
-pub fn execute_builtin(name: &str, album_path: &Path, config: &serde_json::Value) -> Result<bool> {
+pub fn execute_builtin(
+    name: &str,
+    album_path: &Path,
+    config: &serde_json::Value,
+) -> Result<bool> {
     match name {
         "open_folder" | "open" => {
             open_folder::run(album_path)?;

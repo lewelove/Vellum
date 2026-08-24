@@ -22,42 +22,54 @@ fn test_d_get() {
 
     let dot_path_res: String = engine
         .lua
-        .load(format!("{test_setup}\nreturn d.get(sample, 'metadata.album.title')"))
+        .load(format!(
+            "{test_setup}\nreturn d.get(sample, 'metadata.album.title')"
+        ))
         .eval()
         .expect("Execution failed");
     assert_eq!(dot_path_res, "Selected Ambient Works");
 
     let varargs_res: String = engine
         .lua
-        .load(format!("{test_setup}\nreturn d.get(sample, 'metadata', 'album', 'artist')"))
+        .load(format!(
+            "{test_setup}\nreturn d.get(sample, 'metadata', 'album', 'artist')"
+        ))
         .eval()
         .expect("Execution failed");
     assert_eq!(varargs_res, "Aphex Twin");
 
     let mixed_res: String = engine
         .lua
-        .load(format!("{test_setup}\nreturn d.get(sample, 'metadata.album', 'title')"))
+        .load(format!(
+            "{test_setup}\nreturn d.get(sample, 'metadata.album', 'title')"
+        ))
         .eval()
         .expect("Execution failed");
     assert_eq!(mixed_res, "Selected Ambient Works");
 
     let array_index_res: String = engine
         .lua
-        .load(format!("{test_setup}\nreturn d.get(sample, 'metadata.tracks', 2, 'title')"))
+        .load(format!(
+            "{test_setup}\nreturn d.get(sample, 'metadata.tracks', 2, 'title')"
+        ))
         .eval()
         .expect("Execution failed");
     assert_eq!(array_index_res, "Tha");
 
     let array_dot_res: u32 = engine
         .lua
-        .load(format!("{test_setup}\nreturn d.get(sample, 'metadata.tracks.1.duration')"))
+        .load(format!(
+            "{test_setup}\nreturn d.get(sample, 'metadata.tracks.1.duration')"
+        ))
         .eval()
         .expect("Execution failed");
     assert_eq!(array_dot_res, 294);
 
     let missing_path: Option<String> = engine
         .lua
-        .load(format!("{test_setup}\nreturn d.get(sample, 'metadata.nonexistent.field')"))
+        .load(format!(
+            "{test_setup}\nreturn d.get(sample, 'metadata.nonexistent.field')"
+        ))
         .eval()
         .expect("Execution failed");
     assert!(missing_path.is_none());
@@ -100,7 +112,9 @@ fn test_d_get_boolean_false() {
 
     let nested_res: bool = engine
         .lua
-        .load(format!("{test_setup}\nreturn d.get(sample, 'nested.disabled')"))
+        .load(format!(
+            "{test_setup}\nreturn d.get(sample, 'nested.disabled')"
+        ))
         .eval()
         .expect("Execution failed");
     assert!(!nested_res);

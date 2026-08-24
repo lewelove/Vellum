@@ -69,7 +69,9 @@ fn parse_cmd(cmd_val: Value) -> mlua::Result<Vec<String>> {
             }
             Ok(vec!["sh".to_string(), "-c".to_string(), cmd])
         }
-        _ => Err(mlua::Error::runtime("cmd must be a table of strings or a string")),
+        _ => Err(mlua::Error::runtime(
+            "cmd must be a table of strings or a string",
+        )),
     }
 }
 
@@ -93,10 +95,22 @@ fn build_command(cmd_args: &[String], opts: &SystemOpts) -> Command {
     command
 }
 
-fn spawn_detached(mut command: Command, opts: &SystemOpts, lua: &Lua) -> mlua::Result<Value> {
+fn spawn_detached(
+    mut command: Command,
+    opts: &SystemOpts,
+    lua: &Lua,
+) -> mlua::Result<Value> {
     command.stdin(Stdio::null());
-    command.stdout(if opts.stdout { Stdio::inherit() } else { Stdio::null() });
-    command.stderr(if opts.stderr { Stdio::inherit() } else { Stdio::null() });
+    command.stdout(if opts.stdout {
+        Stdio::inherit()
+    } else {
+        Stdio::null()
+    });
+    command.stderr(if opts.stderr {
+        Stdio::inherit()
+    } else {
+        Stdio::null()
+    });
     command.process_group(0);
 
     let mut child = command.spawn().map_err(mlua::Error::external)?;
@@ -112,7 +126,9 @@ fn spawn_detached(mut command: Command, opts: &SystemOpts, lua: &Lua) -> mlua::R
     Ok(Value::Table(ret))
 }
 
-fn spawn_stream_readers(child: &mut Child) -> (Option<ReaderHandle>, Option<ReaderHandle>) {
+fn spawn_stream_readers(
+    child: &mut Child,
+) -> (Option<ReaderHandle>, Option<ReaderHandle>) {
     let stdout_handle = child.stdout.take().map(|mut r| {
         thread::spawn(move || {
             let mut buf = Vec::new();
@@ -132,9 +148,18 @@ fn spawn_stream_readers(child: &mut Child) -> (Option<ReaderHandle>, Option<Read
     (stdout_handle, stderr_handle)
 }
 
-fn build_result_table(status: ExitStatus, stdout_bytes: &[u8], stderr_bytes: &[u8], lua: &Lua) -> mlua::Result<Value> {
-    let code_val = status.code().map_or(Value::Nil, |c| Value::Integer(i64::from(c)));
-    let signal_val = status.signal().map_or(Value::Nil, |s| Value::Integer(i64::from(s)));
+fn build_result_table(
+    status: ExitStatus,
+    stdout_bytes: &[u8],
+    stderr_bytes: &[u8],
+    lua: &Lua,
+) -> mlua::Result<Value> {
+    let code_val = status
+        .code()
+        .map_or(Value::Nil, |c| Value::Integer(i64::from(c)));
+    let signal_val = status
+        .signal()
+        .map_or(Value::Nil, |s| Value::Integer(i64::from(s)));
 
     let ret = lua.create_table()?;
     ret.set("code", code_val)?;
@@ -164,19 +189,31 @@ fn wait_for_exit(
                 if start.elapsed() >= dur {
                     let _ = child.kill();
                     let status = child.wait().map_err(mlua::Error::external)?;
-                    let stdout_bytes = stdout_handle.map_or_else(Vec::new, |h| h.join().unwrap_or_default());
-                    let stderr_bytes = stderr_handle.map_or_else(Vec::new, |h| h.join().unwrap_or_default());
+                    let stdout_bytes = stdout_handle
+                        .map_or_else(Vec::new, |h| h.join().unwrap_or_default());
+                    let stderr_bytes = stderr_handle
+                        .map_or_else(Vec::new, |h| h.join().unwrap_or_default());
                     let timeout_ms = dur.as_millis();
                     let stderr_msg = String::from_utf8_lossy(&stderr_bytes);
 
-                    let code_val = status.code().map_or(Value::Nil, |c| Value::Integer(i64::from(c)));
-                    let signal_val = status.signal().map_or(Value::Integer(9), |s| Value::Integer(i64::from(s)));
+                    let code_val = status
+                        .code()
+                        .map_or(Value::Nil, |c| Value::Integer(i64::from(c)));
+                    let signal_val = status
+                        .signal()
+                        .map_or(Value::Integer(9), |s| Value::Integer(i64::from(s)));
 
                     let ret = lua.create_table()?;
                     ret.set("code", code_val)?;
                     ret.set("signal", signal_val)?;
-                    ret.set("stdout", String::from_utf8_lossy(&stdout_bytes).into_owned())?;
-                    ret.set("stderr", format!("Process timed out after {timeout_ms}ms\n{stderr_msg}"))?;
+                    ret.set(
+                        "stdout",
+                        String::from_utf8_lossy(&stdout_bytes).into_owned(),
+                    )?;
+                    ret.set(
+                        "stderr",
+                        format!("Process timed out after {timeout_ms}ms\n{stderr_msg}"),
+                    )?;
                     ret.set("ok", false)?;
                     return Ok(Value::Table(ret));
                 }
@@ -185,16 +222,34 @@ fn wait_for_exit(
         }
     };
 
-    let stdout_bytes = stdout_handle.map_or_else(Vec::new, |h| h.join().unwrap_or_default());
-    let stderr_bytes = stderr_handle.map_or_else(Vec::new, |h| h.join().unwrap_or_default());
+    let stdout_bytes =
+        stdout_handle.map_or_else(Vec::new, |h| h.join().unwrap_or_default());
+    let stderr_bytes =
+        stderr_handle.map_or_else(Vec::new, |h| h.join().unwrap_or_default());
 
     build_result_table(status, &stdout_bytes, &stderr_bytes, lua)
 }
 
-fn execute_sync(mut command: Command, opts: SystemOpts, lua: &Lua) -> mlua::Result<Value> {
-    command.stdin(if opts.stdin.is_some() { Stdio::piped() } else { Stdio::null() });
-    command.stdout(if opts.stdout { Stdio::piped() } else { Stdio::null() });
-    command.stderr(if opts.stderr { Stdio::piped() } else { Stdio::null() });
+fn execute_sync(
+    mut command: Command,
+    opts: SystemOpts,
+    lua: &Lua,
+) -> mlua::Result<Value> {
+    command.stdin(if opts.stdin.is_some() {
+        Stdio::piped()
+    } else {
+        Stdio::null()
+    });
+    command.stdout(if opts.stdout {
+        Stdio::piped()
+    } else {
+        Stdio::null()
+    });
+    command.stderr(if opts.stderr {
+        Stdio::piped()
+    } else {
+        Stdio::null()
+    });
 
     let mut child = command.spawn().map_err(mlua::Error::external)?;
     let (stdout_handle, stderr_handle) = spawn_stream_readers(&mut child);
@@ -219,7 +274,10 @@ fn execute_sync(mut command: Command, opts: SystemOpts, lua: &Lua) -> mlua::Resu
     result
 }
 
-pub fn lua_system(lua: &Lua, (cmd_val, opts_val): (Value, Option<Table>)) -> mlua::Result<Value> {
+pub fn lua_system(
+    lua: &Lua,
+    (cmd_val, opts_val): (Value, Option<Table>),
+) -> mlua::Result<Value> {
     let cmd_args = parse_cmd(cmd_val)?;
     let opts = parse_opts(opts_val)?;
     let command = build_command(&cmd_args, &opts);

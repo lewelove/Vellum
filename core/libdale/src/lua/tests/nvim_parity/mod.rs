@@ -26,7 +26,11 @@ fn run_spec(name: &str, code: &str) {
         .expect("Failed to initialize Neovim parity test shim");
 
     let exec_res = engine.lua.load(code).set_name(name).exec();
-    assert!(exec_res.is_ok(), "Spec syntax error in '{name}': {:?}", exec_res.err());
+    assert!(
+        exec_res.is_ok(),
+        "Spec syntax error in '{name}': {:?}",
+        exec_res.err()
+    );
 
     let results_val: mlua::Value = engine
         .lua
@@ -80,7 +84,8 @@ fn test_nvim_vim_spec() {
 #[test]
 fn test_all_custom_specs_in_directory() {
     let manifest_dir = env!("CARGO_MANIFEST_DIR");
-    let specs_dir = Path::new(manifest_dir).join("src/lua/tests/nvim_parity/specs/modded");
+    let specs_dir =
+        Path::new(manifest_dir).join("src/lua/tests/nvim_parity/specs/modded");
     if let Ok(entries) = fs::read_dir(specs_dir) {
         for entry in entries.flatten() {
             let path = entry.path();

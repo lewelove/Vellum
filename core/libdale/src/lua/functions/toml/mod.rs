@@ -9,8 +9,8 @@ pub fn register(lua: &Lua, dale_tbl: &Table, opts: SerializeOptions) -> mlua::Re
     toml_table.set(
         "decode",
         lua.create_function(move |lua, s: String| {
-            let toml_val: toml::Value = toml::from_str(&s)
-                .map_err(mlua::Error::external)?;
+            let toml_val: toml::Value =
+                toml::from_str(&s).map_err(mlua::Error::external)?;
             let json_val = crate::types::toml_to_json(toml_val);
             lua.to_value_with(&json_val, opts)
         })?,

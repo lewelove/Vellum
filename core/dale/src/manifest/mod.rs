@@ -3,7 +3,7 @@ pub mod engine;
 pub mod grouper;
 
 use anyhow::{Context, Result};
-use libdale::harvest::{harvest_file, is_audio_file, SUPPORTED_AUDIO_EXTENSIONS};
+use libdale::harvest::{SUPPORTED_AUDIO_EXTENSIONS, harvest_file, is_audio_file};
 use libdale::utils::expand_path;
 use rayon::prelude::*;
 use std::fs;
@@ -26,7 +26,14 @@ pub fn run(target_path: Option<&Path>, options: &ManifestOptions) -> Result<()> 
     let music_dir = expand_path(&config.app.storage.music_directory);
 
     config.app.manifest.audio_extensions.as_ref().map_or_else(
-        || execute_manifest_run(target_path, options, &music_dir, SUPPORTED_AUDIO_EXTENSIONS),
+        || {
+            execute_manifest_run(
+                target_path,
+                options,
+                &music_dir,
+                SUPPORTED_AUDIO_EXTENSIONS,
+            )
+        },
         |exts| execute_manifest_run(target_path, options, &music_dir, exts),
     )
 }
@@ -40,7 +47,9 @@ fn execute_manifest_run<S: AsRef<str> + Sync>(
     let grouping_keys = vec!["albumartist".to_string(), "album".to_string()];
 
     let scan_root = match options.mode {
-        ManifestMode::Library => target_path.map_or_else(|| music_dir.to_path_buf(), Path::to_path_buf),
+        ManifestMode::Library => {
+            target_path.map_or_else(|| music_dir.to_path_buf(), Path::to_path_buf)
+        }
         ManifestMode::Album => target_path.map_or_else(
             || std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
             Path::to_path_buf,

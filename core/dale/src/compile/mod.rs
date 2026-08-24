@@ -36,14 +36,13 @@ pub struct CompileOptions {
     pub specific_albums: Option<Vec<PathBuf>>,
     pub jobs: Option<usize>,
     pub compile_flags: CompileFlags,
-    pub ingest_tx: Option<tokio::sync::mpsc::Sender<crate::server::api::system::AlbumIngestPayload>>,
+    pub ingest_tx:
+        Option<tokio::sync::mpsc::Sender<crate::server::api::system::AlbumIngestPayload>>,
     pub active_writes: Option<Arc<Mutex<HashSet<PathBuf>>>>,
     pub silent: bool,
 }
 
-pub async fn run(
-    mut options: CompileOptions,
-) -> Result<usize> {
+pub async fn run(mut options: CompileOptions) -> Result<usize> {
     let config = libdale::lua::ResolvedConfig::load().context("Config failed")?;
     if !options.flags.contains(&"default".to_string()) {
         options.flags.push("default".to_string());
@@ -62,7 +61,8 @@ pub async fn run(
     }
 
     if options.compile_flags.mode == CompileMode::Intermediary {
-        let engine = libdale::lua::LuaEngine::new().context("Failed to create Lua engine")?;
+        let engine =
+            libdale::lua::LuaEngine::new().context("Failed to create Lua engine")?;
         engine
             .evaluate_config(&config.path)
             .context("Failed to evaluate config in Lua engine")?;

@@ -1,5 +1,5 @@
 use libdale::error::DaleError;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::path::Path;
 
 pub fn strip_empty_values(value: &mut Value) {
@@ -35,7 +35,8 @@ pub fn strip_empty_values(value: &mut Value) {
 pub fn sort_json_keys(value: &mut Value) {
     match value {
         Value::Object(map) => {
-            let mut entries: Vec<(String, Value)> = std::mem::take(map).into_iter().collect();
+            let mut entries: Vec<(String, Value)> =
+                std::mem::take(map).into_iter().collect();
             entries.sort_by(|(k1, _), (k2, _)| k1.cmp(k2));
             for (k, mut v) in entries {
                 sort_json_keys(&mut v);
@@ -63,7 +64,10 @@ pub fn is_valid_hex_color(s: &str) -> bool {
     hex.chars().all(|c| c.is_ascii_hexdigit())
 }
 
-pub fn validate_and_format_colors(colors: &Value, album_root: &Path) -> Result<Value, DaleError> {
+pub fn validate_and_format_colors(
+    colors: &Value,
+    album_root: &Path,
+) -> Result<Value, DaleError> {
     let mut formatted_colors = serde_json::Map::new();
 
     if let Some(fg) = colors.get("foreground")

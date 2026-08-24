@@ -29,7 +29,8 @@ pub fn convert(bytes: &[u8]) -> Option<Vec<u8>> {
     let pad_bytes = [0u8; 3];
     for y in 0..(height as usize) {
         let src_row_start = y * (width as usize) * channels;
-        let src_row = &decoded[src_row_start..src_row_start + ((width as usize) * channels)];
+        let src_row =
+            &decoded[src_row_start..src_row_start + ((width as usize) * channels)];
         for chunk in src_row.chunks_exact(channels) {
             bmp.push(chunk[2]);
             bmp.push(chunk[1]);

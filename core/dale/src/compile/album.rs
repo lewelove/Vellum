@@ -1,7 +1,7 @@
 use libdale::error::DaleError;
 use serde_json::{Value, json};
-use std::path::Path;
 use std::collections::BTreeMap;
+use std::path::Path;
 
 pub fn is_virtual_album(parsed_manifests: &serde_json::Map<String, Value>) -> bool {
     parsed_manifests
@@ -19,7 +19,9 @@ pub fn parse_mandatory_album_fields(
     let get_album_str = |k: &str| -> Result<String, DaleError> {
         let v = primary_album.get(k);
         if let Some(s) = v.and_then(Value::as_str) {
-            if !s.is_empty() { return Ok(s.to_string()); }
+            if !s.is_empty() {
+                return Ok(s.to_string());
+            }
         } else if let Some(n) = v.and_then(Value::as_number) {
             return Ok(n.to_string());
         }
@@ -31,7 +33,8 @@ pub fn parse_mandatory_album_fields(
         })
     };
 
-    let albumartist = get_album_str("albumartist").or_else(|_| get_album_str("artist"))?;
+    let albumartist =
+        get_album_str("albumartist").or_else(|_| get_album_str("artist"))?;
     let album = get_album_str("album")?;
     let date = get_album_str("date")?;
     Ok((albumartist, album, date))

@@ -187,7 +187,11 @@ fn test_d_str_trim() {
         local s = string.rep(" ", 50000) .. "content" .. string.rep(" \t\n ", 10000)
         return d.str.trim(s)
     "#;
-    let large_ws_trimmed: String = engine.lua.load(large_ws_code).eval().expect("Execution failed");
+    let large_ws_trimmed: String = engine
+        .lua
+        .load(large_ws_code)
+        .eval()
+        .expect("Execution failed");
     assert_eq!(large_ws_trimmed, "content");
 
     let invalid_nil = engine.lua.load("return d.str.trim(nil)").eval::<String>();
@@ -341,7 +345,9 @@ fn test_d_str_split_and_gsplit() {
 
     let gsplit_iter: String = engine
         .lua
-        .load("local out = ''; for s in d.str.gsplit('a,b,c', ',') do out = out .. s end; return out")
+        .load(
+            "local out = ''; for s in d.str.gsplit('a,b,c', ',') do out = out .. s end; return out",
+        )
         .eval()
         .expect("Execution failed");
     assert_eq!(gsplit_iter, "abc");
