@@ -1,4 +1,4 @@
-use crate::compile;
+use crate::compile::{self, LogVerbosity};
 use crate::server::state::{DependencyGraph, UpdateScope};
 use crate::update::cache::{
     calculate_path_hash, deps_graph_path, library_cache_dir, load_cache, save_cache,
@@ -13,14 +13,20 @@ use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ForceMode {
+    Force,
+    Preserve,
+}
+
 pub async fn run(
     target_path: Option<PathBuf>,
-    force: bool,
+    force: ForceMode,
     jobs: Option<usize>,
-    silent: bool,
+    verbosity: LogVerbosity,
 ) -> Result<()> {
     if is_server_up(8000).await {
-        return run_delegated_update(target_path, force, jobs, silent, 8000).await;
+        return run_delegated_update(target_path, force, jobs, verbosity, 8000).await;
     }
 
     let config = libdale::lua::ResolvedConfig::load().context("Failed to load config")?;
@@ -42,8 +48,17 @@ pub async fn run(
     let mut deps_graph = DependencyGraph::load_from_file(&deps_json_path);
 
     let (config_changed, lua_hash_file, lua_hash) =
-        check_lua_config_changed(&config.dependencies, &cache_root, silent);
-    let force = force || config_changed;
+        check_lua_config_changed(&config.dependencies, &cache_root, verbosity);
+    let effective_force = match force {
+        ForceMode::Force => ForceMode::Force,
+        ForceMode::Preserve => {
+            if config_changed {
+                ForceMode::Force
+            } else {
+                ForceMode::Preserve
+            }
+        }
+    };
 
     let (scan_root, scope) = resolve_target_scope(target_path.as_ref(), &music_directory);
 
@@ -52,14 +67,14 @@ pub async fn run(
         music_directory: &music_directory,
         cache: &cache,
         deps_graph: &deps_graph,
-        force,
+        force: effective_force,
         effective_jobs,
         tracked: None,
-        silent,
+        verbosity,
     })?;
 
     if work_queue.is_empty() && missing_paths.is_empty() {
-        if !silent {
+        if verbosity == LogVerbosity::Verbose {
             log::info!("Library is up to date.");
         }
         let _ = fs::write(&lua_hash_file, &lua_hash);
@@ -81,7 +96,7 @@ pub async fn run(
         &missing_paths,
         &mut deps_graph,
         effective_jobs,
-        silent,
+        verbosity,
     )
     .await?;
 
@@ -91,11 +106,11 @@ pub async fn run(
         &work_queue,
         &missing_paths,
         &music_directory,
-        silent,
+        verbosity,
     );
 
     let elapsed = start_time.elapsed().as_millis();
-    if !silent {
+    if verbosity == LogVerbosity::Verbose {
         log::info!(
             "Update complete: {checked_count} checked ({written_count} modified), {missing_count} removed. Finished in {elapsed}ms."
         );
@@ -117,7 +132,7 @@ async fn execute_compile_pass(
     missing_paths: &[PathBuf],
     deps_graph: &mut DependencyGraph,
     jobs: Option<usize>,
-    silent: bool,
+    verbosity: LogVerbosity,
 ) -> Result<usize> {
     let (ingest_tx, mut ingest_rx) =
         tokio::sync::mpsc::channel::<crate::server::api::system::AlbumIngestPayload>(512);
@@ -142,7 +157,7 @@ async fn execute_compile_pass(
         },
         ingest_tx: Some(ingest_tx),
         active_writes: None,
-        silent,
+        verbosity,
     };
 
     let written_count = compile::run(compile_options).await?;
@@ -202,17 +217,17 @@ fn resolve_target_scope(
 
 async fn run_delegated_update(
     target_path: Option<PathBuf>,
-    force: bool,
+    force: ForceMode,
     jobs: Option<usize>,
-    silent: bool,
+    verbosity: LogVerbosity,
     port: u16,
 ) -> Result<()> {
     let client = reqwest::Client::new();
     let body = serde_json::json!({
         "path": target_path.map(|p| p.to_string_lossy().to_string()),
-        "force": force,
+        "force": force == ForceMode::Force,
         "jobs": jobs,
-        "silent": silent,
+        "silent": verbosity == LogVerbosity::Silent,
     });
 
     let mut res = client
@@ -236,13 +251,13 @@ async fn run_delegated_update(
         while let Some(pos) = buffer.find('\n') {
             let line = buffer[..pos].trim_end().to_string();
             buffer.drain(..=pos);
-            if !line.is_empty() && !silent {
+            if !line.is_empty() && verbosity == LogVerbosity::Verbose {
                 log::info!("{line}");
             }
         }
     }
 
-    if !buffer.trim().is_empty() && !silent {
+    if !buffer.trim().is_empty() && verbosity == LogVerbosity::Verbose {
         let line = buffer.trim();
         log::info!("{line}");
     }

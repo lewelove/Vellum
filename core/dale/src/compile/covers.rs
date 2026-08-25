@@ -1,5 +1,6 @@
 use crate::compile::assets;
 use base64::{Engine as _, engine::general_purpose::STANDARD};
+use libdale::utils::HashMode;
 use serde_json::{Value, json};
 use std::path::Path;
 
@@ -24,7 +25,8 @@ pub fn resolve_cover_data(
             let raw = blake3::hash(&content);
             let cover_hash_full = format!("blake3-{}", STANDARD.encode(raw.as_bytes()));
             let rel_path = libdale::resolvers::rel_path(cp, album_root);
-            if let Ok(info) = libdale::utils::get_file_info(cp, &rel_path, false) {
+            if let Ok(info) = libdale::utils::get_file_info(cp, &rel_path, HashMode::Skip)
+            {
                 let mut info_map = info.as_object().unwrap().clone();
                 info_map.insert("address".to_string(), json!(cover_hash_address));
                 info_map.insert("hash".to_string(), json!(cover_hash_full));

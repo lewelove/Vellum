@@ -3,12 +3,19 @@ pub mod engine;
 pub mod grouper;
 
 use anyhow::{Context, Result};
+use grouper::AnchorValidation;
 use libdale::harvest::{SUPPORTED_AUDIO_EXTENSIONS, harvest_file, is_audio_file};
 use libdale::utils::expand_path;
 use rayon::prelude::*;
 use std::fs;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OverwriteMode {
+    Force,
+    Preserve,
+}
 
 pub enum ManifestMode {
     Album,
@@ -56,10 +63,16 @@ fn execute_manifest_run<S: AsRef<str> + Sync>(
         ),
     };
 
+    let overwrite = if options.force {
+        OverwriteMode::Force
+    } else {
+        OverwriteMode::Preserve
+    };
+
     let dirs_to_harvest = match options.mode {
         ManifestMode::Album => vec![scan_root],
         ManifestMode::Library => {
-            find_harvestable_directories(&scan_root, options.force, supported_exts)
+            find_harvestable_directories(&scan_root, overwrite, supported_exts)
         }
     };
 
@@ -89,13 +102,13 @@ fn process_album_group<S: AsRef<str>>(
     supported_exts: &[S],
     options: &ManifestOptions,
 ) -> Result<()> {
-    let validate_exclusivity = match options.mode {
-        ManifestMode::Album => false,
-        ManifestMode::Library => true,
+    let validation = match options.mode {
+        ManifestMode::Album => AnchorValidation::Skip,
+        ManifestMode::Library => AnchorValidation::Validate,
     };
 
     let (anchor_opt, is_valid) =
-        grouper::resolve_anchor(&tracks, validate_exclusivity, supported_exts);
+        grouper::resolve_anchor(&tracks, validation, supported_exts);
     if !is_valid {
         return Ok(());
     }
@@ -141,7 +154,7 @@ fn process_album_group<S: AsRef<str>>(
 
 fn find_harvestable_directories<S: AsRef<str>>(
     scan_root: &Path,
-    force: bool,
+    overwrite: OverwriteMode,
     supported_exts: &[S],
 ) -> Vec<PathBuf> {
     let mut dirs_to_harvest = Vec::new();
@@ -150,7 +163,8 @@ fn find_harvestable_directories<S: AsRef<str>>(
     while let Some(Ok(entry)) = it.next() {
         if entry.file_type().is_dir() {
             let path = entry.path();
-            if !force && path.join("metadata.toml").exists() {
+            if overwrite == OverwriteMode::Preserve && path.join("metadata.toml").exists()
+            {
                 it.skip_current_dir();
                 continue;
             }

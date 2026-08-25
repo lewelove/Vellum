@@ -24,6 +24,12 @@ pub enum ExportTarget {
     Stdout,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LogVerbosity {
+    Verbose,
+    Silent,
+}
+
 pub struct CompileFlags {
     pub mode: CompileMode,
     pub target: ExportTarget,
@@ -39,7 +45,7 @@ pub struct CompileOptions {
     pub ingest_tx:
         Option<tokio::sync::mpsc::Sender<crate::server::api::system::AlbumIngestPayload>>,
     pub active_writes: Option<Arc<Mutex<HashSet<PathBuf>>>>,
-    pub silent: bool,
+    pub verbosity: LogVerbosity,
 }
 
 pub async fn run(mut options: CompileOptions) -> Result<usize> {
@@ -84,7 +90,7 @@ pub async fn run(mut options: CompileOptions) -> Result<usize> {
         jobs: effective_jobs,
         ingest_tx: options.ingest_tx,
         active_writes: options.active_writes,
-        silent: options.silent,
+        verbosity: options.verbosity,
     };
 
     stream::run(ctx).await

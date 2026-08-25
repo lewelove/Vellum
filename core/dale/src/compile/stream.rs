@@ -1,4 +1,4 @@
-use crate::compile::{ExportTarget, build};
+use crate::compile::{ExportTarget, LogVerbosity, build};
 use anyhow::Result;
 use rayon::prelude::*;
 use serde_json::Value;
@@ -23,7 +23,7 @@ pub struct StreamContext {
     pub ingest_tx:
         Option<tokio::sync::mpsc::Sender<crate::server::api::system::AlbumIngestPayload>>,
     pub active_writes: Option<Arc<Mutex<HashSet<PathBuf>>>>,
-    pub silent: bool,
+    pub verbosity: LogVerbosity,
 }
 
 pub async fn run(ctx: StreamContext) -> Result<usize> {
@@ -36,14 +36,14 @@ pub async fn run(ctx: StreamContext) -> Result<usize> {
     let written_ref = Arc::clone(&written_count);
     let ingest_tx = ctx.ingest_tx;
     let active_writes = ctx.active_writes.clone();
-    let silent = ctx.silent;
+    let verbosity = ctx.verbosity;
 
     let direct_handle = tokio::spawn(async move {
         while let Some(item) = drx.recv().await {
             let written_inner = Arc::clone(&written_ref);
             let active_ref = active_writes.clone();
             let res = tokio::task::spawn_blocking(move || {
-                finalize(item, target, active_ref.as_ref(), silent)
+                finalize(item, target, active_ref.as_ref(), verbosity)
             })
             .await;
             if let Ok(Ok((written, payload))) = res {
@@ -131,7 +131,7 @@ fn finalize(
     item: CompiledItem,
     target: ExportTarget,
     active_writes: Option<&Arc<Mutex<HashSet<PathBuf>>>>,
-    silent: bool,
+    verbosity: LogVerbosity,
 ) -> Result<(bool, Option<crate::server::api::system::AlbumIngestPayload>)> {
     let artist = item
         .lock_val
@@ -177,7 +177,7 @@ fn finalize(
         {
             active.insert(lock_canon);
             active.insert(lock_path.clone());
-        } else if !silent {
+        } else if verbosity == LogVerbosity::Verbose {
             log::info!("Updated lock: {}", payload.id);
         }
         std::fs::write(&lock_path, content)?;

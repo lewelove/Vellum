@@ -32,7 +32,7 @@ missing_panics_doc = "allow"
 must_use_candidate = "allow"
 
 cognitive_complexity = "deny"
-# fn_params_excessive_bools = "deny"
+fn_params_excessive_bools = "deny"
 
 [workspace.dependencies]
 

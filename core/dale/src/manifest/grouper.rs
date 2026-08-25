@@ -3,6 +3,12 @@ use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AnchorValidation {
+    Validate,
+    Skip,
+}
+
 pub type GroupedTracks =
     HashMap<Vec<String>, Vec<(PathBuf, serde_json::Map<String, Value>)>>;
 
@@ -60,7 +66,7 @@ pub fn sort_album_tracks(tracks: &mut [(PathBuf, serde_json::Map<String, Value>)
 
 pub fn resolve_anchor<S: AsRef<str>>(
     tracks: &[(PathBuf, serde_json::Map<String, Value>)],
-    validate: bool,
+    validation: AnchorValidation,
     supported_exts: &[S],
 ) -> (Option<PathBuf>, bool) {
     if tracks.is_empty() {
@@ -86,7 +92,7 @@ pub fn resolve_anchor<S: AsRef<str>>(
         }
     }
 
-    if !validate {
+    if validation == AnchorValidation::Skip {
         return (Some(anchor), true);
     }
 

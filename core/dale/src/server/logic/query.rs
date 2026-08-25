@@ -1,4 +1,4 @@
-use super::LogicEngine;
+use super::{LogicEngine, SortOrder};
 use roaring::RoaringBitmap;
 use serde_json::Value;
 
@@ -10,7 +10,7 @@ impl LogicEngine {
         sort: &str,
         filter_key: Option<&str>,
         filter_val: Option<&str>,
-        reverse: bool,
+        order: SortOrder,
     ) -> Vec<String> {
         let empty_bitmap = RoaringBitmap::new();
         let library_mask = self.libraries_cache.get(library).unwrap_or(&empty_bitmap);
@@ -64,7 +64,7 @@ impl LogicEngine {
             .filter_map(|uid| self.uid_to_id.get(uid).cloned())
             .collect();
 
-        if reverse {
+        if order == SortOrder::Reverse {
             res.reverse();
         }
         res
@@ -74,7 +74,7 @@ impl LogicEngine {
         &self,
         shelf_key: &str,
         order_key: Option<&str>,
-        reverse: bool,
+        order: SortOrder,
     ) -> Vec<String> {
         let empty_vec = Vec::new();
         let native_uids = self.shelves_cache.get(shelf_key).unwrap_or(&empty_vec);
@@ -99,7 +99,7 @@ impl LogicEngine {
             },
         );
 
-        if reverse {
+        if order == SortOrder::Reverse {
             uids.reverse();
         }
 

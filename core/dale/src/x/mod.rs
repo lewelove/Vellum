@@ -9,6 +9,12 @@ use std::process::Stdio;
 use tokio::net::TcpStream;
 use walkdir::WalkDir;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DebugMode {
+    Enabled,
+    Disabled,
+}
+
 pub struct TargetFlags {
     pub playing: bool,
     pub id: Option<String>,
@@ -261,7 +267,7 @@ async fn run_external_action(
 pub async fn execute(
     name: String,
     target: TargetFlags,
-    _debug: bool,
+    _debug: DebugMode,
     trailing_args: Vec<String>,
 ) -> Result<()> {
     let name_key = name.replace('-', "_");

@@ -1,5 +1,7 @@
+use crate::compile::LogVerbosity;
 use crate::server::state::{DependencyGraph, UpdateScope};
 use crate::update::cache::{FileStat, get_lua_config_hash};
+use crate::update::client::ForceMode;
 use crate::update::verify::{find_missing_paths, verify_albums_parallel};
 use anyhow::Result;
 use std::collections::{HashMap, HashSet};
@@ -11,10 +13,10 @@ pub struct WorkQueueContext<'a> {
     pub music_directory: &'a Path,
     pub cache: &'a HashMap<String, FileStat>,
     pub deps_graph: &'a DependencyGraph,
-    pub force: bool,
+    pub force: ForceMode,
     pub effective_jobs: Option<usize>,
     pub tracked: Option<(Vec<PathBuf>, Vec<PathBuf>)>,
-    pub silent: bool,
+    pub verbosity: LogVerbosity,
 }
 
 fn filter_dirty_albums(
@@ -92,10 +94,10 @@ fn discover_scope_albums(
 pub fn resolve_work_queue(
     mut ctx: WorkQueueContext<'_>,
 ) -> Result<(Vec<PathBuf>, Vec<PathBuf>)> {
-    if !ctx.force
+    if ctx.force == ForceMode::Preserve
         && let Some((wq, mp)) = ctx.tracked.take()
     {
-        if !ctx.silent && !wq.is_empty() {
+        if ctx.verbosity == LogVerbosity::Verbose && !wq.is_empty() {
             log::info!("Verifying {} tracked albums...", wq.len());
         }
         let verified_wq = filter_dirty_albums(wq, &ctx)?;
@@ -105,7 +107,7 @@ pub fn resolve_work_queue(
     let (all_albums, mp) =
         discover_scope_albums(ctx.scope, ctx.music_directory, ctx.cache)?;
 
-    if !ctx.silent && !all_albums.is_empty() {
+    if ctx.verbosity == LogVerbosity::Verbose && !all_albums.is_empty() {
         log::info!("Verifying {} albums...", all_albums.len());
     }
 
@@ -119,7 +121,7 @@ pub fn update_cache_entries(
     work_queue: &[PathBuf],
     missing_paths: &[PathBuf],
     music_directory: &Path,
-    silent: bool,
+    verbosity: LogVerbosity,
 ) {
     for album_root in work_queue {
         let album_root_canon = album_root
@@ -170,7 +172,7 @@ pub fn update_cache_entries(
         let album_id = libdale::resolvers::rel_path(missing, music_directory);
         let prefix = format!("{album_id}/");
 
-        if !silent {
+        if verbosity == LogVerbosity::Verbose {
             log::info!("Removed album: {album_id}");
         }
 
@@ -222,14 +224,14 @@ pub async fn try_get_server_tracked_albums(
 pub fn check_lua_config_changed(
     dependencies: &[PathBuf],
     cache_root: &Path,
-    silent: bool,
+    verbosity: LogVerbosity,
 ) -> (bool, PathBuf, String) {
     let lua_hash = get_lua_config_hash(dependencies);
     let lua_hash_file = cache_root.join("config.blake3");
     let previous_lua_hash = fs::read_to_string(&lua_hash_file).unwrap_or_default();
     let config_changed = lua_hash != previous_lua_hash;
 
-    if config_changed && !silent {
+    if config_changed && verbosity == LogVerbosity::Verbose {
         log::info!("Lua configuration changed. Re-evaluating album locks...");
     }
 

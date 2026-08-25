@@ -1,5 +1,11 @@
 use serde_json::Value;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SortOrder {
+    Forward,
+    Reverse,
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum SortKey {
     Number(i64),

@@ -1,5 +1,6 @@
 use crate::server::state::DependencyGraph;
 use crate::update::cache::FileStat;
+use crate::update::client::ForceMode;
 use anyhow::Result;
 use rayon::prelude::*;
 use std::collections::{HashMap, HashSet};
@@ -41,7 +42,7 @@ pub fn verify_albums_parallel(
     albums: Vec<PathBuf>,
     cache: &HashMap<String, FileStat>,
     deps_graph: &DependencyGraph,
-    force: bool,
+    force: ForceMode,
     jobs: Option<usize>,
     library_root: &Path,
 ) -> Result<Vec<(PathBuf, bool)>> {
@@ -55,8 +56,8 @@ pub fn verify_albums_parallel(
         albums
             .into_par_iter()
             .map(|album_root| {
-                let is_dirty =
-                    force || is_album_dirty(&album_root, cache, deps_graph, library_root);
+                let is_dirty = force == ForceMode::Force
+                    || is_album_dirty(&album_root, cache, deps_graph, library_root);
                 (album_root, is_dirty)
             })
             .collect()

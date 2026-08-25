@@ -1,5 +1,7 @@
-use crate::server::inotify::handler::RecompiledAlbumItem;
+use crate::compile::LogVerbosity;
+use crate::server::inotify::handler::{IngestOrigin, RecompiledAlbumItem};
 use crate::server::state::AppState;
+use crate::update::client::ForceMode;
 use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
@@ -42,17 +44,25 @@ pub async fn trigger_update(
     let (tx, rx) = tokio::sync::mpsc::channel::<String>(100);
 
     let target_path = payload.path.map(PathBuf::from);
-    let force = payload.force;
+    let force_mode = if payload.force {
+        ForceMode::Force
+    } else {
+        ForceMode::Preserve
+    };
     let jobs = payload.jobs;
-    let silent = payload.silent;
+    let verbosity = if payload.silent {
+        LogVerbosity::Silent
+    } else {
+        LogVerbosity::Verbose
+    };
 
     tokio::spawn(async move {
         if let Err(e) = crate::update::run_server_update(
             state,
             target_path,
-            force,
+            force_mode,
             jobs,
-            silent,
+            verbosity,
             Some(tx.clone()),
         )
         .await
@@ -260,9 +270,9 @@ pub async fn trigger_reload(
             if let Err(e) = crate::update::run_server_update(
                 state,
                 Some(target_path),
-                true,
+                ForceMode::Force,
                 None,
-                true,
+                LogVerbosity::Silent,
                 None,
             )
             .await
@@ -295,7 +305,7 @@ pub async fn ingest_reload_payloads(
     crate::server::inotify::handler::ingest_and_broadcast_albums(
         std::collections::HashSet::new(),
         recompiled_items,
-        false,
+        IngestOrigin::External,
         &state,
     )
     .await;
@@ -316,9 +326,9 @@ pub async fn force_update_album(
             if let Err(e) = crate::update::run_server_update(
                 state,
                 Some(path),
-                true,
+                ForceMode::Force,
                 None,
-                true,
+                LogVerbosity::Silent,
                 None,
             )
             .await

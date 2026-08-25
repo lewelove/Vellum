@@ -18,7 +18,7 @@ struct Cli {
     command: Commands,
 }
 
-#[derive(Subcommand)]
+#[derive(Subcommand, Clone)]
 enum Commands {
     Harvest {
         #[arg(value_name = "PATHS", required = true, num_args = 1..)]
@@ -104,7 +104,11 @@ enum Commands {
     },
 }
 
-fn handle_harvest(paths: Vec<String>, pretty: bool, jobs: Option<usize>) -> Result<()> {
+fn handle_harvest(
+    paths: Vec<String>,
+    format: harvest::FormatMode,
+    jobs: Option<usize>,
+) -> Result<()> {
     if let Some(j) = jobs {
         rayon::ThreadPoolBuilder::new()
             .num_threads(j)
@@ -122,39 +126,25 @@ fn handle_harvest(paths: Vec<String>, pretty: bool, jobs: Option<usize>) -> Resu
         }
     }
 
-    harvest::run(targets, pretty);
+    harvest::run(targets, format);
     Ok(())
 }
 
 async fn handle_compile(
     path: String,
-    stdout: bool,
-    intermediary: bool,
-    pretty: bool,
-    flags: Vec<String>,
+    flags: compile::CompileFlags,
+    custom_flags: Vec<String>,
 ) -> Result<()> {
     let expanded = expand_path(&path);
     let options = compile::CompileOptions {
         target_path: expanded,
-        flags,
+        flags: custom_flags,
         specific_albums: None,
         jobs: None,
-        compile_flags: compile::CompileFlags {
-            mode: if intermediary {
-                compile::CompileMode::Intermediary
-            } else {
-                compile::CompileMode::Standard
-            },
-            target: if stdout {
-                compile::ExportTarget::Stdout
-            } else {
-                compile::ExportTarget::File
-            },
-            pretty,
-        },
+        compile_flags: flags,
         ingest_tx: None,
         active_writes: None,
-        silent: false,
+        verbosity: compile::LogVerbosity::Verbose,
     };
     let _ = compile::run(options).await?;
     Ok(())
@@ -162,26 +152,13 @@ async fn handle_compile(
 
 fn handle_manifest(
     path: Option<String>,
-    force: bool,
-    album: bool,
-    stdout: bool,
+    options: &manifest::ManifestOptions,
 ) -> Result<()> {
     let expanded = path.map(|p| expand_path(&p));
-    let mode = if album {
-        manifest::ManifestMode::Album
-    } else {
-        manifest::ManifestMode::Library
-    };
-    let options = manifest::ManifestOptions {
-        mode,
-        force,
-        stdout,
-    };
-    manifest::run(expanded.as_deref(), &options)
+    manifest::run(expanded.as_deref(), options)
 }
 
-#[tokio::main]
-async fn main() -> Result<()> {
+fn init_logger() {
     simple_logger::SimpleLogger::new()
         .with_level(log::LevelFilter::Info)
         .with_module_level("mpd_protocol", log::LevelFilter::Warn)
@@ -190,24 +167,52 @@ async fn main() -> Result<()> {
         .env()
         .init()
         .ok();
+}
 
-    let cli = Cli::parse();
-
-    match cli.command {
+async fn dispatch_ops_command(cmd: Commands) -> Option<Result<()>> {
+    match cmd {
         Commands::Harvest {
             paths,
             pretty,
             jobs,
-        } => handle_harvest(paths, pretty, jobs),
-        Commands::Server { port } => server::run(port).await,
-        Commands::Interface { name } => interface::execute(name).await,
+        } => {
+            let format = if pretty {
+                harvest::FormatMode::Pretty
+            } else {
+                harvest::FormatMode::Compact
+            };
+            Some(handle_harvest(paths, format, jobs))
+        }
+        Commands::Server { port } => Some(server::run(port).await),
+        Commands::Interface { name } => Some(interface::execute(name).await),
         Commands::Compile {
             path,
             stdout,
             intermediary,
             pretty,
             flags,
-        } => handle_compile(path, stdout, intermediary, pretty, flags).await,
+        } => {
+            let compile_flags = compile::CompileFlags {
+                mode: if intermediary {
+                    compile::CompileMode::Intermediary
+                } else {
+                    compile::CompileMode::Standard
+                },
+                target: if stdout {
+                    compile::ExportTarget::Stdout
+                } else {
+                    compile::ExportTarget::File
+                },
+                pretty,
+            };
+            Some(handle_compile(path, compile_flags, flags).await)
+        }
+        _ => None,
+    }
+}
+
+async fn dispatch_exec_command(cmd: Commands) -> Result<()> {
+    match cmd {
         Commands::Update {
             path,
             force,
@@ -215,7 +220,17 @@ async fn main() -> Result<()> {
             silent,
         } => {
             let expanded = path.map(|p| expand_path(&p));
-            update::run(expanded, force, jobs, silent).await
+            let force_mode = if force {
+                update::client::ForceMode::Force
+            } else {
+                update::client::ForceMode::Preserve
+            };
+            let verbosity = if silent {
+                compile::LogVerbosity::Silent
+            } else {
+                compile::LogVerbosity::Verbose
+            };
+            update::run(expanded, force_mode, jobs, verbosity).await
         }
         Commands::Manifest {
             force,
@@ -223,7 +238,19 @@ async fn main() -> Result<()> {
             album,
             library: _,
             stdout,
-        } => handle_manifest(path, force, album, stdout),
+        } => {
+            let mode = if album {
+                manifest::ManifestMode::Album
+            } else {
+                manifest::ManifestMode::Library
+            };
+            let options = manifest::ManifestOptions {
+                mode,
+                force,
+                stdout,
+            };
+            handle_manifest(path, &options)
+        }
         Commands::X {
             name,
             playing,
@@ -243,7 +270,12 @@ async fn main() -> Result<()> {
                 recursive,
                 library,
             };
-            x::execute(name, target, debug, args).await
+            let debug_mode = if debug {
+                x::DebugMode::Enabled
+            } else {
+                x::DebugMode::Disabled
+            };
+            x::execute(name, target, debug_mode, args).await
         }
         Commands::Query {
             query_str,
@@ -260,5 +292,16 @@ async fn main() -> Result<()> {
             };
             query::run(query_str, flags).await
         }
+        _ => Ok(()),
     }
+}
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    init_logger();
+    let cli = Cli::parse();
+    if let Some(res) = dispatch_ops_command(cli.command.clone()).await {
+        return res;
+    }
+    dispatch_exec_command(cli.command).await
 }

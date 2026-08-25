@@ -1,9 +1,11 @@
-use crate::compile;
+use crate::compile::{self, LogVerbosity};
+use crate::server::inotify::handler::IngestOrigin;
 use crate::server::state::{AppState, PendingUpdateParams, UpdateScope};
 use crate::update::cache::{
     calculate_path_hash, deps_graph_path, library_cache_dir, load_cache, save_cache,
     validate_library_root,
 };
+use crate::update::client::ForceMode;
 use crate::update::queue::{
     WorkQueueContext, check_lua_config_changed, resolve_work_queue,
     try_get_server_tracked_albums, update_cache_entries,
@@ -20,11 +22,15 @@ pub struct CompilePassContext<'a> {
     pub work_queue: &'a [PathBuf],
     pub missing_paths: &'a [PathBuf],
     pub effective_jobs: Option<usize>,
-    pub silent: bool,
+    pub verbosity: LogVerbosity,
 }
 
-pub fn emit_log(msg: &str, silent: bool, log_txs: &[tokio::sync::mpsc::Sender<String>]) {
-    if !silent {
+pub fn emit_log(
+    msg: &str,
+    verbosity: LogVerbosity,
+    log_txs: &[tokio::sync::mpsc::Sender<String>],
+) {
+    if verbosity == LogVerbosity::Verbose {
         log::info!("{msg}");
     }
     for tx in log_txs {
@@ -40,7 +46,7 @@ pub fn emit_log(msg: &str, silent: bool, log_txs: &[tokio::sync::mpsc::Sender<St
 
 pub fn spawn_server_ingest_handler(
     state: Arc<AppState>,
-    silent: bool,
+    verbosity: LogVerbosity,
     log_txs: Vec<tokio::sync::mpsc::Sender<String>>,
 ) -> (
     tokio::sync::mpsc::Sender<crate::server::api::system::AlbumIngestPayload>,
@@ -89,13 +95,13 @@ pub fn spawn_server_ingest_handler(
             crate::server::inotify::handler::ingest_and_broadcast_albums(
                 vanished_paths,
                 items,
-                true,
+                IngestOrigin::Internal,
                 &state,
             )
             .await;
 
             for log_msg in &logs {
-                emit_log(log_msg, silent, &log_txs);
+                emit_log(log_msg, verbosity, &log_txs);
             }
         }
     });
@@ -106,9 +112,9 @@ pub fn spawn_server_ingest_handler(
 pub async fn run_server_update(
     state: Arc<AppState>,
     target_path: Option<PathBuf>,
-    force: bool,
+    force: ForceMode,
     jobs: Option<usize>,
-    silent: bool,
+    verbosity: LogVerbosity,
     log_tx: Option<tokio::sync::mpsc::Sender<String>>,
 ) -> Result<()> {
     let incoming_scope = target_path.map_or_else(
@@ -123,7 +129,7 @@ pub async fn run_server_update(
     let mut current_scope = incoming_scope;
     let mut current_force = force;
     let mut current_jobs = jobs;
-    let mut current_silent = silent;
+    let mut current_verbosity = verbosity;
     let mut current_log_txs = log_tx.into_iter().collect::<Vec<_>>();
 
     {
@@ -135,16 +141,17 @@ pub async fn run_server_update(
         if lock.is_running {
             if let Some(ref mut pending) = lock.pending {
                 pending.scope.merge(current_scope);
-                pending.force = pending.force || current_force;
+                pending.force = pending.force || current_force == ForceMode::Force;
                 pending.jobs = current_jobs.or(pending.jobs);
-                pending.silent = pending.silent && current_silent;
+                pending.silent =
+                    pending.silent && current_verbosity == LogVerbosity::Silent;
                 pending.log_txs.extend(current_log_txs);
             } else {
                 lock.pending = Some(PendingUpdateParams {
                     scope: current_scope,
-                    force: current_force,
+                    force: current_force == ForceMode::Force,
                     jobs: current_jobs,
-                    silent: current_silent,
+                    silent: current_verbosity == LogVerbosity::Silent,
                     log_txs: current_log_txs,
                 });
             }
@@ -162,14 +169,14 @@ pub async fn run_server_update(
             current_scope.clone(),
             current_force,
             current_jobs,
-            current_silent,
+            current_verbosity,
             current_log_txs.clone(),
         )
         .await;
 
         if let Err(ref e) = res {
             let err_msg = format!("Update failed: {e}");
-            emit_log(&err_msg, current_silent, &current_log_txs);
+            emit_log(&err_msg, current_verbosity, &current_log_txs);
         }
 
         last_res = res;
@@ -191,9 +198,17 @@ pub async fn run_server_update(
 
         if let Some(next) = next_params {
             current_scope = next.scope;
-            current_force = next.force;
+            current_force = if next.force {
+                ForceMode::Force
+            } else {
+                ForceMode::Preserve
+            };
             current_jobs = next.jobs;
-            current_silent = next.silent;
+            current_verbosity = if next.silent {
+                LogVerbosity::Silent
+            } else {
+                LogVerbosity::Verbose
+            };
             current_log_txs = next.log_txs;
         } else {
             break;
@@ -206,9 +221,9 @@ pub async fn run_server_update(
 async fn run_server_update_pass(
     state: Arc<AppState>,
     scope: UpdateScope,
-    force: bool,
+    force: ForceMode,
     jobs: Option<usize>,
-    silent: bool,
+    verbosity: LogVerbosity,
     log_txs: Vec<tokio::sync::mpsc::Sender<String>>,
 ) -> Result<()> {
     let config = state.config.read().await.app.clone();
@@ -228,10 +243,19 @@ async fn run_server_update_pass(
     let mut cache = load_cache(&base_cache_dir.join("library.json"));
 
     let (config_changed, lua_hash_file, lua_hash) =
-        check_lua_config_changed(&dependencies, &cache_root, silent);
-    let force = force || config_changed;
+        check_lua_config_changed(&dependencies, &cache_root, verbosity);
+    let effective_force = match force {
+        ForceMode::Force => ForceMode::Force,
+        ForceMode::Preserve => {
+            if config_changed {
+                ForceMode::Force
+            } else {
+                ForceMode::Preserve
+            }
+        }
+    };
 
-    let tracked = if !force && is_full_library {
+    let tracked = if effective_force == ForceMode::Preserve && is_full_library {
         try_get_server_tracked_albums(&music_directory).await
     } else {
         None
@@ -243,14 +267,14 @@ async fn run_server_update_pass(
         music_directory: &music_directory,
         cache: &cache,
         deps_graph: &deps_graph,
-        force,
+        force: effective_force,
         effective_jobs,
         tracked,
-        silent,
+        verbosity,
     })?;
 
     if work_queue.is_empty() && missing_paths.is_empty() {
-        emit_log("Library is up to date.", silent, &log_txs);
+        emit_log("Library is up to date.", verbosity, &log_txs);
         let _ = fs::write(&lua_hash_file, &lua_hash);
         save_cache(&cache, &base_cache_dir.join("library.json"))?;
         let deps_json_path = deps_graph_path(&cache_root, &music_directory);
@@ -278,7 +302,7 @@ async fn run_server_update_pass(
             work_queue: &work_queue,
             missing_paths: &missing_paths,
             effective_jobs,
-            silent,
+            verbosity,
         },
         &log_txs,
     )
@@ -291,7 +315,7 @@ async fn run_server_update_pass(
         &work_queue,
         &missing_paths,
         &music_directory,
-        silent,
+        verbosity,
     );
     drop(deps_graph_guard);
 
@@ -300,7 +324,7 @@ async fn run_server_update_pass(
         &format!(
             "Update complete: {checked_count} checked ({written_count} modified), {missing_count} removed. Finished in {elapsed}ms."
         ),
-        silent,
+        verbosity,
         &log_txs,
     );
 
@@ -316,11 +340,15 @@ async fn process_missing_and_compile(
     log_txs: &[tokio::sync::mpsc::Sender<String>],
 ) -> Result<usize> {
     let (ingest_tx, ingest_handle) =
-        spawn_server_ingest_handler(Arc::clone(state), ctx.silent, log_txs.to_vec());
+        spawn_server_ingest_handler(Arc::clone(state), ctx.verbosity, log_txs.to_vec());
 
     for missing in ctx.missing_paths {
         let album_id = libdale::resolvers::rel_path(missing, ctx.music_directory);
-        emit_log(&format!("Removed album: {album_id}"), ctx.silent, log_txs);
+        emit_log(
+            &format!("Removed album: {album_id}"),
+            ctx.verbosity,
+            log_txs,
+        );
         let _ = ingest_tx
             .send(crate::server::api::system::AlbumIngestPayload {
                 album_dir: missing.clone(),
@@ -339,7 +367,7 @@ async fn process_missing_and_compile(
         let checked_count = ctx.work_queue.len();
         emit_log(
             &format!("Verifying {checked_count} albums..."),
-            ctx.silent,
+            ctx.verbosity,
             log_txs,
         );
     }
@@ -367,7 +395,7 @@ async fn process_missing_and_compile(
         },
         ingest_tx: Some(ingest_tx),
         active_writes: Some(Arc::clone(&state.active_writes)),
-        silent: ctx.silent,
+        verbosity: ctx.verbosity,
     };
 
     let written_count = compile::run(compile_options).await?;

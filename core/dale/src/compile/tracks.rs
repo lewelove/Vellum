@@ -1,13 +1,15 @@
+use crate::compile::album::AlbumKind;
 use crate::compile::utils::sort_json_keys;
 use crate::harvest;
 use libdale::compiler::manifest::extract_strict_u32;
 use libdale::compiler::validation::validate_track_indices;
 use libdale::error::DaleError;
+use libdale::utils::HashMode;
 use serde_json::{Value, json};
 use std::path::Path;
 
 pub fn build_ctx_tracks(
-    is_virtual: bool,
+    kind: AlbumKind,
     primary_tracks: &[Value],
     audio_files: &[std::path::PathBuf],
     album_root: &Path,
@@ -17,7 +19,7 @@ pub fn build_ctx_tracks(
     let mut duration_sum_ms = 0;
 
     for (idx, _track_val) in primary_tracks.iter().enumerate() {
-        if is_virtual {
+        if kind == AlbumKind::Virtual {
             ctx_tracks.push(json!({
                 "sample_rate": 0,
                 "bits_per_sample": 0,
@@ -41,8 +43,9 @@ pub fn build_ctx_tracks(
                 },
             )?;
             let rel_path = libdale::resolvers::rel_path(file_path, album_root);
-            let file_info = libdale::utils::get_file_info(file_path, &rel_path, false)
-                .unwrap_or_else(|_| json!({}));
+            let file_info =
+                libdale::utils::get_file_info(file_path, &rel_path, HashMode::Skip)
+                    .unwrap_or_else(|_| json!({}));
 
             ctx_tracks.push(json!({
                 "sample_rate": harvest.physics.sample_rate,
@@ -136,12 +139,12 @@ pub fn build_final_tracks(
 }
 
 pub fn validate_audio_files(
-    is_virtual: bool,
+    kind: AlbumKind,
     audio_files: &[std::path::PathBuf],
     primary_tracks: &[Value],
     album_root: &Path,
 ) -> Result<(), DaleError> {
-    if !is_virtual && audio_files.len() != primary_tracks.len() {
+    if kind == AlbumKind::Physical && audio_files.len() != primary_tracks.len() {
         return Err(DaleError::PhysicalInventoryMismatch {
             path: album_root.to_path_buf(),
             files_count: audio_files.len(),

@@ -2,7 +2,7 @@ pub mod cache;
 pub mod query;
 pub mod sort;
 
-pub use sort::{SortKey, value_to_sort_key};
+pub use sort::{SortKey, SortOrder, value_to_sort_key};
 
 use anyhow::Result;
 use libdale::error::DaleError;

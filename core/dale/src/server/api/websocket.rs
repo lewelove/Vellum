@@ -1,3 +1,4 @@
+use crate::server::logic::SortOrder;
 use crate::server::mpd::MpdCommand;
 use crate::server::state::AppState;
 use ax_ws::WebSocket;
@@ -19,7 +20,10 @@ async fn build_init_payload(state: &AppState) -> String {
         let l = state.logic.read().await;
         let mut s = std::collections::HashMap::new();
         for key in l.manifest.shelves.keys() {
-            s.insert(key.clone(), l.request_shelf_view(key, None, false));
+            s.insert(
+                key.clone(),
+                l.request_shelf_view(key, None, SortOrder::Forward),
+            );
         }
         (
             l.dict.clone(),
@@ -62,13 +66,19 @@ async fn handle_view_request(req: &Value, socket: &mut WebSocket, state: &AppSta
         .and_then(|v| v.get("val"))
         .and_then(Value::as_str);
 
+    let order = if reverse {
+        SortOrder::Reverse
+    } else {
+        SortOrder::Forward
+    };
+
     let ids = state.logic.read().await.request_view(
         library,
         library_filter,
         sort,
         filter_key,
         filter_val,
-        reverse,
+        order,
     );
     let payload = json!({ "type": "VIEW_DATA", "ids": ids }).to_string();
     let _ = socket.send(ax_ws::Message::Text(payload.into())).await;
@@ -79,11 +89,17 @@ async fn handle_shelf_request(req: &Value, socket: &mut WebSocket, state: &AppSt
     let order = req.get("order").and_then(Value::as_str);
     let reverse = req.get("reverse").and_then(Value::as_bool).unwrap_or(false);
 
+    let sort_order = if reverse {
+        SortOrder::Reverse
+    } else {
+        SortOrder::Forward
+    };
+
     let ids = state
         .logic
         .read()
         .await
-        .request_shelf_view(shelf, order, reverse);
+        .request_shelf_view(shelf, order, sort_order);
     let payload = json!({ "type": "SHELF_DATA", "ids": ids }).to_string();
     let _ = socket.send(ax_ws::Message::Text(payload.into())).await;
 }

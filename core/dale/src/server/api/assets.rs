@@ -283,12 +283,12 @@ pub async fn get_album_cover(
     };
 
     if let Some(path) = path_opt {
-        return serve_image(path, false).await;
+        return serve_image(path).await;
     }
     StatusCode::NOT_FOUND.into_response()
 }
 
-async fn serve_image(path: PathBuf, is_immutable: bool) -> Response {
+async fn serve_image(path: PathBuf) -> Response {
     if let Ok(mut file) = File::open(&path).await {
         let mut buf = Vec::new();
         if file.read_to_end(&mut buf).await.is_ok() {
@@ -298,11 +298,7 @@ async fn serve_image(path: PathBuf, is_immutable: bool) -> Response {
                 "image/jpeg"
             };
 
-            let cache_header = if is_immutable {
-                HeaderValue::from_static("public, max-age=31536000, immutable")
-            } else {
-                HeaderValue::from_static("public, max-age=86400")
-            };
+            let cache_header = HeaderValue::from_static("public, max-age=86400");
 
             return (
                 [

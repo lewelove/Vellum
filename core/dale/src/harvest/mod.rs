@@ -7,7 +7,13 @@ use std::thread;
 
 pub use libdale::harvest::{harvest_file, harvest_file_cached};
 
-pub fn run(roots: Vec<PathBuf>, pretty: bool) {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FormatMode {
+    Compact,
+    Pretty,
+}
+
+pub fn run(roots: Vec<PathBuf>, format: FormatMode) {
     let mut files = Vec::new();
 
     for root in roots {
@@ -30,10 +36,9 @@ pub fn run(roots: Vec<PathBuf>, pretty: bool) {
 
     files.par_iter().for_each_with(tx, |tx, path| {
         if let Ok(payload) = harvest_file(path) {
-            let json_res = if pretty {
-                serde_json::to_string_pretty(&payload)
-            } else {
-                serde_json::to_string(&payload)
+            let json_res = match format {
+                FormatMode::Pretty => serde_json::to_string_pretty(&payload),
+                FormatMode::Compact => serde_json::to_string(&payload),
             };
 
             if let Ok(json) = json_res {

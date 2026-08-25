@@ -1,4 +1,4 @@
-use super::{LogicEngine, SortKey, value_to_sort_key};
+use super::{LogicEngine, SortKey, SortOrder, value_to_sort_key};
 use libdale::lua::{FormattedGrouperResult, GrouperFormatContext};
 use roaring::RoaringBitmap;
 use serde_json::{Value, json};
@@ -79,7 +79,7 @@ fn calculate_pct(count: u64, view_total: f64) -> f64 {
 fn build_node_json(
     node: &RawGrouperNode,
     children_map: &mut HashMap<Option<String>, Vec<RawGrouperNode>>,
-    reverse: bool,
+    order: SortOrder,
 ) -> Value {
     let mut children_json = Vec::new();
     if let Some(mut children) = children_map.remove(&Some(node.value.clone())) {
@@ -88,11 +88,11 @@ fn build_node_json(
                 .cmp(&b.sort_key)
                 .then_with(|| alphanumeric_sort::compare_str(&a.value, &b.value))
         });
-        if reverse {
+        if order == SortOrder::Reverse {
             children.reverse();
         }
         for child in &children {
-            children_json.push(build_node_json(child, children_map, reverse));
+            children_json.push(build_node_json(child, children_map, order));
         }
     }
 
@@ -250,7 +250,7 @@ fn build_raw_grouper_nodes(
     raw_nodes
 }
 
-fn assemble_grouper_tree(raw_nodes: Vec<RawGrouperNode>, reverse: bool) -> Vec<Value> {
+fn assemble_grouper_tree(raw_nodes: Vec<RawGrouperNode>, order: SortOrder) -> Vec<Value> {
     let mut children_map: HashMap<Option<String>, Vec<RawGrouperNode>> = HashMap::new();
     for node in raw_nodes {
         children_map
@@ -266,13 +266,13 @@ fn assemble_grouper_tree(raw_nodes: Vec<RawGrouperNode>, reverse: bool) -> Vec<V
             .then_with(|| alphanumeric_sort::compare_str(&a.value, &b.value))
     });
 
-    if reverse {
+    if order == SortOrder::Reverse {
         roots.reverse();
     }
 
     roots
         .iter()
-        .map(|r| build_node_json(r, &mut children_map, reverse))
+        .map(|r| build_node_json(r, &mut children_map, order))
         .collect()
 }
 
@@ -453,7 +453,11 @@ impl LogicEngine {
         view_mask: &RoaringBitmap,
     ) -> Vec<Value> {
         let grouper_def = self.manifest.groupers.get(grouper_id);
-        let reverse = grouper_def.is_some_and(|g| g.reverse);
+        let order = if grouper_def.is_some_and(|g| g.reverse) {
+            SortOrder::Reverse
+        } else {
+            SortOrder::Forward
+        };
         let view_total = view_mask.len() as f64;
 
         let Some(groups) = self.groupers_cache.get(grouper_id) else {
@@ -490,7 +494,7 @@ impl LogicEngine {
             lua_engine,
         );
 
-        assemble_grouper_tree(raw_nodes, reverse)
+        assemble_grouper_tree(raw_nodes, order)
     }
 
     fn precompute_views_for_target(

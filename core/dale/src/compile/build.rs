@@ -200,9 +200,9 @@ pub fn build(
     let build_data = load_primary_and_files(&album_root_canon, config, &cache_root)?;
     let cover_file_info = covers::resolve_cover_data_cached(&album_root_canon, config);
 
-    let is_virtual = album::is_virtual_album(&build_data.parsed_manifests);
+    let album_kind = album::is_virtual_album(&build_data.parsed_manifests);
     tracks::validate_audio_files(
-        is_virtual,
+        album_kind,
         &build_data.prep_ctx.audio_files,
         &build_data.primary_tracks,
         &album_root_canon,
@@ -211,14 +211,14 @@ pub fn build(
     let lock_manifests = album::generate_lock_manifests(
         &build_data.parsed_manifests,
         &album_root_canon,
-        is_virtual,
+        album_kind,
     );
     let total_discs =
         libdale::resolvers::calculate_total_discs(&build_data.primary_tracks);
     let total_tracks = build_data.primary_tracks.len() as u32;
 
     let (ctx_tracks, duration_sum_ms) = tracks::build_ctx_tracks(
-        is_virtual,
+        album_kind,
         &build_data.primary_tracks,
         &build_data.prep_ctx.audio_files,
         &album_root_canon,
@@ -260,7 +260,7 @@ pub fn build(
         album::parse_mandatory_album_fields(primary_album, &album_root_canon)?;
 
     let info_obj = json!({
-        "virtual": is_virtual,
+        "virtual": album_kind == album::AlbumKind::Virtual,
         "total_discs": total_discs,
         "total_tracks": total_tracks,
         "duration_milliseconds": duration_sum_ms,

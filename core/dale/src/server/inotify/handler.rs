@@ -1,10 +1,17 @@
 use crate::server::inotify::classifier::ChangeFlags;
+use crate::server::logic::SortOrder;
 use crate::server::state::AppState;
 use rayon::prelude::*;
 use serde_json::json;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IngestOrigin {
+    Internal,
+    External,
+}
 
 pub type RecompiledAlbumItem = (
     PathBuf,
@@ -50,7 +57,13 @@ async fn handle_album_changes(
     log_detected_events(&vanished_paths, &changed_albums, state).await;
     let recompiled_items =
         recompile_changed_albums(changed_albums, Arc::clone(&state.active_writes)).await;
-    ingest_and_broadcast_albums(vanished_paths, recompiled_items, false, state).await;
+    ingest_and_broadcast_albums(
+        vanished_paths,
+        recompiled_items,
+        IngestOrigin::External,
+        state,
+    )
+    .await;
 }
 
 async fn log_detected_events(
@@ -209,7 +222,7 @@ fn remove_vanished_albums(
     vanished_paths: &HashSet<PathBuf>,
     logic: &mut crate::server::logic::LogicEngine,
     deps_graph: &mut crate::server::state::DependencyGraph,
-    is_internal_update: bool,
+    origin: IngestOrigin,
     outcome: &mut IngestOutcome,
 ) {
     let dead_paths: Vec<PathBuf> = logic
@@ -227,7 +240,7 @@ fn remove_vanished_albums(
 
     for dead_path in dead_paths {
         if let Some(dead_id) = logic.remove_album_by_path(&dead_path) {
-            if !is_internal_update {
+            if origin == IngestOrigin::External {
                 log::info!("Removed album: {dead_id}");
             }
             deps_graph.remove_album(&dead_path);
@@ -242,7 +255,7 @@ fn ingest_recompiled_items(
     music_directory: &Path,
     logic: &mut crate::server::logic::LogicEngine,
     deps_graph: &mut crate::server::state::DependencyGraph,
-    is_internal_update: bool,
+    origin: IngestOrigin,
     outcome: &mut IngestOutcome,
 ) {
     for (album_path, album_id, lock_json, eval_res, dependencies) in items {
@@ -272,7 +285,7 @@ fn ingest_recompiled_items(
         } else if !album_path.exists()
             && let Some(dead_id) = logic.remove_album_by_path(&album_path)
         {
-            if !is_internal_update {
+            if origin == IngestOrigin::External {
                 log::info!("Removed album: {dead_id}");
             }
             deps_graph.remove_album(&album_path);
@@ -285,7 +298,7 @@ fn ingest_recompiled_items(
 pub async fn ingest_and_broadcast_albums(
     vanished_paths: HashSet<PathBuf>,
     recompiled_items: Vec<RecompiledAlbumItem>,
-    is_internal_update: bool,
+    origin: IngestOrigin,
     state: &Arc<AppState>,
 ) {
     let (music_directory, cache_root) = {
@@ -305,7 +318,7 @@ pub async fn ingest_and_broadcast_albums(
             &vanished_paths,
             &mut logic,
             &mut deps_graph,
-            is_internal_update,
+            origin,
             &mut outcome,
         );
 
@@ -314,7 +327,7 @@ pub async fn ingest_and_broadcast_albums(
             &music_directory,
             &mut logic,
             &mut deps_graph,
-            is_internal_update,
+            origin,
             &mut outcome,
         );
 
@@ -332,7 +345,10 @@ pub async fn ingest_and_broadcast_albums(
 
         let mut s = HashMap::new();
         for key in logic.manifest.shelves.keys() {
-            s.insert(key.clone(), logic.request_shelf_view(key, None, false));
+            s.insert(
+                key.clone(),
+                logic.request_shelf_view(key, None, SortOrder::Forward),
+            );
         }
         drop(logic);
 

@@ -1,15 +1,28 @@
 use libdale::error::DaleError;
+use libdale::utils::HashMode;
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
 use std::path::Path;
 
-pub fn is_virtual_album(parsed_manifests: &serde_json::Map<String, Value>) -> bool {
-    parsed_manifests
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AlbumKind {
+    Physical,
+    Virtual,
+}
+
+pub fn is_virtual_album(parsed_manifests: &serde_json::Map<String, Value>) -> AlbumKind {
+    let is_virt = parsed_manifests
         .get("virtual")
         .and_then(|v| v.get("album"))
         .and_then(|a| a.get("virtual"))
         .and_then(Value::as_bool)
-        .unwrap_or(false)
+        .unwrap_or(false);
+
+    if is_virt {
+        AlbumKind::Virtual
+    } else {
+        AlbumKind::Physical
+    }
 }
 
 pub fn parse_mandatory_album_fields(
@@ -43,16 +56,18 @@ pub fn parse_mandatory_album_fields(
 pub fn generate_lock_manifests(
     parsed_manifests: &serde_json::Map<String, Value>,
     album_root: &Path,
-    is_virtual: bool,
+    kind: AlbumKind,
 ) -> BTreeMap<String, Value> {
     let mut lock_manifests = BTreeMap::new();
     for name in parsed_manifests.keys() {
-        if name == "virtual" && !is_virtual {
+        if name == "virtual" && kind == AlbumKind::Physical {
             continue;
         }
         let file_name = format!("{name}.toml");
         let abs_p = album_root.join(&file_name);
-        if let Ok(info) = libdale::utils::get_file_info(&abs_p, &file_name, false) {
+        if let Ok(info) =
+            libdale::utils::get_file_info(&abs_p, &file_name, HashMode::Skip)
+        {
             lock_manifests.insert(name.clone(), json!({ "file": info }));
         }
     }

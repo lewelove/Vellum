@@ -134,9 +134,9 @@ pub async fn run(port: u16) -> Result<()> {
         if let Err(e) = crate::update::run_server_update(
             app_state_clone,
             None,
-            false,
+            crate::update::client::ForceMode::Preserve,
             None,
-            true,
+            crate::compile::LogVerbosity::Silent,
             None,
         )
         .await

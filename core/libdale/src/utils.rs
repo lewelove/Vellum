@@ -6,6 +6,12 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use tempfile::NamedTempFile;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HashMode {
+    Compute,
+    Skip,
+}
+
 #[must_use]
 pub fn expand_path(path_str: &str) -> PathBuf {
     if path_str.starts_with('~')
@@ -52,7 +58,7 @@ pub fn resolve_path(path_str: &str, config_dir: &Path) -> PathBuf {
 pub fn get_file_info(
     path: &std::path::Path,
     rel_path: &str,
-    compute_hash: bool,
+    hash_mode: HashMode,
 ) -> Result<serde_json::Value, anyhow::Error> {
     let m = std::fs::metadata(path)?;
     let mtime = m
@@ -61,20 +67,21 @@ pub fn get_file_info(
         .as_secs();
     let byte_size = m.len();
 
-    let hash_val = if compute_hash {
-        let content = std::fs::read(path)?;
-        let hash = blake3::hash(&content);
-        let raw = hash.as_bytes();
-        let b64 = STANDARD.encode(raw);
-        let string = format!("blake3-{b64}");
-        let b64_url = URL_SAFE_NO_PAD.encode(raw);
-        let address: String = b64_url.chars().take(16).collect();
-        serde_json::json!({
-            "string": string,
-            "address": address
-        })
-    } else {
-        serde_json::Value::Null
+    let hash_val = match hash_mode {
+        HashMode::Compute => {
+            let content = std::fs::read(path)?;
+            let hash = blake3::hash(&content);
+            let raw = hash.as_bytes();
+            let b64 = STANDARD.encode(raw);
+            let string = format!("blake3-{b64}");
+            let b64_url = URL_SAFE_NO_PAD.encode(raw);
+            let address: String = b64_url.chars().take(16).collect();
+            serde_json::json!({
+                "string": string,
+                "address": address
+            })
+        }
+        HashMode::Skip => serde_json::Value::Null,
     };
 
     Ok(serde_json::json!({
