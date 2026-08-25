@@ -24,6 +24,8 @@
 
 - Strictly adhere to the layered boundary hierarchy: each layer may only communicate with its immediate neighbor directly below it. Never "punch holes" through layers (e.g., controllers or UI components must never directly call database queries, raw hardware drivers, or low-level network clients; always route through the intermediate service/abstraction layer).
 
+- Always document Rust tests in files dedicated to them. Be concise and to the point.
+
 - Always use {}, even on a one-line "if" statement.
 
 When you write a commit message, follow these 7 rules:
