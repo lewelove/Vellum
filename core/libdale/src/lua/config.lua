@@ -19,14 +19,18 @@ _G.dale.interface = function(name, t)
 end
 
 _G.dale.action = function(name, t)
-    if type(t) == "boolean" then
-        if t == true then
-            REGISTRY.actions[name] = { config = {} }
-        end
-    elseif type(t) == "table" then
-        if t.config == nil then t.config = {} end
-        REGISTRY.actions[name] = t
+    if type(t) ~= "table" then
+        error(string.format("action '%s': expected table, got %s", tostring(name), type(t)))
     end
+    local existing = REGISTRY.actions[name] or {}
+    local run_fn = t.run or existing.run
+    if type(run_fn) ~= "function" then
+        error(string.format("action '%s': missing 'run' function", tostring(name)))
+    end
+    REGISTRY.actions[name] = {
+        run = run_fn,
+        config = t.config or existing.config or {}
+    }
 end
 
 _G.dale.cache = _G.dale.cache or {}

@@ -1,11 +1,9 @@
-pub mod builtin;
-
 use anyhow::{Context, Result};
 use libdale::utils::expand_path;
 use mpd_client::Client;
 use serde::{Deserialize, Serialize};
+use std::io::IsTerminal;
 use std::path::{Path, PathBuf};
-use std::process::Stdio;
 use tokio::net::TcpStream;
 use walkdir::WalkDir;
 
@@ -29,30 +27,6 @@ pub struct ResolvedAlbumTarget {
     pub id: String,
     pub path: PathBuf,
     pub lock: serde_json::Value,
-}
-
-pub fn load_env_vars_from_path(
-    env_path: Option<&str>,
-) -> std::collections::HashMap<String, String> {
-    let mut env_vars = std::collections::HashMap::new();
-    if let Some(path_str) = env_path {
-        let expanded = expand_path(path_str);
-        if let Ok(content) = std::fs::read_to_string(&expanded) {
-            for line in content.lines() {
-                let line = line.trim();
-                if line.is_empty() || line.starts_with('#') {
-                    continue;
-                }
-                if let Some((k, v)) = line.split_once('=') {
-                    env_vars.insert(
-                        k.trim().to_string(),
-                        v.trim().trim_matches(|c| c == '"' || c == '\'').to_string(),
-                    );
-                }
-            }
-        }
-    }
-    env_vars
 }
 
 async fn resolve_by_query(query_str: &str) -> Result<Vec<ResolvedAlbumTarget>> {
@@ -213,57 +187,6 @@ pub async fn resolve_target_albums(
     }
 }
 
-async fn run_external_action(
-    action_path: &Path,
-    env_vars: &std::collections::HashMap<String, String>,
-    payload_json: &serde_json::Value,
-) -> Result<()> {
-    let cmd = if action_path.extension().is_some_and(|e| e == "py") {
-        "python"
-    } else if action_path.extension().is_some_and(|e| e == "sh") {
-        "sh"
-    } else {
-        action_path.to_str().unwrap()
-    };
-
-    let mut command = tokio::process::Command::new(cmd);
-    command.envs(env_vars);
-    if cmd == "python" || cmd == "sh" {
-        command.arg(action_path);
-    }
-
-    let mut child = command
-        .stdin(Stdio::piped())
-        .stdout(Stdio::inherit())
-        .stderr(Stdio::inherit())
-        .spawn()
-        .context(format!(
-            "Failed to spawn action at {}",
-            action_path.display()
-        ))?;
-
-    if let Some(mut stdin) = child.stdin.take() {
-        let payload = serde_json::to_string(payload_json)?;
-        tokio::spawn(async move {
-            use tokio::io::AsyncWriteExt;
-            let _ = stdin.write_all(payload.as_bytes()).await;
-        });
-    }
-
-    tokio::select! {
-        res = child.wait() => {
-            let status = res.context("Failed to wait on action")?;
-            if !status.success() {
-                log::error!("Action failed with status: {status}");
-            }
-        }
-        _ = tokio::signal::ctrl_c() => {
-            let _ = child.wait().await;
-        }
-    }
-    Ok(())
-}
-
 pub async fn execute(
     name: String,
     target: TargetFlags,
@@ -272,6 +195,10 @@ pub async fn execute(
 ) -> Result<()> {
     let name_key = name.replace('-', "_");
     let config = libdale::lua::ResolvedConfig::load().context("Failed to load config")?;
+
+    if !config.actions.contains_key(&name_key) && name != "intermediary" {
+        anyhow::bail!("Action '{name}' is not declared in configuration.");
+    }
 
     let music_directory = expand_path(&config.app.storage.music_directory)
         .canonicalize()
@@ -289,20 +216,12 @@ pub async fn execute(
         })
         .collect();
 
-    let action_cfg_opt = config.actions.get(&name_key).cloned();
-    let config_json = serde_json::to_value(&config.app)?;
-    let action_config = action_cfg_opt
-        .as_ref()
-        .map(|c| c.config.clone())
-        .unwrap_or_default();
+    let is_atty = std::io::stdin().is_terminal();
 
     let combined_json = serde_json::json!({
         "albums": albums_payload,
-        "config": {
-            "dale": config_json,
-            "action": action_config
-        },
-        "options": trailing_args.join(" ")
+        "options": trailing_args.join(" "),
+        "isatty": is_atty
     });
 
     if name == "intermediary" {
@@ -311,40 +230,9 @@ pub async fn execute(
         return Ok(());
     }
 
-    if let Some(r_str) = action_cfg_opt.as_ref().and_then(|a| a.run.clone()) {
-        let action_path = PathBuf::from(&r_str);
-
-        if action_path.exists() {
-            let env_vars =
-                load_env_vars_from_path(config.app.storage.environment.as_deref());
-            run_external_action(&action_path, &env_vars, &combined_json).await?;
-            return Ok(());
-        }
-        anyhow::bail!(
-            "Action '{name}' script not found at path: {}",
-            action_path.display()
-        );
-    }
-
-    let mut executed_builtin = false;
-    if name_key == "open_config_in_terminal" || resolved_targets.is_empty() {
-        let dummy_path = Path::new("");
-        if builtin::execute_builtin(&name_key, dummy_path, &action_config)? {
-            executed_builtin = true;
-        }
-    } else {
-        for target_item in &resolved_targets {
-            if builtin::execute_builtin(&name_key, &target_item.path, &action_config)? {
-                executed_builtin = true;
-            }
-        }
-    }
-
-    if !executed_builtin {
-        anyhow::bail!(
-            "Action '{name}' is not declared in configuration and no built-in exists."
-        );
-    }
+    let engine = libdale::lua::LuaEngine::new()?;
+    engine.evaluate_config(&config.path)?;
+    engine.execute_action(&name_key, &combined_json)?;
 
     Ok(())
 }

@@ -12,6 +12,13 @@ pub struct AppConfig {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
+pub struct ActionDef {
+    pub label: String,
+    #[serde(default)]
+    pub description: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct InterfaceConfig {
     #[serde(default)]
     pub enable: bool,
@@ -23,18 +30,10 @@ pub struct InterfaceConfig {
     pub assets: HashMap<String, String>,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
-pub struct ActionConfig {
-    pub run: Option<String>,
-    #[serde(default)]
-    pub config: serde_json::Value,
-}
-
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(default)]
 pub struct StorageConfig {
     pub music_directory: String,
-    pub environment: Option<String>,
     pub cache: String,
     pub state: String,
 }
@@ -43,7 +42,6 @@ impl Default for StorageConfig {
     fn default() -> Self {
         Self {
             music_directory: String::new(),
-            environment: None,
             cache: "~/.cache/dale".to_string(),
             state: "~/.local/share/dale".to_string(),
         }

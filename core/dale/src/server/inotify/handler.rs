@@ -54,9 +54,17 @@ async fn handle_album_changes(
     changed_albums: HashSet<PathBuf>,
     state: &Arc<AppState>,
 ) {
+    let config_path = {
+        let guard = state.config.read().await;
+        guard.config_path.clone()
+    };
     log_detected_events(&vanished_paths, &changed_albums, state).await;
-    let recompiled_items =
-        recompile_changed_albums(changed_albums, Arc::clone(&state.active_writes)).await;
+    let recompiled_items = recompile_changed_albums(
+        changed_albums,
+        Arc::clone(&state.active_writes),
+        config_path,
+    )
+    .await;
     ingest_and_broadcast_albums(
         vanished_paths,
         recompiled_items,
@@ -101,8 +109,8 @@ async fn log_detected_events(
 async fn recompile_changed_albums(
     changed_albums: HashSet<PathBuf>,
     active_writes: Arc<Mutex<HashSet<PathBuf>>>,
+    config_path: PathBuf,
 ) -> Vec<RecompiledAlbumItem> {
-    let config_path = libdale::lua::resolve_config_path().unwrap_or_default();
     let resolved_lua_config = if let Ok(Ok(cfg)) =
         tokio::task::spawn_blocking(libdale::lua::ResolvedConfig::load).await
     {
@@ -387,6 +395,7 @@ async fn handle_config_change(state: &Arc<AppState>) {
                 config_guard.interfaces.clone_from(&new_interfaces);
                 config_guard.actions.clone_from(&new_actions);
                 config_guard.resolved_dependencies.clone_from(&dependencies);
+                config_guard.config_path.clone_from(&config_path);
             }
 
             let manifest = {

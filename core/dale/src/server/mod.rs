@@ -93,6 +93,7 @@ pub async fn run(port: u16) -> Result<()> {
         interfaces,
         actions,
         config_dir: config_dir.clone(),
+        config_path: config.path.clone(),
         app: config.app.clone(),
     };
 

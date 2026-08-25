@@ -10,6 +10,7 @@ workspace = true
 libactions = { workspace = true }
 anyhow = { workspace = true }
 chrono = { workspace = true }
+clap = { workspace = true }
 discogs-rs = { workspace = true }
 reqwest = { workspace = true }
 serde = { workspace = true }

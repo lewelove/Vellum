@@ -620,6 +620,46 @@ fn test_d_fs_read_lines() {
     assert_eq!(missing_lines.raw_len(), 0);
 }
 
+/// Verify that `d.fs.read_dotenv` parses dotenv files into key-value tables and returns nil if missing.
+#[test]
+fn test_d_fs_read_dotenv() {
+    let engine = LuaEngine::new().expect("Failed to create LuaEngine");
+    let env_content =
+        "API_KEY=\"secret_123\"\nPORT=8080\n# comment\nMULTILINE=\"first\nsecond\"\n";
+    let temp_file = TempFile::with_extension(env_content, "env");
+    let path_str = temp_file.path_str();
+
+    let code = format!("return d.fs.read_dotenv('{path_str}')");
+    let table: Table = engine.lua.load(&code).eval().expect("Execution failed");
+    let api_key: String = table.get("API_KEY").expect("Missing API_KEY");
+    let port: String = table.get("PORT").expect("Missing PORT");
+    let multiline: String = table.get("MULTILINE").expect("Missing MULTILINE");
+    assert_eq!(api_key, "secret_123");
+    assert_eq!(port, "8080");
+    assert_eq!(multiline, "first\nsecond");
+
+    let deps = engine
+        .lua
+        .app_data_ref::<crate::lua::EngineContext>()
+        .unwrap()
+        .take_dependencies();
+    assert!(deps.iter().any(|d| d.to_string_lossy().contains(&path_str)));
+
+    let missing_code = "return d.fs.read_dotenv('/tmp/non_existent_dale_test_file.env')";
+    let missing_res: Option<Table> = engine
+        .lua
+        .load(missing_code)
+        .eval()
+        .expect("Execution failed");
+    assert!(missing_res.is_none());
+
+    let bad_file = TempFile::with_extension("INVALID LINE WITHOUT EQUALS", "env");
+    let bad_path = bad_file.path_str();
+    let bad_code = format!("return d.fs.read_dotenv('{bad_path}')");
+    let bad_res = engine.lua.load(&bad_code).eval::<Table>();
+    assert!(bad_res.is_err());
+}
+
 /// Verify that `d.fs.read_json` parses JSON files, enforces json extension, and reports parse errors.
 #[test]
 fn test_d_fs_read_json() {

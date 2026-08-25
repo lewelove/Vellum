@@ -16,6 +16,7 @@ base64 = { workspace = true }
 blake3 = { workspace = true }
 chrono = { workspace = true }
 dirs = { workspace = true }
+dotenv-ng-core = { workspace = true }
 image = { workspace = true }
 indexmap = { workspace = true }
 lofty = { workspace = true }

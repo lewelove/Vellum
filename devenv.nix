@@ -30,13 +30,13 @@ let
   '';
 
   pyEmbed = mkPyAction "embed" ./actions/python/embed/main.py;
-  pyGetLyrics = mkPyAction "get_lyrics" ./actions/python/get_lyrics/main.py;
+  pyLyrics = mkPyAction "lyrics" ./actions/python/lyrics/main.py;
   pyRename = mkPyAction "rename" ./actions/python/rename/main.py;
   pySearchCover = mkPyAction "search_cover" ./actions/python/search_cover/main.py;
 
   pythonActions = [
     pyEmbed
-    pyGetLyrics
+    pyLyrics
     pyRename
     pySearchCover
   ];
@@ -80,7 +80,7 @@ in
     cargo test --workspace
     cargo build --workspace --release
 
-    ln -sf "${pyGetLyrics}/bin/get_lyrics" "$ROOT/actions/get_lyrics"
+    ln -sf "${pyLyrics}/bin/lyrics" "$ROOT/actions/lyrics"
     ln -sf "${pySearchCover}/bin/search_cover" "$ROOT/actions/search_cover"
     ln -sf "${pyEmbed}/bin/embed" "$ROOT/actions/embed"
     ln -sf "${pyRename}/bin/rename" "$ROOT/actions/rename"

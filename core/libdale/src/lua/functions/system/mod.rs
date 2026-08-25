@@ -3,7 +3,7 @@ mod tests;
 
 use mlua::{Lua, Table, Value};
 use std::collections::HashMap;
-use std::io::{Read, Write};
+use std::io::{IsTerminal, Read, Write};
 use std::os::unix::process::{CommandExt, ExitStatusExt};
 use std::process::{Child, Command, ExitStatus, Stdio};
 use std::thread::{self, JoinHandle};
@@ -17,10 +17,21 @@ enum EnvMode {
     Clear,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum StreamMode {
-    Capture,
-    Ignore,
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum StdioMode {
+    Pipe,
+    Inherit,
+    Null,
+}
+
+impl StdioMode {
+    fn to_stdio(self) -> Stdio {
+        match self {
+            Self::Pipe => Stdio::piped(),
+            Self::Inherit => Stdio::inherit(),
+            Self::Null => Stdio::null(),
+        }
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -34,58 +45,150 @@ struct SystemOpts {
     env: Option<HashMap<String, String>>,
     clear_env: EnvMode,
     stdin: Option<String>,
-    stdout: StreamMode,
-    stderr: StreamMode,
+    stdin_mode: StdioMode,
+    stdout: StdioMode,
+    stderr: StdioMode,
     timeout: Option<u64>,
     mode: ExecutionMode,
 }
 
+fn is_terminal_fd(fd: i32) -> bool {
+    match fd {
+        0 => std::io::stdin().is_terminal(),
+        1 => std::io::stdout().is_terminal(),
+        2 => std::io::stderr().is_terminal(),
+        _ => false,
+    }
+}
+
+fn parse_stdio_value(val: Option<&Value>, default: StdioMode) -> mlua::Result<StdioMode> {
+    let Some(v) = val else {
+        return Ok(default);
+    };
+
+    match v {
+        Value::Nil => Ok(default),
+        Value::Boolean(true) => Ok(StdioMode::Pipe),
+        Value::Boolean(false) => Ok(StdioMode::Null),
+        Value::String(s) => match &*s.to_str()? {
+            "pipe" => Ok(StdioMode::Pipe),
+            "inherit" => Ok(StdioMode::Inherit),
+            "null" => Ok(StdioMode::Null),
+            other => Err(mlua::Error::runtime(format!(
+                "invalid stdio mode '{other}', expected 'pipe', 'inherit', or 'null'"
+            ))),
+        },
+        _ => Err(mlua::Error::runtime("stdio mode must be string or boolean")),
+    }
+}
+
+fn parse_stdin_option(
+    tbl: &Table,
+    default_mode: StdioMode,
+) -> mlua::Result<(Option<String>, StdioMode)> {
+    let mut stdin_str: Option<String> = None;
+    let explicit_mode = tbl.get::<Option<Value>>("stdin_mode")?;
+    let mut stdin_mode = parse_stdio_value(explicit_mode.as_ref(), default_mode)?;
+
+    let Ok(stdin_val) = tbl.get::<Option<Value>>("stdin") else {
+        return Ok((stdin_str, stdin_mode));
+    };
+
+    let Some(val) = stdin_val else {
+        return Ok((stdin_str, stdin_mode));
+    };
+
+    match val {
+        Value::String(s) => {
+            stdin_str = Some(s.to_str()?.to_string());
+            if explicit_mode.is_none() {
+                stdin_mode = StdioMode::Pipe;
+            }
+        }
+        Value::Table(lines_tbl) => {
+            let mut lines = Vec::new();
+            for line in lines_tbl.sequence_values::<String>() {
+                lines.push(line?);
+            }
+            stdin_str = Some(lines.join("\n"));
+            if explicit_mode.is_none() {
+                stdin_mode = StdioMode::Pipe;
+            }
+        }
+        Value::Boolean(true) if explicit_mode.is_none() => {
+            stdin_mode = StdioMode::Pipe;
+        }
+        Value::Boolean(false) if explicit_mode.is_none() => {
+            stdin_mode = StdioMode::Null;
+        }
+        _ => {}
+    }
+
+    Ok((stdin_str, stdin_mode))
+}
+
 fn parse_opts(opts_val: Option<Table>) -> mlua::Result<SystemOpts> {
-    if let Some(tbl) = opts_val {
-        let is_detach = tbl.get::<Option<bool>>("detach")?.unwrap_or(false);
-        let default_stdio = !is_detach;
-        let clear_env = if tbl.get::<Option<bool>>("clear_env")?.unwrap_or(false) {
-            EnvMode::Clear
-        } else {
-            EnvMode::Inherit
-        };
-        let stdout = if tbl.get::<Option<bool>>("stdout")?.unwrap_or(default_stdio) {
-            StreamMode::Capture
-        } else {
-            StreamMode::Ignore
-        };
-        let stderr = if tbl.get::<Option<bool>>("stderr")?.unwrap_or(default_stdio) {
-            StreamMode::Capture
-        } else {
-            StreamMode::Ignore
-        };
-        let mode = if is_detach {
-            ExecutionMode::Detach
-        } else {
-            ExecutionMode::Sync
-        };
-        Ok(SystemOpts {
-            cwd: tbl.get("cwd")?,
-            env: tbl.get("env")?,
-            clear_env,
-            stdin: tbl.get("stdin")?,
-            stdout,
-            stderr,
-            timeout: tbl.get("timeout")?,
-            mode,
-        })
-    } else {
-        Ok(SystemOpts {
+    let Some(tbl) = opts_val else {
+        return Ok(SystemOpts {
             cwd: None,
             env: None,
             clear_env: EnvMode::Inherit,
             stdin: None,
-            stdout: StreamMode::Capture,
-            stderr: StreamMode::Capture,
+            stdin_mode: StdioMode::Null,
+            stdout: StdioMode::Pipe,
+            stderr: StdioMode::Pipe,
             timeout: None,
             mode: ExecutionMode::Sync,
-        })
-    }
+        });
+    };
+
+    let is_detach = tbl.get::<Option<bool>>("detach")?.unwrap_or(false);
+    let clear_env = if tbl.get::<Option<bool>>("clear_env")?.unwrap_or(false) {
+        EnvMode::Clear
+    } else {
+        EnvMode::Inherit
+    };
+
+    let fallback_stdio = if is_detach {
+        StdioMode::Null
+    } else {
+        StdioMode::Pipe
+    };
+
+    let global_val = tbl.get::<Option<Value>>("stdio")?;
+    let global_stdio = parse_stdio_value(global_val.as_ref(), fallback_stdio)?;
+
+    let stdout_val = tbl.get::<Option<Value>>("stdout")?;
+    let stdout = parse_stdio_value(stdout_val.as_ref(), global_stdio)?;
+
+    let stderr_val = tbl.get::<Option<Value>>("stderr")?;
+    let stderr = parse_stdio_value(stderr_val.as_ref(), global_stdio)?;
+
+    let default_stdin_mode = if global_val.is_some() {
+        global_stdio
+    } else {
+        StdioMode::Null
+    };
+
+    let (stdin, stdin_mode) = parse_stdin_option(&tbl, default_stdin_mode)?;
+
+    let mode = if is_detach {
+        ExecutionMode::Detach
+    } else {
+        ExecutionMode::Sync
+    };
+
+    Ok(SystemOpts {
+        cwd: tbl.get("cwd")?,
+        env: tbl.get("env")?,
+        clear_env,
+        stdin,
+        stdin_mode,
+        stdout,
+        stderr,
+        timeout: tbl.get("timeout")?,
+        mode,
+    })
 }
 
 fn parse_cmd(cmd_val: Value) -> mlua::Result<Vec<String>> {
@@ -138,21 +241,22 @@ fn spawn_detached(
     opts: &SystemOpts,
     lua: &Lua,
 ) -> mlua::Result<Value> {
-    command.stdin(Stdio::null());
-    command.stdout(if opts.stdout == StreamMode::Capture {
-        Stdio::inherit()
-    } else {
-        Stdio::null()
-    });
-    command.stderr(if opts.stderr == StreamMode::Capture {
-        Stdio::inherit()
-    } else {
-        Stdio::null()
-    });
+    command.stdin(opts.stdin_mode.to_stdio());
+    command.stdout(opts.stdout.to_stdio());
+    command.stderr(opts.stderr.to_stdio());
     command.process_group(0);
 
     let mut child = command.spawn().map_err(mlua::Error::external)?;
     let pid = child.id();
+
+    if let Some(mut child_stdin) = child.stdin.take()
+        && let Some(ref stdin_str) = opts.stdin
+    {
+        let bytes = stdin_str.as_bytes().to_vec();
+        thread::spawn(move || {
+            let _ = child_stdin.write_all(&bytes);
+        });
+    }
 
     thread::spawn(move || {
         let _ = child.wait();
@@ -166,22 +270,32 @@ fn spawn_detached(
 
 fn spawn_stream_readers(
     child: &mut Child,
+    stdout_mode: StdioMode,
+    stderr_mode: StdioMode,
 ) -> (Option<ReaderHandle>, Option<ReaderHandle>) {
-    let stdout_handle = child.stdout.take().map(|mut r| {
-        thread::spawn(move || {
-            let mut buf = Vec::new();
-            let _ = r.read_to_end(&mut buf);
-            buf
+    let stdout_handle = if stdout_mode == StdioMode::Pipe {
+        child.stdout.take().map(|mut r| {
+            thread::spawn(move || {
+                let mut buf = Vec::new();
+                let _ = r.read_to_end(&mut buf);
+                buf
+            })
         })
-    });
+    } else {
+        None
+    };
 
-    let stderr_handle = child.stderr.take().map(|mut r| {
-        thread::spawn(move || {
-            let mut buf = Vec::new();
-            let _ = r.read_to_end(&mut buf);
-            buf
+    let stderr_handle = if stderr_mode == StdioMode::Pipe {
+        child.stderr.take().map(|mut r| {
+            thread::spawn(move || {
+                let mut buf = Vec::new();
+                let _ = r.read_to_end(&mut buf);
+                buf
+            })
         })
-    });
+    } else {
+        None
+    };
 
     (stdout_handle, stderr_handle)
 }
@@ -273,31 +387,24 @@ fn execute_sync(
     opts: SystemOpts,
     lua: &Lua,
 ) -> mlua::Result<Value> {
-    command.stdin(if opts.stdin.is_some() {
-        Stdio::piped()
-    } else {
-        Stdio::null()
-    });
-    command.stdout(if opts.stdout == StreamMode::Capture {
-        Stdio::piped()
-    } else {
-        Stdio::null()
-    });
-    command.stderr(if opts.stderr == StreamMode::Capture {
-        Stdio::piped()
-    } else {
-        Stdio::null()
-    });
+    command.stdin(opts.stdin_mode.to_stdio());
+    command.stdout(opts.stdout.to_stdio());
+    command.stderr(opts.stderr.to_stdio());
 
     let mut child = command.spawn().map_err(mlua::Error::external)?;
-    let (stdout_handle, stderr_handle) = spawn_stream_readers(&mut child);
+    let (stdout_handle, stderr_handle) =
+        spawn_stream_readers(&mut child, opts.stdout, opts.stderr);
 
-    let stdin_handle = if let Some(stdin_str) = opts.stdin
-        && let Some(mut child_stdin) = child.stdin.take()
-    {
-        Some(thread::spawn(move || {
-            let _ = child_stdin.write_all(stdin_str.as_bytes());
-        }))
+    let child_stdin_opt = child.stdin.take();
+    let stdin_handle = if let Some(mut child_stdin) = child_stdin_opt {
+        if let Some(stdin_str) = opts.stdin {
+            Some(thread::spawn(move || {
+                let _ = child_stdin.write_all(stdin_str.as_bytes());
+            }))
+        } else {
+            drop(child_stdin);
+            None
+        }
     } else {
         None
     };
@@ -328,5 +435,22 @@ pub fn lua_system(
 }
 
 pub fn register(lua: &Lua, dale_tbl: &Table) -> mlua::Result<()> {
-    dale_tbl.set("system", lua.create_function(lua_system)?)
+    let isatty_fn = lua.create_function(|_, fd: Option<i32>| {
+        let fd_num = fd.unwrap_or(0);
+        Ok(is_terminal_fd(fd_num))
+    })?;
+
+    let sys_table = lua.create_table()?;
+    sys_table.set("isatty", isatty_fn)?;
+
+    let mt = lua.create_table()?;
+    mt.set(
+        "__call",
+        lua.create_function(|lua, (_, args): (Value, (Value, Option<Table>))| {
+            lua_system(lua, args)
+        })?,
+    )?;
+    sys_table.set_metatable(Some(mt))?;
+
+    dale_tbl.set("system", sys_table)
 }

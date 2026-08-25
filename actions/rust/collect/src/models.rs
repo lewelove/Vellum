@@ -1,23 +1,3 @@
-use serde::Deserialize;
-
-#[derive(Deserialize)]
-pub struct ActionPayload {
-    pub config: ConfigBlock,
-    pub options: String,
-}
-
-#[derive(Deserialize)]
-pub struct ConfigBlock {
-    pub action: ActionConfig,
-}
-
-#[derive(Deserialize)]
-pub struct ActionConfig {
-    pub root: String,
-    pub formatting: FormattingConfig,
-}
-
-#[derive(Deserialize)]
 pub struct FormattingConfig {
     pub album: String,
     pub info: String,

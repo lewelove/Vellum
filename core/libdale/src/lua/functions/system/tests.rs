@@ -45,6 +45,75 @@ fn test_d_system_stdin() {
     assert_eq!(stdout_val, "testing stdin");
 }
 
+/// Verify that `d.system` converts a table array of strings to newline-separated stdin.
+#[test]
+fn test_d_system_stdin_table_lines() {
+    let engine = LuaEngine::new().expect("Failed to create LuaEngine");
+    let code = r#"
+        local res = d.system({ "cat" }, { stdin = { "first line", "second line" } })
+        return res.stdout
+    "#;
+    let stdout_val: String = engine.lua.load(code).eval().expect("Execution failed");
+    assert_eq!(stdout_val, "first line\nsecond line");
+}
+
+/// Verify that `d.system` passes literal control word strings through standard input.
+#[test]
+fn test_d_system_stdin_literal_strings() {
+    let engine = LuaEngine::new().expect("Failed to create LuaEngine");
+    let code = r#"
+        local res_inherit = d.system({ "cat" }, { stdin = "inherit" })
+        local res_null = d.system({ "cat" }, { stdin = "null" })
+        return {
+            inherit_out = res_inherit.stdout,
+            null_out = res_null.stdout
+        }
+    "#;
+    let table: Table = engine.lua.load(code).eval().expect("Execution failed");
+    let inherit_out: String = table.get("inherit_out").unwrap();
+    let null_out: String = table.get("null_out").unwrap();
+    assert_eq!(inherit_out, "inherit");
+    assert_eq!(null_out, "null");
+}
+
+/// Verify that `d.system` supports stdio configuration modes.
+#[test]
+fn test_d_system_stdio_modes() {
+    let engine = LuaEngine::new().expect("Failed to create LuaEngine");
+    let code = r#"
+        local res_null = d.system({ "echo", "hidden" }, { stdio = "null" })
+        local res_pipe = d.system({ "echo", "visible" }, { stdout = "pipe", stderr = "pipe" })
+        return {
+            null_out = res_null.stdout,
+            pipe_out = res_pipe.stdout:match("^%s*(.-)%s*$"),
+            pipe_ok = res_pipe.ok
+        }
+    "#;
+    let table: Table = engine.lua.load(code).eval().expect("Execution failed");
+    let null_out: String = table.get("null_out").unwrap();
+    let pipe_out: String = table.get("pipe_out").unwrap();
+    let pipe_ok: bool = table.get("pipe_ok").unwrap();
+    assert_eq!(null_out, "");
+    assert_eq!(pipe_out, "visible");
+    assert!(pipe_ok);
+}
+
+/// Verify that `d.system.isatty` reports terminal status.
+#[test]
+fn test_d_system_isatty() {
+    let engine = LuaEngine::new().expect("Failed to create LuaEngine");
+    let code = r#"
+        return {
+            stdin_isatty = d.system.isatty(0),
+            default_isatty = d.system.isatty(),
+            invalid_isatty = d.system.isatty(-1)
+        }
+    "#;
+    let table: Table = engine.lua.load(code).eval().expect("Execution failed");
+    let invalid_val: bool = table.get("invalid_isatty").unwrap();
+    assert!(!invalid_val);
+}
+
 /// Verify that `d.system` handles large standard input and output streams without deadlocks.
 #[test]
 fn test_d_system_stdin_large_stress() {
@@ -302,6 +371,51 @@ fn test_d_system_detach() {
     let ok: bool = table.get("ok").unwrap();
     assert!(pid > 0);
     assert!(ok);
+}
+
+/// Verify that `d.system` writes standard input and closes the pipe for detached processes without deadlocking.
+#[test]
+fn test_d_system_detach_with_stdin() {
+    let engine = LuaEngine::new().expect("Failed to create LuaEngine");
+    let mut out_path = std::env::temp_dir();
+    let nanos = chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0);
+    out_path.push(format!(
+        "dale_detach_stdin_{}_{}.txt",
+        std::process::id(),
+        nanos
+    ));
+    let out_str = out_path.to_string_lossy().to_string();
+
+    let code = format!(
+        r#"
+        local res = d.system({{ "sh", "-c", "cat > '{out_str}'" }}, {{
+            stdin = "detached stdin payload",
+            detach = true
+        }})
+        return res.pid
+    "#
+    );
+
+    let pid: u32 = engine.lua.load(&code).eval().expect("Execution failed");
+    assert!(pid > 0);
+
+    let start = std::time::Instant::now();
+    let mut finished = false;
+    while start.elapsed() < std::time::Duration::from_millis(1500) {
+        if let Ok(content) = std::fs::read_to_string(&out_path) {
+            if content == "detached stdin payload" {
+                finished = true;
+                break;
+            }
+        }
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+
+    let _ = std::fs::remove_file(&out_path);
+    assert!(
+        finished,
+        "Detached process deadlocked: stdin pipe was never written and closed with EOF"
+    );
 }
 
 /// Verify that `d.system` returns an error when command arguments are empty or invalid.

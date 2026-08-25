@@ -71,6 +71,28 @@ fn fs_read_lines(lua: &Lua, path_str: Option<String>) -> mlua::Result<Table> {
     Ok(table)
 }
 
+fn fs_read_dotenv(lua: &Lua, path_str: Option<String>) -> mlua::Result<Option<Table>> {
+    let Some(path) = parse_and_record_path(lua, path_str) else {
+        return Ok(None);
+    };
+
+    let loader = dotenv_ng_core::EnvLoader::with_path(&path)
+        .sequence(dotenv_ng_core::EnvSequence::InputOnly)
+        .required(true);
+
+    match loader.load() {
+        Ok(env_map) => {
+            let table = lua.create_table()?;
+            for (k, v) in env_map {
+                table.set(k, v)?;
+            }
+            Ok(Some(table))
+        }
+        Err(err) if err.not_found() => Ok(None),
+        Err(err) => Err(mlua::Error::external(err)),
+    }
+}
+
 fn fs_scandir_native(
     lua: &Lua,
     (path_str, follow): (String, bool),
@@ -164,6 +186,12 @@ pub fn register(lua: &Lua, dale_tbl: &Table, opts: SerializeOptions) -> mlua::Re
         "read_lines",
         lua.create_function(|lua, path_str: Option<String>| {
             fs_read_lines(lua, path_str)
+        })?,
+    )?;
+    fs_table.set(
+        "read_dotenv",
+        lua.create_function(|lua, path_str: Option<String>| {
+            fs_read_dotenv(lua, path_str)
         })?,
     )?;
     fs_table.set("read_json", create_fs_reader(lua, opts, "json")?)?;

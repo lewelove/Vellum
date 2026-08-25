@@ -4,7 +4,7 @@ pub mod functions;
 mod tests;
 
 use crate::config::{
-    ActionConfig, AppConfig, CoversConfig, CoversRegistry, InterfaceConfig,
+    ActionDef, AppConfig, CoversConfig, CoversRegistry, InterfaceConfig,
 };
 use crate::error::DaleError;
 use anyhow::{Context, Result};
@@ -236,7 +236,7 @@ pub struct EvaluatedLuaData {
     pub app: AppConfig,
     pub covers: CoversRegistry,
     pub interfaces: HashMap<String, InterfaceConfig>,
-    pub actions: HashMap<String, ActionConfig>,
+    pub actions: HashMap<String, ActionDef>,
     pub dependencies: Vec<PathBuf>,
     pub manifest: LogicManifest,
 }
@@ -360,7 +360,7 @@ impl LuaEngine {
         let covers: CoversRegistry = call_getter(&self.lua, "__DALE_GET_COVERS")?;
         let interfaces: HashMap<String, InterfaceConfig> =
             call_getter(&self.lua, "__DALE_GET_INTERFACES")?;
-        let actions: HashMap<String, ActionConfig> =
+        let actions: HashMap<String, ActionDef> =
             call_getter(&self.lua, "__DALE_GET_ACTIONS")?;
         let deps_str: Vec<String> = call_getter(&self.lua, "__DALE_GET_DEPENDENCIES")?;
         let mut manifest: LogicManifest =
@@ -389,6 +389,40 @@ impl LuaEngine {
             dependencies,
             manifest,
         })
+    }
+
+    pub fn execute_action(
+        &self,
+        name: &str,
+        intermediary: &serde_json::Value,
+    ) -> Result<()> {
+        let globals = self.lua.globals();
+        let registry: Table = globals
+            .get("REGISTRY")
+            .map_err(|e| anyhow::anyhow!("{e}"))?;
+        let actions: Table = registry
+            .get("actions")
+            .map_err(|e| anyhow::anyhow!("{e}"))?;
+        let action_entry: Table = actions.get(name).map_err(|_| {
+            anyhow::anyhow!("Action '{name}' is not declared in configuration.")
+        })?;
+        let run_fn: mlua::Function = action_entry
+            .get("run")
+            .map_err(|_| anyhow::anyhow!("Action '{name}' has no run function."))?;
+
+        let opts = SerializeOptions::new()
+            .serialize_none_to_null(false)
+            .serialize_unit_to_null(false);
+        let lua_intermediary = self
+            .lua
+            .to_value_with(intermediary, opts)
+            .map_err(|e| anyhow::anyhow!("{e}"))?;
+
+        run_fn
+            .call::<()>(lua_intermediary)
+            .map_err(|e| anyhow::anyhow!("Error executing action '{name}': {e}"))?;
+
+        Ok(())
     }
 
     pub fn evaluate_album_logic(
@@ -578,7 +612,7 @@ pub struct ResolvedConfig {
     pub app: AppConfig,
     pub covers: CoversRegistry,
     pub interfaces: HashMap<String, InterfaceConfig>,
-    pub actions: HashMap<String, ActionConfig>,
+    pub actions: HashMap<String, ActionDef>,
     pub dependencies: Vec<PathBuf>,
     pub manifest: LogicManifest,
     pub path: PathBuf,
@@ -622,13 +656,6 @@ impl ResolvedConfig {
             .to_string_lossy()
             .to_string();
         }
-        if let Some(ref env_path) = evaluated.app.storage.environment {
-            evaluated.app.storage.environment = Some(
-                crate::utils::resolve_path(env_path, config_dir)
-                    .to_string_lossy()
-                    .to_string(),
-            );
-        }
         if !evaluated.app.storage.cache.is_empty() {
             evaluated.app.storage.cache =
                 crate::utils::resolve_path(&evaluated.app.storage.cache, config_dir)
@@ -661,16 +688,6 @@ impl ResolvedConfig {
                 *asset_path = crate::utils::resolve_path(asset_path, config_dir)
                     .to_string_lossy()
                     .to_string();
-            }
-        }
-
-        for action in evaluated.actions.values_mut() {
-            if let Some(ref run_script) = action.run {
-                action.run = Some(
-                    crate::utils::resolve_path(run_script, config_dir)
-                        .to_string_lossy()
-                        .to_string(),
-                );
             }
         }
 

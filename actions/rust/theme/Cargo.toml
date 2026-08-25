@@ -1,14 +1,19 @@
 [package]
-name = "get_theme"
+name = "theme"
 version = "0.1.0"
 edition = "2024"
 
 [lints]
 workspace = true
 
+[[bin]]
+name = "theme"
+path = "src/main.rs"
+
 [dependencies]
 libactions = { workspace = true }
 anyhow = { workspace = true }
+clap = { workspace = true }
 image = { workspace = true }
 kmeans_colors = { workspace = true }
 palette = { workspace = true }

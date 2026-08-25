@@ -3,35 +3,15 @@ import os
 import sys
 import json
 import re
-import socket
+import argparse
 import urllib.request
 import urllib.parse
 from pathlib import Path
 import lyricsgenius
 
-def get_playing_file():
-    host = os.environ.get("MPD_HOST", "127.0.0.1")
-    port = int(os.environ.get("MPD_PORT", "6600"))
-    try:
-        s = socket.create_connection((host, port), timeout=2)
-        f = s.makefile("rw")
-        f.readline()
-        f.write("currentsong\n")
-        f.flush()
-        file_path = None
-        for line in f:
-            if line.startswith("file: "):
-                file_path = line[6:].strip()
-            elif line.startswith("OK") or line.startswith("ACK"):
-                break
-        s.close()
-        return file_path
-    except Exception:
-        return None
-
-def trigger_update(album_id):
+def trigger_update(server_url, album_id):
     encoded_id = urllib.parse.quote(album_id, safe='')
-    url = f"http://127.0.0.1:8000/api/update-album/{encoded_id}"
+    url = f"{server_url.rstrip('/')}/api/update-album/{encoded_id}"
     req = urllib.request.Request(url, method="POST")
     try:
         urllib.request.urlopen(req, timeout=2)
@@ -68,7 +48,15 @@ def clean_genius_lyrics(lyrics, title):
 def sanitize_filename(name):
     return re.sub(r'[<>:"/\\|?*]', '_', name)
 
-def get_album_lyrics(target_dir, album_lock, access_token, mpd_file):
+def get_album_lyrics(target_dir, access_token, mpd_file, server_url):
+    lock_file = target_dir / "album.lock.json"
+    if not lock_file.exists():
+        print(f"\033[31mError: album.lock.json not found in {target_dir}\033[0m")
+        return False
+
+    with open(lock_file, "r", encoding="utf-8") as f:
+        album_lock = json.load(f)
+
     album_meta = album_lock.get("album", {})
     album_id = album_meta.get("id", "")
     album_artist = album_meta.get("albumartist")
@@ -76,8 +64,8 @@ def get_album_lyrics(target_dir, album_lock, access_token, mpd_file):
     tracks = album_lock.get("tracks", [])
 
     if not album_artist or not tracks:
-        print("Error: Invalid metadata structure in lock data.")
-        return
+        print("\033[31mError: Invalid metadata structure in lock data.\033[0m")
+        return False
 
     genius = lyricsgenius.Genius(access_token)
     genius.verbose = False
@@ -86,7 +74,7 @@ def get_album_lyrics(target_dir, album_lock, access_token, mpd_file):
     lyrics_dir = target_dir / "Lyrics"
     lyrics_dir.mkdir(exist_ok=True)
 
-    print(f"Fetching lyrics for: {album_artist} - {album_meta.get('album')}")
+    print(f"\033[1;36mFetching lyrics for: {album_artist} - {album_meta.get('album')}\033[0m")
 
     playing_idx = None
     if mpd_file:
@@ -117,7 +105,7 @@ def get_album_lyrics(target_dir, album_lock, access_token, mpd_file):
         dest_path = lyrics_dir / filename
 
         if dest_path.exists():
-            print(f"  Skipping: {title} (File exists)")
+            print(f"  \033[90mSkipping: {title} (File exists)\033[0m")
             return
 
         try:
@@ -126,51 +114,46 @@ def get_album_lyrics(target_dir, album_lock, access_token, mpd_file):
                 cleaned_text = clean_genius_lyrics(song.lyrics, title)
                 with open(dest_path, "w", encoding="utf-8") as lf:
                     lf.write(cleaned_text)
-                print(f"  Saved: {title}")
+                print(f"  \033[32m✔ Saved: {title}\033[0m")
             else:
-                print(f"  Not found: {title}")
+                print(f"  \033[33mNot found: {title}\033[0m")
         except Exception as e:
-            print(f"  Error fetching {title}: {e}")
+            print(f"  \033[31mError fetching {title}: {e}\033[0m")
 
     if playing_idx is not None:
         fetch_for_track(tracks[playing_idx])
-        if album_id:
-            trigger_update(album_id)
+        if album_id and server_url:
+            trigger_update(server_url, album_id)
 
     for i, track in enumerate(tracks):
         if i == playing_idx:
             continue
         fetch_for_track(track)
 
+    return True
+
 def main():
-    try:
-        data = json.load(sys.stdin)
-    except Exception as e:
-        print(f"Error reading JSON from stdin: {e}")
+    parser = argparse.ArgumentParser(description="Fetch album track lyrics from Genius.")
+    parser.add_argument("--path", required=True, type=Path, help="Target album directory")
+    parser.add_argument("--token", type=str, help="Genius access token")
+    parser.add_argument("--playing-file", type=str, help="Currently playing track relative path")
+    parser.add_argument("--server-url", type=str, default="http://127.0.0.1:8000", help="Dale server API URL")
+
+    args = parser.parse_args()
+    target_dir = args.path.resolve()
+
+    if not target_dir.is_dir():
+        print(f"\033[31mError: Path '{target_dir}' is not a directory.\033[0m")
         sys.exit(1)
 
-    albums = data.get("albums", [])
-    dale_cfg = data.get("config", {}).get("dale", {})
-    action_cfg = data.get("config", {}).get("action", {})
-
-    token = os.environ.get("GENIUS_ACCESS_TOKEN") or os.environ.get("GENIUS_API_KEY")
+    token = args.token or os.environ.get("GENIUS_ACCESS_TOKEN") or os.environ.get("GENIUS_API_KEY")
     if not token:
-        token = dale_cfg.get("actions", {}).get("genius_access_token")
-    if not token:
-        token = action_cfg.get("genius_access_token")
-
-    if not token:
-        print("Error: Genius Access Token is required.")
+        print("\033[31mError: Genius Access Token is required via --token or GENIUS_ACCESS_TOKEN env var.\033[0m")
         sys.exit(1)
 
-    mpd_file = get_playing_file()
-
-    for entry in albums:
-        path_str = entry.get("path", "")
-        album_lock = entry.get("lock", {})
-        if path_str and album_lock:
-            target_dir = Path(path_str).resolve()
-            get_album_lyrics(target_dir, album_lock, token, mpd_file)
+    success = get_album_lyrics(target_dir, token, args.playing_file, args.server_url)
+    if not success:
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()

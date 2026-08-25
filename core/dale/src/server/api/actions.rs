@@ -5,7 +5,7 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use serde_json::json;
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
 
 struct TargetAlbumEntry {
@@ -97,14 +97,26 @@ async fn resolve_target_entries(
     list
 }
 
-fn run_external_process(
-    action_path: &Path,
-    target_entries: Vec<TargetAlbumEntry>,
-    params: &HashMap<String, String>,
-    app_config_json: &serde_json::Value,
-    action_config: &serde_json::Value,
-    env_vars: HashMap<String, String>,
+pub async fn execute_action(
+    axum::extract::Path(name): axum::extract::Path<String>,
+    Query(params): Query<HashMap<String, String>>,
+    State(state): State<Arc<AppState>>,
 ) -> Response {
+    let name_key = name.replace('-', "_");
+
+    let config_guard = state.config.read().await;
+    if !config_guard.actions.contains_key(&name_key) {
+        return (
+            StatusCode::NOT_FOUND,
+            Json(json!({"error": format!("Action '{name}' is not registered.")})),
+        )
+            .into_response();
+    }
+    let config_path = config_guard.config_path.clone();
+    drop(config_guard);
+
+    let target_entries = resolve_target_entries(&params, &state).await;
+
     let album_entries: Vec<serde_json::Value> = target_entries
         .into_iter()
         .map(|e| {
@@ -116,7 +128,7 @@ fn run_external_process(
         .collect();
 
     let mut options_vec = Vec::new();
-    for (k, v) in params {
+    for (k, v) in &params {
         if k != "playing"
             && k != "id"
             && k != "query"
@@ -135,149 +147,34 @@ fn run_external_process(
 
     let combined_json = json!({
         "albums": album_entries,
-        "config": {
-            "dale": app_config_json,
-            "action": action_config
-        },
-        "options": options_str
+        "options": options_str,
+        "isatty": false
     });
 
-    let cmd = if action_path.extension().is_some_and(|e| e == "py") {
-        "python"
-    } else if action_path.extension().is_some_and(|e| e == "sh") {
-        "sh"
-    } else {
-        action_path.to_str().unwrap()
-    };
+    let res = tokio::task::spawn_blocking(move || {
+        let engine = libdale::lua::LuaEngine::new()?;
+        engine.evaluate_config(&config_path)?;
+        engine.execute_action(&name_key, &combined_json)
+    })
+    .await;
 
-    let mut command = tokio::process::Command::new(cmd);
-    command.envs(env_vars);
-    if cmd == "python" || cmd == "sh" {
-        command.arg(action_path);
-    }
-
-    match command.stdin(std::process::Stdio::piped()).spawn() {
-        Ok(mut child) => {
-            if let Some(mut stdin) = child.stdin.take() {
-                let payload = serde_json::to_string(&combined_json).unwrap_or_default();
-                tokio::spawn(async move {
-                    let _ = tokio::io::AsyncWriteExt::write_all(
-                        &mut stdin,
-                        payload.as_bytes(),
-                    )
-                    .await;
-                });
-            }
-            tokio::spawn(async move {
-                if let Ok(status) = child.wait().await {
-                    if !status.success() {
-                        log::error!("Action failed with status: {status}");
-                    }
-                } else {
-                    log::error!("Failed to wait on action child process.");
-                }
-            });
-            Json(json!({"status": "ok"})).into_response()
-        }
-        Err(e) => {
-            log::error!("Failed to spawn action: {e}");
+    match res {
+        Ok(Ok(())) => Json(json!({"status": "ok"})).into_response(),
+        Ok(Err(e)) => {
+            log::error!("Action '{name}' execution failed: {e}");
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(json!({"error": e.to_string()})),
             )
                 .into_response()
         }
-    }
-}
-
-pub async fn execute_action(
-    axum::extract::Path(name): axum::extract::Path<String>,
-    Query(params): Query<HashMap<String, String>>,
-    State(state): State<Arc<AppState>>,
-) -> Response {
-    let name_key = name.replace('-', "_");
-
-    let config_guard = state.config.read().await;
-    let action_cfg_opt = config_guard.actions.get(&name_key).cloned();
-    let app_config_json =
-        serde_json::to_value(&config_guard.app).unwrap_or_else(|_| json!({}));
-    let env_vars = crate::x::load_env_vars_from_path(
-        config_guard.app.storage.environment.as_deref(),
-    );
-    drop(config_guard);
-
-    let action_cfg = action_cfg_opt.unwrap_or_default();
-    let target_entries = resolve_target_entries(&params, &state).await;
-
-    if let Some(run_str) = &action_cfg.run {
-        let action_path = PathBuf::from(run_str);
-
-        if tokio::fs::try_exists(&action_path).await.unwrap_or(false) {
-            return run_external_process(
-                &action_path,
-                target_entries,
-                &params,
-                &app_config_json,
-                &action_cfg.config,
-                env_vars,
-            );
+        Err(e) => {
+            log::error!("Action task join error: {e}");
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": e.to_string()})),
+            )
+                .into_response()
         }
-        return (
-            StatusCode::NOT_FOUND,
-            Json(json!({"error": format!("Action '{name}' script not found at path: {}", action_path.display())})),
-        )
-            .into_response();
-    }
-
-    let mut merged_config = action_cfg.config.clone();
-    if let serde_json::Value::Object(ref mut map) = merged_config {
-        for (k, v) in &params {
-            if ![
-                "id",
-                "playing",
-                "query",
-                "directory",
-                "recursive",
-                "library",
-            ]
-            .contains(&k.as_str())
-            {
-                map.insert(k.clone(), serde_json::Value::String(v.clone()));
-            }
-        }
-    }
-
-    let mut executed = false;
-    if name_key == "open_config_in_terminal" || target_entries.is_empty() {
-        let dummy_path = Path::new("");
-        if matches!(
-            crate::x::builtin::execute_builtin(&name_key, dummy_path, &merged_config),
-            Ok(true)
-        ) {
-            executed = true;
-        }
-    } else {
-        for entry in &target_entries {
-            if matches!(
-                crate::x::builtin::execute_builtin(
-                    &name_key,
-                    &entry.path,
-                    &merged_config
-                ),
-                Ok(true)
-            ) {
-                executed = true;
-            }
-        }
-    }
-
-    if executed {
-        Json(json!({"status": "ok"})).into_response()
-    } else {
-        (
-            StatusCode::BAD_REQUEST,
-            Json(json!({"error": format!("Action '{name}' is not recognized or configured.")})),
-        )
-            .into_response()
     }
 }

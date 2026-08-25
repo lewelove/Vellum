@@ -2,13 +2,14 @@
 import sys
 import json
 import re
+import argparse
 import urllib.request
 import urllib.parse
 from pathlib import Path
 
-def trigger_update(album_id):
+def trigger_update(server_url, album_id):
     encoded_id = urllib.parse.quote(album_id, safe='')
-    url = f"http://127.0.0.1:8000/api/update-album/{encoded_id}"
+    url = f"{server_url.rstrip('/')}/api/update-album/{encoded_id}"
     req = urllib.request.Request(url, method="POST")
     try:
         urllib.request.urlopen(req, timeout=2)
@@ -18,15 +19,21 @@ def trigger_update(album_id):
 def sanitize_filename(name):
     return re.sub(r'[<>:"/\\|?*]', '_', name)
 
-def process_album(album_lock, target_dir, auto_apply):
+def process_album(target_dir, auto_apply, server_url):
+    lock_file = target_dir / "album.lock.json"
+    if not lock_file.exists():
+        print(f"\033[31mError: album.lock.json not found in {target_dir}\033[0m")
+        return False
+
+    with open(lock_file, "r", encoding="utf-8") as f:
+        album_lock = json.load(f)
+
     album_obj = album_lock.get("album", {})
     tracks_data = album_lock.get("tracks", [])
     if not tracks_data:
-        return
+        return False
 
     album_id = album_obj.get("id", "")
-    if not target_dir.exists():
-        return
 
     try:
         total_discs = int(album_obj.get("info", {}).get("total_discs", 1))
@@ -97,7 +104,7 @@ def process_album(album_lock, target_dir, auto_apply):
             })
 
     if not rename_tasks:
-        return
+        return True
 
     print(f"\n\033[1;36m{target_dir.name}\033[0m")
     for task in rename_tasks:
@@ -106,14 +113,14 @@ def process_album(album_lock, target_dir, auto_apply):
 
     if not auto_apply:
         try:
-            sys.stdout.write(f"\n\033[1;35mApply changes? [y/N]: \033[0m")
+            sys.stdout.write("\n\033[1;35mApply changes? [y/N]: \033[0m")
             sys.stdout.flush()
-            with open('/dev/tty', 'r') as tty:
+            with open("/dev/tty", "r") as tty:
                 ans = tty.readline().strip().lower()
-            if ans not in ('y', 'yes'):
-                return
+            if ans not in ("y", "yes"):
+                return True
         except Exception:
-            return
+            return True
 
     temp_tasks = []
     for idx, task in enumerate(rename_tasks):
@@ -127,25 +134,26 @@ def process_album(album_lock, target_dir, auto_apply):
         temp_p.rename(new_p)
 
     print("\033[32m✔ Done.\033[0m")
-    if album_id:
-        trigger_update(album_id)
+    if album_id and server_url:
+        trigger_update(server_url, album_id)
+    return True
 
 def main():
-    try:
-        data = json.load(sys.stdin)
-    except Exception:
+    parser = argparse.ArgumentParser(description="Standardize track file names from metadata.")
+    parser.add_argument("--path", required=True, type=Path, help="Target album directory")
+    parser.add_argument("-y", "--auto", action="store_true", help="Apply renames without confirmation")
+    parser.add_argument("--server-url", type=str, default="http://127.0.0.1:8000", help="Dale server API URL")
+
+    args = parser.parse_args()
+    target_dir = args.path.resolve()
+
+    if not target_dir.is_dir():
+        print(f"\033[31mError: Path '{target_dir}' is not a directory.\033[0m")
         sys.exit(1)
 
-    albums = data.get("albums", [])
-    options_str = data.get("options", "")
-    auto_apply = "--auto" in options_str or "-y" in options_str
-
-    for entry in albums:
-        path_str = entry.get("path", "")
-        album_lock = entry.get("lock", {})
-        if path_str and album_lock:
-            target_dir = Path(path_str).resolve()
-            process_album(album_lock, target_dir, auto_apply)
+    success = process_album(target_dir, args.auto, args.server_url)
+    if not success:
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()

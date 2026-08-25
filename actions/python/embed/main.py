@@ -1,33 +1,29 @@
 #!/usr/bin/env python3
-import os
 import sys
 import json
 import base64
+import argparse
 import mimetypes
 from pathlib import Path
 
 import xxhash
 from mutagen.flac import FLAC, Picture
 
-KEYS_TO_EMBED = [
+DEFAULT_KEYS_TO_EMBED = [
     "album", "albumartist", "date", "genre", "comment",
     "title", "artist", "discogs_url", "musicbrainz_url",
     "replaygain_track_gain", "replaygain_album_gain"
 ]
-AUTO_DELETE = False
-AUTO_CONVERT_TRACKNUMBER = False
-AUTO_CONVERT_DISCNUMBER = False
-AUTO_COVER_EMBED = False
 
 def get_hash(data):
     h = xxhash.xxh64(data).digest()
     return base64.urlsafe_b64encode(h).decode("ascii").rstrip("=")
 
-def is_zero_pad_conv(tag, old_val, new_val):
+def is_zero_pad_conv(tag, old_val, new_val, auto_track, auto_disc):
     u_tag = tag.upper()
-    if u_tag == "TRACKNUMBER" and not AUTO_CONVERT_TRACKNUMBER:
+    if u_tag == "TRACKNUMBER" and not auto_track:
         return False
-    if u_tag == "DISCNUMBER" and not AUTO_CONVERT_DISCNUMBER:
+    if u_tag == "DISCNUMBER" and not auto_disc:
         return False
     if u_tag not in ("TRACKNUMBER", "DISCNUMBER"):
         return False
@@ -36,17 +32,22 @@ def is_zero_pad_conv(tag, old_val, new_val):
         return False
     return (s_old.lstrip('0') or "0") == s_new and s_old != s_new
 
-def render_progress_bar(current, total, width=30):
-    pct = current / total if total > 0 else 1.0
-    filled = int(round(width * pct))
-    bar = "█" * filled + "░" * (width - filled)
-    return f"\033[1;34m[{bar}]\033[0m \033[1m{current}/{total}\033[0m (\033[36m{int(pct * 100)}%\033[0m)"
+def process_album(target_dir, args):
+    lock_file = target_dir / "album.lock.json"
+    if not lock_file.exists():
+        print(f"\033[31mError: album.lock.json not found in {target_dir}\033[0m")
+        return False
 
-def process_album(album_lock, target_dir, auto_apply):
+    with open(lock_file, "r", encoding="utf-8") as f:
+        album_lock = json.load(f)
+
     album_obj = album_lock.get("album", {})
     tracks_data = album_lock.get("tracks", [])
     if not tracks_data:
-        return 0, False
+        return False
+
+    if album_obj.get("keys", {}).get("virtual") or album_obj.get("info", {}).get("virtual"):
+        return False
 
     exclude_keys = {"info", "tags", "keys", "covers", "manifests", "file", "id"}
     album_pool = {k.lower(): v for k, v in album_obj.items() if k not in exclude_keys and not isinstance(v, dict)}
@@ -68,7 +69,7 @@ def process_album(album_lock, target_dir, auto_apply):
 
     first_track_path = target_dir / tracks_data[0].get("file", {}).get("path", "")
     if not first_track_path.exists():
-        return 0, False
+        return False
 
     first_audio = FLAC(first_track_path)
     embedded_cover_hash = None
@@ -80,10 +81,12 @@ def process_album(album_lock, target_dir, auto_apply):
 
     update_cover = (disk_cover_hash is not None) and (embedded_cover_hash != disk_cover_hash)
     requires_prompt = False
-    if update_cover and not AUTO_COVER_EMBED:
+    if update_cover and not args.auto_cover:
         requires_prompt = True
 
     has_actual_changes = update_cover
+
+    keys_to_embed = args.keys.split(",") if args.keys else DEFAULT_KEYS_TO_EMBED
 
     tasks = []
     for t in tracks_data:
@@ -98,11 +101,11 @@ def process_album(album_lock, target_dir, auto_apply):
             if pool_key in t:
                 track_pool.update({k.lower(): v for k, v in t[pool_key].items()})
 
-        for tag_name in KEYS_TO_EMBED:
-            tag_key = tag_name.lower()
+        for tag_name in keys_to_embed:
+            tag_key = tag_name.strip().lower()
             val = track_pool.get(tag_key, album_pool.get(tag_key))
             if val is not None:
-                target_tags[tag_name.upper()] = "; ".join(val) if isinstance(val, list) else str(val)
+                target_tags[tag_name.strip().upper()] = "; ".join(val) if isinstance(val, list) else str(val)
 
         target_tags["ARTIST"] = str(track_pool.get("artist", ""))
         target_tags["TITLE"] = str(track_pool.get("title", ""))
@@ -132,7 +135,7 @@ def process_album(album_lock, target_dir, auto_apply):
                 has_actual_changes = True
                 old_vals = audio.get(old_tag, [])
                 old_val = "; ".join(old_vals) if isinstance(old_vals, list) else str(old_vals)
-                if not AUTO_DELETE:
+                if not args.auto_delete:
                     diffs.append(f"\033[31m- {u_old}: \033[90m{old_val}\033[0m")
                     requires_prompt = True
 
@@ -145,7 +148,7 @@ def process_album(album_lock, target_dir, auto_apply):
                     diffs.append(f"\033[32m+ {tag}: \033[90m{new_val}\033[0m")
                     requires_prompt = True
                 else:
-                    if is_zero_pad_conv(tag, old_val, new_val):
+                    if is_zero_pad_conv(tag, old_val, new_val, args.auto_convert_tracknumber, args.auto_convert_discnumber):
                         pass
                     else:
                         diffs.append(f"\033[34m~ {tag}: \033[90m{old_val} -> {new_val}\033[0m")
@@ -165,58 +168,42 @@ def process_album(album_lock, target_dir, auto_apply):
             t["diffs"] = [d for d in t["diffs"] if d not in common_diffs]
 
     if not has_actual_changes:
-        return 0, False
+        return True
 
-    show_cover_msg = update_cover and not AUTO_COVER_EMBED
+    show_cover_msg = update_cover and not args.auto_cover
     has_visible_diffs = show_cover_msg or bool(common_diffs) or bool(active_tasks)
-
-    lines_printed = 0
 
     if has_visible_diffs:
         print()
-        lines_printed += 1
-
         album_artist = album_obj.get("albumartist", "")
         album_title = album_obj.get("album", "")
         header = f"{album_artist} - {album_title}" if album_artist and album_title else target_dir.name
         print(f"\033[1;36m{header}\033[0m")
-        lines_printed += 1
 
         if show_cover_msg:
-            print()
-            print("\033[33m🖼️  Cover update required\033[0m")
-            lines_printed += 2
-
-        if common_diffs or any(t["diffs"] for t in active_tasks):
-            print()
-            lines_printed += 1
+            print("\n\033[33m🖼️  Cover update required\033[0m")
 
         if common_diffs:
-            print("\033[1;34m💿 Album Diff\033[0m")
-            lines_printed += 1
+            print("\n\033[1;34m💿 Album Diff\033[0m")
             for d in common_diffs:
                 print(f"   {d}")
-                lines_printed += 1
 
         for task in tasks:
             if task["diffs"]:
-                print(f"\033[1m🎵 {task['path']}\033[0m")
-                lines_printed += 1
+                print(f"\n\033[1m🎵 {task['path']}\033[0m")
                 for d in task["diffs"]:
                     print(f"   {d}")
-                    lines_printed += 1
 
-    if not auto_apply and requires_prompt:
+    if not args.auto and requires_prompt:
         try:
-            sys.stdout.write(f"\n\033[1;35mApply changes? [y/N]: \033[0m")
+            sys.stdout.write("\n\033[1;35mApply changes? [y/N]: \033[0m")
             sys.stdout.flush()
-            lines_printed += 2
-            with open('/dev/tty', 'r') as tty:
+            with open("/dev/tty", "r") as tty:
                 ans = tty.readline().strip().lower()
-            if ans not in ('y', 'yes'):
-                return lines_printed, True
+            if ans not in ("y", "yes"):
+                return True
         except Exception:
-            return lines_printed, True
+            return True
 
     new_pic = None
     if update_cover:
@@ -244,63 +231,28 @@ def process_album(album_lock, target_dir, auto_apply):
         audio.save()
 
     print("\033[32m✔ Done.\033[0m")
-    lines_printed += 1
-    return lines_printed, True
+    return True
 
 def main():
-    try:
-        data = json.load(sys.stdin)
-    except Exception as e:
-        print(f"Error reading JSON from stdin: {e}")
+    parser = argparse.ArgumentParser(description="Embed metadata from album.lock.json into audio files.")
+    parser.add_argument("--path", required=True, type=Path, help="Target album directory")
+    parser.add_argument("-y", "--auto", action="store_true", help="Apply changes without confirmation")
+    parser.add_argument("--auto-delete", action="store_true", help="Delete unmanaged tags")
+    parser.add_argument("--auto-cover", action="store_true", help="Embed disk cover without prompt")
+    parser.add_argument("--auto-convert-tracknumber", action="store_true", help="Normalize track number padding")
+    parser.add_argument("--auto-convert-discnumber", action="store_true", help="Normalize disc number padding")
+    parser.add_argument("--keys", type=str, help="Comma-separated list of keys to embed")
+
+    args = parser.parse_args()
+    target_dir = args.path.resolve()
+
+    if not target_dir.is_dir():
+        print(f"\033[31mError: Path '{target_dir}' is not a directory.\033[0m")
         sys.exit(1)
 
-    raw_albums = data.get("albums", [])
-    action_cfg = data.get("config", {}).get("action", {})
-    options_str = data.get("options", "")
-
-    auto_apply = "--auto" in options_str or "-y" in options_str
-
-    if "keys_to_embed" in action_cfg:
-        global KEYS_TO_EMBED
-        KEYS_TO_EMBED = action_cfg["keys_to_embed"]
-
-    if "auto_delete" in action_cfg:
-        global AUTO_DELETE
-        AUTO_DELETE = bool(action_cfg["auto_delete"])
-
-    if "auto_convert_tracknumber" in action_cfg:
-        global AUTO_CONVERT_TRACKNUMBER
-        AUTO_CONVERT_TRACKNUMBER = bool(action_cfg["auto_convert_tracknumber"])
-
-    if "auto_convert_discnumber" in action_cfg:
-        global AUTO_CONVERT_DISCNUMBER
-        AUTO_CONVERT_DISCNUMBER = bool(action_cfg["auto_convert_discnumber"])
-
-    if "auto_cover_embed" in action_cfg:
-        global AUTO_COVER_EMBED
-        AUTO_COVER_EMBED = bool(action_cfg["auto_cover_embed"])
-
-    albums = []
-    for entry in raw_albums:
-        path_str = entry.get("path", "")
-        album_lock = entry.get("lock", {})
-        album_obj = album_lock.get("album", {})
-        if album_obj.get("keys", {}).get("virtual") or album_obj.get("info", {}).get("virtual"):
-            continue
-        if path_str and album_lock:
-            albums.append((Path(path_str), album_lock))
-
-    total_albums = len(albums)
-
-    for idx, (target_dir, album_lock) in enumerate(albums, 1):
-        print(f"\n{render_progress_bar(idx, total_albums)}")
-        lines_printed, was_processed = process_album(album_lock, target_dir, auto_apply)
-
-        sys.stdout.write(f"\033[{lines_printed + 2}A\033[J")
-        sys.stdout.flush()
-
-    if total_albums > 0:
-        print(f"\n{render_progress_bar(total_albums, total_albums)}")
+    success = process_album(target_dir, args)
+    if not success:
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()
