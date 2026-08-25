@@ -47,6 +47,7 @@ pub struct EngineContext {
 }
 
 impl EngineContext {
+    #[must_use]
     pub fn new(cache_root: PathBuf) -> Self {
         Self {
             cache_root,
@@ -450,6 +451,7 @@ impl LuaEngine {
         Ok(json_res)
     }
 
+    #[must_use]
     pub fn evaluate_grouper_format(
         &self,
         grouper_id: &str,
@@ -534,6 +536,7 @@ impl LuaEngine {
     }
 }
 
+#[must_use]
 pub fn resolve_config_path() -> Option<PathBuf> {
     if let Some(home_config) = dirs::home_dir().map(|h| h.join(".config/dale/init.lua"))
         && home_config.exists()

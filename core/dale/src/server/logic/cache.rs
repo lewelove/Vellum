@@ -70,7 +70,8 @@ fn calculate_mask_metrics(
 
 fn calculate_pct(count: u64, view_total: f64) -> f64 {
     if view_total > 0.0 {
-        (count as f64 / view_total * 1000.0).floor() / 10.0
+        let count_f = f64::from(u32::try_from(count).unwrap_or(u32::MAX));
+        (count_f / view_total * 1000.0).floor() / 10.0
     } else {
         0.0
     }
@@ -458,7 +459,7 @@ impl LogicEngine {
         } else {
             SortOrder::Forward
         };
-        let view_total = view_mask.len() as f64;
+        let view_total = f64::from(u32::try_from(view_mask.len()).unwrap_or(0));
 
         let Some(groups) = self.groupers_cache.get(grouper_id) else {
             return Vec::new();

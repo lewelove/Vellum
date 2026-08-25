@@ -9,6 +9,7 @@ pub enum MbTargetUrl {
     ReleaseGroup(String),
 }
 
+#[must_use]
 pub fn parse_musicbrainz_url(opts: &str) -> Option<MbTargetUrl> {
     let url = opts.trim();
     if let Some(id_str) = url.split("musicbrainz.org/release-group/").nth(1) {
@@ -166,7 +167,8 @@ async fn browse_all_releases(client: &Client, rg_mbid: &str) -> Result<Value> {
         let total_count = page_val
             .get("release-count")
             .and_then(Value::as_u64)
-            .unwrap_or(0) as usize;
+            .and_then(|c| usize::try_from(c).ok())
+            .unwrap_or(0);
 
         let Some(releases) = page_val.get("releases").and_then(Value::as_array) else {
             break;
@@ -238,20 +240,25 @@ fn extract_tracks_from_media(media_val: Option<&Value>, albumartist: &str) -> Ve
     };
 
     for (disc_idx, medium) in media_arr.iter().enumerate() {
+        let fallback_disc = u32::try_from(disc_idx.saturating_add(1)).unwrap_or(u32::MAX);
         let disc_no = medium
             .get("position")
             .and_then(Value::as_u64)
-            .unwrap_or(disc_idx as u64 + 1) as u32;
+            .and_then(|p| u32::try_from(p).ok())
+            .unwrap_or(fallback_disc);
 
         let Some(track_arr) = medium.get("tracks").and_then(Value::as_array) else {
             continue;
         };
 
         for (track_idx, track) in track_arr.iter().enumerate() {
+            let fallback_track =
+                u32::try_from(track_idx.saturating_add(1)).unwrap_or(u32::MAX);
             let track_no = track
                 .get("position")
                 .and_then(Value::as_u64)
-                .unwrap_or(track_idx as u64 + 1) as u32;
+                .and_then(|p| u32::try_from(p).ok())
+                .unwrap_or(fallback_track);
 
             let title = track
                 .get("title")
@@ -279,6 +286,7 @@ fn extract_tracks_from_media(media_val: Option<&Value>, albumartist: &str) -> Ve
     tracks
 }
 
+#[must_use]
 pub fn format_mb_artist_credits(val: Option<&Value>) -> String {
     let Some(arr) = val.and_then(Value::as_array) else {
         return String::new();

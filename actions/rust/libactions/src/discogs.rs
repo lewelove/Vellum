@@ -7,6 +7,7 @@ pub enum TargetUrl {
     DiscogsRelease(u64),
 }
 
+#[must_use]
 pub fn parse_discogs_url(opts: &str) -> Option<TargetUrl> {
     let url = opts.trim();
     if let Some(id_str) = url.split("discogs.com/master/").nth(1) {

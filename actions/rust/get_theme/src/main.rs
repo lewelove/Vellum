@@ -56,10 +56,11 @@ fn main() -> Result<()> {
             let hex_colors: Vec<String> = palette
                 .into_iter()
                 .map(|(srgb, _)| {
-                    let r_u8 = (srgb.red.clamp(0.0, 1.0) * 255.0).round() as u8;
-                    let g_u8 = (srgb.green.clamp(0.0, 1.0) * 255.0).round() as u8;
-                    let b_u8 = (srgb.blue.clamp(0.0, 1.0) * 255.0).round() as u8;
-                    format!("#{r_u8:02X}{g_u8:02X}{b_u8:02X}")
+                    let srgb_u8: Srgb<u8> = srgb.into_format();
+                    format!(
+                        "#{:02X}{:02X}{:02X}",
+                        srgb_u8.red, srgb_u8.green, srgb_u8.blue
+                    )
                 })
                 .collect();
 

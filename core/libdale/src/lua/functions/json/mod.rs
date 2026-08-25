@@ -51,7 +51,9 @@ fn lua_value_to_json(val: Value) -> mlua::Result<serde_json::Value> {
                 pair_count += 1;
                 match k {
                     Value::Integer(i) => {
-                        if i < 1 || (i as usize) > raw_len {
+                        if !usize::try_from(i)
+                            .is_ok_and(|idx| (1..=raw_len).contains(&idx))
+                        {
                             has_non_sequential_key = true;
                         }
                     }

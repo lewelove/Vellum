@@ -11,41 +11,79 @@ use std::time::{Duration, Instant};
 
 type ReaderHandle = JoinHandle<Vec<u8>>;
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum EnvMode {
+    Inherit,
+    Clear,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum StreamMode {
+    Capture,
+    Ignore,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ExecutionMode {
+    Sync,
+    Detach,
+}
+
 struct SystemOpts {
     cwd: Option<String>,
     env: Option<HashMap<String, String>>,
-    clear_env: bool,
+    clear_env: EnvMode,
     stdin: Option<String>,
-    stdout: bool,
-    stderr: bool,
+    stdout: StreamMode,
+    stderr: StreamMode,
     timeout: Option<u64>,
-    detach: bool,
+    mode: ExecutionMode,
 }
 
 fn parse_opts(opts_val: Option<Table>) -> mlua::Result<SystemOpts> {
     if let Some(tbl) = opts_val {
-        let detach = tbl.get::<Option<bool>>("detach")?.unwrap_or(false);
-        let default_stdio = !detach;
+        let is_detach = tbl.get::<Option<bool>>("detach")?.unwrap_or(false);
+        let default_stdio = !is_detach;
+        let clear_env = if tbl.get::<Option<bool>>("clear_env")?.unwrap_or(false) {
+            EnvMode::Clear
+        } else {
+            EnvMode::Inherit
+        };
+        let stdout = if tbl.get::<Option<bool>>("stdout")?.unwrap_or(default_stdio) {
+            StreamMode::Capture
+        } else {
+            StreamMode::Ignore
+        };
+        let stderr = if tbl.get::<Option<bool>>("stderr")?.unwrap_or(default_stdio) {
+            StreamMode::Capture
+        } else {
+            StreamMode::Ignore
+        };
+        let mode = if is_detach {
+            ExecutionMode::Detach
+        } else {
+            ExecutionMode::Sync
+        };
         Ok(SystemOpts {
             cwd: tbl.get("cwd")?,
             env: tbl.get("env")?,
-            clear_env: tbl.get::<Option<bool>>("clear_env")?.unwrap_or(false),
+            clear_env,
             stdin: tbl.get("stdin")?,
-            stdout: tbl.get::<Option<bool>>("stdout")?.unwrap_or(default_stdio),
-            stderr: tbl.get::<Option<bool>>("stderr")?.unwrap_or(default_stdio),
+            stdout,
+            stderr,
             timeout: tbl.get("timeout")?,
-            detach,
+            mode,
         })
     } else {
         Ok(SystemOpts {
             cwd: None,
             env: None,
-            clear_env: false,
+            clear_env: EnvMode::Inherit,
             stdin: None,
-            stdout: true,
-            stderr: true,
+            stdout: StreamMode::Capture,
+            stderr: StreamMode::Capture,
             timeout: None,
-            detach: false,
+            mode: ExecutionMode::Sync,
         })
     }
 }
@@ -81,7 +119,7 @@ fn build_command(cmd_args: &[String], opts: &SystemOpts) -> Command {
         command.args(&cmd_args[1..]);
     }
 
-    if opts.clear_env {
+    if opts.clear_env == EnvMode::Clear {
         command.env_clear();
     }
     if let Some(ref env_map) = opts.env {
@@ -101,12 +139,12 @@ fn spawn_detached(
     lua: &Lua,
 ) -> mlua::Result<Value> {
     command.stdin(Stdio::null());
-    command.stdout(if opts.stdout {
+    command.stdout(if opts.stdout == StreamMode::Capture {
         Stdio::inherit()
     } else {
         Stdio::null()
     });
-    command.stderr(if opts.stderr {
+    command.stderr(if opts.stderr == StreamMode::Capture {
         Stdio::inherit()
     } else {
         Stdio::null()
@@ -240,12 +278,12 @@ fn execute_sync(
     } else {
         Stdio::null()
     });
-    command.stdout(if opts.stdout {
+    command.stdout(if opts.stdout == StreamMode::Capture {
         Stdio::piped()
     } else {
         Stdio::null()
     });
-    command.stderr(if opts.stderr {
+    command.stderr(if opts.stderr == StreamMode::Capture {
         Stdio::piped()
     } else {
         Stdio::null()
@@ -282,7 +320,7 @@ pub fn lua_system(
     let opts = parse_opts(opts_val)?;
     let command = build_command(&cmd_args, &opts);
 
-    if opts.detach {
+    if opts.mode == ExecutionMode::Detach {
         spawn_detached(command, &opts, lua)
     } else {
         execute_sync(command, opts, lua)

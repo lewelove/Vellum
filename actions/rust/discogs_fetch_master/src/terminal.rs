@@ -3,6 +3,7 @@ use anyhow::Result;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
 
+#[must_use]
 pub fn format_year(year_val: Option<&serde_json::Value>) -> String {
     year_val.map_or_else(
         || "N/A".to_string(),
@@ -14,6 +15,7 @@ pub fn format_year(year_val: Option<&serde_json::Value>) -> String {
     )
 }
 
+#[must_use]
 pub fn format_styles(genres: &[String], styles: &[String]) -> String {
     let mut combined = Vec::new();
     for g in genres {

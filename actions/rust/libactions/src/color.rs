@@ -1,6 +1,9 @@
 use image::DynamicImage;
 use palette::{FromColor, Oklab, Oklch, Srgb};
 
+const RATIO_SCALE: u64 = 65_535;
+const RATIO_SCALE_F32: f32 = 65_535.0;
+
 #[must_use]
 pub fn get_oklab_dist(c1: &Oklab, c2: &Oklab) -> f32 {
     (c1.b - c2.b)
@@ -53,16 +56,20 @@ pub fn calculate_palette_ratios(
         counts[best_idx] += 1;
     }
 
-    let total_pixels = counts.iter().sum::<usize>() as f32;
+    let total_pixels = counts.iter().sum::<usize>();
+    let total_u64 = u64::try_from(total_pixels).unwrap_or(0);
+
     let mut palette: Vec<(Srgb, f32)> = candidate_colors
         .into_iter()
         .zip(counts)
         .filter_map(|(color, count)| {
-            let ratio = if total_pixels > 0.0 {
-                count as f32 / total_pixels
-            } else {
-                0.0
-            };
+            let count_u64 = u64::try_from(count).unwrap_or(0);
+            let ratio = count_u64
+                .checked_mul(RATIO_SCALE)
+                .and_then(|scaled| scaled.checked_div(total_u64))
+                .and_then(|scaled| u16::try_from(scaled).ok())
+                .map_or(0.0, |scaled_u16| f32::from(scaled_u16) / RATIO_SCALE_F32);
+
             if ratio > 0.0 {
                 Some((color, ratio))
             } else {

@@ -215,7 +215,7 @@ pub fn build(
     );
     let total_discs =
         libdale::resolvers::calculate_total_discs(&build_data.primary_tracks);
-    let total_tracks = build_data.primary_tracks.len() as u32;
+    let total_tracks = u32::try_from(build_data.primary_tracks.len()).unwrap_or(0);
 
     let (ctx_tracks, duration_sum_ms) = tracks::build_ctx_tracks(
         album_kind,

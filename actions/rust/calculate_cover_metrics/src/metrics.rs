@@ -4,7 +4,7 @@ use std::io::Cursor;
 #[must_use]
 pub fn calculate_chroma(img: &DynamicImage) -> f64 {
     let (width, height) = img.dimensions();
-    let total = f64::from(width * height);
+    let total = f64::from(width) * f64::from(height);
     if total == 0.0 {
         return 0.0;
     }
