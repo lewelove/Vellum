@@ -2,6 +2,7 @@ use crate::server::inotify::classifier;
 use crate::server::inotify::handler;
 use crate::server::state::AppState;
 use notify::{Event, RecommendedWatcher, RecursiveMode, Watcher};
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
@@ -53,6 +54,45 @@ pub async fn run_loop(
     }
 }
 
+fn collect_asset_watches(
+    config_dir: &Path,
+    assets: impl Iterator<Item = impl AsRef<str>>,
+    recursive: &mut HashSet<PathBuf>,
+    non_recursive: &mut HashSet<PathBuf>,
+) {
+    for asset_str in assets {
+        let p = libdale::utils::expand_path(asset_str.as_ref());
+        let p = if p.is_absolute() {
+            p
+        } else {
+            config_dir.join(p)
+        };
+        let Ok(canon) = p.canonicalize() else {
+            continue;
+        };
+        if canon.is_dir() {
+            recursive.insert(canon);
+        } else if canon.is_file()
+            && let Some(parent) = canon.parent()
+        {
+            non_recursive.insert(parent.to_path_buf());
+        }
+    }
+}
+
+fn apply_watch_set(
+    watcher: &mut RecommendedWatcher,
+    watched_dirs: &mut HashSet<PathBuf>,
+    dirs: HashSet<PathBuf>,
+    mode: RecursiveMode,
+) {
+    for dir in dirs {
+        if dir.exists() && watched_dirs.insert(dir.clone()) {
+            let _ = watcher.watch(&dir, mode);
+        }
+    }
+}
+
 async fn sync_watches(
     watcher: &mut RecommendedWatcher,
     watched_dirs: &mut std::collections::HashSet<PathBuf>,
@@ -68,23 +108,12 @@ async fn sync_watches(
     needed_recursive.insert(guard.music_directory.clone());
 
     for cfg in guard.interfaces.values() {
-        for asset_str in cfg.assets.values() {
-            let p = libdale::utils::expand_path(asset_str);
-            let p = if p.is_absolute() {
-                p
-            } else {
-                config_dir.join(p)
-            };
-            if let Ok(canon) = p.canonicalize() {
-                if canon.is_dir() {
-                    needed_recursive.insert(canon);
-                } else if canon.is_file()
-                    && let Some(parent) = canon.parent()
-                {
-                    needed_non_recursive.insert(parent.to_path_buf());
-                }
-            }
-        }
+        collect_asset_watches(
+            config_dir,
+            cfg.assets.values(),
+            &mut needed_recursive,
+            &mut needed_non_recursive,
+        );
     }
 
     for dep in &guard.resolved_dependencies {
@@ -105,15 +134,16 @@ async fn sync_watches(
     drop(deps_graph);
     drop(guard);
 
-    for dir in needed_recursive {
-        if dir.exists() && watched_dirs.insert(dir.clone()) {
-            let _ = watcher.watch(&dir, RecursiveMode::Recursive);
-        }
-    }
-
-    for dir in needed_non_recursive {
-        if dir.exists() && watched_dirs.insert(dir.clone()) {
-            let _ = watcher.watch(&dir, RecursiveMode::NonRecursive);
-        }
-    }
+    apply_watch_set(
+        watcher,
+        watched_dirs,
+        needed_recursive,
+        RecursiveMode::Recursive,
+    );
+    apply_watch_set(
+        watcher,
+        watched_dirs,
+        needed_non_recursive,
+        RecursiveMode::NonRecursive,
+    );
 }

@@ -13,65 +13,73 @@ struct TargetAlbumEntry {
     lock: serde_json::Value,
 }
 
+async fn resolve_playing_target(state: &AppState) -> Option<String> {
+    let playing_path = crate::x::get_playing_track_url().await.ok()?;
+    let clean_playing = playing_path.trim_start_matches('/');
+    let logic = state.logic.read().await;
+
+    if let Some(id) = logic
+        .path_lookup
+        .get(clean_playing)
+        .or_else(|| logic.path_lookup.get(&playing_path))
+    {
+        return Some(id.clone());
+    }
+
+    let music_dir = state.config.read().await.music_directory.clone();
+    let dir = crate::x::get_playing_album(&music_dir.to_string_lossy())
+        .await
+        .ok()?;
+    let canon = dir.canonicalize().unwrap_or(dir);
+    logic.albums_by_path.get(&canon).cloned()
+}
+
+async fn resolve_param_target(
+    params: &HashMap<String, String>,
+    state: &AppState,
+) -> Vec<String> {
+    let logic = state.logic.read().await;
+    if let Some(q) = params.get("query") {
+        return logic.find_ids(q);
+    }
+    if let Some(id) = params.get("id").filter(|s| !s.is_empty()) {
+        return vec![id.clone()];
+    }
+    if params.get("library").is_some_and(|v| v == "true")
+        || params.contains_key("recursive")
+    {
+        let music_dir = state.config.read().await.music_directory.clone();
+        let root = params
+            .get("recursive")
+            .map_or_else(|| music_dir, |dir| libdale::utils::expand_path(dir));
+        let root_canon = root.canonicalize().unwrap_or(root);
+        return logic
+            .albums_by_path
+            .iter()
+            .filter(|(p, _)| p.starts_with(&root_canon))
+            .map(|(_, id)| id.clone())
+            .collect();
+    }
+    if let Some(dir) = params.get("directory") {
+        let p = libdale::utils::expand_path(dir);
+        let p_canon = p.canonicalize().unwrap_or(p);
+        if let Some(id) = logic.albums_by_path.get(&p_canon) {
+            return vec![id.clone()];
+        }
+    }
+    Vec::new()
+}
+
 async fn resolve_target_entries(
     params: &HashMap<String, String>,
     state: &Arc<AppState>,
 ) -> Vec<TargetAlbumEntry> {
-    let playing = params.get("playing").is_some_and(|v| v == "true");
-    let id_arg = params.get("id").cloned();
-    let query_arg = params.get("query").cloned();
-    let directory_arg = params.get("directory").cloned();
-    let recursive_arg = params.get("recursive").cloned();
-    let library_arg = params.get("library").is_some_and(|v| v == "true");
-
-    let mut target_ids = Vec::new();
-
-    if playing {
-        let music_dir = state.config.read().await.music_directory.clone();
-        if let Ok(playing_path) = crate::x::get_playing_track_url().await {
-            let clean_playing = playing_path.trim_start_matches('/');
-            let logic_guard = state.logic.read().await;
-            if let Some(id) = logic_guard
-                .path_lookup
-                .get(clean_playing)
-                .or_else(|| logic_guard.path_lookup.get(&playing_path))
-            {
-                target_ids.push(id.clone());
-            } else if let Ok(dir) =
-                crate::x::get_playing_album(&music_dir.to_string_lossy()).await
-            {
-                let canon = dir.canonicalize().unwrap_or(dir);
-                if let Some(id) = logic_guard.albums_by_path.get(&canon) {
-                    target_ids.push(id.clone());
-                }
-            }
-        }
+    let is_playing = params.get("playing").is_some_and(|v| v == "true");
+    let target_ids = if is_playing {
+        resolve_playing_target(state).await.into_iter().collect()
     } else {
-        let logic_guard = state.logic.read().await;
-        if let Some(q) = query_arg {
-            target_ids = logic_guard.find_ids(&q);
-        } else if let Some(id) = id_arg {
-            if !id.is_empty() {
-                target_ids.push(id);
-            }
-        } else if library_arg || recursive_arg.is_some() {
-            let music_dir = state.config.read().await.music_directory.clone();
-            let root = recursive_arg
-                .map_or_else(|| music_dir, |dir| libdale::utils::expand_path(&dir));
-            let root_canon = root.canonicalize().unwrap_or(root);
-            for (album_path, id) in &logic_guard.albums_by_path {
-                if album_path.starts_with(&root_canon) {
-                    target_ids.push(id.clone());
-                }
-            }
-        } else if let Some(dir) = directory_arg {
-            let p = libdale::utils::expand_path(&dir);
-            let p_canon = p.canonicalize().unwrap_or(p);
-            if let Some(id) = logic_guard.albums_by_path.get(&p_canon) {
-                target_ids.push(id.clone());
-            }
-        }
-    }
+        resolve_param_target(params, state).await
+    };
 
     let logic = state.logic.read().await;
     let mut list = Vec::new();

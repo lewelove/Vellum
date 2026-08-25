@@ -20,24 +20,55 @@ pub enum MpdCommand {
     Refresh,
 }
 
+async fn handle_play_command(
+    client: &Client,
+    tracks: Vec<String>,
+    offset: usize,
+) -> Result<()> {
+    let mut list = RawCommandList::new(RawCommand::new("clear"));
+    for track in &tracks {
+        list.add(Add::uri(track).command());
+    }
+    list.add(Play::song(SongPosition(offset)).command());
+    client.raw_command_list(list).await?;
+    Ok(())
+}
+
+async fn handle_queue_command(client: &Client, tracks: Vec<String>) -> Result<()> {
+    let Some((first, rest)) = tracks.split_first() else {
+        return Ok(());
+    };
+    let mut list = RawCommandList::new(Add::uri(first).command());
+    for track in rest {
+        list.add(Add::uri(track).command());
+    }
+    client.raw_command_list(list).await?;
+    Ok(())
+}
+
+async fn handle_toggle_pause(client: &Client) -> Result<()> {
+    let status = client.command(Status).await?;
+    match status.state {
+        PlayState::Playing => {
+            client.command(SetPause(true)).await?;
+        }
+        PlayState::Paused => {
+            client.command(SetPause(false)).await?;
+        }
+        PlayState::Stopped => {
+            client.command(Play::current()).await?;
+        }
+    }
+    Ok(())
+}
+
 pub async fn handle_command(client: &Client, cmd: MpdCommand) -> Result<()> {
     match cmd {
         MpdCommand::Play { tracks, offset } => {
-            let mut list = RawCommandList::new(RawCommand::new("clear"));
-            for track in &tracks {
-                list.add(Add::uri(track).command());
-            }
-            list.add(Play::song(SongPosition(offset)).command());
-            client.raw_command_list(list).await?;
+            handle_play_command(client, tracks, offset).await?;
         }
         MpdCommand::Queue { tracks } => {
-            if let Some((first, rest)) = tracks.split_first() {
-                let mut list = RawCommandList::new(Add::uri(first).command());
-                for track in rest {
-                    list.add(Add::uri(track).command());
-                }
-                client.raw_command_list(list).await?;
-            }
+            handle_queue_command(client, tracks).await?;
         }
         MpdCommand::Jump { index } => {
             client.command(Play::song(SongPosition(index))).await?;
@@ -55,18 +86,7 @@ pub async fn handle_command(client: &Client, cmd: MpdCommand) -> Result<()> {
             client.command(Previous).await?;
         }
         MpdCommand::TogglePause => {
-            let status = client.command(Status).await?;
-            match status.state {
-                PlayState::Playing => {
-                    client.command(SetPause(true)).await?;
-                }
-                PlayState::Paused => {
-                    client.command(SetPause(false)).await?;
-                }
-                PlayState::Stopped => {
-                    client.command(Play::current()).await?;
-                }
-            }
+            handle_toggle_pause(client).await?;
         }
         MpdCommand::Refresh => {}
     }

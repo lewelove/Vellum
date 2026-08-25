@@ -70,6 +70,8 @@ in
   '';
 
   scripts.build.exec = ''
+    set -euo pipefail
+
     ROOT=$(git rev-parse --show-toplevel)
     cd "$ROOT"
 

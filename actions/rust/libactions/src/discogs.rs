@@ -80,10 +80,10 @@ pub fn format_artist_credits(artists: &[ArtistCredit]) -> String {
         let name = clean_artist_name(&artist.name);
         let join = artist.join.as_deref().unwrap_or("");
         out.push_str(&name);
-        if !join.is_empty() {
-            out.push_str(join);
-        } else {
+        if join.is_empty() {
             out.push_str(", ");
+        } else {
+            out.push_str(join);
         }
     }
     out.trim_end_matches(", ").to_string()

@@ -17,104 +17,100 @@ pub struct WorkQueueContext<'a> {
     pub silent: bool,
 }
 
+fn filter_dirty_albums(
+    albums: Vec<PathBuf>,
+    ctx: &WorkQueueContext<'_>,
+) -> Result<Vec<PathBuf>> {
+    let results = verify_albums_parallel(
+        albums,
+        ctx.cache,
+        ctx.deps_graph,
+        ctx.force,
+        ctx.effective_jobs,
+        ctx.music_directory,
+    )?;
+    Ok(results
+        .into_iter()
+        .filter_map(|(path, is_dirty)| if is_dirty { Some(path) } else { None })
+        .collect())
+}
+
+fn scan_scoped_paths(
+    paths: &HashSet<PathBuf>,
+    music_dir: &Path,
+    cache: &HashMap<String, FileStat>,
+) -> (Vec<PathBuf>, Vec<PathBuf>) {
+    let mut albums_set = HashSet::new();
+    let mut missing_set = HashSet::new();
+
+    for p in paths {
+        let p_canon = p.canonicalize().unwrap_or_else(|_| p.clone());
+        if let Ok(found) = libdale::scanner::find_target_albums(&p_canon) {
+            for album in found {
+                albums_set.insert(album);
+            }
+        }
+    }
+
+    let all_found: Vec<PathBuf> = albums_set.iter().cloned().collect();
+
+    for p in paths {
+        let p_canon = p.canonicalize().unwrap_or_else(|_| p.clone());
+        let target_albums = if p_canon.exists() {
+            &all_found[..]
+        } else {
+            &[][..]
+        };
+        let missing = find_missing_paths(target_albums, music_dir, &p_canon, cache);
+        for m in missing {
+            missing_set.insert(m);
+        }
+    }
+
+    let mut albums_vec: Vec<PathBuf> = albums_set.into_iter().collect();
+    albums_vec.sort();
+    let mut missing_vec: Vec<PathBuf> = missing_set.into_iter().collect();
+    missing_vec.sort();
+    (albums_vec, missing_vec)
+}
+
+fn discover_scope_albums(
+    scope: &UpdateScope,
+    music_dir: &Path,
+    cache: &HashMap<String, FileStat>,
+) -> Result<(Vec<PathBuf>, Vec<PathBuf>)> {
+    match scope {
+        UpdateScope::All => {
+            let albums = libdale::scanner::find_target_albums(music_dir)?;
+            let missing = find_missing_paths(&albums, music_dir, music_dir, cache);
+            Ok((albums, missing))
+        }
+        UpdateScope::Paths(paths) => Ok(scan_scoped_paths(paths, music_dir, cache)),
+    }
+}
+
 pub fn resolve_work_queue(
-    ctx: WorkQueueContext<'_>,
+    mut ctx: WorkQueueContext<'_>,
 ) -> Result<(Vec<PathBuf>, Vec<PathBuf>)> {
     if !ctx.force
-        && let Some((wq, mp)) = ctx.tracked
+        && let Some((wq, mp)) = ctx.tracked.take()
     {
         if !ctx.silent && !wq.is_empty() {
             log::info!("Verifying {} tracked albums...", wq.len());
         }
-
-        let results = verify_albums_parallel(
-            wq,
-            ctx.cache,
-            ctx.deps_graph,
-            ctx.force,
-            ctx.effective_jobs,
-            ctx.music_directory,
-        )?;
-        let mut verified_wq = Vec::new();
-        for (path, is_dirty) in results {
-            if is_dirty {
-                verified_wq.push(path);
-            }
-        }
-        Ok((verified_wq, mp))
-    } else {
-        let (all_albums, mp) = match ctx.scope {
-            UpdateScope::All => {
-                let albums = libdale::scanner::find_target_albums(ctx.music_directory)?;
-                let missing = find_missing_paths(
-                    &albums,
-                    ctx.music_directory,
-                    ctx.music_directory,
-                    ctx.cache,
-                );
-                (albums, missing)
-            }
-            UpdateScope::Paths(paths) => {
-                let mut albums_set = HashSet::new();
-                let mut missing_set = HashSet::new();
-
-                for p in paths {
-                    let p_canon = p.canonicalize().unwrap_or_else(|_| p.clone());
-                    if let Ok(found) = libdale::scanner::find_target_albums(&p_canon) {
-                        for album in found {
-                            albums_set.insert(album);
-                        }
-                    }
-                }
-
-                let all_found: Vec<PathBuf> = albums_set.iter().cloned().collect();
-
-                for p in paths {
-                    let p_canon = p.canonicalize().unwrap_or_else(|_| p.clone());
-                    let target_albums = if p_canon.exists() {
-                        &all_found[..]
-                    } else {
-                        &[][..]
-                    };
-                    let missing = find_missing_paths(
-                        target_albums,
-                        ctx.music_directory,
-                        &p_canon,
-                        ctx.cache,
-                    );
-                    for m in missing {
-                        missing_set.insert(m);
-                    }
-                }
-
-                let mut albums_vec: Vec<PathBuf> = albums_set.into_iter().collect();
-                albums_vec.sort();
-                let mut missing_vec: Vec<PathBuf> = missing_set.into_iter().collect();
-                missing_vec.sort();
-                (albums_vec, missing_vec)
-            }
-        };
-
-        if !ctx.silent && !all_albums.is_empty() {
-            log::info!("Verifying {} albums...", all_albums.len());
-        }
-
-        let results = verify_albums_parallel(
-            all_albums,
-            ctx.cache,
-            ctx.deps_graph,
-            ctx.force,
-            ctx.effective_jobs,
-            ctx.music_directory,
-        )?;
-        let mut wq = Vec::new();
-        for (path, is_dirty) in results {
-            if is_dirty {
-                wq.push(path);
-            }
-        }
-        Ok((wq, mp))
+        let verified_wq = filter_dirty_albums(wq, &ctx)?;
+        return Ok((verified_wq, mp));
     }
+
+    let (all_albums, mp) =
+        discover_scope_albums(ctx.scope, ctx.music_directory, ctx.cache)?;
+
+    if !ctx.silent && !all_albums.is_empty() {
+        log::info!("Verifying {} albums...", all_albums.len());
+    }
+
+    let wq = filter_dirty_albums(all_albums, &ctx)?;
+    Ok((wq, mp))
 }
 
 pub fn update_cache_entries(
