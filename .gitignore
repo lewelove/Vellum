@@ -4,9 +4,6 @@
 **/node_modules/
 **/__pycache__/
 
-.repomixignore
-.sync.sh
-
 # ignore files without an extension in actions/ root
 actions/*
 !actions/*/
