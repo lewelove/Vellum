@@ -40,6 +40,17 @@ let
     pyRename
     pySearchCover
   ];
+
+  runtimeLibs = with pkgs; [
+    wayland
+    libxkbcommon
+    libGL
+    vulkan-loader
+    libX11
+    libXcursor
+    libXrandr
+    libxi
+  ];
 in
 {
   languages.rust = {
@@ -63,10 +74,11 @@ in
     openssl
     cargo-deny
     git
-  ] ++ pythonActions;
+  ] ++ pythonActions ++ runtimeLibs;
 
   enterShell = ''
     export PATH="$PWD/interfaces/web-app/node_modules/.bin:$PATH"
+    export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath runtimeLibs}:/run/opengl-driver/lib:$LD_LIBRARY_PATH"
   '';
 
   scripts.build.exec = ''

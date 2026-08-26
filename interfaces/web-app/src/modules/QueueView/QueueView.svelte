@@ -96,13 +96,13 @@ $effect(() => {
 .right-wing {
   flex: 1 1 0%;
   display: flex;
-  min-width: 0;
+  min-width: 320px;
   height: 100%;
   flex-direction: row;
 }
 
 .center-wing {
-  flex: 0 0 auto;
+  flex: 0 1 auto;
   height: 100%;
   display: flex;
   justify-content: center;
