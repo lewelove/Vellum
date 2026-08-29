@@ -1,0 +1,21 @@
+[package]
+name = "musicbrainz_fetch"
+version = "0.1.0"
+edition = "2024"
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "musicbrainz_fetch"
+path = "src/main.rs"
+
+[dependencies]
+libactions = { workspace = true }
+anyhow = { workspace = true }
+clap = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tempfile = { workspace = true }
+tokio = { workspace = true }

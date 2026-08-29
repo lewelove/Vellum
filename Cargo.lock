@@ -1971,6 +1971,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "musicbrainz_fetch"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap 4.6.6",
+ "libactions",
+ "reqwest 0.13.4",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+]
+
+[[package]]
 name = "new_debug_unreachable"
 version = "1.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
