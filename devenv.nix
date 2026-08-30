@@ -29,13 +29,11 @@ let
     ${builtins.readFile scriptPath}
   '';
 
-  pyEmbed = mkPyAction "embed" ./actions/python/embed/main.py;
   pyLyrics = mkPyAction "lyrics" ./actions/python/lyrics/main.py;
   pyRename = mkPyAction "rename" ./actions/python/rename/main.py;
   pySearchCover = mkPyAction "search_cover" ./actions/python/search_cover/main.py;
 
   pythonActions = [
-    pyEmbed
     pyLyrics
     pyRename
     pySearchCover
@@ -82,7 +80,6 @@ in
 
     ln -sf "${pyLyrics}/bin/lyrics" "$ROOT/actions/lyrics"
     ln -sf "${pySearchCover}/bin/search_cover" "$ROOT/actions/search_cover"
-    ln -sf "${pyEmbed}/bin/embed" "$ROOT/actions/embed"
     ln -sf "${pyRename}/bin/rename" "$ROOT/actions/rename"
 
     (cd "$ROOT/interfaces/web-app" && bun run build)

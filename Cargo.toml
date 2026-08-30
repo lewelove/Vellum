@@ -6,6 +6,7 @@ members = [
   "actions/rust/libactions",
   "actions/rust/calculate_cover_metrics",
   "actions/rust/collect",
+  "actions/rust/embed",
   "actions/rust/musicbrainz_fetch",
   "actions/rust/theme",
 ]
