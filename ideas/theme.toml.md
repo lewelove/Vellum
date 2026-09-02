@@ -1,6 +1,6 @@
 # theme.toml
 
-This manifest provides the colors for album to be displayed in the UI. Values are always must be a CSS compatible strings, that compile into an `oklab()` values.
+This manifest provides the colors for album to be displayed in the UI. Values are always must be a valid CSS HEX color strings.
 
 ```toml
 [album.colors]
@@ -17,11 +17,23 @@ monospace = ""
 
 ## Specifications
 
-### foreground
+### colors.foreground
 
-Determines the color of all foreground elements used inside album display panels. Primarily the QueueView.
+Determines the color of all foreground elements used inside album display panels in QueueView.
 
-### background
+### colors.background
 
 Determines the colors that are fed into a background shader.
 
+### album.lock.json
+
+```jsonc
+{
+  "album": {
+    "colors": {
+      "foreground": "", // single HEX string
+      "background": [ "" ] // array of HEX strings
+    }
+  }
+}
+```

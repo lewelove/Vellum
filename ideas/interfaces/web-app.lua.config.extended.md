@@ -32,9 +32,9 @@ vl.interfaces({
       -- the elements are injected into the top of `--font-stack` and `--font-mono`, order kept
       fonts = {
         -- used for main text drawn
-        main = { "VellumInter" },
+        main = { "DaleInter" },
         -- used to draw tnum elements and strings of numbers (time, count index, etc...)
-        monospace = { "VellumInterTnum" },
+        monospace = { "DaleInterTnum" },
       },
 
         -- album grid in homeview
@@ -53,7 +53,7 @@ vl.interfaces({
             -- pixel size of the thumbnail in grid
             -- used in api cover fetch
             size = 200,
-            -- one of cover vellum filters used inside api cover fetch as well
+            -- one of cover dale filters used inside api cover fetch as well
             filter = "lanczos",
           },
           -- text underneath the cover

@@ -1,4 +1,4 @@
-# vellum x collect
+# dale x collect
 
 The `collect` is an action used to add album to the collection without the actual audio files. This action consumes the album source url as primary argument.
 
@@ -9,10 +9,10 @@ Url of the album must be one of the services such as:
 
 ## How it works
 
-Upon execution `vellum x collect`:
+Upon execution `dale x collect`:
 
 - Determines the service used from the url from `{stdin_json}.options[]`
-- Selects API key for determined service from environment loaded by Vellum and fetches album data
+- Selects API key for determined service from environment loaded by Dale and fetches album data
 - Creates the `{config.root}/{config.formatting.album}`
 - Saves the raw data returned from the service inside `{config.root}/{config.formatting.album}/{config.formatting.info}/{service_name}_{type}.json`
 
@@ -104,6 +104,6 @@ path = false
 ```toml
 [local]
 
-# ISO format at UTC+0 with milliseconds of system datetime upon `vellum x collect` execution
+# ISO format at UTC+0 with milliseconds of system datetime upon `dale x collect` execution
 date_added = 1999-12-31T00:00:00.000Z
 ```

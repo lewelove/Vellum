@@ -5,7 +5,7 @@ Security:
 - If `Origin` HTTP header is present -> allow only if point to `127.0.0.1` or `localhost`
 
 Rules:
-- All paths in `[scripts]` must be canonicalized by rust to strictly lie within `~/.config/vellum/` folder
+- All paths in `[scripts]` must be canonicalized by rust to strictly lie within `~/.config/dale/` folder
 
 Attributes:
 ```toml

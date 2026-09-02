@@ -1,6 +1,6 @@
 {
   // type definitions
-  // values below are used to determine type of vellum value for each lock file key
+  // values below are used to determine type of dale value for each lock file key
   //
   // "" -> string
   // 1 -> number

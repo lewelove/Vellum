@@ -52,7 +52,7 @@ vl.interfaces({ default = {
             -- pixel size of the thumbnail in grid
             -- used in api cover fetch
             size = 200,
-            -- one of cover vellum filters used inside api cover fetch as well
+            -- one of cover dale filters used inside api cover fetch as well
             filter = "lanczos",
           },
           -- text underneath the cover

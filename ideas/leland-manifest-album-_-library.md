@@ -1,8 +1,8 @@
-# vellum manifest
+# dale manifest
 
 This command is used to scan audio files in given directory and generate `metadata.toml` and `local.toml` manifests. Has two variants: `album` and `library`.
 
-# vellum manifest album
+# dale manifest album
 
 This variant is used to manifest a new album in provided directory, including all audio files as if they belong to a single album.
 
@@ -22,7 +22,7 @@ This variant is used to manifest a new album in provided directory, including al
 - Scans all audio files with `-e` extension at any depth under `-d`
 - Generates `metadata.toml` and `local.toml` in `-d`
 
-# vellum manifest library
+# dale manifest library
 
 This variant is used to manifest all new albums in provided directory, separating audio files into albums by **Exclusivity Principle** (based on grouping keys values), determining directory and generating manifests for each.
 

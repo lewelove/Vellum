@@ -1,20 +1,27 @@
 # codebase
 
-- Remove all hardcoded fallbacks from rust and create `vellum.lua` file to spec all of available values, and propagate them to rust from it
-- Rewrite ALL default key resolution logic from rust to Lua
-- Add album hot-reload upon each registered manifest mtime change
-- Register manifests like `name` and directory paths as `directory.name`
+- Remove everything hardcoded from Rust
+- Rewrite ALL default key resolution logic from Rust to Lua
 
+# engine
+
+- Make compilation failure propagate the compile error in server output, on compilation triggered by ANY cause
+- Rename `metadata.toml` -> `album.toml`
+- Make `embedded` array a standard builtin part of `tracks`
+- Make error messages beautiful
 
 # cli
 
 ### manifest
 
-- Make `vellum manifest` a command you execute for each individual album specifically
+- Make `dale manifest` a command you execute for each individual album specifically
 
 ### compile
 
-- Add subcommand (`vellum compile album` / `vellum compile library`) that will compile either single album in pwd or all albums across library root
+- Make `compile` bypass updating and print result straight in `stdin`
+- Add `--directory / -d` flag to spec the target album
+- Make it impossible to compile > 1 album, print invalid directory error when 
+- Add subcommand (`dale compile album` / `dale compile library`) that will compile either single album in pwd or all albums across library root
 - Add `--force` flag
 
 ### update
@@ -24,15 +31,17 @@
 # theming
 
 - Make absolutely all white elements derived from single `oklab` white value using alpha channel
+- Add new object that tracks currently playing OR last played album at all times to always have something to display in `queueview`
+- Remove the inactive elements from queue sidebar
 
 # api
 
-- Add /mpd prefix to all mpd control related api endpoint. Example: /api/mpd/play_album
+- Add `/mpd/` prefix to all mpd control related api endpoint. Example: `/api/mpd/play_album/`
 
 # actions
 
 - Remove any kind of terminal messages printing unless `--debug` is used
-- Make `vellum x` drop into process output just like the `vellum interface` does
+- Make `dale x` drop into process output just like the `dale interface` does
 
 ### cover-palette
 
@@ -41,16 +50,12 @@
 ### open-album-directory-in-terminal
 
 - Built-in action
-- Bash script that spawns terminal with `cd {[config].storage.library}/{album.id}`
+- Trigger on `Ctrl + T` in album drawer
 
 ### open-album-directory-in-file-manager
 
 - Built-in action
-- Bash script that spawns terminal with `cd {[config].storage.library}/{album.id}`
+- Trigger on `Ctrl + D` in album drawer
 
 # config
 
-### logic
-
-- Rename the `strict` keyword to `private` in `logic.toml`
-- Provide `include` / `exclude` keywords for all arrays of orders, groupers and filters

@@ -3,7 +3,7 @@ Create generic `/api/config/files/{name}`. Rust reads the `files.{name}` path va
 All paths listed under `[files]` are watchdogged and shared in real time via websocket
 
 Rules:
-- All paths in `[files]` must be canonicalized by rust to strictly lie within `~/.config/vellum/` folder
+- All paths in `[files]` must be canonicalized by rust to strictly lie within `~/.config/dale/` folder
 
 Attributes:
 ```toml
