@@ -56,6 +56,14 @@ class CollectionStore {
       delete this.fullAlbumCache[json.id];
     } else if (json.type === "ALBUMS_UPDATED") {
       if (json.shelves) this.sidebarShelves = json.shelves;
+      if (json.removed) {
+        for (const id of json.removed) {
+          if (!json.updated || !json.updated[id]) {
+            delete this.dict[id];
+            delete this.fullAlbumCache[id];
+          }
+        }
+      }
       if (json.updated) {
         for (const [id, dictEntry] of Object.entries(json.updated)) {
           if (dictEntry && Object.keys(dictEntry as object).length > 0) {
@@ -63,12 +71,6 @@ class CollectionStore {
           } else {
             delete this.dict[id];
           }
-          delete this.fullAlbumCache[id];
-        }
-      }
-      if (json.removed) {
-        for (const id of json.removed) {
-          delete this.dict[id];
           delete this.fullAlbumCache[id];
         }
       }

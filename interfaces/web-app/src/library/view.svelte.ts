@@ -153,7 +153,9 @@ export class ViewState {
         const focusedId = this.focusedAlbum.id;
         const isRemoved =
           (json.type === "ALBUM_REMOVED" && json.id === focusedId) ||
-          (json.removed && json.removed.includes(focusedId));
+          (json.removed &&
+            json.removed.includes(focusedId) &&
+            (!json.updated || !json.updated[focusedId]));
 
         if (isRemoved) {
           this.focusedAlbum = null;

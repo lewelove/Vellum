@@ -28,6 +28,17 @@ struct IngestOutcome {
     deps_modified: bool,
 }
 
+pub(super) fn filter_reingested_ids<S: std::hash::BuildHasher>(
+    removed_ids: &mut Vec<String>,
+    updated_entries: &HashMap<String, serde_json::Value, S>,
+) {
+    if removed_ids.is_empty() || updated_entries.is_empty() {
+        return;
+    }
+
+    removed_ids.retain(|id| !updated_entries.contains_key(id));
+}
+
 pub async fn process_events(flags: ChangeFlags, state: &Arc<AppState>) {
     for intf_name in flags.interfaces_asset {
         log::info!("Interface '{intf_name}' asset changed.");
@@ -338,6 +349,8 @@ pub async fn ingest_and_broadcast_albums(
             origin,
             &mut outcome,
         );
+
+        filter_reingested_ids(&mut outcome.removed_ids, &outcome.updated_dict_entries);
 
         let graph_pruned = deps_graph.prune();
         if outcome.deps_modified || graph_pruned {

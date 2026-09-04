@@ -1,5 +1,7 @@
 mod classifier;
 pub mod handler;
+#[cfg(test)]
+mod tests;
 mod watcher;
 
 use crate::server::state::AppState;
